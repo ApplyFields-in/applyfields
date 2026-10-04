@@ -1,0 +1,17 @@
+# Which folders are part of the JavaScript/TypeScript workspace.
+# apps/ingestion is Python, so pnpm ignores it (it has no package.json).
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 10 asks before running install scripts of dependencies.
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - prisma
+  - esbuild
+
+ignoredBuiltDependencies:
+  - "@nestjs/core"
+  - sharp
+  - unrs-resolver

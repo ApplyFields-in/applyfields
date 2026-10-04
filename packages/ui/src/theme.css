@@ -1,0 +1,54 @@
+/*
+ * ApplyFields design tokens — the ONLY colours the apps may use.
+ * Palette: Dark Teal #114B5F · Sea Green #1A936F · Celadon #88D498 · Tea Green #C6DABF · Vanilla Cream #F3E9D2
+ *
+ * Tailwind's default colours are switched off (`--color-*: initial`), so classes like
+ * bg-white or text-gray-500 simply don't exist. Lighter/darker shades are made only by
+ * blending palette colours (opacity, e.g. bg-teal/10, or the canvas/line tokens below).
+ *
+ * Readable text pairs (WCAG AA): teal on cream/canvas/celadon/tea · cream on teal.
+ * Sea Green is for icons, progress bars, big numbers and highlights — not small text on cream.
+ */
+
+@theme {
+  --color-*: initial;
+
+  --color-teal: #114b5f;     /* Dark Teal     — text, sidebar, primary buttons */
+  --color-sea: #1a936f;      /* Sea Green     — progress, active states, icons */
+  --color-celadon: #88d498;  /* Celadon       — badges, highlights */
+  --color-tea: #c6dabf;      /* Tea Green     — soft backgrounds, chips */
+  --color-cream: #f3e9d2;    /* Vanilla Cream — cards, text on teal */
+
+  /* blends of palette colours only */
+  --color-canvas: color-mix(in srgb, #c6dabf 32%, #f3e9d2);   /* page background */
+  --color-line: color-mix(in srgb, #114b5f 14%, transparent);  /* borders */
+
+  /* font files are bundled (@fontsource-variable/plus-jakarta-sans) — no internet needed */
+  --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 1.25rem;
+  --shadow-card: 0 1px 2px color-mix(in srgb, #114b5f 6%, transparent),
+    0 14px 32px -20px color-mix(in srgb, #114b5f 45%, transparent);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-teal);
+    word-spacing: 0.06em; /* Plus Jakarta Sans has narrow spaces */
+  }
+
+  ::selection {
+    background-color: var(--color-celadon);
+    color: var(--color-teal);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-sea);
+    outline-offset: 2px;
+  }
+}

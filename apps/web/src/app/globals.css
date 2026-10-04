@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* ApplyFields palette + tokens (the only colours allowed) */
+@import "../../../../packages/ui/src/theme.css";
+
+/* let Tailwind see the class names used inside the shared components */
+@source "../../../../packages/ui/src";

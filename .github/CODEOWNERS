@@ -1,0 +1,6 @@
+# Who must approve changes before they can be merged.
+# Likhith (team lead) owns everything: every PR needs his approval.
+# Don't add teammates here — any code owner's approval would let a PR merge.
+# (To ask Karthik or Harsha for a review, add them as reviewers on the PR instead.)
+
+*    @EmptyEch0
