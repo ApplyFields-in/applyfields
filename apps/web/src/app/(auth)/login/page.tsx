@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Badge, Card, buttonClass } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
-import { CheckCircle2, KeyRound, Lock, LogIn, Phone, ShieldCheck, User } from 'lucide-react';
+import { CheckCircle2, KeyRound, Lock, LogIn, ShieldCheck, User } from 'lucide-react';
+import { CountryPhoneInput } from '@/components/country-phone-input';
 import type { AuthResponse } from '@applyfields/types';
 
 function LoginForm() {
@@ -20,7 +21,7 @@ function LoginForm() {
   const [password, setPassword] = useState('');
 
   // OTP mode states
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('+91');
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
 
@@ -66,14 +67,16 @@ function LoginForm() {
 
   async function handleSendOtp() {
     setError(null);
-    if (!phone || !/^\+91[1-9]\d{9}$/.test(phone)) {
-      setError('Please enter a valid phone number formatted as +91XXXXXXXXXX');
+    const cleanPhone = phone.trim();
+    const hasDigits = cleanPhone.replace(/^\+\d+/, '').length > 0;
+    if (!hasDigits || !/^\+[1-9]\d{7,14}$/.test(cleanPhone)) {
+      setError('Please select your country and enter a valid mobile number.');
       return;
     }
 
     setLoading(true);
     const res = await apiPost<{ success: boolean; message: string }>('/auth/otp/send', {
-      target: phone.trim(),
+      target: cleanPhone,
       purpose: 'login',
     });
     setLoading(false);
@@ -292,19 +295,15 @@ function LoginForm() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-teal/80 mb-1">
-                Mobile Number
+                Mobile Number <span className="font-normal text-teal/60">(Select country code)</span>
               </label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Phone className="absolute left-3 top-2.5 size-4 text-teal/50" />
-                  <input
-                    type="tel"
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1">
+                  <CountryPhoneInput
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+919876543210"
+                    onChange={setPhone}
                     disabled={otpSent}
-                    className="w-full rounded-xl border border-line bg-canvas pl-9 pr-3 py-2 text-sm text-teal placeholder:text-teal/40 focus:outline-none disabled:opacity-60"
-                    required
+                    placeholder="9876543210"
                   />
                 </div>
                 {!otpSent ? (
@@ -329,6 +328,7 @@ function LoginForm() {
                   </button>
                 )}
               </div>
+              <p className="mt-1 text-[11px] text-teal/60">Click the country flag to change country code.</p>
             </div>
 
             {otpSent && (

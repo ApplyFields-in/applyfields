@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, Badge, buttonClass } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
-import { ArrowLeft, CheckCircle2, KeyRound, Mail, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, KeyRound, Mail, ShieldCheck } from 'lucide-react';
+import { CountryPhoneInput } from '@/components/country-phone-input';
 import type { UserSummary } from '@applyfields/types';
 
 export default function RegisterPage() {
@@ -13,7 +14,7 @@ export default function RegisterPage() {
 
   const [step, setStep] = useState<'form' | 'verify'>('form');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('+91');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -30,13 +31,17 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
 
-    if (!email && !phone) {
-      setError('Please provide at least an email address or mobile phone number.');
+    const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail) {
+      setError('Please provide a valid email address to prevent fake account registrations.');
       return;
     }
 
-    if (phone && !/^\+91[1-9]\d{9}$/.test(phone)) {
-      setError('Phone number must start with +91 followed by 10 digits (e.g. +919876543210).');
+    // Phone is optional, but if entered it must have valid digits
+    const cleanPhone = phone.trim();
+    const hasPhoneDigits = cleanPhone.replace(/^\+\d+/, '').length > 0;
+    if (hasPhoneDigits && !/^\+[1-9]\d{7,14}$/.test(cleanPhone)) {
+      setError('Please enter a valid phone number with your country code selected.');
       return;
     }
 
@@ -59,15 +64,15 @@ export default function RegisterPage() {
     const res = await apiPost<{ user: UserSummary; message: string; target: string }>(
       '/auth/register',
       {
-        email: email ? email.toLowerCase().trim() : undefined,
-        phone: phone ? phone.trim() : undefined,
+        email: cleanEmail,
+        phone: hasPhoneDigits ? cleanPhone : undefined,
         password,
       },
     );
     setLoading(false);
 
     if (res.error || !res.data) {
-      setError(res.error || 'Failed to register. Please try again.');
+      setError(res.error || 'Failed to register. Please check your details and try again.');
       return;
     }
 
@@ -102,7 +107,7 @@ export default function RegisterPage() {
       return;
     }
 
-    setSuccessMsg('Verification successful! Redirecting to login...');
+    setSuccessMsg('Email successfully verified! Redirecting to login...');
     setTimeout(() => {
       router.push('/login?verified=true');
     }, 1500);
@@ -134,7 +139,7 @@ export default function RegisterPage() {
               <Badge tone="celadon" className="mb-2">Citizen Registration</Badge>
               <h1 className="text-2xl font-bold tracking-tight text-teal">Create your account</h1>
               <p className="mt-1 text-sm text-teal/70">
-                One free account to track applications, verify eligibility, and get deadline alerts.
+                To prevent fake accounts, a one-time verification code (OTP) will be sent to your email.
               </p>
             </div>
 
@@ -147,7 +152,7 @@ export default function RegisterPage() {
             <form onSubmit={handleRegister} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-teal/80 mb-1">
-                  Email Address
+                  Email Address <span className="text-sea font-bold">* (Verified via OTP)</span>
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-2.5 size-4 text-teal/50" />
@@ -157,25 +162,24 @@ export default function RegisterPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="karthik@example.com"
                     className="w-full rounded-xl border border-line bg-canvas pl-9 pr-3 py-2 text-sm text-teal placeholder:text-teal/40 focus:outline-none"
+                    required
                   />
                 </div>
+                <p className="mt-1 text-[11px] text-teal/60">
+                  Verification OTP will be sent here to prevent fake or duplicate accounts.
+                </p>
               </div>
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-teal/80 mb-1">
-                  Mobile Number <span className="font-normal text-teal/60">(Optional if email given)</span>
+                  Mobile Number <span className="font-normal text-teal/60">(Select country code)</span>
                 </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-2.5 size-4 text-teal/50" />
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+919876543210"
-                    className="w-full rounded-xl border border-line bg-canvas pl-9 pr-3 py-2 text-sm text-teal placeholder:text-teal/40 focus:outline-none"
-                  />
-                </div>
-                <p className="mt-1 text-[11px] text-teal/60">Format: +91 followed by 10 digits</p>
+                <CountryPhoneInput
+                  value={phone}
+                  onChange={setPhone}
+                  placeholder="9876543210"
+                />
+                <p className="mt-1 text-[11px] text-teal/60">Click the country flag to change country code.</p>
               </div>
 
               <div>
@@ -243,7 +247,7 @@ export default function RegisterPage() {
                 disabled={loading}
                 className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full mt-4' })}
               >
-                {loading ? 'Creating account...' : 'Create Account'}
+                {loading ? 'Creating account...' : 'Create Account & Send Email OTP'}
               </button>
             </form>
 
@@ -265,10 +269,10 @@ export default function RegisterPage() {
             </button>
 
             <div className="mb-6">
-              <Badge tone="celadon" className="mb-2">Step 2: Verification</Badge>
-              <h2 className="text-2xl font-bold tracking-tight text-teal">Verify your account</h2>
+              <Badge tone="celadon" className="mb-2">Email Verification</Badge>
+              <h2 className="text-2xl font-bold tracking-tight text-teal">Verify your email</h2>
               <p className="mt-1 text-sm text-teal/70">
-                We sent a 6-digit one-time code to <strong className="text-teal font-semibold">{target}</strong>.
+                To prevent fake email accounts, enter the 6-digit code sent to <strong className="text-teal font-semibold">{target}</strong>.
               </p>
             </div>
 
@@ -288,14 +292,14 @@ export default function RegisterPage() {
             <div className="mb-4 rounded-xl border border-line bg-tea/20 p-3 text-xs text-teal/80 flex items-start gap-2">
               <ShieldCheck className="size-4 text-sea shrink-0 mt-0.5" />
               <span>
-                <strong>Dev Mode:</strong> OTP codes are logged to the API terminal console instead of sending real SMS/email.
+                <strong>Dev Mode:</strong> OTP codes are logged to the API terminal console instead of sending email.
               </span>
             </div>
 
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-teal/80 mb-1">
-                  6-Digit OTP Code
+                  6-Digit Email OTP
                 </label>
                 <input
                   type="text"
@@ -313,7 +317,7 @@ export default function RegisterPage() {
                 disabled={loading || otpCode.length !== 6}
                 className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full' })}
               >
-                {loading ? 'Verifying...' : 'Verify & Continue'}
+                {loading ? 'Verifying...' : 'Verify Email & Complete Registration'}
               </button>
 
               <div className="text-center pt-2">
@@ -323,7 +327,7 @@ export default function RegisterPage() {
                   disabled={loading}
                   className="text-xs font-semibold text-teal hover:underline disabled:opacity-50"
                 >
-                  Didn&apos;t receive code? Resend OTP
+                  Didn&apos;t receive code? Resend Email OTP
                 </button>
               </div>
             </form>
