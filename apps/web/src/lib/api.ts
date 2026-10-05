@@ -16,19 +16,90 @@ function resolveAuthToken(token?: string): string | undefined {
   return undefined;
 }
 
-/** GET a JSON endpoint. Returns null if the API is down or answers with an error. */
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+/**
+ * Attempts silent token renewal via /auth/refresh using httpOnly cookie or fallback body token.
+ * Prevents multiple simultaneous refresh calls with a single shared promise.
+ */
+export async function attemptTokenRefresh(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const storedRefreshToken = localStorage.getItem('refreshToken');
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken: storedRefreshToken ?? undefined }),
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('currentUser');
+        window.dispatchEvent(new Event('auth-changed'));
+        return null;
+      }
+
+      const json = await res.json().catch(() => null);
+      if (json?.accessToken) {
+        localStorage.setItem('accessToken', json.accessToken);
+        if (json.refreshToken) {
+          localStorage.setItem('refreshToken', json.refreshToken);
+        }
+        window.dispatchEvent(new Event('auth-changed'));
+        return json.accessToken as string;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+/** GET a JSON endpoint. Automatically attempts refresh if access token expired. */
 export async function apiGet<T>(path: string, token?: string): Promise<T | null> {
   try {
     const headers: Record<string, string> = {};
     const authToken = resolveAuthToken(token);
     if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
-    const res = await fetch(`${API_URL}${path}`, {
+    let res = await fetch(`${API_URL}${path}`, {
       cache: 'no-store',
       headers,
       credentials: 'include',
       signal: AbortSignal.timeout(6000),
     });
+
+    // If unauthorized and we had a token, try silent refresh once
+    if (res.status === 401 && typeof window !== 'undefined' && authToken) {
+      const refreshedToken = await attemptTokenRefresh();
+      if (refreshedToken) {
+        headers['Authorization'] = `Bearer ${refreshedToken}`;
+        res = await fetch(`${API_URL}${path}`, {
+          cache: 'no-store',
+          headers,
+          credentials: 'include',
+          signal: AbortSignal.timeout(6000),
+        });
+      }
+    }
+
     return res.ok ? ((await res.json()) as T) : null;
   } catch {
     return null;
@@ -41,7 +112,7 @@ export interface ApiResponse<T> {
   status: number;
 }
 
-/** POST a JSON endpoint with cookies included for refresh token sessions. */
+/** POST a JSON endpoint with automatic silent refresh on 401. */
 export async function apiPost<T, B = unknown>(path: string, body?: B, token?: string): Promise<ApiResponse<T>> {
   try {
     const headers: Record<string, string> = {
@@ -50,13 +121,33 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, token?: st
     const authToken = resolveAuthToken(token);
     if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
-    const res = await fetch(`${API_URL}${path}`, {
+    let res = await fetch(`${API_URL}${path}`, {
       method: 'POST',
       headers,
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',
       signal: AbortSignal.timeout(8000),
     });
+
+    if (
+      res.status === 401 &&
+      typeof window !== 'undefined' &&
+      authToken &&
+      !path.includes('/auth/login') &&
+      !path.includes('/auth/refresh')
+    ) {
+      const refreshedToken = await attemptTokenRefresh();
+      if (refreshedToken) {
+        headers['Authorization'] = `Bearer ${refreshedToken}`;
+        res = await fetch(`${API_URL}${path}`, {
+          method: 'POST',
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          credentials: 'include',
+          signal: AbortSignal.timeout(8000),
+        });
+      }
+    }
 
     const json = await res.json().catch(() => null);
     if (!res.ok) {
@@ -70,7 +161,7 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, token?: st
   }
 }
 
-/** PUT a JSON endpoint to update resources. */
+/** PUT a JSON endpoint with automatic silent refresh on 401. */
 export async function apiPut<T, B = unknown>(path: string, body?: B, token?: string): Promise<ApiResponse<T>> {
   try {
     const headers: Record<string, string> = {
@@ -79,13 +170,27 @@ export async function apiPut<T, B = unknown>(path: string, body?: B, token?: str
     const authToken = resolveAuthToken(token);
     if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
-    const res = await fetch(`${API_URL}${path}`, {
+    let res = await fetch(`${API_URL}${path}`, {
       method: 'PUT',
       headers,
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',
       signal: AbortSignal.timeout(8000),
     });
+
+    if (res.status === 401 && typeof window !== 'undefined' && authToken) {
+      const refreshedToken = await attemptTokenRefresh();
+      if (refreshedToken) {
+        headers['Authorization'] = `Bearer ${refreshedToken}`;
+        res = await fetch(`${API_URL}${path}`, {
+          method: 'PUT',
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          credentials: 'include',
+          signal: AbortSignal.timeout(8000),
+        });
+      }
+    }
 
     const json = await res.json().catch(() => null);
     if (!res.ok) {
@@ -99,19 +204,32 @@ export async function apiPut<T, B = unknown>(path: string, body?: B, token?: str
   }
 }
 
-/** DELETE a resource from a JSON endpoint. */
+/** DELETE a resource from a JSON endpoint with automatic silent refresh on 401. */
 export async function apiDelete<T>(path: string, token?: string): Promise<ApiResponse<T>> {
   try {
     const headers: Record<string, string> = {};
     const authToken = resolveAuthToken(token);
     if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
-    const res = await fetch(`${API_URL}${path}`, {
+    let res = await fetch(`${API_URL}${path}`, {
       method: 'DELETE',
       headers,
       credentials: 'include',
       signal: AbortSignal.timeout(8000),
     });
+
+    if (res.status === 401 && typeof window !== 'undefined' && authToken) {
+      const refreshedToken = await attemptTokenRefresh();
+      if (refreshedToken) {
+        headers['Authorization'] = `Bearer ${refreshedToken}`;
+        res = await fetch(`${API_URL}${path}`, {
+          method: 'DELETE',
+          headers,
+          credentials: 'include',
+          signal: AbortSignal.timeout(8000),
+        });
+      }
+    }
 
     const json = await res.json().catch(() => null);
     if (!res.ok) {

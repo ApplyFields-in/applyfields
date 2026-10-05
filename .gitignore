@@ -15,6 +15,7 @@ coverage/
 *.tsbuildinfo
 npm-debug.log*
 pnpm-debug.log*
+.data/
 
 # ---------- Python ----------
 __pycache__/

@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type {
   UserEducation,
   UserProfile,
   UserSummary,
 } from '@applyfields/types';
+
+const STORE_FILE_PATH = join(process.cwd(), '.data', 'users-store.json');
 
 export interface UserEntity {
   id: string;
@@ -66,6 +70,65 @@ export class UsersStore {
   private profiles = new Map<string, UserProfile>();
   private educations = new Map<string, UserEducation>();
 
+  constructor() {
+    this.loadFromDisk();
+  }
+
+  private isTestEnv(): boolean {
+    return process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+  }
+
+  private loadFromDisk(): void {
+    if (this.isTestEnv()) return;
+    try {
+      if (existsSync(STORE_FILE_PATH)) {
+        const raw = readFileSync(STORE_FILE_PATH, 'utf-8');
+        const data = JSON.parse(raw);
+        if (Array.isArray(data.users)) {
+          for (const u of data.users) this.users.set(u.id, u);
+        }
+        if (Array.isArray(data.sessions)) {
+          for (const s of data.sessions) this.sessions.set(s.id, s);
+        }
+        if (Array.isArray(data.otps)) {
+          for (const o of data.otps) this.otps.set(o.id, o);
+        }
+        if (Array.isArray(data.consents)) {
+          this.consents = data.consents;
+        }
+        if (Array.isArray(data.profiles)) {
+          for (const p of data.profiles) this.profiles.set(p.user_id, p);
+        }
+        if (Array.isArray(data.educations)) {
+          for (const e of data.educations) this.educations.set(e.id, e);
+        }
+      }
+    } catch (err) {
+      console.warn('[UsersStore] Could not load data from disk, using fresh store:', err);
+    }
+  }
+
+  private saveToDisk(): void {
+    if (this.isTestEnv()) return;
+    try {
+      const dir = dirname(STORE_FILE_PATH);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      const data = {
+        users: Array.from(this.users.values()),
+        sessions: Array.from(this.sessions.values()),
+        otps: Array.from(this.otps.values()),
+        consents: this.consents,
+        profiles: Array.from(this.profiles.values()),
+        educations: Array.from(this.educations.values()),
+      };
+      writeFileSync(STORE_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.warn('[UsersStore] Could not save data to disk:', err);
+    }
+  }
+
   // --- Users ---
   createUser(data: {
     email?: string;
@@ -111,6 +174,7 @@ export class UsersStore {
       updated_at: now,
     });
 
+    this.saveToDisk();
     return user;
   }
 
@@ -159,6 +223,7 @@ export class UsersStore {
       updated_at: new Date().toISOString(),
     };
     this.users.set(id, updated);
+    this.saveToDisk();
     return updated;
   }
 
@@ -183,6 +248,7 @@ export class UsersStore {
       withdrawn_at: null,
     };
     this.consents.push(consent);
+    this.saveToDisk();
     return consent;
   }
 
@@ -212,6 +278,7 @@ export class UsersStore {
       created_at: new Date().toISOString(),
     };
     this.sessions.set(session.id, session);
+    this.saveToDisk();
     return session;
   }
 
@@ -230,6 +297,7 @@ export class UsersStore {
     if (session) {
       session.revoked_at = new Date().toISOString();
       this.sessions.set(id, session);
+      this.saveToDisk();
     }
   }
 
@@ -241,6 +309,7 @@ export class UsersStore {
         this.sessions.set(id, session);
       }
     }
+    this.saveToDisk();
   }
 
   // --- OTPs ---
@@ -263,6 +332,7 @@ export class UsersStore {
       created_at: new Date().toISOString(),
     };
     this.otps.set(otp.id, otp);
+    this.saveToDisk();
     return otp;
   }
 
@@ -297,6 +367,7 @@ export class UsersStore {
     if (otp) {
       otp.attempts += 1;
       this.otps.set(otpId, otp);
+      this.saveToDisk();
     }
   }
 
@@ -305,6 +376,7 @@ export class UsersStore {
     if (otp) {
       otp.used_at = new Date().toISOString();
       this.otps.set(otpId, otp);
+      this.saveToDisk();
     }
   }
 
@@ -340,6 +412,7 @@ export class UsersStore {
       updated_at: new Date().toISOString(),
     };
     this.profiles.set(userId, updated);
+    this.saveToDisk();
     return updated;
   }
 
@@ -367,6 +440,7 @@ export class UsersStore {
       updated_at: now,
     };
     this.educations.set(id, entry);
+    this.saveToDisk();
     return entry;
   }
 
@@ -379,12 +453,15 @@ export class UsersStore {
       updated_at: new Date().toISOString(),
     };
     this.educations.set(id, updated);
+    this.saveToDisk();
     return updated;
   }
 
   deleteEducation(id: string, userId: string): boolean {
     const entry = this.educations.get(id);
     if (!entry || entry.user_id !== userId) return false;
-    return this.educations.delete(id);
+    const res = this.educations.delete(id);
+    this.saveToDisk();
+    return res;
   }
 }

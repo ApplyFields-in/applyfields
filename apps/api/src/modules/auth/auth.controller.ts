@@ -63,6 +63,7 @@ export class AuthController {
     return {
       user: result.user,
       accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     };
   }
 
@@ -84,6 +85,7 @@ export class AuthController {
     return {
       user: result.user,
       accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     };
   }
 
@@ -92,8 +94,9 @@ export class AuthController {
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
+    @Body() body?: { refreshToken?: string },
   ) {
-    const rawRefreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+    const rawRefreshToken = req.cookies?.[REFRESH_COOKIE_NAME] || body?.refreshToken;
     const meta = {
       userAgent: req.headers['user-agent'],
       ipAddress: req.ip || req.socket.remoteAddress,
@@ -105,6 +108,7 @@ export class AuthController {
 
     return {
       accessToken: result.accessToken,
+      refreshToken: result.newRefreshToken,
     };
   }
 
@@ -113,8 +117,9 @@ export class AuthController {
   async logout(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
+    @Body() body?: { refreshToken?: string },
   ) {
-    const rawRefreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+    const rawRefreshToken = req.cookies?.[REFRESH_COOKIE_NAME] || body?.refreshToken;
     await this.authService.logout(rawRefreshToken);
 
     res.clearCookie(REFRESH_COOKIE_NAME, {

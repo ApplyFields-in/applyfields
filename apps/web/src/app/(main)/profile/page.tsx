@@ -294,6 +294,9 @@ export default function ProfilePage() {
     const res = await apiPut<UserProfile>('/me/profile', { avatar_url: newAvatarId });
     if (res.data) {
       setProfile(res.data);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('auth-changed'));
+      }
       setSaveSuccess('Pixel avatar updated successfully!');
       setTimeout(() => setSaveSuccess(null), 3000);
     }
@@ -468,10 +471,13 @@ export default function ProfilePage() {
 
   // Handle user logout
   async function handleLogout() {
-    await apiPost('/auth/logout');
+    const rawRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') ?? undefined : undefined;
+    await apiPost('/auth/logout', { refreshToken: rawRefreshToken });
     if (typeof window !== 'undefined') {
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('currentUser');
+      window.dispatchEvent(new Event('auth-changed'));
     }
     router.push('/login');
   }

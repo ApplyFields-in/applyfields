@@ -304,7 +304,7 @@ export class AuthService {
 
     const accessSecret =
       process.env.JWT_ACCESS_SECRET ?? 'applyfields_dev_jwt_access_secret_32bytes_min_key';
-    const accessTtl = process.env.JWT_ACCESS_TTL ?? '15m';
+    const accessTtl = process.env.JWT_ACCESS_TTL ?? '7d';
 
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: accessSecret,

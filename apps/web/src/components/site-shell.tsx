@@ -1,11 +1,12 @@
 import type { ApiHealth } from '@applyfields/types';
 import { buttonClass, Shell, Sidebar } from '@applyfields/ui';
-import { Bell, Crown, LogIn, Search, ShieldCheck, Sparkles, Store, UserPlus } from 'lucide-react';
+import { Bell, Crown, Search, ShieldCheck, Sparkles, Store } from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { apiGet, API_URL } from '@/lib/api';
 import { NAV } from '@/lib/nav';
+import { TopNavAuth } from '@/components/top-nav-auth';
 
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
@@ -60,12 +61,7 @@ function Topbar() {
           <Bell className="size-4" />
           <span className="absolute right-2.5 top-2.5 size-2 rounded-full bg-sea" aria-hidden="true" />
         </Link>
-        <Link href="/login" className={buttonClass({ variant: 'secondary', className: 'hidden sm:inline-flex' })}>
-          <LogIn aria-hidden="true" /> Log in
-        </Link>
-        <Link href="/register" className={buttonClass()}>
-          <UserPlus aria-hidden="true" /> Register
-        </Link>
+        <TopNavAuth />
       </div>
     </>
   );
