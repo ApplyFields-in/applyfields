@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Badge, Card } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
 import { CheckCircle2, KeyRound, Lock, LogIn, Mail, Phone, ShieldCheck } from 'lucide-react';
-import { CountryPhoneInput } from '@/components/country-phone-input';
+import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
 import { OtpInput } from '@/components/otp-input';
 import type { AuthResponse } from '@applyfields/types';
 
@@ -49,8 +49,8 @@ function LoginForm() {
 
     const target = passwordCredType === 'phone' ? passwordPhone.trim() : passwordEmail.trim();
     if (passwordCredType === 'phone') {
-      const hasDigits = target.replace(/^\+\d+/, '').length > 0;
-      if (!hasDigits) {
+      const national = extractNationalDigits(target);
+      if (!national || !isValidPhone(target)) {
         setError('Please select your country and enter your mobile number.');
         return;
       }
@@ -87,9 +87,8 @@ function LoginForm() {
   async function handleSendOtp() {
     setError(null);
     const cleanPhone = phone.trim();
-    const hasDigits = cleanPhone.replace(/^\+\d+/, '').length > 0;
-    if (!hasDigits || !/^\+[1-9]\d{7,14}$/.test(cleanPhone)) {
-      setError('Please select your country and enter a valid mobile number.');
+    if (!isValidPhone(cleanPhone)) {
+      setError('Please select your country and enter your mobile number.');
       return;
     }
 
@@ -147,8 +146,7 @@ function LoginForm() {
     setError(null);
     const target = forgotCredType === 'phone' ? forgotPhone.trim() : forgotEmail.trim();
     if (forgotCredType === 'phone') {
-      const hasDigits = target.replace(/^\+\d+/, '').length > 0;
-      if (!hasDigits) {
+      if (!isValidPhone(target)) {
         setError('Please select your country and enter your mobile number.');
         return;
       }

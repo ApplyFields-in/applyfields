@@ -33,6 +33,21 @@ export const COUNTRIES: Country[] = [
   { name: 'South Africa', code: 'ZA', dialCode: '+27', flag: '🇿🇦' },
 ];
 
+export function extractNationalDigits(fullPhone: string): string {
+  if (!fullPhone) return '';
+  const matched = COUNTRIES.find((c) => fullPhone.startsWith(c.dialCode));
+  if (matched) {
+    return fullPhone.slice(matched.dialCode.length).replace(/\D/g, '');
+  }
+  return fullPhone.replace(/^\+/, '').replace(/\D/g, '');
+}
+
+export function isValidPhone(fullPhone: string): boolean {
+  if (!fullPhone) return false;
+  const national = extractNationalDigits(fullPhone);
+  return national.length >= 7 && /^\+[1-9]\d{7,14}$/.test(fullPhone.trim());
+}
+
 interface CountryPhoneInputProps {
   value: string; // Full e.164 string like "+919876543210" or empty
   onChange: (fullPhoneNumber: string) => void;
@@ -54,9 +69,7 @@ export function CountryPhoneInput({
   const selectedCountry = matchedCountry ?? selectedCountryState;
 
   // Derive phone digits directly from value
-  const phoneNumber = value.startsWith(selectedCountry.dialCode)
-    ? value.slice(selectedCountry.dialCode.length)
-    : value.replace(/^\+\d+/, '');
+  const phoneNumber = extractNationalDigits(value);
 
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');

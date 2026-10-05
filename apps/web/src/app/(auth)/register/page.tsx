@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Card, Badge } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
 import { ArrowLeft, CheckCircle2, KeyRound, Mail, ShieldCheck, UserPlus } from 'lucide-react';
-import { CountryPhoneInput } from '@/components/country-phone-input';
+import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
 import { OtpInput } from '@/components/otp-input';
 import type { UserSummary } from '@applyfields/types';
 
@@ -41,8 +41,9 @@ export default function RegisterPage() {
 
     // Phone is optional, but if entered it must have valid digits
     const cleanPhone = phone.trim();
-    const hasPhoneDigits = cleanPhone.replace(/^\+\d+/, '').length > 0;
-    if (hasPhoneDigits && !/^\+[1-9]\d{7,14}$/.test(cleanPhone)) {
+    const nationalDigits = extractNationalDigits(cleanPhone);
+    const hasPhoneDigits = nationalDigits.length > 0;
+    if (hasPhoneDigits && !isValidPhone(cleanPhone)) {
       setError('Please enter a valid phone number with your country code selected.');
       return;
     }
