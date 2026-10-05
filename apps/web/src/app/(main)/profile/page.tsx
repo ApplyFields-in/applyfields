@@ -1,10 +1,16 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge, Card, ProgressBar } from '@applyfields/ui';
 import { apiGet, apiPut, apiPost, apiDelete } from '@/lib/api';
+import { PixelAvatar, PIXEL_AVATARS } from '@/components/pixel-avatars';
+import {
+  extractEducationFromResume,
+  extractTextFromFile,
+  type ExtractedEducation,
+} from '@/lib/resume-parser';
 import type {
   EducationLevel,
   EducationStatus,
@@ -18,7 +24,9 @@ import type {
 } from '@applyfields/types';
 import {
   Calendar,
+  Check,
   CheckCircle2,
+  FileText,
   GraduationCap,
   Info,
   LogIn,
@@ -28,8 +36,10 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  UploadCloud,
   User,
   UserPlus,
+  Wand2,
   X,
 } from 'lucide-react';
 
@@ -82,6 +92,22 @@ const EDUCATION_LEVEL_LABELS: Record<EducationLevel, string> = {
   phd: 'Doctorate (Ph.D)',
 };
 
+const SAMPLE_RESUME_SNIPPET = `KARTHIK YGS
+Email: karthik@example.com | Phone: +91 9898989898
+
+EDUCATION
+• Bachelor of Technology (B.Tech) in Computer Science & Engineering
+  Jawaharlal Nehru Technological University (JNTU Hyderabad), 2024
+  CGPA: 8.45 / 10 | Status: Completed
+
+• Intermediate / Class 12th (MPC)
+  Telangana State Board of Intermediate Education, 2020
+  Percentage: 92.4% | Status: Completed
+
+• Class 10th (Secondary School Certificate)
+  State Board of Secondary Education, 2018
+  Percentage: 88.0% | Status: Completed`;
+
 function calculateAge(dobString: string | null): { years: number; months: number } | null {
   if (!dobString) return null;
   const dob = new Date(dobString);
@@ -115,6 +141,10 @@ export default function ProfilePage() {
   // Active sub-tab
   const [tab, setTab] = useState<'personal' | 'education' | 'account'>('personal');
 
+  // Avatar states
+  const [avatarUrl, setAvatarUrl] = useState<string>('pixel-scholar');
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+
   // Form states - Personal details
   const [fullName, setFullName] = useState('');
   const [dob, setDob] = useState('');
@@ -143,6 +173,13 @@ export default function ProfilePage() {
   const [eduScoreType, setEduScoreType] = useState<ScoreType>('percentage');
   const [eduStatus, setEduStatus] = useState<EducationStatus>('completed');
 
+  // Resume Upload & Extraction states
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [resumeText, setResumeText] = useState('');
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedEducations, setExtractedEducations] = useState<ExtractedEducation[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+
   // Actions & status states
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
@@ -170,6 +207,7 @@ export default function ProfilePage() {
       setCurrentUser(res.user);
       if (res.profile) {
         setProfile(res.profile);
+        setAvatarUrl(res.profile.avatar_url || 'pixel-scholar');
         setFullName(res.profile.full_name ?? '');
         setDob(res.profile.date_of_birth ?? '');
         setGender(res.profile.gender ?? 'male');
@@ -219,6 +257,7 @@ export default function ProfilePage() {
     setSaving(true);
 
     const payload = {
+      avatar_url: avatarUrl,
       full_name: fullName.trim() || undefined,
       date_of_birth: dob || undefined,
       gender,
@@ -243,6 +282,20 @@ export default function ProfilePage() {
       setProfile(res.data);
       setSaveSuccess('Personal details & eligibility criteria updated successfully!');
       setTimeout(() => setSaveSuccess(null), 4000);
+    }
+  }
+
+  // Handle selecting one of the 10 pixel avatars
+  async function handleSelectAvatar(newAvatarId: string) {
+    setAvatarUrl(newAvatarId);
+    setShowAvatarModal(false);
+    setSaveSuccess('Avatar selected! Saving profile...');
+
+    const res = await apiPut<UserProfile>('/me/profile', { avatar_url: newAvatarId });
+    if (res.data) {
+      setProfile(res.data);
+      setSaveSuccess('Pixel avatar updated successfully!');
+      setTimeout(() => setSaveSuccess(null), 3000);
     }
   }
 
@@ -338,6 +391,81 @@ export default function ProfilePage() {
     setEduStatus('completed');
   }
 
+  // Resume File Upload handler
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsExtracting(true);
+    setSaveError(null);
+    try {
+      const text = await extractTextFromFile(file);
+      setResumeText(text);
+      const parsed = extractEducationFromResume(text);
+      setExtractedEducations(parsed);
+      if (parsed.length === 0) {
+        setSaveError('Could not find standard degree/school keywords in this file. Try pasting your resume text below.');
+      } else {
+        setSaveSuccess(`Found ${parsed.length} educational qualification(s) in your resume!`);
+      }
+    } catch {
+      setSaveError('Failed to read resume file. You can paste your resume text directly below.');
+    } finally {
+      setIsExtracting(false);
+    }
+  }
+
+  // Extract from pasted text
+  function handleExtractFromText() {
+    if (!resumeText.trim()) return;
+    setIsExtracting(true);
+    const parsed = extractEducationFromResume(resumeText);
+    setExtractedEducations(parsed);
+    setIsExtracting(false);
+    if (parsed.length === 0) {
+      setSaveError('No educational milestones recognized. Ensure degrees like B.Tech, SSC, or 12th are mentioned.');
+    } else {
+      setSaveSuccess(`Identified ${parsed.length} qualification(s) from your resume! Review and import below.`);
+    }
+  }
+
+  // Import all extracted qualifications to user profile
+  async function handleImportExtracted() {
+    if (extractedEducations.length === 0) return;
+    setIsImporting(true);
+    setSaveError(null);
+
+    let successCount = 0;
+    const addedList: UserEducation[] = [];
+
+    for (const item of extractedEducations) {
+      const payload = {
+        level: item.level,
+        degree: item.degree || undefined,
+        stream: item.stream || undefined,
+        board_or_university: item.board_or_university || undefined,
+        institution_name: item.institution_name || undefined,
+        year_of_passing: item.year_of_passing ?? undefined,
+        score: item.score ?? undefined,
+        score_type: item.score_type,
+        status: item.status,
+      };
+
+      const res = await apiPost<UserEducation>('/me/education', payload);
+      if (res.data) {
+        successCount++;
+        addedList.push(res.data);
+      }
+    }
+
+    setIsImporting(false);
+    setEducations((prev) => [...prev, ...addedList]);
+    setExtractedEducations([]);
+    setResumeText('');
+    setSaveSuccess(`Imported ${successCount} qualification(s) from your resume into your profile!`);
+    setTimeout(() => setSaveSuccess(null), 4000);
+  }
+
   // Handle user logout
   async function handleLogout() {
     await apiPost('/auth/logout');
@@ -399,9 +527,20 @@ export default function ProfilePage() {
       <Card className="p-6 sm:p-8 border-2 border-line bg-cream rounded-3xl shadow-[0_20px_40px_-10px_rgba(17,75,95,0.18),0_6px_0_0_#114b5f] relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="grid size-16 sm:size-20 shrink-0 place-items-center rounded-2xl bg-celadon text-teal font-black text-2xl border-2 border-line shadow-[0_4px_0_0_#114b5f]">
-              {fullName ? fullName.slice(0, 2).toUpperCase() : (currentUser?.email?.[0] || 'U').toUpperCase()}
+            {/* Interactive Pixel Avatar with Change Badge */}
+            <div className="relative group cursor-pointer" onClick={() => setShowAvatarModal(true)}>
+              <div className="rounded-2xl border-2 border-line p-1 bg-canvas shadow-[0_4px_0_0_#114b5f] group-hover:scale-105 transition-transform">
+                <PixelAvatar avatarId={avatarUrl} size={72} />
+              </div>
+              <button
+                type="button"
+                className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-teal text-cream shadow-xs border border-cream hover:bg-sea transition-all"
+                title="Choose Pixel Avatar"
+              >
+                <Wand2 className="size-3.5" />
+              </button>
             </div>
+
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-black text-teal tracking-tight">
@@ -410,6 +549,13 @@ export default function ProfilePage() {
                 <Badge tone="teal" className="text-[11px] shadow-xs">
                   {category || 'General'}
                 </Badge>
+                <button
+                  type="button"
+                  onClick={() => setShowAvatarModal(true)}
+                  className="px-2.5 py-0.5 rounded-full bg-tea/60 border border-line text-[10px] font-extrabold text-teal hover:bg-tea transition-all"
+                >
+                  Change Pixel Avatar
+                </button>
               </div>
               <p className="mt-1 text-xs sm:text-sm text-teal/70">
                 {currentUser?.email || currentUser?.phone || 'Citizen Account'}
@@ -477,6 +623,63 @@ export default function ProfilePage() {
           </div>
         </div>
       </Card>
+
+      {/* 10 Pixel Avatars Selector Modal */}
+      {showAvatarModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-teal/40 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-xl rounded-3xl border-2 border-line bg-cream p-6 sm:p-8 shadow-[0_24px_48px_rgba(17,75,95,0.35),0_6px_0_0_#114b5f]">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-black text-teal">Select Your Pixel Avatar</h3>
+                <p className="text-xs text-teal/70">
+                  Pick one of 10 handcrafted retro pixel characters for your citizen profile.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAvatarModal(false)}
+                className="p-1.5 rounded-xl hover:bg-tea/40 text-teal/70 hover:text-teal transition-all"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 max-h-[60vh] overflow-y-auto p-1">
+              {PIXEL_AVATARS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleSelectAvatar(item.id)}
+                  className={`flex flex-col items-center p-3 rounded-2xl border-2 transition-all text-center relative group ${
+                    avatarUrl === item.id
+                      ? 'border-sea bg-sea/15 shadow-[0_4px_0_0_#028090] -translate-y-1'
+                      : 'border-line bg-canvas hover:border-teal/50 hover:bg-tea/20'
+                  }`}
+                >
+                  <PixelAvatar avatarId={item.id} size={56} className="shadow-xs mb-2" />
+                  <span className="text-xs font-black text-teal leading-tight block">{item.name}</span>
+                  <span className="text-[10px] text-teal/60 truncate w-full mt-0.5">{item.title}</span>
+                  {avatarUrl === item.id && (
+                    <div className="absolute top-1.5 right-1.5 p-1 rounded-full bg-sea text-cream">
+                      <Check className="size-3" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-5 pt-3 border-t border-line/60 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowAvatarModal(false)}
+                className="px-5 py-2 rounded-xl border border-line bg-canvas text-xs font-bold text-teal hover:bg-tea/30"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3D Segmented Navigation Tabs */}
       <div className="flex rounded-2xl border-2 border-line/70 bg-tea/30 p-1.5 shadow-[inset_0_2px_4px_rgba(17,75,95,0.06)]">
@@ -828,14 +1031,153 @@ export default function ProfilePage() {
         </form>
       )}
 
-      {/* TAB 2: Educational Qualifications */}
+      {/* TAB 2: Educational Qualifications & Resume Extractor */}
       {tab === 'education' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          {/* Smart Resume Extraction Feature Card */}
+          <Card className="p-6 sm:p-7 border-2 border-sea/30 bg-sea/10 rounded-3xl shadow-[0_16px_32px_-8px_rgba(2,128,144,0.15),0_4px_0_0_#028090] relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <div>
+                <Badge tone="celadon" className="mb-1.5 shadow-xs">
+                  <Sparkles className="size-3 text-sea mr-1" /> AI Resume Extractor
+                </Badge>
+                <h3 className="text-base sm:text-lg font-black text-teal">
+                  Upload Resume to Extract Educational Background
+                </h3>
+                <p className="text-xs text-teal/75 mt-0.5">
+                  Drop your resume file or paste text below. We will automatically parse your degrees, streams, universities, and scores.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.txt,.docx,.text"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isExtracting}
+                  className="h-10 px-4 rounded-xl bg-sea text-cream font-black text-xs flex items-center gap-2 border-b-2 border-sea/80 shadow-xs hover:-translate-y-0.5 active:translate-y-0.5 active:border-b-0 transition-all disabled:opacity-60"
+                >
+                  <UploadCloud className="size-4" />
+                  {isExtracting ? 'Extracting...' : 'Upload Resume (.pdf / .txt)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResumeText(SAMPLE_RESUME_SNIPPET);
+                    const parsed = extractEducationFromResume(SAMPLE_RESUME_SNIPPET);
+                    setExtractedEducations(parsed);
+                    setSaveSuccess(`Loaded sample resume and recognized ${parsed.length} qualifications!`);
+                  }}
+                  className="h-10 px-3.5 rounded-xl bg-canvas border border-line text-teal font-extrabold text-xs hover:bg-tea/30 active:translate-y-0.5 transition-all"
+                >
+                  Try Sample
+                </button>
+              </div>
+            </div>
+
+            {/* Paste or review text collapsible box */}
+            <div className="rounded-2xl border-2 border-line bg-canvas p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-teal/70 flex items-center gap-1.5">
+                  <FileText className="size-3.5 text-sea" /> Or Paste Resume Text
+                </span>
+                {resumeText && (
+                  <button
+                    type="button"
+                    onClick={handleExtractFromText}
+                    className="text-[11px] font-black text-sea underline hover:text-teal"
+                  >
+                    Re-Analyze Text
+                  </button>
+                )}
+              </div>
+              <textarea
+                rows={3}
+                value={resumeText}
+                onChange={(e) => setResumeText(e.target.value)}
+                placeholder="Paste education section from your resume here (e.g. B.Tech Computer Science JNTU 2024 CGPA 8.4)..."
+                className="w-full rounded-xl bg-cream p-2.5 text-xs text-teal placeholder:text-teal/40 focus:outline-none focus:ring-1 focus:ring-sea border border-line"
+              />
+              {resumeText && (
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleExtractFromText}
+                    disabled={isExtracting}
+                    className="px-4 py-1.5 rounded-xl bg-teal text-cream text-xs font-black hover:bg-teal/90 active:translate-y-0.5 transition-all shadow-xs"
+                  >
+                    Extract Qualifications
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Extracted Qualifications Preview & One-Click Import */}
+            {extractedEducations.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-sea/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-teal">
+                      Recognized Qualifications ({extractedEducations.length}):
+                    </span>
+                    <Badge tone="celadon" className="text-[10px]">Ready to Import</Badge>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleImportExtracted}
+                    disabled={isImporting}
+                    className="px-4 py-2 rounded-xl bg-teal text-cream font-black text-xs flex items-center gap-1.5 border-b-2 border-teal/70 shadow-xs hover:-translate-y-0.5 active:translate-y-0.5 active:border-b-0 transition-all disabled:opacity-60"
+                  >
+                    <Check className="size-3.5" />
+                    {isImporting ? 'Importing...' : `Import All (${extractedEducations.length}) to Profile`}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {extractedEducations.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-2xl border-2 border-line bg-cream shadow-xs space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <Badge tone="celadon" className="text-[10px] font-black uppercase">
+                          {item.level}
+                        </Badge>
+                        <span className="text-[10px] font-extrabold text-teal/60">
+                          {item.year_of_passing ? `Year: ${item.year_of_passing}` : 'Year: -'}
+                        </span>
+                      </div>
+                      <p className="text-xs font-black text-teal leading-tight">{item.degree}</p>
+                      {item.stream && (
+                        <p className="text-[11px] font-bold text-sea">{item.stream}</p>
+                      )}
+                      {item.institution_name && (
+                        <p className="text-[10px] text-teal/70 truncate">🏛️ {item.institution_name}</p>
+                      )}
+                      {item.score != null && (
+                        <span className="inline-block mt-1 font-mono text-[10px] font-bold text-teal bg-canvas px-2 py-0.5 rounded border border-line">
+                          Score: {item.score} {item.score_type === 'percentage' ? '%' : 'CGPA'}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Education Header with Manual Add Button */}
+          <div className="flex items-center justify-between pt-2">
             <div>
-              <h2 className="text-lg font-black text-teal">Educational Qualifications</h2>
+              <h2 className="text-lg font-black text-teal">Saved Qualifications</h2>
               <p className="text-xs text-teal/70">
-                Add your 10th, 12th, degree, and postgraduate details for eligibility matching.
+                Your saved education records checked against recruitment eligibility rules.
               </p>
             </div>
             <button
@@ -843,7 +1185,7 @@ export default function ProfilePage() {
               onClick={openAddEducation}
               className="h-10 px-4 rounded-xl bg-teal text-cream font-black text-xs flex items-center gap-2 border-b-2 border-teal/70 shadow-xs hover:-translate-y-0.5 active:translate-y-0.5 active:border-b-0 transition-all shrink-0"
             >
-              <Plus className="size-4" /> Add Qualification
+              <Plus className="size-4" /> Add Manually
             </button>
           </div>
 
@@ -853,9 +1195,9 @@ export default function ProfilePage() {
                 <GraduationCap className="size-8 text-sea" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-teal">No Qualifications Added Yet</h3>
+                <h3 className="text-base font-bold text-teal">No Qualifications Saved Yet</h3>
                 <p className="text-xs text-teal/70 max-w-sm mx-auto mt-1">
-                  Adding your educational background lets ApplyFields check your eligibility for Graduate & 12th pass government jobs.
+                  Upload your resume above or add your qualifications manually to enable automatic exam eligibility matching.
                 </p>
               </div>
               <button
