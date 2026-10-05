@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Badge, Card } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
-import { CheckCircle2, KeyRound, Lock, LogIn, ShieldCheck, User } from 'lucide-react';
+import { CheckCircle2, KeyRound, Lock, LogIn, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { CountryPhoneInput } from '@/components/country-phone-input';
 import { OtpInput } from '@/components/otp-input';
 import type { AuthResponse } from '@applyfields/types';
@@ -18,7 +18,9 @@ function LoginForm() {
   const [mode, setMode] = useState<'password' | 'otp' | 'forgot'>('password');
 
   // Password mode states
-  const [identifier, setIdentifier] = useState('');
+  const [passwordCredType, setPasswordCredType] = useState<'phone' | 'email'>('phone');
+  const [passwordPhone, setPasswordPhone] = useState('+91');
+  const [passwordEmail, setPasswordEmail] = useState('');
   const [password, setPassword] = useState('');
 
   // OTP mode states
@@ -28,7 +30,9 @@ function LoginForm() {
   const [devOtp, setDevOtp] = useState<string | null>(null);
 
   // Forgot password states
-  const [forgotTarget, setForgotTarget] = useState('');
+  const [forgotCredType, setForgotCredType] = useState<'phone' | 'email'>('phone');
+  const [forgotPhone, setForgotPhone] = useState('+91');
+  const [forgotEmail, setForgotEmail] = useState('');
   const [forgotOtpSent, setForgotOtpSent] = useState(false);
   const [forgotOtp, setForgotOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -42,10 +46,24 @@ function LoginForm() {
   async function handlePasswordLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
+    const target = passwordCredType === 'phone' ? passwordPhone.trim() : passwordEmail.trim();
+    if (passwordCredType === 'phone') {
+      const hasDigits = target.replace(/^\+\d+/, '').length > 0;
+      if (!hasDigits) {
+        setError('Please select your country and enter your mobile number.');
+        return;
+      }
+    } else {
+      if (!target.includes('@')) {
+        setError('Please enter a valid email address.');
+        return;
+      }
+    }
+
+    setLoading(true);
     const res = await apiPost<AuthResponse>('/auth/login', {
-      identifier: identifier.trim(),
+      identifier: target,
       password,
     });
     setLoading(false);
@@ -127,14 +145,23 @@ function LoginForm() {
 
   async function handleSendForgotOtp() {
     setError(null);
-    if (!forgotTarget) {
-      setError('Please enter your email or phone number.');
-      return;
+    const target = forgotCredType === 'phone' ? forgotPhone.trim() : forgotEmail.trim();
+    if (forgotCredType === 'phone') {
+      const hasDigits = target.replace(/^\+\d+/, '').length > 0;
+      if (!hasDigits) {
+        setError('Please select your country and enter your mobile number.');
+        return;
+      }
+    } else {
+      if (!target.includes('@')) {
+        setError('Please enter your email address.');
+        return;
+      }
     }
 
     setLoading(true);
     const res = await apiPost<{ success: boolean; message: string; devOtp?: string }>('/auth/otp/send', {
-      target: forgotTarget.trim(),
+      target,
       purpose: 'reset_password',
     });
     setLoading(false);
@@ -159,9 +186,11 @@ function LoginForm() {
       return;
     }
 
+    const target = forgotCredType === 'phone' ? forgotPhone.trim() : forgotEmail.trim();
+
     setLoading(true);
     const res = await apiPost<{ success: boolean; message: string }>('/auth/password/reset', {
-      target: forgotTarget.trim(),
+      target,
       code: forgotOtp.trim(),
       newPassword,
     });
@@ -187,12 +216,12 @@ function LoginForm() {
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-teal/70">
             {mode === 'forgot'
-              ? 'Enter your registered email or phone to reset your password.'
+              ? 'Choose phone or email to receive your password reset code.'
               : 'Access your saved opportunities, profile, and application deadlines.'}
           </p>
         </div>
 
-        {/* 3D Segmented Tab Switcher */}
+        {/* 3D Segmented Tab Switcher (Password vs OTP) */}
         {mode !== 'forgot' && (
           <div className="mb-6 flex rounded-2xl border-2 border-line/70 bg-tea/30 p-1.5 shadow-[inset_0_2px_4px_rgba(17,75,95,0.06)]">
             <button
@@ -241,21 +270,73 @@ function LoginForm() {
 
         {mode === 'password' && (
           <form onSubmit={handlePasswordLogin} className="space-y-4">
+            {/* Phone vs Email Selector */}
             <div>
-              <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
-                Email or Mobile Phone
-              </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-3 size-4 text-teal/50" />
-                <input
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="name@example.com or +919876543210"
-                  className="w-full rounded-xl border-2 border-line bg-canvas pl-10 pr-3 py-2.5 text-sm text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea shadow-[inset_0_2px_4px_rgba(17,75,95,0.06),0_2px_0_0_#114b5f] transition-all"
-                  required
-                />
+              <div className="flex rounded-xl border-2 border-line/70 bg-tea/20 p-1 shadow-inner mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordCredType('phone');
+                    setError(null);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                    passwordCredType === 'phone'
+                      ? 'bg-cream text-teal border border-line shadow-xs -translate-y-0.5'
+                      : 'text-teal/70 hover:text-teal'
+                  }`}
+                >
+                  <Phone className="size-3.5 text-sea" />
+                  <span>Mobile Phone</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordCredType('email');
+                    setError(null);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                    passwordCredType === 'email'
+                      ? 'bg-cream text-teal border border-line shadow-xs -translate-y-0.5'
+                      : 'text-teal/70 hover:text-teal'
+                  }`}
+                >
+                  <Mail className="size-3.5 text-sea" />
+                  <span>Email Address</span>
+                </button>
               </div>
+
+              {passwordCredType === 'phone' ? (
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
+                    Mobile Number <span className="font-normal text-teal/60">(Click flag for country code)</span>
+                  </label>
+                  <CountryPhoneInput
+                    value={passwordPhone}
+                    onChange={setPasswordPhone}
+                    placeholder="9876543210"
+                  />
+                  <p className="mt-1 text-[11px] text-teal/60">
+                    Select your country code from the dropdown list.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3 size-4 text-teal/50" />
+                    <input
+                      type="email"
+                      value={passwordEmail}
+                      onChange={(e) => setPasswordEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="w-full rounded-xl border-2 border-line bg-canvas pl-10 pr-3 py-2.5 text-sm text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea shadow-[inset_0_2px_4px_rgba(17,75,95,0.06),0_2px_0_0_#114b5f] transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -389,32 +470,96 @@ function LoginForm() {
 
         {mode === 'forgot' && (
           <form onSubmit={handleResetPassword} className="space-y-4">
-            <div>
-              <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
-                Registered Email or Phone
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={forgotTarget}
-                  onChange={(e) => setForgotTarget(e.target.value)}
-                  placeholder="user@example.com or +919876543210"
-                  disabled={forgotOtpSent}
-                  className="w-full rounded-xl border-2 border-line bg-canvas px-3 py-2.5 text-sm text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea shadow-[inset_0_2px_4px_rgba(17,75,95,0.06),0_2px_0_0_#114b5f] disabled:opacity-60"
-                  required
-                />
-                {!forgotOtpSent && (
-                  <button
-                    type="button"
-                    onClick={handleSendForgotOtp}
-                    disabled={loading}
-                    className="h-10 px-4 rounded-xl bg-tea/60 text-teal font-extrabold text-xs border-b-2 border-teal/30 hover:bg-tea active:translate-y-0.5 active:border-b-0 transition-all shrink-0"
-                  >
-                    Send Code
-                  </button>
-                )}
-              </div>
+            <div className="flex rounded-xl border-2 border-line/70 bg-tea/20 p-1 shadow-inner mb-3">
+              <button
+                type="button"
+                disabled={forgotOtpSent}
+                onClick={() => {
+                  setForgotCredType('phone');
+                  setError(null);
+                }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                  forgotCredType === 'phone'
+                    ? 'bg-cream text-teal border border-line shadow-xs -translate-y-0.5'
+                    : 'text-teal/70 hover:text-teal'
+                } disabled:opacity-60`}
+              >
+                <Phone className="size-3.5 text-sea" />
+                <span>Mobile Phone</span>
+              </button>
+              <button
+                type="button"
+                disabled={forgotOtpSent}
+                onClick={() => {
+                  setForgotCredType('email');
+                  setError(null);
+                }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                  forgotCredType === 'email'
+                    ? 'bg-cream text-teal border border-line shadow-xs -translate-y-0.5'
+                    : 'text-teal/70 hover:text-teal'
+                } disabled:opacity-60`}
+              >
+                <Mail className="size-3.5 text-sea" />
+                <span>Email Address</span>
+              </button>
             </div>
+
+            {forgotCredType === 'phone' ? (
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
+                  Mobile Number <span className="font-normal text-teal/60">(Select country code)</span>
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1">
+                    <CountryPhoneInput
+                      value={forgotPhone}
+                      onChange={setForgotPhone}
+                      disabled={forgotOtpSent}
+                      placeholder="9876543210"
+                    />
+                  </div>
+                  {!forgotOtpSent && (
+                    <button
+                      type="button"
+                      onClick={handleSendForgotOtp}
+                      disabled={loading}
+                      className="h-10 px-4 rounded-xl bg-tea/60 text-teal font-extrabold text-xs border-b-2 border-teal/30 hover:bg-tea active:translate-y-0.5 active:border-b-0 transition-all shrink-0"
+                    >
+                      Send Code
+                    </button>
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-teal/60">Click the country flag to select country code.</p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
+                  Registered Email Address
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    disabled={forgotOtpSent}
+                    className="w-full rounded-xl border-2 border-line bg-canvas px-3 py-2.5 text-sm text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea shadow-[inset_0_2px_4px_rgba(17,75,95,0.06),0_2px_0_0_#114b5f] disabled:opacity-60"
+                    required
+                  />
+                  {!forgotOtpSent && (
+                    <button
+                      type="button"
+                      onClick={handleSendForgotOtp}
+                      disabled={loading}
+                      className="h-10 px-4 rounded-xl bg-tea/60 text-teal font-extrabold text-xs border-b-2 border-teal/30 hover:bg-tea active:translate-y-0.5 active:border-b-0 transition-all shrink-0"
+                    >
+                      Send Code
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {forgotOtpSent && (
               <>

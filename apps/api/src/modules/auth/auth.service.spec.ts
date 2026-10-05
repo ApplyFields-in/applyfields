@@ -98,6 +98,29 @@ describe('AuthService', () => {
       await expect(authService.refreshTokens(refreshRes.newRefreshToken)).rejects.toThrow();
     });
 
+    it('should log in using phone number with and without country code', async () => {
+      await authService.register({
+        phone: '+919876543210',
+        password: 'PhonePassword123!',
+      });
+
+      // Login with full international phone number (+919876543210)
+      const resWithCode = await authService.login({
+        identifier: '+919876543210',
+        password: 'PhonePassword123!',
+      });
+      expect(resWithCode.accessToken).toBeDefined();
+      expect(resWithCode.user.phone).toBe('+919876543210');
+
+      // Login with local 10-digit phone number (9876543210)
+      const resWithoutCode = await authService.login({
+        identifier: '9876543210',
+        password: 'PhonePassword123!',
+      });
+      expect(resWithoutCode.accessToken).toBeDefined();
+      expect(resWithoutCode.user.phone).toBe('+919876543210');
+    });
+
     it('should reject invalid password', async () => {
       await authService.register({
         email: 'user2@example.com',

@@ -125,7 +125,21 @@ export class UsersStore {
 
   findUserByPhone(phone: string): UserEntity | undefined {
     const trimmed = phone.trim();
-    return Array.from(this.users.values()).find((u) => u.phone === trimmed);
+    // 1. Exact match
+    const exact = Array.from(this.users.values()).find((u) => u.phone === trimmed);
+    if (exact) return exact;
+
+    // 2. Normalized digit matching (e.g. 10 digits without +91, or formatted with spaces/dashes)
+    const digitsOnly = trimmed.replace(/\D/g, '');
+    if (digitsOnly.length >= 7) {
+      return Array.from(this.users.values()).find((u) => {
+        if (!u.phone) return false;
+        const uDigits = u.phone.replace(/\D/g, '');
+        return uDigits === digitsOnly || uDigits.endsWith(digitsOnly) || digitsOnly.endsWith(uDigits);
+      });
+    }
+
+    return undefined;
   }
 
   findUserByIdentifier(identifier: string): UserEntity | undefined {
@@ -258,15 +272,21 @@ export class UsersStore {
   ): OtpCodeEntity | undefined {
     const normalized = target.trim().toLowerCase();
     const now = new Date().toISOString();
+    const isEmail = normalized.includes('@');
+    const targetDigits = !isEmail ? normalized.replace(/\D/g, '') : '';
+
     const matches = Array.from(this.otps.values())
-      .filter(
-        (o) =>
-          o.target === normalized &&
-          o.purpose === purpose &&
-          !o.used_at &&
-          o.expires_at > now &&
-          o.attempts < 5,
-      )
+      .filter((o) => {
+        if (o.purpose !== purpose || o.used_at || o.expires_at <= now || o.attempts >= 5) {
+          return false;
+        }
+        if (o.target === normalized) return true;
+        if (!isEmail && !o.target.includes('@') && targetDigits.length >= 7) {
+          const oDigits = o.target.replace(/\D/g, '');
+          return oDigits === targetDigits || oDigits.endsWith(targetDigits) || targetDigits.endsWith(oDigits);
+        }
+        return false;
+      })
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
 
     return matches[0];

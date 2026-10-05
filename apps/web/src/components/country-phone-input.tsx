@@ -47,17 +47,16 @@ export function CountryPhoneInput({
   disabled = false,
   placeholder = '9876543210',
 }: CountryPhoneInputProps) {
-  // Determine initial country based on value
-  const initialCountry =
-    COUNTRIES.find((c) => value.startsWith(c.dialCode)) ?? COUNTRIES[0];
+  // Determine country and phone number directly from value
+  const matchedCountry = COUNTRIES.find((c) => value.startsWith(c.dialCode));
+  const [selectedCountryState, setSelectedCountryState] = useState<Country>(COUNTRIES[0]);
 
-  const [selectedCountry, setSelectedCountry] = useState<Country>(initialCountry);
-  const [phoneNumber, setPhoneNumber] = useState(() => {
-    if (!value) return '';
-    return value.startsWith(initialCountry.dialCode)
-      ? value.slice(initialCountry.dialCode.length)
-      : value.replace(/^\+\d+/, '');
-  });
+  const selectedCountry = matchedCountry ?? selectedCountryState;
+
+  // Derive phone digits directly from value
+  const phoneNumber = value.startsWith(selectedCountry.dialCode)
+    ? value.slice(selectedCountry.dialCode.length)
+    : value.replace(/^\+\d+/, '');
 
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -75,23 +74,22 @@ export function CountryPhoneInput({
   }, []);
 
   function handleCountrySelect(country: Country) {
-    setSelectedCountry(country);
+    setSelectedCountryState(country);
     setIsOpen(false);
     setSearch('');
     if (phoneNumber) {
       onChange(`${country.dialCode}${phoneNumber}`);
     } else {
-      onChange('');
+      onChange(country.dialCode);
     }
   }
 
   function handleNumberChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value.replace(/\D/g, ''); // Digits only
-    setPhoneNumber(raw);
     if (raw) {
       onChange(`${selectedCountry.dialCode}${raw}`);
     } else {
-      onChange('');
+      onChange(selectedCountry.dialCode);
     }
   }
 
