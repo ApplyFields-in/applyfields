@@ -9,11 +9,53 @@ export const API_URL = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?
 );
 
 /** GET a JSON endpoint. Returns null if the API is down or answers with an error. */
-export async function apiGet<T>(path: string): Promise<T | null> {
+export async function apiGet<T>(path: string, token?: string): Promise<T | null> {
   try {
-    const res = await fetch(`${API_URL}${path}`, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_URL}${path}`, {
+      cache: 'no-store',
+      headers,
+      credentials: 'include',
+      signal: AbortSignal.timeout(6000),
+    });
     return res.ok ? ((await res.json()) as T) : null;
   } catch {
     return null;
+  }
+}
+
+export interface ApiResponse<T> {
+  data: T | null;
+  error: string | null;
+  status: number;
+}
+
+/** POST a JSON endpoint with cookies included for refresh token sessions. */
+export async function apiPost<T, B = unknown>(path: string, body?: B, token?: string): Promise<ApiResponse<T>> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_URL}${path}`, {
+      method: 'POST',
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: 'include',
+      signal: AbortSignal.timeout(8000),
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg = json?.message || (Array.isArray(json?.message) ? json.message.join(', ') : 'Request failed');
+      return { data: null, error: msg, status: res.status };
+    }
+    return { data: json as T, error: null, status: res.status };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Could not connect to the API server';
+    return { data: null, error: message, status: 500 };
   }
 }
