@@ -3,10 +3,11 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Badge, Card, buttonClass } from '@applyfields/ui';
+import { Badge, Card } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
 import { CheckCircle2, KeyRound, Lock, LogIn, ShieldCheck, User } from 'lucide-react';
 import { CountryPhoneInput } from '@/components/country-phone-input';
+import { OtpInput } from '@/components/otp-input';
 import type { AuthResponse } from '@applyfields/types';
 
 function LoginForm() {
@@ -34,7 +35,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(
-    verifiedNotice ? 'Email/Phone verified successfully! You can now log in.' : null,
+    verifiedNotice ? 'Email verified successfully! You can now log in.' : null,
   );
 
   async function handlePasswordLogin(e: React.FormEvent) {
@@ -53,7 +54,6 @@ function LoginForm() {
       return;
     }
 
-    // Access token is saved for client headers; refresh token is in httpOnly cookie
     if (typeof window !== 'undefined') {
       localStorage.setItem('accessToken', res.data.accessToken);
       localStorage.setItem('currentUser', JSON.stringify(res.data.user));
@@ -93,7 +93,7 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     if (otpCode.length !== 6) {
-      setError('Please enter the 6-digit code.');
+      setError('Please enter the full 6-digit code.');
       return;
     }
 
@@ -169,33 +169,36 @@ function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-md">
-      <Card className="p-6 sm:p-8 border border-line bg-cream shadow-card">
+    <div className="w-full max-w-md [perspective:1000px]">
+      <Card className="p-6 sm:p-8 border-2 border-line bg-cream rounded-3xl shadow-[0_20px_40px_-10px_rgba(17,75,95,0.22),0_6px_0_0_#114b5f] transition-all">
         <div className="mb-6">
-          <Badge tone="celadon" className="mb-2">Citizen Portal</Badge>
-          <h1 className="text-2xl font-bold tracking-tight text-teal">
+          <Badge tone="celadon" className="mb-2 shadow-xs">Citizen Portal</Badge>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-teal">
             {mode === 'forgot' ? 'Reset password' : 'Log in to ApplyFields'}
           </h1>
-          <p className="mt-1 text-sm text-teal/70">
+          <p className="mt-1 text-xs sm:text-sm text-teal/70">
             {mode === 'forgot'
               ? 'Enter your registered email or phone to reset your password.'
-              : 'Access your saved opportunities, profile, and track application deadlines.'}
+              : 'Access your saved opportunities, profile, and application deadlines.'}
           </p>
         </div>
 
+        {/* 3D Segmented Tab Switcher */}
         {mode !== 'forgot' && (
-          <div className="mb-6 flex rounded-xl border border-line bg-tea/30 p-1">
+          <div className="mb-6 flex rounded-2xl border-2 border-line/70 bg-tea/30 p-1.5 shadow-[inset_0_2px_4px_rgba(17,75,95,0.06)]">
             <button
               type="button"
               onClick={() => {
                 setMode('password');
                 setError(null);
               }}
-              className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors ${
-                mode === 'password' ? 'bg-cream text-teal shadow-xs' : 'text-teal/70 hover:text-teal'
+              className={`flex-1 rounded-xl py-2 text-xs font-black transition-all ${
+                mode === 'password'
+                  ? 'bg-cream text-teal border border-line shadow-[0_3px_0_0_#114b5f,0_4px_8px_rgba(17,75,95,0.1)] -translate-y-0.5'
+                  : 'text-teal/70 hover:text-teal hover:bg-tea/40'
               }`}
             >
-              Password
+              Password Login
             </button>
             <button
               type="button"
@@ -203,8 +206,10 @@ function LoginForm() {
                 setMode('otp');
                 setError(null);
               }}
-              className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors ${
-                mode === 'otp' ? 'bg-cream text-teal shadow-xs' : 'text-teal/70 hover:text-teal'
+              className={`flex-1 rounded-xl py-2 text-xs font-black transition-all ${
+                mode === 'otp'
+                  ? 'bg-cream text-teal border border-line shadow-[0_3px_0_0_#114b5f,0_4px_8px_rgba(17,75,95,0.1)] -translate-y-0.5'
+                  : 'text-teal/70 hover:text-teal hover:bg-tea/40'
               }`}
             >
               One-Time Code (OTP)
@@ -213,13 +218,13 @@ function LoginForm() {
         )}
 
         {error && (
-          <div className="mb-4 rounded-xl border border-line bg-tea/40 p-3 text-xs font-medium text-teal" role="alert">
+          <div className="mb-4 rounded-2xl border-2 border-line bg-tea/50 p-3.5 text-xs font-bold text-teal shadow-xs" role="alert">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 rounded-xl border border-celadon bg-celadon/20 p-3 text-xs font-medium text-teal flex items-center gap-2">
+          <div className="mb-4 rounded-2xl border-2 border-celadon bg-celadon/25 p-3.5 text-xs font-bold text-teal flex items-center gap-2.5 shadow-xs">
             <CheckCircle2 className="size-4 text-sea shrink-0" />
             <span>{success}</span>
           </div>
@@ -228,25 +233,25 @@ function LoginForm() {
         {mode === 'password' && (
           <form onSubmit={handlePasswordLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-teal/80 mb-1">
+              <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
                 Email or Mobile Phone
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-2.5 size-4 text-teal/50" />
+                <User className="absolute left-3.5 top-3 size-4 text-teal/50" />
                 <input
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="name@example.com or +919876543210"
-                  className="w-full rounded-xl border border-line bg-canvas pl-9 pr-3 py-2 text-sm text-teal placeholder:text-teal/40 focus:outline-none"
+                  className="w-full rounded-xl border-2 border-line bg-canvas pl-10 pr-3 py-2.5 text-sm text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea shadow-[inset_0_2px_4px_rgba(17,75,95,0.06),0_2px_0_0_#114b5f] transition-all"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-teal/80">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80">
                   Password
                 </label>
                 <button
@@ -255,19 +260,19 @@ function LoginForm() {
                     setMode('forgot');
                     setError(null);
                   }}
-                  className="text-[11px] font-semibold text-teal underline hover:text-sea"
+                  className="text-[11px] font-bold text-teal underline hover:text-sea"
                 >
                   Forgot password?
                 </button>
               </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 size-4 text-teal/50" />
+                <Lock className="absolute left-3.5 top-3 size-4 text-teal/50" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-line bg-canvas pl-9 pr-3 py-2 text-sm text-teal placeholder:text-teal/40 focus:outline-none"
+                  className="w-full rounded-xl border-2 border-line bg-canvas pl-10 pr-3 py-2.5 text-sm text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea shadow-[inset_0_2px_4px_rgba(17,75,95,0.06),0_2px_0_0_#114b5f] transition-all"
                   required
                 />
               </div>
@@ -276,7 +281,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full mt-2' })}
+              className="w-full h-12 mt-2 rounded-xl bg-teal text-cream font-black text-sm tracking-wide border-b-4 border-teal/70 shadow-[0_6px_14px_rgba(17,75,95,0.3)] hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(17,75,95,0.35)] active:translate-y-1 active:border-b-0 active:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <LogIn className="size-4" />
               {loading ? 'Logging in...' : 'Sign In'}
@@ -286,7 +291,7 @@ function LoginForm() {
 
         {mode === 'otp' && (
           <form onSubmit={handleOtpLogin} className="space-y-4">
-            <div className="rounded-xl border border-line bg-tea/20 p-3 text-xs text-teal/80 flex items-start gap-2">
+            <div className="rounded-2xl border border-line bg-tea/30 p-3 text-xs text-teal/80 flex items-start gap-2 shadow-inner">
               <ShieldCheck className="size-4 text-sea shrink-0 mt-0.5" />
               <span>
                 <strong>Dev Mode:</strong> OTP codes are logged to the API terminal console instead of sending SMS.
@@ -294,7 +299,7 @@ function LoginForm() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-teal/80 mb-1">
+              <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
                 Mobile Number <span className="font-normal text-teal/60">(Select country code)</span>
               </label>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -311,7 +316,7 @@ function LoginForm() {
                     type="button"
                     onClick={handleSendOtp}
                     disabled={loading}
-                    className={buttonClass({ variant: 'secondary', size: 'md' })}
+                    className="h-10 px-4 rounded-xl bg-tea/60 text-teal font-extrabold text-xs border-b-2 border-teal/30 hover:bg-tea active:translate-y-0.5 active:border-b-0 transition-all shrink-0"
                   >
                     Send OTP
                   </button>
@@ -322,28 +327,25 @@ function LoginForm() {
                       setOtpSent(false);
                       setOtpCode('');
                     }}
-                    className={buttonClass({ variant: 'ghost', size: 'md' })}
+                    className="h-10 px-3 rounded-xl bg-transparent text-teal font-bold text-xs hover:bg-tea/30 transition-all shrink-0"
                   >
                     Change
                   </button>
                 )}
               </div>
-              <p className="mt-1 text-[11px] text-teal/60">Click the country flag to change country code.</p>
+              <p className="mt-1 text-[11px] text-teal/60">Click the country flag to select country code.</p>
             </div>
 
             {otpSent && (
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-teal/80 mb-1">
-                  6-Digit OTP Code
+              <div className="pt-2">
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-2 text-center">
+                  Enter 6-Digit Code
                 </label>
-                <input
-                  type="text"
-                  maxLength={6}
+                <OtpInput
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="123456"
-                  className="w-full text-center tracking-widest text-lg font-mono rounded-xl border border-line bg-canvas py-2.5 text-teal focus:outline-none"
-                  required
+                  onChange={setOtpCode}
+                  disabled={loading}
+                  length={6}
                 />
               </div>
             )}
@@ -352,7 +354,7 @@ function LoginForm() {
               <button
                 type="submit"
                 disabled={loading || otpCode.length !== 6}
-                className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full mt-2' })}
+                className="w-full h-12 mt-2 rounded-xl bg-teal text-cream font-black text-sm tracking-wide border-b-4 border-teal/70 shadow-[0_6px_14px_rgba(17,75,95,0.3)] hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(17,75,95,0.35)] active:translate-y-1 active:border-b-0 active:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? 'Verifying...' : 'Sign In with OTP'}
               </button>
@@ -363,7 +365,7 @@ function LoginForm() {
         {mode === 'forgot' && (
           <form onSubmit={handleResetPassword} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-teal/80 mb-1">
+              <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
                 Registered Email or Phone
               </label>
               <div className="flex gap-2">
@@ -373,7 +375,7 @@ function LoginForm() {
                   onChange={(e) => setForgotTarget(e.target.value)}
                   placeholder="user@example.com or +919876543210"
                   disabled={forgotOtpSent}
-                  className="w-full rounded-xl border border-line bg-canvas px-3 py-2 text-sm text-teal placeholder:text-teal/40 focus:outline-none disabled:opacity-60"
+                  className="w-full rounded-xl border-2 border-line bg-canvas px-3 py-2.5 text-sm text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea shadow-[inset_0_2px_4px_rgba(17,75,95,0.06),0_2px_0_0_#114b5f] disabled:opacity-60"
                   required
                 />
                 {!forgotOtpSent && (
@@ -381,7 +383,7 @@ function LoginForm() {
                     type="button"
                     onClick={handleSendForgotOtp}
                     disabled={loading}
-                    className={buttonClass({ variant: 'secondary', size: 'md' })}
+                    className="h-10 px-4 rounded-xl bg-tea/60 text-teal font-extrabold text-xs border-b-2 border-teal/30 hover:bg-tea active:translate-y-0.5 active:border-b-0 transition-all shrink-0"
                   >
                     Send Code
                   </button>
@@ -391,33 +393,30 @@ function LoginForm() {
 
             {forgotOtpSent && (
               <>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-teal/80 mb-1">
-                    6-Digit Code
+                <div className="pt-1">
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-2 text-center">
+                    6-Digit Reset Code
                   </label>
-                  <input
-                    type="text"
-                    maxLength={6}
+                  <OtpInput
                     value={forgotOtp}
-                    onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="123456"
-                    className="w-full text-center tracking-widest text-lg font-mono rounded-xl border border-line bg-canvas py-2 text-teal focus:outline-none"
-                    required
+                    onChange={setForgotOtp}
+                    disabled={loading}
+                    length={6}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-teal/80 mb-1">
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
                     New Password
                   </label>
                   <div className="relative">
-                    <KeyRound className="absolute left-3 top-2.5 size-4 text-teal/50" />
+                    <KeyRound className="absolute left-3.5 top-3 size-4 text-teal/50" />
                     <input
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="At least 8 characters"
-                      className="w-full rounded-xl border border-line bg-canvas pl-9 pr-3 py-2 text-sm text-teal placeholder:text-teal/40 focus:outline-none"
+                      className="w-full rounded-xl border-2 border-line bg-canvas pl-10 pr-3 py-2.5 text-sm text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea shadow-[inset_0_2px_4px_rgba(17,75,95,0.06),0_2px_0_0_#114b5f]"
                       required
                     />
                   </div>
@@ -426,7 +425,7 @@ function LoginForm() {
                 <button
                   type="submit"
                   disabled={loading || forgotOtp.length !== 6 || newPassword.length < 8}
-                  className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full' })}
+                  className="w-full h-12 mt-2 rounded-xl bg-teal text-cream font-black text-sm tracking-wide border-b-4 border-teal/70 shadow-[0_6px_14px_rgba(17,75,95,0.3)] hover:-translate-y-0.5 active:translate-y-1 active:border-b-0 active:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Resetting...' : 'Set New Password'}
                 </button>
@@ -440,7 +439,7 @@ function LoginForm() {
                   setMode('password');
                   setError(null);
                 }}
-                className="text-xs text-teal/70 hover:text-teal underline"
+                className="text-xs font-bold text-teal/80 hover:text-teal underline"
               >
                 Back to Sign In
               </button>
@@ -450,7 +449,7 @@ function LoginForm() {
 
         <p className="mt-6 text-center text-xs text-teal/70">
           Don&apos;t have an account yet?{' '}
-          <Link href="/register" className="font-bold text-teal underline hover:text-sea">
+          <Link href="/register" className="font-extrabold text-teal underline hover:text-sea">
             Create free account
           </Link>
         </p>
