@@ -25,6 +25,7 @@ function LoginForm() {
   const [phone, setPhone] = useState('+91');
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   // Forgot password states
   const [forgotTarget, setForgotTarget] = useState('');
@@ -75,7 +76,7 @@ function LoginForm() {
     }
 
     setLoading(true);
-    const res = await apiPost<{ success: boolean; message: string }>('/auth/otp/send', {
+    const res = await apiPost<{ success: boolean; message: string; devOtp?: string }>('/auth/otp/send', {
       target: cleanPhone,
       purpose: 'login',
     });
@@ -86,6 +87,10 @@ function LoginForm() {
     } else {
       setOtpSent(true);
       setSuccess('A 6-digit login code has been generated.');
+      if (res.data?.devOtp) {
+        setDevOtp(res.data.devOtp);
+        setOtpCode(res.data.devOtp);
+      }
     }
   }
 
@@ -128,7 +133,7 @@ function LoginForm() {
     }
 
     setLoading(true);
-    const res = await apiPost<{ success: boolean; message: string }>('/auth/otp/send', {
+    const res = await apiPost<{ success: boolean; message: string; devOtp?: string }>('/auth/otp/send', {
       target: forgotTarget.trim(),
       purpose: 'reset_password',
     });
@@ -138,7 +143,11 @@ function LoginForm() {
       setError(res.error);
     } else {
       setForgotOtpSent(true);
-      setSuccess('Reset code generated. Check your console in development mode.');
+      setSuccess('Reset code generated.');
+      if (res.data?.devOtp) {
+        setDevOtp(res.data.devOtp);
+        setForgotOtp(res.data.devOtp);
+      }
     }
   }
 
@@ -336,6 +345,22 @@ function LoginForm() {
               <p className="mt-1 text-[11px] text-teal/60">Click the country flag to select country code.</p>
             </div>
 
+            {otpSent && devOtp && (
+              <div className="rounded-2xl border-2 border-sea bg-sea/15 p-3.5 text-xs text-teal shadow-xs flex items-center justify-between gap-3">
+                <div>
+                  <span className="font-extrabold text-sea block">🧪 Development Mode Code:</span>
+                  <span className="font-mono text-base font-black tracking-widest text-teal">{devOtp}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOtpCode(devOtp)}
+                  className="px-3 py-1.5 rounded-xl bg-sea text-cream font-extrabold text-xs hover:bg-sea/90 active:translate-y-0.5 transition-all shadow-xs shrink-0"
+                >
+                  Auto-fill Code
+                </button>
+              </div>
+            )}
+
             {otpSent && (
               <div className="pt-2">
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-2 text-center">
@@ -393,6 +418,22 @@ function LoginForm() {
 
             {forgotOtpSent && (
               <>
+                {devOtp && (
+                  <div className="rounded-2xl border-2 border-sea bg-sea/15 p-3.5 text-xs text-teal shadow-xs flex items-center justify-between gap-3">
+                    <div>
+                      <span className="font-extrabold text-sea block">🧪 Development Mode Code:</span>
+                      <span className="font-mono text-base font-black tracking-widest text-teal">{devOtp}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForgotOtp(devOtp)}
+                      className="px-3 py-1.5 rounded-xl bg-sea text-cream font-extrabold text-xs hover:bg-sea/90 active:translate-y-0.5 transition-all shadow-xs shrink-0"
+                    >
+                      Auto-fill Code
+                    </button>
+                  </div>
+                )}
+
                 <div className="pt-1">
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-2 text-center">
                     6-Digit Reset Code

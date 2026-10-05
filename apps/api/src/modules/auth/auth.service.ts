@@ -32,7 +32,7 @@ export class AuthService {
   async register(
     dto: RegisterDto,
     ipAddress?: string,
-  ): Promise<{ user: UserSummary; message: string; target: string }> {
+  ): Promise<{ user: UserSummary; message: string; target: string; devOtp?: string }> {
     if (!dto.email && !dto.phone) {
       throw new BadRequestException('Either email or phone must be provided');
     }
@@ -78,19 +78,20 @@ export class AuthService {
     // Send verification OTP
     const target = (dto.email ?? dto.phone)!;
     const purpose = dto.email ? 'verify_email' : 'verify_phone';
-    await this.sendOtp({ target, purpose }, user.id);
+    const otpResult = await this.sendOtp({ target, purpose }, user.id);
 
     return {
       user: this.store.toUserSummary(user),
       message: 'Account created successfully. A verification code has been sent.',
       target,
+      devOtp: otpResult.devOtp,
     };
   }
 
   async sendOtp(
     dto: SendOtpDto,
     userId?: string | null,
-  ): Promise<{ success: boolean; message: string; target: string }> {
+  ): Promise<{ success: boolean; message: string; target: string; devOtp?: string }> {
     const rawOtp = this.generate6DigitOtp();
     const code_hash = this.hashToken(rawOtp);
     const expires_at = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
@@ -121,10 +122,13 @@ export class AuthService {
       `\x1b[36m[DEV OTP]\x1b[0m Generated code for \x1b[33m${maskedTarget}\x1b[0m (${dto.purpose}): \x1b[32m\x1b[1m${rawOtp}\x1b[0m (valid for 10m)`,
     );
 
+    const isDev = process.env.NODE_ENV !== 'production';
+
     return {
       success: true,
       message: 'One-time verification code sent.',
       target: dto.target,
+      devOtp: isDev ? rawOtp : undefined,
     };
   }
 

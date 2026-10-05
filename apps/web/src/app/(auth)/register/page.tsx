@@ -23,6 +23,7 @@ export default function RegisterPage() {
 
   const [otpCode, setOtpCode] = useState('');
   const [target, setTarget] = useState('');
+  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    const res = await apiPost<{ user: UserSummary; message: string; target: string }>(
+    const res = await apiPost<{ user: UserSummary; message: string; target: string; devOtp?: string }>(
       '/auth/register',
       {
         email: cleanEmail,
@@ -79,6 +80,10 @@ export default function RegisterPage() {
 
     setTarget(res.data.target);
     setSuccessMsg(res.data.message);
+    if (res.data.devOtp) {
+      setDevOtp(res.data.devOtp);
+      setOtpCode(res.data.devOtp);
+    }
     setStep('verify');
   }
 
@@ -118,7 +123,7 @@ export default function RegisterPage() {
     setError(null);
     setLoading(true);
     const purpose = target.includes('@') ? 'verify_email' : 'verify_phone';
-    const res = await apiPost<{ success: boolean; message: string }>('/auth/otp/send', {
+    const res = await apiPost<{ success: boolean; message: string; devOtp?: string }>('/auth/otp/send', {
       target,
       purpose,
     });
@@ -128,6 +133,10 @@ export default function RegisterPage() {
       setError(res.error);
     } else {
       setSuccessMsg('A new verification code has been generated.');
+      if (res.data?.devOtp) {
+        setDevOtp(res.data.devOtp);
+        setOtpCode(res.data.devOtp);
+      }
     }
   }
 
@@ -325,6 +334,22 @@ export default function RegisterPage() {
               <div className="mb-4 rounded-2xl border-2 border-celadon bg-celadon/25 p-3.5 text-xs font-bold text-teal flex items-center gap-2.5 shadow-xs">
                 <CheckCircle2 className="size-4 text-sea shrink-0" />
                 <span>{successMsg}</span>
+              </div>
+            )}
+
+            {devOtp && (
+              <div className="mb-4 rounded-2xl border-2 border-sea bg-sea/15 p-3.5 text-xs text-teal shadow-xs flex items-center justify-between gap-3">
+                <div>
+                  <span className="font-extrabold text-sea block">🧪 Development Mode Code:</span>
+                  <span className="font-mono text-base font-black tracking-widest text-teal">{devOtp}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOtpCode(devOtp)}
+                  className="px-3 py-1.5 rounded-xl bg-sea text-cream font-extrabold text-xs hover:bg-sea/90 active:translate-y-0.5 transition-all shadow-xs shrink-0"
+                >
+                  Auto-fill Code
+                </button>
               </div>
             )}
 
