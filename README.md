@@ -27,12 +27,12 @@ applyfields/
 │   └── changes/           One SQL file per structure change
 │
 ├── docs/                  ← read these first
-│   ├── setup.md           How to run the project on your laptop
 │   ├── conventions.md     Branches, PRs, naming, ownership
 │   ├── job-format.md      ⭐ The data contract between scrapers and the app
 │   └── decisions/         Why we chose our tech stack
 │
-└── .github/               PR template + code owners
+├── .github/               PR template + code owners
+└── HOW_TO_RUN.md          ⭐ How to run everything, page addresses, troubleshooting
 ```
 
 Every folder has its own `README.md` explaining what goes inside.
@@ -54,10 +54,10 @@ Every folder has its own `README.md` explaining what goes inside.
 
 ```bash
 pnpm install          # first time
-pnpm dev              # web :3000 · admin :3001 · api :4000
+pnpm dev              # website :3000 · Internal Portal :3001 · API :4000
 ```
 
-Full instructions (env files, Python, Supabase): [`docs/setup.md`](docs/setup.md)
+**Full guide — install, run, every page address, where the files are, troubleshooting:** [`HOW_TO_RUN.md`](HOW_TO_RUN.md)
 
 ## Team
 
