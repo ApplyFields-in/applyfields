@@ -1,11 +1,28 @@
-import { Controller, Get } from '@nestjs/common';
-import type { AdminSummary } from '@applyfields/types';
+import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
+import type { AdminSummary, ReviewDetail, ReviewList } from '@applyfields/types';
+import { StaffGuard } from '../../common/staff.guard.js';
+import { ReviewService } from './review.service.js';
 
 const HOUR_MS = 3_600_000;
 const hoursAgo = (h: number) => new Date(Date.now() - h * HOUR_MS).toISOString();
 
 @Controller('admin')
+@UseGuards(StaffGuard)
 export class AdminController {
+  constructor(private readonly review: ReviewService) {}
+
+  /** GET /api/v1/admin/review?source=ssc&careful=1 — drafts waiting for review, newest first */
+  @Get('review')
+  reviewQueue(@Query('source') source?: string, @Query('careful') careful?: string): Promise<ReviewList> {
+    return this.review.list({ source: source || undefined, careful: careful === '1' || careful === 'true' });
+  }
+
+  /** GET /api/v1/admin/review/:id — one draft with posts, eligibility, dates and a signed PDF link */
+  @Get('review/:id')
+  reviewDetail(@Param('id', ParseUUIDPipe) id: string): Promise<ReviewDetail> {
+    return this.review.detail(id);
+  }
+
   /** GET /api/v1/admin/summary — Internal Portal dashboard (sample data; admin login arrives later) */
   @Get('summary')
   summary(): AdminSummary {

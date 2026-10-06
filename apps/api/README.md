@@ -34,7 +34,9 @@ test/                # end-to-end tests
 | `GET /api/v1/opportunities?type=&q=` | jobs, exams, scholarships, admissions, search | `modules/opportunities` |
 | `GET /api/v1/opportunities/:slug` | detail pages — returns **501 Not Implemented** until Week 3 | `modules/opportunities` |
 | `GET /api/v1/updates` | results & updates | `modules/opportunities` |
-| `GET /api/v1/admin/summary` | Internal Portal dashboard, review queue, scrapers — **still sample data** | `modules/admin` |
+| `GET /api/v1/admin/review?source=&careful=1` | Internal Portal review queue — drafts, newest first | `modules/admin` |
+| `GET /api/v1/admin/review/:id` | Review screen — draft + posts + eligibility + dates + signed PDF link | `modules/admin` |
+| `GET /api/v1/admin/summary` | Internal Portal dashboard — **still sample data** | `modules/admin` |
 
 Response shapes live in [`packages/types/src/api.ts`](../../packages/types/src/api.ts) — the website imports
 the same types, so a change shows up as a type error on both sides.
@@ -43,6 +45,14 @@ Citizens only ever see rows with `status = 'published'`. Lists also hide anythin
 and sort by last date (soonest first). Queries live in `modules/opportunities/opportunities.service.ts`;
 `CARD_SELECT` + `toCard()` turn a database row into the `OpportunityCard` the website shows.
 Empty lists are normal until reviewers publish the first scraped jobs — the website shows an empty state.
+
+## Internal Portal (`/admin/*`)
+- Every `/admin` route goes through `common/staff.guard.ts`. **Until staff login exists it only allows local development**
+  and returns 403 when `NODE_ENV=production`, so unreviewed drafts never leak from staging. Staff login replaces it
+  with the real check (logged in + `user_roles` super_admin / admin / reviewer).
+- `publishBlockers()` in `modules/admin/review.service.ts` is the job-format §5 check. The Publish API must reuse it.
+- PDFs: the scraper stores files in the private Storage bucket `STORAGE_BUCKET` (default `notifications`).
+  The API signs a 10-minute link with `SUPABASE_SERVICE_ROLE_KEY`; without the key it falls back to the official PDF URL.
 
 ## Database commands
 ```bash
