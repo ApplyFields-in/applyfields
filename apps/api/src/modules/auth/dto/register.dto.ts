@@ -1,4 +1,12 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MinLength, ValidateIf } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsOptional()
@@ -7,7 +15,8 @@ export class RegisterDto {
 
   @IsOptional()
   @Matches(/^\+[1-9][0-9]{7,14}$/, {
-    message: 'Phone number must be in international format with country code (e.g. +91XXXXXXXXXX)',
+    message:
+      'Phone number must be in international format with country code (e.g. +91XXXXXXXXXX)',
   })
   phone?: string;
 

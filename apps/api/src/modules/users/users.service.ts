@@ -2,9 +2,15 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UsersStore } from './users.store.js';
-import { extractEducationFromResume, extractTextFromBuffer } from './resume-parser.js';
+import {
+  extractEducationFromResume,
+  extractTextFromBuffer,
+} from './resume-parser.js';
 import type { UpdateProfileDto } from './dto/update-profile.dto.js';
-import type { CreateEducationDto, UpdateEducationDto } from './dto/education.dto.js';
+import type {
+  CreateEducationDto,
+  UpdateEducationDto,
+} from './dto/education.dto.js';
 import type { UploadResumeDto } from './dto/resume.dto.js';
 import type {
   MeResponse,
@@ -33,7 +39,10 @@ export class UsersService {
     };
   }
 
-  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<UserProfile> {
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<UserProfile> {
     const user = await this.store.findUserById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -45,7 +54,10 @@ export class UsersService {
     return await this.store.getUserEducation(userId);
   }
 
-  async addEducation(userId: string, dto: CreateEducationDto): Promise<UserEducation> {
+  async addEducation(
+    userId: string,
+    dto: CreateEducationDto,
+  ): Promise<UserEducation> {
     return await this.store.addEducation(userId, {
       level: dto.level,
       degree: dto.degree ?? null,
@@ -59,7 +71,11 @@ export class UsersService {
     });
   }
 
-  async updateEducation(id: string, userId: string, dto: UpdateEducationDto): Promise<UserEducation> {
+  async updateEducation(
+    id: string,
+    userId: string,
+    dto: UpdateEducationDto,
+  ): Promise<UserEducation> {
     const updated = await this.store.updateEducation(id, userId, dto);
     if (!updated) {
       throw new NotFoundException('Education record not found');
@@ -67,7 +83,10 @@ export class UsersService {
     return updated;
   }
 
-  async deleteEducation(id: string, userId: string): Promise<{ success: boolean }> {
+  async deleteEducation(
+    id: string,
+    userId: string,
+  ): Promise<{ success: boolean }> {
     const deleted = await this.store.deleteEducation(id, userId);
     if (!deleted) {
       throw new NotFoundException('Education record not found');
@@ -103,7 +122,11 @@ export class UsersService {
     // Extract text with OCR fallback for scanned/image PDFs
     let extractedText = dto.text?.trim() || '';
     if (!extractedText || extractedText.length < 30) {
-      extractedText = await extractTextFromBuffer(buffer, dto.mimeType, dto.fileName);
+      extractedText = await extractTextFromBuffer(
+        buffer,
+        dto.mimeType,
+        dto.fileName,
+      );
     }
 
     // Parse qualifications using precision segmenter

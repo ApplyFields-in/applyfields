@@ -7,7 +7,8 @@ export class SendOtpDto {
 
   @IsNotEmpty()
   @IsIn(['verify_email', 'verify_phone', 'login', 'reset_password'], {
-    message: 'Purpose must be verify_email, verify_phone, login, or reset_password',
+    message:
+      'Purpose must be verify_email, verify_phone, login, or reset_password',
   })
   purpose!: 'verify_email' | 'verify_phone' | 'login' | 'reset_password';
 }
@@ -19,7 +20,8 @@ export class VerifyOtpDto {
 
   @IsNotEmpty()
   @IsIn(['verify_email', 'verify_phone', 'login', 'reset_password'], {
-    message: 'Purpose must be verify_email, verify_phone, login, or reset_password',
+    message:
+      'Purpose must be verify_email, verify_phone, login, or reset_password',
   })
   purpose!: 'verify_email' | 'verify_phone' | 'login' | 'reset_password';
 

@@ -16,7 +16,10 @@ export class UpdateProfileDto {
   full_name?: string;
 
   @IsOptional()
-  @IsDateString({}, { message: 'date_of_birth must be a valid ISO date (YYYY-MM-DD)' })
+  @IsDateString(
+    {},
+    { message: 'date_of_birth must be a valid ISO date (YYYY-MM-DD)' },
+  )
   date_of_birth?: string;
 
   @IsOptional()
@@ -54,7 +57,9 @@ export class UpdateProfileDto {
   annual_family_income?: number;
 
   @IsOptional()
-  @Matches(/^[A-Z]{2}$/, { message: 'state_code must be a 2-letter uppercase code (e.g. AP, TS)' })
+  @Matches(/^[A-Z]{2}$/, {
+    message: 'state_code must be a 2-letter uppercase code (e.g. AP, TS)',
+  })
   state_code?: string;
 
   @IsOptional()
@@ -63,7 +68,8 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @Matches(/^[A-Z]{2}$/, {
-    message: 'domicile_state_code must be a 2-letter uppercase code (e.g. AP, TS)',
+    message:
+      'domicile_state_code must be a 2-letter uppercase code (e.g. AP, TS)',
   })
   domicile_state_code?: string;
 

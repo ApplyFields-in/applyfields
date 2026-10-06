@@ -12,7 +12,13 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
 import { AuthGuard, type AuthenticatedRequest } from './auth.guard.js';
 import { RegisterDto } from './dto/register.dto.js';
-import { LoginDto, LoginOtpDto, SocialLoginDto, PasskeyLoginDto, PasskeyRegisterDto } from './dto/login.dto.js';
+import {
+  LoginDto,
+  LoginOtpDto,
+  SocialLoginDto,
+  PasskeyLoginDto,
+  PasskeyRegisterDto,
+} from './dto/login.dto.js';
 import { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
 
 const REFRESH_COOKIE_NAME = 'refresh_token';
@@ -22,6 +28,15 @@ const REFRESH_COOKIE_OPTIONS = {
   sameSite: 'lax' as const,
   path: '/',
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+};
+
+const ACCESS_COOKIE_NAME = 'accessToken';
+const ACCESS_COOKIE_OPTIONS = {
+  httpOnly: false, // accessible to server cookies() and client
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
 @Controller('auth')
@@ -59,8 +74,13 @@ export class AuthController {
     };
     const result = await this.authService.login(dto, meta);
 
-    // Send the refresh token as an httpOnly, secure cookie — never readable by JavaScript.
-    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    // Set refresh token and access token cookies
+    res.cookie(
+      REFRESH_COOKIE_NAME,
+      result.refreshToken,
+      REFRESH_COOKIE_OPTIONS,
+    );
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
 
     return {
       user: result.user,
@@ -82,7 +102,12 @@ export class AuthController {
     };
     const result = await this.authService.loginWithOtp(dto, meta);
 
-    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie(
+      REFRESH_COOKIE_NAME,
+      result.refreshToken,
+      REFRESH_COOKIE_OPTIONS,
+    );
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
 
     return {
       user: result.user,
@@ -104,7 +129,12 @@ export class AuthController {
     };
     const result = await this.authService.socialLogin(dto, meta);
 
-    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie(
+      REFRESH_COOKIE_NAME,
+      result.refreshToken,
+      REFRESH_COOKIE_OPTIONS,
+    );
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
 
     return {
       user: result.user,
@@ -126,7 +156,12 @@ export class AuthController {
     };
     const result = await this.authService.passkeyLogin(dto, meta);
 
-    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie(
+      REFRESH_COOKIE_NAME,
+      result.refreshToken,
+      REFRESH_COOKIE_OPTIONS,
+    );
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
 
     return {
       user: result.user,
@@ -152,20 +187,23 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @Body() body?: { refreshToken?: string },
   ) {
-    const rawRefreshToken = req.cookies?.[REFRESH_COOKIE_NAME] || body?.refreshToken;
+    const rawRefreshToken =
+      req.cookies?.[REFRESH_COOKIE_NAME] || body?.refreshToken;
     const meta = {
       userAgent: req.headers['user-agent'],
       ipAddress: req.ip || req.socket.remoteAddress,
     };
 
-    const result = await this.authService.refreshTokens(rawRefreshToken, meta);
+    const tokens = await this.authService.refreshTokens(rawRefreshToken, meta);
 
-    res.cookie(REFRESH_COOKIE_NAME, result.newRefreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie(
+      REFRESH_COOKIE_NAME,
+      tokens.newRefreshToken,
+      REFRESH_COOKIE_OPTIONS,
+    );
+    res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, ACCESS_COOKIE_OPTIONS);
 
-    return {
-      accessToken: result.accessToken,
-      refreshToken: result.newRefreshToken,
-    };
+    return tokens;
   }
 
   @Post('logout')
@@ -175,11 +213,18 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @Body() body?: { refreshToken?: string },
   ) {
-    const rawRefreshToken = req.cookies?.[REFRESH_COOKIE_NAME] || body?.refreshToken;
+    const rawRefreshToken =
+      req.cookies?.[REFRESH_COOKIE_NAME] || body?.refreshToken;
     await this.authService.logout(rawRefreshToken);
 
     res.clearCookie(REFRESH_COOKIE_NAME, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+    res.clearCookie(ACCESS_COOKIE_NAME, {
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',

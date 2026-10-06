@@ -18,7 +18,8 @@ const SIGNED_URL_SECONDS = 600;
 
 const isoDate = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 const num = (d: Prisma.Decimal | null) => (d === null ? null : Number(d));
-const needsCare = (confidence: number | null) => confidence === null || confidence < CAREFUL_REVIEW_BELOW;
+const needsCare = (confidence: number | null) =>
+  confidence === null || confidence < CAREFUL_REVIEW_BELOW;
 
 /** The fields the publish check needs (job-format §5). */
 type PublishCheckRow = {
@@ -37,12 +38,16 @@ type PublishCheckRow = {
  */
 export function publishBlockers(row: PublishCheckRow): string[] {
   const status = (row.field_status ?? {}) as Record<string, FieldStatus>;
-  const datesNotInSource = status['dates'] === 'not_in_source' || status['application_end'] === 'not_in_source';
+  const datesNotInSource =
+    status['dates'] === 'not_in_source' ||
+    status['application_end'] === 'not_in_source';
   const missing: string[] = [];
   if (!row.title.trim()) missing.push('Title');
-  if (!row.notification_pdf_url && !row.official_page_url) missing.push('Official link (notification PDF or official page)');
+  if (!row.notification_pdf_url && !row.official_page_url)
+    missing.push('Official link (notification PDF or official page)');
   if (!row.source_url) missing.push('Source URL');
-  if (!row.application_end && !datesNotInSource) missing.push('Last date (or mark dates "not in source")');
+  if (!row.application_end && !datesNotInSource)
+    missing.push('Last date (or mark dates "not in source")');
   return missing;
 }
 
@@ -54,46 +59,59 @@ export class ReviewService {
   ) {}
 
   /** Drafts waiting for review, newest find first. */
-  async list(filter: { source?: string; careful?: boolean }): Promise<ReviewList> {
+  async list(filter: {
+    source?: string;
+    careful?: boolean;
+  }): Promise<ReviewList> {
     const drafts: Prisma.opportunitiesWhereInput = { status: 'draft' };
     const careful: Prisma.opportunitiesWhereInput = {
       OR: [{ confidence: null }, { confidence: { lt: CAREFUL_REVIEW_BELOW } }],
     };
     const where: Prisma.opportunitiesWhereInput = {
-      AND: [drafts, ...(filter.source ? [{ source_key: filter.source }] : []), ...(filter.careful ? [careful] : [])],
+      AND: [
+        drafts,
+        ...(filter.source ? [{ source_key: filter.source }] : []),
+        ...(filter.careful ? [careful] : []),
+      ],
     };
 
-    const [rows, total, needsCareCount, waitingExtraction, sources] = await Promise.all([
-      this.prisma.opportunities.findMany({
-        where,
-        select: {
-          id: true,
-          title: true,
-          type: true,
-          source_key: true,
-          source_url: true,
-          confidence: true,
-          source_fetched_at: true,
-          created_at: true,
-          notification_pdf_url: true,
-          official_page_url: true,
-          application_end: true,
-          field_status: true,
-          organizations: { select: { name: true, short_name: true } },
-        },
-        orderBy: [{ source_fetched_at: { sort: 'desc', nulls: 'last' } }, { created_at: 'desc' }],
-        take: 200,
-      }),
-      this.prisma.opportunities.count({ where: drafts }),
-      this.prisma.opportunities.count({ where: { AND: [drafts, careful] } }),
-      this.prisma.scraped_documents.count({ where: { status: 'new', opportunity_id: null } }),
-      this.prisma.opportunities.findMany({
-        where: { ...drafts, source_key: { not: null } },
-        distinct: ['source_key'],
-        select: { source_key: true },
-        orderBy: { source_key: 'asc' },
-      }),
-    ]);
+    const [rows, total, needsCareCount, waitingExtraction, sources] =
+      await Promise.all([
+        this.prisma.opportunities.findMany({
+          where,
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            source_key: true,
+            source_url: true,
+            confidence: true,
+            source_fetched_at: true,
+            created_at: true,
+            notification_pdf_url: true,
+            official_page_url: true,
+            application_end: true,
+            field_status: true,
+            organizations: { select: { name: true, short_name: true } },
+          },
+          orderBy: [
+            { source_fetched_at: { sort: 'desc', nulls: 'last' } },
+            { created_at: 'desc' },
+          ],
+          take: 200,
+        }),
+        this.prisma.opportunities.count({ where: drafts }),
+        this.prisma.opportunities.count({ where: { AND: [drafts, careful] } }),
+        this.prisma.scraped_documents.count({
+          where: { status: 'new', opportunity_id: null },
+        }),
+        this.prisma.opportunities.findMany({
+          where: { ...drafts, source_key: { not: null } },
+          distinct: ['source_key'],
+          select: { source_key: true },
+          orderBy: { source_key: 'asc' },
+        }),
+      ]);
 
     const items: ReviewListItem[] = rows.map((r) => {
       const confidence = num(r.confidence);
@@ -115,7 +133,9 @@ export class ReviewService {
       total,
       needs_care: needsCareCount,
       waiting_extraction: waitingExtraction,
-      sources: sources.map((s) => s.source_key).filter((k): k is string => k !== null),
+      sources: sources
+        .map((s) => s.source_key)
+        .filter((k): k is string => k !== null),
       items,
     };
   }
@@ -125,7 +145,9 @@ export class ReviewService {
     const o = await this.prisma.opportunities.findUnique({
       where: { id },
       include: {
-        organizations: { select: { id: true, name: true, short_name: true, level: true } },
+        organizations: {
+          select: { id: true, name: true, short_name: true, level: true },
+        },
         opportunity_posts: { orderBy: { sort_order: 'asc' } },
         opportunity_eligibility: { orderBy: { created_at: 'asc' } },
         opportunity_dates: { orderBy: { date: 'asc' } },
@@ -140,7 +162,10 @@ export class ReviewService {
     if (!o) throw new NotFoundException(`No opportunity with id ${id}`);
 
     const confidence = num(o.confidence);
-    const pdf = await this.pdfFor(o.scraped_documents[0]?.storage_path ?? null, o.notification_pdf_url);
+    const pdf = await this.pdfFor(
+      o.scraped_documents[0]?.storage_path ?? null,
+      o.notification_pdf_url,
+    );
 
     return {
       id: o.id,
@@ -160,7 +185,8 @@ export class ReviewService {
       fee_text: o.fee_text,
       payment_modes: o.payment_modes,
       selection_process: o.selection_process,
-      required_documents: (o.required_documents ?? []) as unknown as RequiredDocument[],
+      required_documents: (o.required_documents ??
+        []) as unknown as RequiredDocument[],
       benefits_text: o.benefits_text,
       application_start: isoDate(o.application_start),
       application_end: isoDate(o.application_end),
@@ -184,7 +210,10 @@ export class ReviewService {
         id: p.id,
         name: p.name,
         vacancies_total: p.vacancies_total,
-        vacancies_by_category: p.vacancies_by_category as Record<string, number> | null,
+        vacancies_by_category: p.vacancies_by_category as Record<
+          string,
+          number
+        > | null,
         pay_level: p.pay_level,
         salary_min: p.salary_min,
         salary_max: p.salary_max,
@@ -196,7 +225,8 @@ export class ReviewService {
         age_min: e.age_min,
         age_max: e.age_max,
         age_as_on_date: isoDate(e.age_as_on_date),
-        age_relaxations: (e.age_relaxations ?? []) as unknown as AgeRelaxation[],
+        age_relaxations: (e.age_relaxations ??
+          []) as unknown as AgeRelaxation[],
         qualification_level: e.qualification_level,
         qualification_streams: e.qualification_streams,
         min_percentage: num(e.min_percentage),
@@ -225,14 +255,28 @@ export class ReviewService {
   }
 
   /** Prefer our stored copy (signed, expires); else the official PDF URL; else nothing. */
-  private async pdfFor(storagePath: string | null, officialPdf: string | null): Promise<ReviewDetail['pdf']> {
+  private async pdfFor(
+    storagePath: string | null,
+    officialPdf: string | null,
+  ): Promise<ReviewDetail['pdf']> {
     if (storagePath) {
-      const url = await this.storage.signedUrl(this.storage.notificationsBucket, storagePath, SIGNED_URL_SECONDS);
+      const url = await this.storage.signedUrl(
+        this.storage.notificationsBucket,
+        storagePath,
+        SIGNED_URL_SECONDS,
+      );
       if (url) {
-        return { url, kind: 'signed', expires_at: new Date(Date.now() + SIGNED_URL_SECONDS * 1000).toISOString() };
+        return {
+          url,
+          kind: 'signed',
+          expires_at: new Date(
+            Date.now() + SIGNED_URL_SECONDS * 1000,
+          ).toISOString(),
+        };
       }
     }
-    if (officialPdf) return { url: officialPdf, kind: 'official', expires_at: null };
+    if (officialPdf)
+      return { url: officialPdf, kind: 'official', expires_at: null };
     return { url: null, kind: 'none', expires_at: null };
   }
 }

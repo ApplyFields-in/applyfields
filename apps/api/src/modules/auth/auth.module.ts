@@ -11,7 +11,8 @@ import { UsersModule } from '../users/users.module.js';
     JwtModule.register({
       global: true,
       secret:
-        process.env.JWT_ACCESS_SECRET ?? 'applyfields_dev_jwt_access_secret_32bytes_min_key',
+        process.env.JWT_ACCESS_SECRET ??
+        'applyfields_dev_jwt_access_secret_32bytes_min_key',
       signOptions: { expiresIn: (process.env.JWT_ACCESS_TTL ?? '7d') as any },
     }),
   ],

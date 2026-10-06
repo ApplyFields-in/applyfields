@@ -3,15 +3,27 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersStore } from '../users/users.store.js';
 import type { RegisterDto } from './dto/register.dto.js';
-import type { LoginDto, LoginOtpDto, SocialLoginDto, PasskeyLoginDto, PasskeyRegisterDto } from './dto/login.dto.js';
-import type { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
+import type {
+  LoginDto,
+  LoginOtpDto,
+  SocialLoginDto,
+  PasskeyLoginDto,
+  PasskeyRegisterDto,
+} from './dto/login.dto.js';
+import type {
+  ResetPasswordDto,
+  SendOtpDto,
+  VerifyOtpDto,
+} from './dto/otp.dto.js';
 import type { AuthResponse, UserSummary } from '@applyfields/types';
 
 @Injectable()
@@ -19,6 +31,7 @@ export class AuthService {
   constructor(
     private readonly store: UsersStore,
     private readonly jwtService: JwtService,
+    @Optional() private readonly prisma?: PrismaService,
   ) {}
 
   private hashToken(token: string): string {
@@ -32,7 +45,12 @@ export class AuthService {
   async register(
     dto: RegisterDto,
     ipAddress?: string,
-  ): Promise<{ user: UserSummary; message: string; target: string; devOtp?: string }> {
+  ): Promise<{
+    user: UserSummary;
+    message: string;
+    target: string;
+    devOtp?: string;
+  }> {
     if (!dto.email && !dto.phone) {
       throw new BadRequestException('Either email or phone must be provided');
     }
@@ -42,7 +60,9 @@ export class AuthService {
     }
 
     if (dto.phone && (await this.store.findUserByPhone(dto.phone))) {
-      throw new ConflictException('An account with this phone number already exists');
+      throw new ConflictException(
+        'An account with this phone number already exists',
+      );
     }
 
     // Passwords: store only an argon2id hash in users.password_hash. Never log or return it.
@@ -82,7 +102,8 @@ export class AuthService {
 
     return {
       user: this.store.toUserSummary(user),
-      message: 'Account created successfully. A verification code has been sent.',
+      message:
+        'Account created successfully. A verification code has been sent.',
       target,
       devOtp: otpResult.devOtp,
     };
@@ -91,7 +112,12 @@ export class AuthService {
   async sendOtp(
     dto: SendOtpDto,
     userId?: string | null,
-  ): Promise<{ success: boolean; message: string; target: string; devOtp?: string }> {
+  ): Promise<{
+    success: boolean;
+    message: string;
+    target: string;
+    devOtp?: string;
+  }> {
     const rawOtp = this.generate6DigitOtp();
     const code_hash = this.hashToken(rawOtp);
     const expires_at = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
@@ -137,11 +163,15 @@ export class AuthService {
   ): Promise<{ verified: boolean; message: string }> {
     const otp = await this.store.findLatestValidOtp(dto.target, dto.purpose);
     if (!otp) {
-      throw new BadRequestException('Invalid, expired, or non-existent OTP code');
+      throw new BadRequestException(
+        'Invalid, expired, or non-existent OTP code',
+      );
     }
 
     if (otp.attempts >= 5) {
-      throw new BadRequestException('Too many failed attempts. Please request a new OTP.');
+      throw new BadRequestException(
+        'Too many failed attempts. Please request a new OTP.',
+      );
     }
 
     const inputHash = this.hashToken(dto.code);
@@ -182,14 +212,49 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email/phone or password');
     }
 
-    await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });
+    await this.store.updateUser(user.id, {
+      last_login_at: new Date().toISOString(),
+    });
 
     const tokens = await this.issueTokens(user, meta);
+
+    // Write an audit_logs row on every staff login (action: 'staff.login')
+    await this.recordStaffLoginAudit(user.id, meta);
+
     return {
       user: this.store.toUserSummary(user),
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
     };
+  }
+
+  private async recordStaffLoginAudit(
+    userId: string,
+    meta: { userAgent?: string; ipAddress?: string } = {},
+  ): Promise<void> {
+    if (!this.prisma) return;
+    try {
+      const roles = await this.prisma.user_roles.findMany({
+        where: { user_id: userId },
+      });
+      if (roles && roles.length > 0) {
+        await this.prisma.audit_logs.create({
+          data: {
+            actor_id: userId,
+            action: 'staff.login',
+            target_type: 'user',
+            target_id: userId,
+            details: {
+              roles: roles.map((r) => r.role),
+              userAgent: meta.userAgent ?? null,
+            },
+            ip_address: meta.ipAddress ?? null,
+          },
+        });
+      }
+    } catch (err: any) {
+      console.warn('Could not record staff.login in audit_logs:', err?.message);
+    }
   }
 
   async loginWithOtp(
@@ -206,15 +271,21 @@ export class AuthService {
     if (!user) {
       // Create user if not existing
       const dummyPassword = randomBytes(24).toString('hex');
-      const password_hash = await argon2.hash(dummyPassword, { type: argon2.argon2id });
+      const password_hash = await argon2.hash(dummyPassword, {
+        type: argon2.argon2id,
+      });
       user = await this.store.createUser({
         phone: dto.phone,
         password_hash,
       });
-      await this.store.updateUser(user.id, { phone_verified_at: new Date().toISOString() });
+      await this.store.updateUser(user.id, {
+        phone_verified_at: new Date().toISOString(),
+      });
     }
 
-    await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });
+    await this.store.updateUser(user.id, {
+      last_login_at: new Date().toISOString(),
+    });
 
     const tokens = await this.issueTokens(user, meta);
     return {
@@ -235,17 +306,25 @@ export class AuthService {
     let user = await this.store.findUserByEmail(providerEmail);
     if (!user) {
       const dummyPassword = randomBytes(24).toString('hex');
-      const password_hash = await argon2.hash(dummyPassword, { type: argon2.argon2id });
+      const password_hash = await argon2.hash(dummyPassword, {
+        type: argon2.argon2id,
+      });
       user = await this.store.createUser({
         email: providerEmail,
         password_hash,
       });
-      await this.store.updateUser(user.id, { email_verified_at: new Date().toISOString() });
-      const fullName = dto.name || `${dto.provider.charAt(0).toUpperCase() + dto.provider.slice(1)} Citizen`;
+      await this.store.updateUser(user.id, {
+        email_verified_at: new Date().toISOString(),
+      });
+      const fullName =
+        dto.name ||
+        `${dto.provider.charAt(0).toUpperCase() + dto.provider.slice(1)} Citizen`;
       await this.store.updateProfile(user.id, { full_name: fullName });
     }
 
-    await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });
+    await this.store.updateUser(user.id, {
+      last_login_at: new Date().toISOString(),
+    });
 
     const tokens = await this.issueTokens(user, meta);
     return {
@@ -280,14 +359,18 @@ export class AuthService {
     meta: { userAgent?: string; ipAddress?: string } = {},
   ): Promise<AuthResponse & { refreshToken: string }> {
     if (!dto.email || !dto.email.trim()) {
-      throw new BadRequestException('Registered email or phone number is required to sign in with passkey');
+      throw new BadRequestException(
+        'Registered email or phone number is required to sign in with passkey',
+      );
     }
 
     const identifier = dto.email.trim();
     const user = await this.store.findUserByIdentifier(identifier);
 
     if (!user || user.status !== 'active') {
-      throw new NotFoundException('No registered citizen account found with this email or phone. Please register first.');
+      throw new NotFoundException(
+        'No registered citizen account found with this email or phone. Please register first.',
+      );
     }
 
     if (!user.mfa_enabled) {
@@ -296,7 +379,9 @@ export class AuthService {
       );
     }
 
-    await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });
+    await this.store.updateUser(user.id, {
+      last_login_at: new Date().toISOString(),
+    });
 
     const tokens = await this.issueTokens(user, meta);
     return {
@@ -325,7 +410,9 @@ export class AuthService {
 
     const user = await this.store.findUserById(session.user_id);
     if (!user || user.status !== 'active') {
-      throw new UnauthorizedException('User account is suspended or no longer active');
+      throw new UnauthorizedException(
+        'User account is suspended or no longer active',
+      );
     }
 
     const tokens = await this.issueTokens(user, meta);
@@ -346,7 +433,9 @@ export class AuthService {
     return { success: true };
   }
 
-  async resetPassword(dto: ResetPasswordDto): Promise<{ success: boolean; message: string }> {
+  async resetPassword(
+    dto: ResetPasswordDto,
+  ): Promise<{ success: boolean; message: string }> {
     await this.verifyOtp({
       target: dto.target,
       purpose: 'reset_password',
@@ -370,7 +459,8 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'Password has been successfully reset. Please log in with your new password.',
+      message:
+        'Password has been successfully reset. Please log in with your new password.',
     };
   }
 
@@ -385,7 +475,8 @@ export class AuthService {
     };
 
     const accessSecret =
-      process.env.JWT_ACCESS_SECRET ?? 'applyfields_dev_jwt_access_secret_32bytes_min_key';
+      process.env.JWT_ACCESS_SECRET ??
+      'applyfields_dev_jwt_access_secret_32bytes_min_key';
     const accessTtl = process.env.JWT_ACCESS_TTL ?? '7d';
 
     const accessToken = await this.jwtService.signAsync(payload, {
@@ -396,7 +487,9 @@ export class AuthService {
     // Refresh token: 30 days random crypto token, stored only as a hash in user_sessions
     const refreshToken = randomBytes(40).toString('hex');
     const refresh_token_hash = this.hashToken(refreshToken);
-    const expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const expires_at = new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000,
+    ).toISOString();
 
     await this.store.createSession({
       user_id: user.id,
