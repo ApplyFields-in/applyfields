@@ -88,14 +88,18 @@ describe('AuthService', () => {
       expect(refreshRes.newRefreshToken).not.toBe(loginRes.refreshToken);
 
       // Old refresh token must now be revoked
-      await expect(authService.refreshTokens(loginRes.refreshToken)).rejects.toThrow();
+      await expect(
+        authService.refreshTokens(loginRes.refreshToken),
+      ).rejects.toThrow();
 
       // Logout flow
       const logoutRes = await authService.logout(refreshRes.newRefreshToken);
       expect(logoutRes.success).toBe(true);
 
       // Logged out token cannot be used to refresh
-      await expect(authService.refreshTokens(refreshRes.newRefreshToken)).rejects.toThrow();
+      await expect(
+        authService.refreshTokens(refreshRes.newRefreshToken),
+      ).rejects.toThrow();
     });
 
     it('should log in using phone number with and without country code', async () => {

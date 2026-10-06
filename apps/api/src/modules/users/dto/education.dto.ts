@@ -12,7 +12,8 @@ import {
 export class CreateEducationDto {
   @IsNotEmpty()
   @IsIn(['10th', '12th', 'iti', 'diploma', 'graduate', 'post_graduate', 'phd'])
-  level!: '10th' | '12th' | 'iti' | 'diploma' | 'graduate' | 'post_graduate' | 'phd';
+  level!:
+    '10th' | '12th' | 'iti' | 'diploma' | 'graduate' | 'post_graduate' | 'phd';
 
   @IsOptional()
   @IsString()

@@ -1,5 +1,10 @@
 // Load apps/api/.env before anything reads process.env (DATABASE_URL, CORS_ORIGINS, PORT…)
 import 'dotenv/config';
+
+// Permit Supabase pooler TLS certificate on dev environments
+if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ValidationPipe } from '@nestjs/common';
@@ -44,7 +49,9 @@ async function bootstrap() {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const origins = Array.from(new Set([...defaultOrigins, ...configuredOrigins]));
+  const origins = Array.from(
+    new Set([...defaultOrigins, ...configuredOrigins]),
+  );
 
   // Only our own web apps may call the API from a browser
   app.enableCors({

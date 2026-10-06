@@ -7,8 +7,7 @@ import type {
   UserProfile,
   UserSummary,
 } from '@applyfields/types';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { Prisma, PrismaService } from '../../prisma/prisma.service.js';
 
 const STORE_FILE_PATH = join(process.cwd(), '.data', 'users-store.json');
 
@@ -70,7 +69,8 @@ export interface OtpCodeEntity {
 export interface ConsentEntity {
   id: string;
   user_id: string;
-  purpose: 'terms' | 'privacy' | 'sms' | 'whatsapp' | 'email_updates' | 'analytics';
+  purpose:
+    'terms' | 'privacy' | 'sms' | 'whatsapp' | 'email_updates' | 'analytics';
   policy_version: string;
   granted: boolean;
   granted_at: string;
@@ -111,7 +111,10 @@ export class UsersStore implements OnModuleInit {
           },
         });
       } catch (err: any) {
-        console.warn('[UsersStore] Notice on document_types initialization:', err.message);
+        console.warn(
+          '[UsersStore] Notice on document_types initialization:',
+          err.message,
+        );
       }
     }
   }
@@ -149,7 +152,10 @@ export class UsersStore implements OnModuleInit {
         }
       }
     } catch (err) {
-      console.warn('[UsersStore] Could not load data from disk, using fresh store:', err);
+      console.warn(
+        '[UsersStore] Could not load data from disk, using fresh store:',
+        err,
+      );
     }
   }
 
@@ -183,13 +189,21 @@ export class UsersStore implements OnModuleInit {
       phone: u.phone ?? null,
       password_hash: u.password_hash ?? '',
       status: u.status,
-      email_verified_at: u.email_verified_at ? u.email_verified_at.toISOString() : null,
-      phone_verified_at: u.phone_verified_at ? u.phone_verified_at.toISOString() : null,
+      email_verified_at: u.email_verified_at
+        ? u.email_verified_at.toISOString()
+        : null,
+      phone_verified_at: u.phone_verified_at
+        ? u.phone_verified_at.toISOString()
+        : null,
       mfa_enabled: Boolean(u.mfa_enabled),
       last_login_at: u.last_login_at ? u.last_login_at.toISOString() : null,
       deleted_at: u.deleted_at ? u.deleted_at.toISOString() : null,
-      created_at: u.created_at ? u.created_at.toISOString() : new Date().toISOString(),
-      updated_at: u.updated_at ? u.updated_at.toISOString() : new Date().toISOString(),
+      created_at: u.created_at
+        ? u.created_at.toISOString()
+        : new Date().toISOString(),
+      updated_at: u.updated_at
+        ? u.updated_at.toISOString()
+        : new Date().toISOString(),
     };
   }
 
@@ -197,21 +211,28 @@ export class UsersStore implements OnModuleInit {
     return {
       user_id: p.user_id,
       full_name: p.full_name ?? null,
-      date_of_birth: p.date_of_birth ? p.date_of_birth.toISOString().split('T')[0] : null,
+      date_of_birth: p.date_of_birth
+        ? p.date_of_birth.toISOString().split('T')[0]
+        : null,
       gender: p.gender ?? null,
       category: p.category ?? null,
       is_pwbd: Boolean(p.is_pwbd),
       pwbd_type: p.pwbd_type ?? null,
       is_ex_serviceman: Boolean(p.is_ex_serviceman),
       is_minority: Boolean(p.is_minority),
-      special_conditions: Array.isArray(p.special_conditions) ? p.special_conditions : [],
-      annual_family_income: p.annual_family_income != null ? Number(p.annual_family_income) : null,
+      special_conditions: Array.isArray(p.special_conditions)
+        ? p.special_conditions
+        : [],
+      annual_family_income:
+        p.annual_family_income != null ? Number(p.annual_family_income) : null,
       state_code: p.state_code ?? null,
       district: p.district ?? null,
       domicile_state_code: p.domicile_state_code ?? null,
       preferred_language: p.preferred_language ?? 'en',
       avatar_url: p.avatar_url ?? null,
-      updated_at: p.updated_at ? p.updated_at.toISOString() : new Date().toISOString(),
+      updated_at: p.updated_at
+        ? p.updated_at.toISOString()
+        : new Date().toISOString(),
     };
   }
 
@@ -224,12 +245,17 @@ export class UsersStore implements OnModuleInit {
       stream: e.stream ?? null,
       board_or_university: e.board_or_university ?? null,
       institution_name: e.institution_name ?? null,
-      year_of_passing: e.year_of_passing != null ? Number(e.year_of_passing) : null,
+      year_of_passing:
+        e.year_of_passing != null ? Number(e.year_of_passing) : null,
       score: e.score != null ? Number(e.score) : null,
       score_type: e.score_type ?? null,
       status: e.status ?? 'completed',
-      created_at: e.created_at ? e.created_at.toISOString() : new Date().toISOString(),
-      updated_at: e.updated_at ? e.updated_at.toISOString() : new Date().toISOString(),
+      created_at: e.created_at
+        ? e.created_at.toISOString()
+        : new Date().toISOString(),
+      updated_at: e.updated_at
+        ? e.updated_at.toISOString()
+        : new Date().toISOString(),
     };
   }
 
@@ -243,10 +269,15 @@ export class UsersStore implements OnModuleInit {
       file_name: d.file_name ?? null,
       mime_type: d.mime_type ?? null,
       size_bytes: d.size_bytes != null ? Number(d.size_bytes) : null,
-      details: typeof d.details === 'object' && d.details !== null ? d.details : {},
+      details:
+        typeof d.details === 'object' && d.details !== null ? d.details : {},
       deleted_at: d.deleted_at ? d.deleted_at.toISOString() : null,
-      created_at: d.created_at ? d.created_at.toISOString() : new Date().toISOString(),
-      updated_at: d.updated_at ? d.updated_at.toISOString() : new Date().toISOString(),
+      created_at: d.created_at
+        ? d.created_at.toISOString()
+        : new Date().toISOString(),
+      updated_at: d.updated_at
+        ? d.updated_at.toISOString()
+        : new Date().toISOString(),
     };
   }
 
@@ -359,7 +390,9 @@ export class UsersStore implements OnModuleInit {
     }
 
     // Exact match
-    const exact = Array.from(this.users.values()).find((u) => u.phone === trimmed);
+    const exact = Array.from(this.users.values()).find(
+      (u) => u.phone === trimmed,
+    );
     if (exact) return exact;
 
     // Normalized digit matching
@@ -368,14 +401,20 @@ export class UsersStore implements OnModuleInit {
       return Array.from(this.users.values()).find((u) => {
         if (!u.phone) return false;
         const uDigits = u.phone.replace(/\D/g, '');
-        return uDigits === digitsOnly || uDigits.endsWith(digitsOnly) || digitsOnly.endsWith(uDigits);
+        return (
+          uDigits === digitsOnly ||
+          uDigits.endsWith(digitsOnly) ||
+          digitsOnly.endsWith(uDigits)
+        );
       });
     }
 
     return undefined;
   }
 
-  async findUserByIdentifier(identifier: string): Promise<UserEntity | undefined> {
+  async findUserByIdentifier(
+    identifier: string,
+  ): Promise<UserEntity | undefined> {
     const trimmed = identifier.trim();
     if (trimmed.includes('@')) {
       return this.findUserByEmail(trimmed);
@@ -383,27 +422,40 @@ export class UsersStore implements OnModuleInit {
     return this.findUserByPhone(trimmed);
   }
 
-  async updateUser(id: string, partial: Partial<UserEntity>): Promise<UserEntity | undefined> {
+  async updateUser(
+    id: string,
+    partial: Partial<UserEntity>,
+  ): Promise<UserEntity | undefined> {
     if (this.prisma && !this.isTestEnv()) {
       const data: Prisma.usersUpdateInput = {
         updated_at: new Date(),
       };
       if (partial.email !== undefined) data.email = partial.email;
       if (partial.phone !== undefined) data.phone = partial.phone;
-      if (partial.password_hash !== undefined) data.password_hash = partial.password_hash;
+      if (partial.password_hash !== undefined)
+        data.password_hash = partial.password_hash;
       if (partial.status !== undefined) data.status = partial.status as any;
       if (partial.email_verified_at !== undefined) {
-        data.email_verified_at = partial.email_verified_at ? new Date(partial.email_verified_at) : null;
+        data.email_verified_at = partial.email_verified_at
+          ? new Date(partial.email_verified_at)
+          : null;
       }
       if (partial.phone_verified_at !== undefined) {
-        data.phone_verified_at = partial.phone_verified_at ? new Date(partial.phone_verified_at) : null;
+        data.phone_verified_at = partial.phone_verified_at
+          ? new Date(partial.phone_verified_at)
+          : null;
       }
-      if (partial.mfa_enabled !== undefined) data.mfa_enabled = partial.mfa_enabled;
+      if (partial.mfa_enabled !== undefined)
+        data.mfa_enabled = partial.mfa_enabled;
       if (partial.last_login_at !== undefined) {
-        data.last_login_at = partial.last_login_at ? new Date(partial.last_login_at) : null;
+        data.last_login_at = partial.last_login_at
+          ? new Date(partial.last_login_at)
+          : null;
       }
       if (partial.deleted_at !== undefined) {
-        data.deleted_at = partial.deleted_at ? new Date(partial.deleted_at) : null;
+        data.deleted_at = partial.deleted_at
+          ? new Date(partial.deleted_at)
+          : null;
       }
 
       const updated = await this.prisma.users.update({
@@ -439,7 +491,9 @@ export class UsersStore implements OnModuleInit {
   }
 
   // --- Consents ---
-  async addConsent(data: Omit<ConsentEntity, 'id' | 'granted_at' | 'withdrawn_at'>): Promise<ConsentEntity> {
+  async addConsent(
+    data: Omit<ConsentEntity, 'id' | 'granted_at' | 'withdrawn_at'>,
+  ): Promise<ConsentEntity> {
     if (this.prisma && !this.isTestEnv()) {
       const created = await this.prisma.consents.create({
         data: {
@@ -457,7 +511,9 @@ export class UsersStore implements OnModuleInit {
         policy_version: created.policy_version,
         granted: created.granted,
         granted_at: created.granted_at.toISOString(),
-        withdrawn_at: created.withdrawn_at ? created.withdrawn_at.toISOString() : null,
+        withdrawn_at: created.withdrawn_at
+          ? created.withdrawn_at.toISOString()
+          : null,
         ip_address: created.ip_address,
       };
     }
@@ -520,9 +576,13 @@ export class UsersStore implements OnModuleInit {
         device_name: created.device_name,
         user_agent: created.user_agent,
         ip_address: created.ip_address,
-        last_used_at: created.last_used_at ? created.last_used_at.toISOString() : new Date().toISOString(),
+        last_used_at: created.last_used_at
+          ? created.last_used_at.toISOString()
+          : new Date().toISOString(),
         expires_at: created.expires_at.toISOString(),
-        revoked_at: created.revoked_at ? created.revoked_at.toISOString() : null,
+        revoked_at: created.revoked_at
+          ? created.revoked_at.toISOString()
+          : null,
         created_at: created.created_at.toISOString(),
       };
     }
@@ -544,7 +604,9 @@ export class UsersStore implements OnModuleInit {
     return session;
   }
 
-  async findActiveSessionByTokenHash(tokenHash: string): Promise<UserSessionEntity | undefined> {
+  async findActiveSessionByTokenHash(
+    tokenHash: string,
+  ): Promise<UserSessionEntity | undefined> {
     if (this.prisma && !this.isTestEnv()) {
       const now = new Date();
       const s = await this.prisma.user_sessions.findFirst({
@@ -562,7 +624,9 @@ export class UsersStore implements OnModuleInit {
         device_name: s.device_name,
         user_agent: s.user_agent,
         ip_address: s.ip_address,
-        last_used_at: s.last_used_at ? s.last_used_at.toISOString() : new Date().toISOString(),
+        last_used_at: s.last_used_at
+          ? s.last_used_at.toISOString()
+          : new Date().toISOString(),
         expires_at: s.expires_at.toISOString(),
         revoked_at: null,
         created_at: s.created_at.toISOString(),
@@ -687,7 +751,11 @@ export class UsersStore implements OnModuleInit {
         if (o.target === normalized) return true;
         if (!isEmail && !o.target.includes('@') && targetDigits.length >= 7) {
           const oDigits = o.target.replace(/\D/g, '');
-          return oDigits === targetDigits || oDigits.endsWith(targetDigits) || targetDigits.endsWith(oDigits);
+          return (
+            oDigits === targetDigits ||
+            oDigits.endsWith(targetDigits) ||
+            targetDigits.endsWith(oDigits)
+          );
         }
         return false;
       });
@@ -708,13 +776,22 @@ export class UsersStore implements OnModuleInit {
 
     const matches = Array.from(this.otps.values())
       .filter((o) => {
-        if (o.purpose !== purpose || o.used_at || o.expires_at <= now || o.attempts >= 5) {
+        if (
+          o.purpose !== purpose ||
+          o.used_at ||
+          o.expires_at <= now ||
+          o.attempts >= 5
+        ) {
           return false;
         }
         if (o.target === normalized) return true;
         if (!isEmail && !o.target.includes('@') && targetDigits.length >= 7) {
           const oDigits = o.target.replace(/\D/g, '');
-          return oDigits === targetDigits || oDigits.endsWith(targetDigits) || targetDigits.endsWith(oDigits);
+          return (
+            oDigits === targetDigits ||
+            oDigits.endsWith(targetDigits) ||
+            targetDigits.endsWith(oDigits)
+          );
         }
         return false;
       })
@@ -768,35 +845,55 @@ export class UsersStore implements OnModuleInit {
     return this.profiles.get(userId);
   }
 
-  async updateProfile(userId: string, partial: Partial<UserProfile>): Promise<UserProfile> {
+  async updateProfile(
+    userId: string,
+    partial: Partial<UserProfile>,
+  ): Promise<UserProfile> {
     if (this.prisma && !this.isTestEnv()) {
       const dataToUpdate: Prisma.user_profilesUpdateInput = {
         updated_at: new Date(),
       };
-      if (partial.full_name !== undefined) dataToUpdate.full_name = partial.full_name;
+      if (partial.full_name !== undefined)
+        dataToUpdate.full_name = partial.full_name;
       if (partial.date_of_birth !== undefined) {
-        dataToUpdate.date_of_birth = partial.date_of_birth ? new Date(partial.date_of_birth + 'T00:00:00Z') : null;
+        dataToUpdate.date_of_birth = partial.date_of_birth
+          ? new Date(partial.date_of_birth + 'T00:00:00Z')
+          : null;
       }
-      if (partial.gender !== undefined) dataToUpdate.gender = partial.gender as any;
-      if (partial.category !== undefined) dataToUpdate.category = partial.category as any;
+      if (partial.gender !== undefined)
+        dataToUpdate.gender = partial.gender as any;
+      if (partial.category !== undefined)
+        dataToUpdate.category = partial.category as any;
       if (partial.is_pwbd !== undefined) dataToUpdate.is_pwbd = partial.is_pwbd;
-      if (partial.pwbd_type !== undefined) dataToUpdate.pwbd_type = partial.pwbd_type;
-      if (partial.is_ex_serviceman !== undefined) dataToUpdate.is_ex_serviceman = partial.is_ex_serviceman;
-      if (partial.is_minority !== undefined) dataToUpdate.is_minority = partial.is_minority;
-      if (partial.special_conditions !== undefined) dataToUpdate.special_conditions = partial.special_conditions;
-      if (partial.annual_family_income !== undefined) dataToUpdate.annual_family_income = partial.annual_family_income;
-      if (partial.state_code !== undefined) dataToUpdate.state_code = partial.state_code;
-      if (partial.district !== undefined) dataToUpdate.district = partial.district;
-      if (partial.domicile_state_code !== undefined) dataToUpdate.domicile_state_code = partial.domicile_state_code;
-      if (partial.preferred_language !== undefined) dataToUpdate.preferred_language = partial.preferred_language;
-      if (partial.avatar_url !== undefined) dataToUpdate.avatar_url = partial.avatar_url;
+      if (partial.pwbd_type !== undefined)
+        dataToUpdate.pwbd_type = partial.pwbd_type;
+      if (partial.is_ex_serviceman !== undefined)
+        dataToUpdate.is_ex_serviceman = partial.is_ex_serviceman;
+      if (partial.is_minority !== undefined)
+        dataToUpdate.is_minority = partial.is_minority;
+      if (partial.special_conditions !== undefined)
+        dataToUpdate.special_conditions = partial.special_conditions;
+      if (partial.annual_family_income !== undefined)
+        dataToUpdate.annual_family_income = partial.annual_family_income;
+      if (partial.state_code !== undefined)
+        dataToUpdate.state_code = partial.state_code;
+      if (partial.district !== undefined)
+        dataToUpdate.district = partial.district;
+      if (partial.domicile_state_code !== undefined)
+        dataToUpdate.domicile_state_code = partial.domicile_state_code;
+      if (partial.preferred_language !== undefined)
+        dataToUpdate.preferred_language = partial.preferred_language;
+      if (partial.avatar_url !== undefined)
+        dataToUpdate.avatar_url = partial.avatar_url;
 
       const upserted = await this.prisma.user_profiles.upsert({
         where: { user_id: userId },
         create: {
           user_id: userId,
           full_name: partial.full_name ?? null,
-          date_of_birth: partial.date_of_birth ? new Date(partial.date_of_birth + 'T00:00:00Z') : null,
+          date_of_birth: partial.date_of_birth
+            ? new Date(partial.date_of_birth + 'T00:00:00Z')
+            : null,
           gender: partial.gender as any,
           category: partial.category as any,
           is_pwbd: partial.is_pwbd ?? false,
@@ -855,7 +952,9 @@ export class UsersStore implements OnModuleInit {
       });
       return list.map((e) => this.mapDbEducationToDomain(e));
     }
-    return Array.from(this.educations.values()).filter((e) => e.user_id === userId);
+    return Array.from(this.educations.values()).filter(
+      (e) => e.user_id === userId,
+    );
   }
 
   async addEducation(
@@ -919,14 +1018,20 @@ export class UsersStore implements OnModuleInit {
       if (partial.level !== undefined) dataToUpdate.level = partial.level;
       if (partial.degree !== undefined) dataToUpdate.degree = partial.degree;
       if (partial.stream !== undefined) dataToUpdate.stream = partial.stream;
-      if (partial.board_or_university !== undefined) dataToUpdate.board_or_university = partial.board_or_university;
-      if (partial.institution_name !== undefined) dataToUpdate.institution_name = partial.institution_name;
-      if (partial.year_of_passing !== undefined) dataToUpdate.year_of_passing = partial.year_of_passing;
+      if (partial.board_or_university !== undefined)
+        dataToUpdate.board_or_university = partial.board_or_university;
+      if (partial.institution_name !== undefined)
+        dataToUpdate.institution_name = partial.institution_name;
+      if (partial.year_of_passing !== undefined)
+        dataToUpdate.year_of_passing = partial.year_of_passing;
       if (partial.score !== undefined) {
-        dataToUpdate.score = partial.score != null ? new Prisma.Decimal(partial.score) : null;
+        dataToUpdate.score =
+          partial.score != null ? new Prisma.Decimal(partial.score) : null;
       }
-      if (partial.score_type !== undefined) dataToUpdate.score_type = partial.score_type as any;
-      if (partial.status !== undefined) dataToUpdate.status = partial.status as any;
+      if (partial.score_type !== undefined)
+        dataToUpdate.score_type = partial.score_type as any;
+      if (partial.status !== undefined)
+        dataToUpdate.status = partial.status as any;
 
       const updated = await this.prisma.user_education.update({
         where: { id },
@@ -1035,7 +1140,10 @@ export class UsersStore implements OnModuleInit {
     }
 
     const existing = Array.from(this.documents.values()).find(
-      (d) => d.user_id === userId && d.document_type_code === 'resume' && !d.deleted_at,
+      (d) =>
+        d.user_id === userId &&
+        d.document_type_code === 'resume' &&
+        !d.deleted_at,
     );
     const now = new Date().toISOString();
     if (existing) {
@@ -1074,7 +1182,9 @@ export class UsersStore implements OnModuleInit {
     return doc;
   }
 
-  async getUserResumeDocument(userId: string): Promise<UserDocumentEntity | null> {
+  async getUserResumeDocument(
+    userId: string,
+  ): Promise<UserDocumentEntity | null> {
     if (this.prisma && !this.isTestEnv()) {
       const doc = await this.prisma.user_documents.findFirst({
         where: {
@@ -1088,7 +1198,10 @@ export class UsersStore implements OnModuleInit {
     }
 
     const doc = Array.from(this.documents.values()).find(
-      (d) => d.user_id === userId && d.document_type_code === 'resume' && !d.deleted_at,
+      (d) =>
+        d.user_id === userId &&
+        d.document_type_code === 'resume' &&
+        !d.deleted_at,
     );
     return doc ?? null;
   }
@@ -1109,8 +1222,15 @@ export class UsersStore implements OnModuleInit {
     }
 
     for (const [id, doc] of this.documents.entries()) {
-      if (doc.user_id === userId && doc.document_type_code === 'resume' && !doc.deleted_at) {
-        this.documents.set(id, { ...doc, deleted_at: new Date().toISOString() });
+      if (
+        doc.user_id === userId &&
+        doc.document_type_code === 'resume' &&
+        !doc.deleted_at
+      ) {
+        this.documents.set(id, {
+          ...doc,
+          deleted_at: new Date().toISOString(),
+        });
       }
     }
     this.saveToDisk();

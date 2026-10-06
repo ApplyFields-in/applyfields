@@ -4,7 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import zlib from 'node:zlib';
-import type { EducationLevel, EducationStatus, ExtractedEducationItem, ScoreType } from '@applyfields/types';
+import type {
+  EducationLevel,
+  EducationStatus,
+  ExtractedEducationItem,
+  ScoreType,
+} from '@applyfields/types';
 
 const execFileAsync = promisify(execFile);
 
@@ -20,14 +25,20 @@ function findTesseractBinary(): string | null {
 /**
  * Runs OCR on an image buffer using local Tesseract engine.
  */
-async function runOcrOnImageBuffer(imageBuffer: Buffer, ext = 'jpg'): Promise<string> {
+async function runOcrOnImageBuffer(
+  imageBuffer: Buffer,
+  ext = 'jpg',
+): Promise<string> {
   const tesseract = findTesseractBinary();
   if (!tesseract) {
     console.warn('[ResumeParser] Tesseract OCR binary not found on host.');
     return '';
   }
 
-  const tempFile = path.join(os.tmpdir(), `resume_ocr_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`);
+  const tempFile = path.join(
+    os.tmpdir(),
+    `resume_ocr_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`,
+  );
   try {
     writeFileSync(tempFile, imageBuffer);
     const { stdout } = await execFileAsync(tesseract, [tempFile, 'stdout'], {
@@ -114,12 +125,20 @@ export async function extractTextFromBuffer(
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
 
   // 1. Plain text formats
-  if (mimeType.includes('text') || ext === 'txt' || ext === 'md' || ext === 'text') {
+  if (
+    mimeType.includes('text') ||
+    ext === 'txt' ||
+    ext === 'md' ||
+    ext === 'text'
+  ) {
     return buffer.toString('utf-8');
   }
 
   // 2. Direct image formats
-  if (mimeType.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff'].includes(ext)) {
+  if (
+    mimeType.startsWith('image/') ||
+    ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff'].includes(ext)
+  ) {
     return await runOcrOnImageBuffer(buffer, ext);
   }
 
@@ -157,7 +176,9 @@ export async function extractTextFromBuffer(
 /**
  * High-precision segmented resume qualifications parser.
  */
-export function extractEducationFromResume(text: string): ExtractedEducationItem[] {
+export function extractEducationFromResume(
+  text: string,
+): ExtractedEducationItem[] {
   if (!text || text.trim().length === 0) return [];
 
   const currentYear = new Date().getFullYear();
@@ -182,17 +203,33 @@ export function extractEducationFromResume(text: string): ExtractedEducationItem
       return 'phd';
     }
     // Strict PG: Avoid bare "MS" or "BA" from words like DBMS or Basic
-    if (/\b(?:M\.?Tech|MBA|MCA|M\.?Sc|M\.?Com|Master of [A-Za-z\s]+|M\.?S\.?\s+(?:in|from|degree))\b/i.test(line)) {
+    if (
+      /\b(?:M\.?Tech|MBA|MCA|M\.?Sc|M\.?Com|Master of [A-Za-z\s]+|M\.?S\.?\s+(?:in|from|degree))\b/i.test(
+        line,
+      )
+    ) {
       return 'post_graduate';
     }
-    if (/\b(?:College|University|Campus|Institute of Technology)\b/i.test(line) ||
-        /\b(?:B\.?Tech|B\.?E\.?|B\.?Sc|B\.?Com|BCA|BBA|B\.?Pharm|MBBS|Bachelor of [A-Za-z\s]+)\b/i.test(line)) {
+    if (
+      /\b(?:College|University|Campus|Institute of Technology)\b/i.test(line) ||
+      /\b(?:B\.?Tech|B\.?E\.?|B\.?Sc|B\.?Com|BCA|BBA|B\.?Pharm|MBBS|Bachelor of [A-Za-z\s]+)\b/i.test(
+        line,
+      )
+    ) {
       return 'graduate';
     }
-    if (/Board of Intermediate|Intermediate|Class XII|Class 12th|\b12th\b|Junior College|\+2\b|HSC\b|PUC\b/i.test(line)) {
+    if (
+      /Board of Intermediate|Intermediate|Class XII|Class 12th|\b12th\b|Junior College|\+2\b|HSC\b|PUC\b/i.test(
+        line,
+      )
+    ) {
       return '12th';
     }
-    if (/SSC|Class X|Class 10th|\b10th\b|Matriculation|Secondary School Certificate|High School/i.test(line)) {
+    if (
+      /SSC|Class X|Class 10th|\b10th\b|Matriculation|Secondary School Certificate|High School/i.test(
+        line,
+      )
+    ) {
       return '10th';
     }
     return null;
@@ -227,13 +264,24 @@ export function extractEducationFromResume(text: string): ExtractedEducationItem
     if (level === 'phd') {
       degree = 'Ph.D / Doctorate';
     } else if (level === 'post_graduate') {
-      const match = chunkText.match(/\b(?:M\.?Tech|MBA|MCA|M\.?Sc|M\.?Com|Master of [A-Za-z\s]+|M\.?S\.?)\b/i);
-      degree = match ? match[0].replace(/\./g, '').toUpperCase() : 'Master Degree';
+      const match = chunkText.match(
+        /\b(?:M\.?Tech|MBA|MCA|M\.?Sc|M\.?Com|Master of [A-Za-z\s]+|M\.?S\.?)\b/i,
+      );
+      degree = match
+        ? match[0].replace(/\./g, '').toUpperCase()
+        : 'Master Degree';
     } else if (level === 'graduate') {
-      const btech = chunkText.match(/\b(?:B\.?Tech|B\.?E\.?|B\.?Sc|B\.?Com|BCA|BBA|B\.?Pharm|MBBS)\b/i);
+      const btech = chunkText.match(
+        /\b(?:B\.?Tech|B\.?E\.?|B\.?Sc|B\.?Com|BCA|BBA|B\.?Pharm|MBBS)\b/i,
+      );
       if (btech) {
         const clean = btech[0].toLowerCase().replace(/[^a-z]/g, '');
-        degree = clean === 'btech' ? 'B.Tech' : clean === 'be' ? 'B.E.' : btech[0].replace(/\./g, '').toUpperCase();
+        degree =
+          clean === 'btech'
+            ? 'B.Tech'
+            : clean === 'be'
+              ? 'B.E.'
+              : btech[0].replace(/\./g, '').toUpperCase();
       } else {
         degree = 'B.Tech';
       }
@@ -246,12 +294,16 @@ export function extractEducationFromResume(text: string): ExtractedEducationItem
     // Score parsing
     let score: number | null = null;
     let scoreType: ScoreType = 'percentage';
-    const percentMatch = chunkText.match(/\b([4-9]\d(?:\.\d{1,2})?|100(?:\.0)?)\s*%/);
+    const percentMatch = chunkText.match(
+      /\b([4-9]\d(?:\.\d{1,2})?|100(?:\.0)?)\s*%/,
+    );
     if (percentMatch) {
       score = parseFloat(percentMatch[1]);
       scoreType = 'percentage';
     } else {
-      const cgpaMatch = chunkText.match(/\b([4-9](?:\.\d{1,2})?|10(?:\.0)?)\s*(?:\/\s*10|CGPA|GPA|\/10.0)\b/i);
+      const cgpaMatch = chunkText.match(
+        /\b([4-9](?:\.\d{1,2})?|10(?:\.0)?)\s*(?:\/\s*10|CGPA|GPA|\/10.0)\b/i,
+      );
       if (cgpaMatch) {
         score = parseFloat(cgpaMatch[1]);
         scoreType = 'cgpa';
@@ -262,11 +314,15 @@ export function extractEducationFromResume(text: string): ExtractedEducationItem
     let year: number | null = null;
     const yearMatches = chunkText.match(/\b(19\d{2}|20\d{2})\b/g);
     if (yearMatches) {
-      const valid = yearMatches.map((y) => parseInt(y, 10)).filter((y) => y >= 1970 && y <= 2035);
+      const valid = yearMatches
+        .map((y) => parseInt(y, 10))
+        .filter((y) => y >= 1970 && y <= 2035);
       if (valid.length > 0) year = Math.max(...valid);
     }
 
-    const isPursuing = /expected|pursuing|currently|ongoing/i.test(chunkText) || (year != null && year > currentYear);
+    const isPursuing =
+      /expected|pursuing|currently|ongoing/i.test(chunkText) ||
+      (year != null && year > currentYear);
     const status: EducationStatus = isPursuing ? 'pursuing' : 'completed';
 
     // Stream detection
@@ -303,14 +359,23 @@ export function extractEducationFromResume(text: string): ExtractedEducationItem
 
     if (level === 'graduate') {
       const instLines = sec.lines.filter(
-        (l) => /College|University|Institute|JNTU|Engineering|Campus/i.test(l) && !/B\.?Tech|CGPA|Graduation|Expected/i.test(l),
+        (l) =>
+          /College|University|Institute|JNTU|Engineering|Campus/i.test(l) &&
+          !/B\.?Tech|CGPA|Graduation|Expected/i.test(l),
       );
-      institution = instLines.join(' ').replace(/^[^\w]+/, '').trim() || 'College of Engineering';
+      institution =
+        instLines
+          .join(' ')
+          .replace(/^[^\w]+/, '')
+          .trim() || 'College of Engineering';
       if (/JNTU/i.test(chunkText)) {
         board = 'JNTU Gurajada Vizianagaram';
       }
     } else if (level === '12th') {
-      if (/Board of Intermediate Education/i.test(chunkText) || /Andhra Pradesh/i.test(chunkText)) {
+      if (
+        /Board of Intermediate Education/i.test(chunkText) ||
+        /Andhra Pradesh/i.test(chunkText)
+      ) {
         board = 'Board of Intermediate Education, Andhra Pradesh';
         institution = 'Junior College';
       } else {
@@ -359,5 +424,7 @@ export function extractEducationFromResume(text: string): ExtractedEducationItem
     phd: 7,
   };
 
-  return Array.from(uniqueMap.values()).sort((a, b) => order[a.level] - order[b.level]);
+  return Array.from(uniqueMap.values()).sort(
+    (a, b) => order[a.level] - order[b.level],
+  );
 }

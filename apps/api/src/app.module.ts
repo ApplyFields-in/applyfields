@@ -9,7 +9,14 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
-  imports: [PrismaModule, HomeModule, OpportunitiesModule, AdminModule, AuthModule, UsersModule],
+  imports: [
+    PrismaModule,
+    HomeModule,
+    OpportunitiesModule,
+    AdminModule,
+    AuthModule,
+    UsersModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

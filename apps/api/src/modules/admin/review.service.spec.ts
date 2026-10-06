@@ -16,11 +16,24 @@ describe('publishBlockers (job-format §5)', () => {
   });
 
   it('accepts the official page instead of the PDF', () => {
-    expect(publishBlockers({ ...ready, notification_pdf_url: null, official_page_url: 'https://ssc.gov.in/cgl' })).toEqual([]);
+    expect(
+      publishBlockers({
+        ...ready,
+        notification_pdf_url: null,
+        official_page_url: 'https://ssc.gov.in/cgl',
+      }),
+    ).toEqual([]);
   });
 
   it('needs an official link, a source URL and a title', () => {
-    expect(publishBlockers({ ...ready, title: '  ', notification_pdf_url: null, source_url: null })).toEqual([
+    expect(
+      publishBlockers({
+        ...ready,
+        title: '  ',
+        notification_pdf_url: null,
+        source_url: null,
+      }),
+    ).toEqual([
       'Title',
       'Official link (notification PDF or official page)',
       'Source URL',
@@ -28,8 +41,22 @@ describe('publishBlockers (job-format §5)', () => {
   });
 
   it('needs a last date unless dates are marked "not in source"', () => {
-    expect(publishBlockers({ ...ready, application_end: null })).toEqual(['Last date (or mark dates "not in source")']);
-    expect(publishBlockers({ ...ready, application_end: null, field_status: { dates: 'not_in_source' } })).toEqual([]);
-    expect(publishBlockers({ ...ready, application_end: null, field_status: { dates: 'pending' } })).toHaveLength(1);
+    expect(publishBlockers({ ...ready, application_end: null })).toEqual([
+      'Last date (or mark dates "not in source")',
+    ]);
+    expect(
+      publishBlockers({
+        ...ready,
+        application_end: null,
+        field_status: { dates: 'not_in_source' },
+      }),
+    ).toEqual([]);
+    expect(
+      publishBlockers({
+        ...ready,
+        application_end: null,
+        field_status: { dates: 'pending' },
+      }),
+    ).toHaveLength(1);
   });
 });

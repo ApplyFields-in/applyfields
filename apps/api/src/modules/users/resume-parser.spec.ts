@@ -70,6 +70,8 @@ UPToSkills
 
     // Ensure NO fake MS or BA
     expect(qualifications.some((q) => q.level === 'post_graduate')).toBe(false);
-    expect(qualifications.some((q) => q.degree === 'MS' || q.degree === 'BA')).toBe(false);
+    expect(
+      qualifications.some((q) => q.degree === 'MS' || q.degree === 'BA'),
+    ).toBe(false);
   });
 });

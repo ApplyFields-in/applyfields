@@ -30,7 +30,10 @@ export class UsersController {
   }
 
   @Put('profile')
-  async updateProfile(@Req() req: AuthenticatedRequest, @Body() dto: UpdateProfileDto) {
+  async updateProfile(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UpdateProfileDto,
+  ) {
     return this.usersService.updateProfile(req.user.userId, dto);
   }
 
@@ -40,7 +43,10 @@ export class UsersController {
   }
 
   @Post('education')
-  async addEducation(@Req() req: AuthenticatedRequest, @Body() dto: CreateEducationDto) {
+  async addEducation(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateEducationDto,
+  ) {
     return this.usersService.addEducation(req.user.userId, dto);
   }
 
@@ -54,13 +60,19 @@ export class UsersController {
   }
 
   @Delete('education/:id')
-  async deleteEducation(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+  async deleteEducation(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.usersService.deleteEducation(id, req.user.userId);
   }
 
   // --- Resume Document & Extraction Endpoints ---
   @Post('resume')
-  async uploadAndExtractResume(@Req() req: AuthenticatedRequest, @Body() dto: UploadResumeDto) {
+  async uploadAndExtractResume(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UploadResumeDto,
+  ) {
     return this.usersService.uploadAndExtractResume(req.user.userId, dto);
   }
 
@@ -78,7 +90,10 @@ export class UsersController {
     }
 
     res.setHeader('Content-Type', doc.mime_type || 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${doc.file_name || 'resume.pdf'}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${doc.file_name || 'resume.pdf'}"`,
+    );
     return res.sendFile(doc.storage_path);
   }
 

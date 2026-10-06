@@ -1,6 +1,16 @@
-import type { OpportunityInput, StatusChange, UpdateInput } from '@applyfields/types';
+import type {
+  OpportunityInput,
+  StatusChange,
+  UpdateInput,
+} from '@applyfields/types';
 import { z } from 'zod';
-import { date_kind, gender_rule, opportunity_category, opportunity_type, update_kind } from '../../generated/prisma/enums.js';
+import {
+  date_kind,
+  gender_rule,
+  opportunity_category,
+  opportunity_type,
+  update_kind,
+} from '../../generated/prisma/enums.js';
 
 /* Request bodies for the Internal Portal write endpoints (validated by ZodPipe). */
 
@@ -15,7 +25,12 @@ const optText = (max: number) =>
 
 /** http(s) only — never javascript: or data: links on the citizen site. '' becomes null. */
 const optUrl = z
-  .union([z.literal(''), z.url({ protocol: /^https?$/, error: 'Must be a full http(s) link' }).max(1000)])
+  .union([
+    z.literal(''),
+    z
+      .url({ protocol: /^https?$/, error: 'Must be a full http(s) link' })
+      .max(1000),
+  ])
   .nullable()
   .transform((v) => v || null);
 
@@ -27,10 +42,21 @@ const optDate = z
 const optInt = (max: number) => z.number().int().min(0).max(max).nullable();
 
 /** Short codes like AP, TS, ALL, OBC, PWBD. */
-const codes = z.array(z.string().trim().toUpperCase().regex(/^[A-Z]{2,4}$/, 'Use short codes like AP, TS, ALL, OBC')).max(40);
+const codes = z
+  .array(
+    z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z]{2,4}$/, 'Use short codes like AP, TS, ALL, OBC'),
+  )
+  .max(40);
 const words = z.array(z.string().trim().min(1).max(200)).max(50);
 
-const fieldStatus = z.record(z.string().max(60), z.enum(['available', 'not_in_source', 'pending', 'not_applicable']));
+const fieldStatus = z.record(
+  z.string().max(60),
+  z.enum(['available', 'not_in_source', 'pending', 'not_applicable']),
+);
 
 const eligibility = z.object({
   age_min: optInt(100),
@@ -39,7 +65,9 @@ const eligibility = z.object({
   age_relaxations: z
     .array(
       z.object({
-        category: z.enum(['GEN', 'OBC', 'SC', 'ST', 'EWS', 'PWBD', 'EXS']).optional(),
+        category: z
+          .enum(['GEN', 'OBC', 'SC', 'ST', 'EWS', 'PWBD', 'EXS'])
+          .optional(),
         gender: z.enum(gender_rule).optional(),
         condition: z.string().max(300).optional(),
         years: z.number().min(0).max(30),
@@ -103,10 +131,16 @@ export const opportunityInputSchema = z
       )
       .max(50),
   })
-  .refine((o) => !o.application_start || !o.application_end || o.application_start <= o.application_end, {
-    message: 'Application opens after the last date',
-    path: ['application_end'],
-  });
+  .refine(
+    (o) =>
+      !o.application_start ||
+      !o.application_end ||
+      o.application_start <= o.application_end,
+    {
+      message: 'Application opens after the last date',
+      path: ['application_end'],
+    },
+  );
 
 export const statusChangeSchema = z
   .object({
@@ -130,7 +164,10 @@ export const updateInputSchema = z.object({
 
 // Compile-time check: the validated shapes match the shared types the admin app sends.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-const sameOpportunity: Same<z.infer<typeof opportunityInputSchema>, OpportunityInput> = true;
+const sameOpportunity: Same<
+  z.infer<typeof opportunityInputSchema>,
+  OpportunityInput
+> = true;
 const sameStatus: Same<z.infer<typeof statusChangeSchema>, StatusChange> = true;
 const sameUpdate: Same<z.infer<typeof updateInputSchema>, UpdateInput> = true;
 void [sameOpportunity, sameStatus, sameUpdate];
