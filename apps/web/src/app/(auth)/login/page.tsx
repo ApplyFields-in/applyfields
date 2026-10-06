@@ -650,7 +650,11 @@ function LoginForm() {
 
         {/* Modern & Faster Sign-In: Passkey */}
         {mode !== 'forgot' && (
-          <PasskeyLoginButton onError={setError} onSuccess={setSuccess} />
+          <PasskeyLoginButton
+            defaultEmail={passwordCredType === 'email' ? passwordEmail : undefined}
+            onError={setError}
+            onSuccess={setSuccess}
+          />
         )}
 
         <p className="mt-6 text-center text-xs text-teal/70">
