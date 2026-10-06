@@ -1,7 +1,19 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
+
+// Auto-load .env if available
+if (typeof process.loadEnvFile === 'function') {
+  const localEnv = join(process.cwd(), '.env');
+  if (existsSync(localEnv)) {
+    try {
+      process.loadEnvFile(localEnv);
+    } catch {}
+  }
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

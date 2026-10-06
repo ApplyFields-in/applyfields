@@ -8,13 +8,13 @@ import type { MeResponse, UserEducation, UserProfile } from '@applyfields/types'
 export class UsersService {
   constructor(private readonly store: UsersStore) {}
 
-  getMe(userId: string): MeResponse {
-    const user = this.store.findUserById(userId);
+  async getMe(userId: string): Promise<MeResponse> {
+    const user = await this.store.findUserById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const profile = this.store.getProfile(userId) ?? null;
-    const education = this.store.getUserEducation(userId);
+    const profile = (await this.store.getProfile(userId)) ?? null;
+    const education = await this.store.getUserEducation(userId);
 
     return {
       user: this.store.toUserSummary(user),
@@ -23,20 +23,20 @@ export class UsersService {
     };
   }
 
-  updateProfile(userId: string, dto: UpdateProfileDto): UserProfile {
-    const user = this.store.findUserById(userId);
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<UserProfile> {
+    const user = await this.store.findUserById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    return this.store.updateProfile(userId, dto);
+    return await this.store.updateProfile(userId, dto);
   }
 
-  getEducation(userId: string): UserEducation[] {
-    return this.store.getUserEducation(userId);
+  async getEducation(userId: string): Promise<UserEducation[]> {
+    return await this.store.getUserEducation(userId);
   }
 
-  addEducation(userId: string, dto: CreateEducationDto): UserEducation {
-    return this.store.addEducation(userId, {
+  async addEducation(userId: string, dto: CreateEducationDto): Promise<UserEducation> {
+    return await this.store.addEducation(userId, {
       level: dto.level,
       degree: dto.degree ?? null,
       stream: dto.stream ?? null,
@@ -49,16 +49,16 @@ export class UsersService {
     });
   }
 
-  updateEducation(id: string, userId: string, dto: UpdateEducationDto): UserEducation {
-    const updated = this.store.updateEducation(id, userId, dto);
+  async updateEducation(id: string, userId: string, dto: UpdateEducationDto): Promise<UserEducation> {
+    const updated = await this.store.updateEducation(id, userId, dto);
     if (!updated) {
       throw new NotFoundException('Education record not found');
     }
     return updated;
   }
 
-  deleteEducation(id: string, userId: string): { success: boolean } {
-    const deleted = this.store.deleteEducation(id, userId);
+  async deleteEducation(id: string, userId: string): Promise<{ success: boolean }> {
+    const deleted = await this.store.deleteEducation(id, userId);
     if (!deleted) {
       throw new NotFoundException('Education record not found');
     }

@@ -37,11 +37,11 @@ export class AuthService {
       throw new BadRequestException('Either email or phone must be provided');
     }
 
-    if (dto.email && this.store.findUserByEmail(dto.email)) {
+    if (dto.email && (await this.store.findUserByEmail(dto.email))) {
       throw new ConflictException('An account with this email already exists');
     }
 
-    if (dto.phone && this.store.findUserByPhone(dto.phone)) {
+    if (dto.phone && (await this.store.findUserByPhone(dto.phone))) {
       throw new ConflictException('An account with this phone number already exists');
     }
 
@@ -52,14 +52,14 @@ export class AuthService {
       timeCost: 3,
     });
 
-    const user = this.store.createUser({
+    const user = await this.store.createUser({
       email: dto.email,
       phone: dto.phone,
       password_hash,
     });
 
     // Save consents row for the terms and privacy policy (DPDP Act compliance)
-    this.store.addConsent({
+    await this.store.addConsent({
       user_id: user.id,
       purpose: 'terms',
       policy_version: '2026-10-04',
@@ -67,7 +67,7 @@ export class AuthService {
       ip_address: ipAddress ?? null,
     });
 
-    this.store.addConsent({
+    await this.store.addConsent({
       user_id: user.id,
       purpose: 'privacy',
       policy_version: '2026-10-04',
@@ -98,13 +98,13 @@ export class AuthService {
 
     let resolvedUserId = userId ?? null;
     if (!resolvedUserId) {
-      const existingUser = this.store.findUserByIdentifier(dto.target);
+      const existingUser = await this.store.findUserByIdentifier(dto.target);
       if (existingUser) {
         resolvedUserId = existingUser.id;
       }
     }
 
-    this.store.saveOtp({
+    await this.store.saveOtp({
       user_id: resolvedUserId,
       target: dto.target,
       purpose: dto.purpose,
@@ -135,7 +135,7 @@ export class AuthService {
   async verifyOtp(
     dto: VerifyOtpDto,
   ): Promise<{ verified: boolean; message: string }> {
-    const otp = this.store.findLatestValidOtp(dto.target, dto.purpose);
+    const otp = await this.store.findLatestValidOtp(dto.target, dto.purpose);
     if (!otp) {
       throw new BadRequestException('Invalid, expired, or non-existent OTP code');
     }
@@ -146,19 +146,19 @@ export class AuthService {
 
     const inputHash = this.hashToken(dto.code);
     if (inputHash !== otp.code_hash) {
-      this.store.incrementOtpAttempt(otp.id);
+      await this.store.incrementOtpAttempt(otp.id);
       throw new BadRequestException('Incorrect OTP code');
     }
 
-    this.store.markOtpUsed(otp.id);
+    await this.store.markOtpUsed(otp.id);
 
     // If verification, update user
     if (otp.user_id) {
       const now = new Date().toISOString();
       if (dto.purpose === 'verify_email') {
-        this.store.updateUser(otp.user_id, { email_verified_at: now });
+        await this.store.updateUser(otp.user_id, { email_verified_at: now });
       } else if (dto.purpose === 'verify_phone') {
-        this.store.updateUser(otp.user_id, { phone_verified_at: now });
+        await this.store.updateUser(otp.user_id, { phone_verified_at: now });
       }
     }
 
@@ -172,7 +172,7 @@ export class AuthService {
     dto: LoginDto,
     meta: { userAgent?: string; ipAddress?: string } = {},
   ): Promise<AuthResponse & { refreshToken: string }> {
-    const user = this.store.findUserByIdentifier(dto.identifier);
+    const user = await this.store.findUserByIdentifier(dto.identifier);
     if (!user || user.status !== 'active') {
       throw new UnauthorizedException('Invalid email/phone or password');
     }
@@ -182,7 +182,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email/phone or password');
     }
 
-    this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });
+    await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });
 
     const tokens = await this.issueTokens(user, meta);
     return {
@@ -202,19 +202,19 @@ export class AuthService {
       code: dto.code,
     });
 
-    let user = this.store.findUserByPhone(dto.phone);
+    let user = await this.store.findUserByPhone(dto.phone);
     if (!user) {
       // Create user if not existing
       const dummyPassword = randomBytes(24).toString('hex');
       const password_hash = await argon2.hash(dummyPassword, { type: argon2.argon2id });
-      user = this.store.createUser({
+      user = await this.store.createUser({
         phone: dto.phone,
         password_hash,
       });
-      this.store.updateUser(user.id, { phone_verified_at: new Date().toISOString() });
+      await this.store.updateUser(user.id, { phone_verified_at: new Date().toISOString() });
     }
 
-    this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });
+    await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });
 
     const tokens = await this.issueTokens(user, meta);
     return {
@@ -233,15 +233,15 @@ export class AuthService {
     }
 
     const tokenHash = this.hashToken(rawRefreshToken);
-    const session = this.store.findActiveSessionByTokenHash(tokenHash);
+    const session = await this.store.findActiveSessionByTokenHash(tokenHash);
     if (!session) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
     // Token rotation: revoke old session
-    this.store.revokeSession(session.id);
+    await this.store.revokeSession(session.id);
 
-    const user = this.store.findUserById(session.user_id);
+    const user = await this.store.findUserById(session.user_id);
     if (!user || user.status !== 'active') {
       throw new UnauthorizedException('User account is suspended or no longer active');
     }
@@ -256,9 +256,9 @@ export class AuthService {
   async logout(rawRefreshToken?: string): Promise<{ success: boolean }> {
     if (rawRefreshToken) {
       const tokenHash = this.hashToken(rawRefreshToken);
-      const session = this.store.findActiveSessionByTokenHash(tokenHash);
+      const session = await this.store.findActiveSessionByTokenHash(tokenHash);
       if (session) {
-        this.store.revokeSession(session.id);
+        await this.store.revokeSession(session.id);
       }
     }
     return { success: true };
@@ -271,7 +271,7 @@ export class AuthService {
       code: dto.code,
     });
 
-    const user = this.store.findUserByIdentifier(dto.target);
+    const user = await this.store.findUserByIdentifier(dto.target);
     if (!user) {
       throw new NotFoundException('No account found for this target');
     }
@@ -282,9 +282,9 @@ export class AuthService {
       timeCost: 3,
     });
 
-    this.store.updateUser(user.id, { password_hash });
+    await this.store.updateUser(user.id, { password_hash });
     // Revoke all sessions on password change
-    this.store.revokeAllSessionsForUser(user.id);
+    await this.store.revokeAllSessionsForUser(user.id);
 
     return {
       success: true,
@@ -316,7 +316,7 @@ export class AuthService {
     const refresh_token_hash = this.hashToken(refreshToken);
     const expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    this.store.createSession({
+    await this.store.createSession({
       user_id: user.id,
       refresh_token_hash,
       expires_at,

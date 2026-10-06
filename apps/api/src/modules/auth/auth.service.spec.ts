@@ -40,13 +40,13 @@ describe('AuthService', () => {
       expect(result.user.phone).toBe('+919876543210');
 
       // Verify consents saved (DPDP Act)
-      const consents = store.getConsentsForUser(result.user.id);
+      const consents = await store.getConsentsForUser(result.user.id);
       expect(consents).toHaveLength(2);
       expect(consents.map((c) => c.purpose)).toContain('terms');
       expect(consents.map((c) => c.purpose)).toContain('privacy');
 
       // Verify password was hashed (never plain text)
-      const user = store.findUserById(result.user.id);
+      const user = await store.findUserById(result.user.id);
       expect(user?.password_hash).not.toBe('SecurePassword123!');
       expect(user?.password_hash).toMatch(/^\$argon2id\$/);
     });
