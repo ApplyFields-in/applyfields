@@ -332,3 +332,42 @@ export interface UpdateInput {
   opportunity_id: string | null;
   source_url: string | null;
 }
+
+// ---------- Internal Portal: Staff, Roles & Users ----------
+
+export type StaffRole = 'super_admin' | 'admin' | 'reviewer' | 'content_editor' | 'support';
+
+export interface StaffProfile {
+  id: string;
+  email: string | null;
+  name: string | null;
+  roles: StaffRole[];
+}
+
+export interface AdminMeResponse {
+  id: string;
+  email: string | null;
+  name: string | null;
+  roles: StaffRole[];
+}
+
+export interface AdminUserItem {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  status: string;
+  full_name: string | null;
+  gender: string | null;
+  category: string | null;
+  state_code: string | null;
+  avatar_url: string | null;
+  email_verified: boolean;
+  phone_verified: boolean;
+  created_at: string;
+  roles?: StaffRole[];
+}
+
+export interface AdminUserList {
+  users: AdminUserItem[];
+  total: number;
+}
