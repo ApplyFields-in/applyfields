@@ -43,3 +43,13 @@ export class PasskeyLoginDto {
   @IsString()
   credentialId?: string;
 }
+
+export class PasskeyRegisterDto {
+  @IsNotEmpty({ message: 'Credential ID is required to register passkey' })
+  @IsString()
+  credentialId!: string;
+
+  @IsOptional()
+  @IsString()
+  credentialName?: string;
+}

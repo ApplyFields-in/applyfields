@@ -10,7 +10,7 @@ import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
 import { UsersStore } from '../users/users.store.js';
 import type { RegisterDto } from './dto/register.dto.js';
-import type { LoginDto, LoginOtpDto, SocialLoginDto, PasskeyLoginDto } from './dto/login.dto.js';
+import type { LoginDto, LoginOtpDto, SocialLoginDto, PasskeyLoginDto, PasskeyRegisterDto } from './dto/login.dto.js';
 import type { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
 import type { AuthResponse, UserSummary } from '@applyfields/types';
 
@@ -255,6 +255,26 @@ export class AuthService {
     };
   }
 
+  async registerPasskey(
+    userId: string,
+    _dto: PasskeyRegisterDto,
+  ): Promise<{ success: boolean; message: string; user: UserSummary }> {
+    const user = await this.store.findUserById(userId);
+    if (!user || user.status !== 'active') {
+      throw new NotFoundException('Citizen account not found');
+    }
+
+    const updated = await this.store.updateUser(user.id, {
+      mfa_enabled: true,
+    });
+
+    return {
+      success: true,
+      message: 'Biometric passkey successfully registered for this account.',
+      user: this.store.toUserSummary(updated || user),
+    };
+  }
+
   async passkeyLogin(
     dto: PasskeyLoginDto,
     meta: { userAgent?: string; ipAddress?: string } = {},
@@ -268,6 +288,12 @@ export class AuthService {
 
     if (!user || user.status !== 'active') {
       throw new NotFoundException('No registered citizen account found with this email or phone. Please register first.');
+    }
+
+    if (!user.mfa_enabled) {
+      throw new BadRequestException(
+        'This account has not set up a biometric passkey yet. Please sign in with your password or OTP first, then enable passkey in your account.',
+      );
     }
 
     await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });

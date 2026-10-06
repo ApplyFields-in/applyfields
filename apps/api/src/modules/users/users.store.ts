@@ -375,6 +375,7 @@ export class UsersStore {
       status: user.status,
       email_verified: Boolean(user.email_verified_at),
       phone_verified: Boolean(user.phone_verified_at),
+      has_passkey: Boolean(user.mfa_enabled),
       created_at: user.created_at,
     };
   }

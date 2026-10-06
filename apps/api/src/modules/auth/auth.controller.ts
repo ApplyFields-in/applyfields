@@ -6,11 +6,13 @@ import {
   Post,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
+import { AuthGuard, type AuthenticatedRequest } from './auth.guard.js';
 import { RegisterDto } from './dto/register.dto.js';
-import { LoginDto, LoginOtpDto, SocialLoginDto, PasskeyLoginDto } from './dto/login.dto.js';
+import { LoginDto, LoginOtpDto, SocialLoginDto, PasskeyLoginDto, PasskeyRegisterDto } from './dto/login.dto.js';
 import { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
 
 const REFRESH_COOKIE_NAME = 'refresh_token';
@@ -131,6 +133,16 @@ export class AuthController {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
     };
+  }
+
+  @Post('passkey/register')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async registerPasskey(
+    @Body() dto: PasskeyRegisterDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.authService.registerPasskey(req.user.userId, dto);
   }
 
   @Post('refresh')

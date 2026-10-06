@@ -7,11 +7,13 @@ import type { ReactNode } from 'react';
 import { apiGet, API_URL } from '@/lib/api';
 import { NAV } from '@/lib/nav';
 import { TopNavAuth } from '@/components/top-nav-auth';
+import { PasskeyEnrollModal } from '@/components/passkey-enroll-modal';
 
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
     <Shell sidebar={<Sidebar groups={NAV} subtitle="Citizen & student portal" footer={<SidebarFooter />} />} topbar={<Topbar />} footer={<Footer />}>
       {children}
+      <PasskeyEnrollModal />
     </Shell>
   );
 }

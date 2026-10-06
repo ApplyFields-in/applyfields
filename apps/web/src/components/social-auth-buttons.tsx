@@ -230,7 +230,8 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
 
       let credentialId: string | null = null;
 
-      // 1. First attempt to authenticate existing credential via get()
+      // Strictly authenticate existing credential via get()
+      // Passkey enrollment can ONLY be done when authenticated, never from the public login page!
       try {
         const assertion = (await navigator.credentials.get({
           publicKey: {
@@ -246,62 +247,23 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
         }
       } catch (err: unknown) {
         const error = err as Error;
-        // If user actively cancelled the prompt
         if (error.name === 'NotAllowedError' || error.name === 'AbortError') {
           if (error.message?.toLowerCase().includes('cancel') || error.message?.toLowerCase().includes('abort')) {
             throw new Error('Biometric verification was cancelled by the user.');
           }
         }
-        // If no credentials registered yet on localhost, fallback to create below
-      }
-
-      // 2. If no existing credential was retrieved, prompt Windows Hello / Touch ID to register and verify on the spot
-      if (!credentialId) {
-        const userId = new Uint8Array(16);
-        window.crypto.getRandomValues(userId);
-
-        const targetAccount = emailInput.trim() || 'citizen@applyfields.in';
-
-        try {
-          const newCred = (await navigator.credentials.create({
-            publicKey: {
-              challenge,
-              rp: { name: 'ApplyFields Citizen Portal', id: window.location.hostname },
-              user: {
-                id: userId,
-                name: targetAccount,
-                displayName: targetAccount.split('@')[0],
-              },
-              pubKeyCredParams: [
-                { type: 'public-key', alg: -7 }, // ES256
-                { type: 'public-key', alg: -257 }, // RS256
-              ],
-              authenticatorSelection: {
-                authenticatorAttachment: 'platform',
-                userVerification: 'preferred',
-                residentKey: 'preferred',
-              },
-              timeout: 60000,
-            },
-          })) as PublicKeyCredential | null;
-
-          if (newCred) {
-            credentialId = newCred.id;
-          }
-        } catch (createErr: unknown) {
-          const cError = createErr as Error;
-          if (cError.name === 'NotAllowedError' || cError.name === 'AbortError') {
-            throw new Error('Biometric verification prompt was cancelled by the user.');
-          }
-          throw createErr;
-        }
+        throw new Error(
+          'No biometric passkey found on this device for this account. Please log in with your password or OTP first, then enable passkeys.',
+        );
       }
 
       if (!credentialId) {
-        throw new Error('No biometric credential was produced.');
+        throw new Error(
+          'No biometric passkey found on this device. Please log in with your password or OTP first, then set up your passkey.',
+        );
       }
 
-      await completePasskeyLogin(credentialId, emailInput.trim());
+      await completePasskeyLogin(credentialId, cleanEmail);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Passkey verification failed or was cancelled.';
       setStatus('error');

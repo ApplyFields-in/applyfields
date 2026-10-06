@@ -184,13 +184,28 @@ describe('AuthService', () => {
       expect(appleRes.user.email).toBe('apple.citizen@applyfields.in');
     });
 
-    it('should log in existing registered user via passkey', async () => {
-      // Register user first
-      await authService.register({
+    it('should require passkey enrollment before allowing passkey login for existing user', async () => {
+      // 1. Register user
+      const reg = await authService.register({
         email: 'registered.passkey@example.com',
         password: 'ValidPassword123!',
       });
 
+      // 2. Before passkey enrollment, passkey login rejects
+      await expect(
+        authService.passkeyLogin({
+          email: 'registered.passkey@example.com',
+          credentialId: 'cred-12345',
+        }),
+      ).rejects.toThrow('This account has not set up a biometric passkey yet');
+
+      // 3. User registers passkey
+      const enrolled = await authService.registerPasskey(reg.user.id, {
+        credentialId: 'cred-12345',
+      });
+      expect(enrolled.success).toBe(true);
+
+      // 4. Now passkey login succeeds
       const passkeyRes = await authService.passkeyLogin({
         email: 'registered.passkey@example.com',
         credentialId: 'cred-12345',

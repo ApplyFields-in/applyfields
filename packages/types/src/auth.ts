@@ -14,6 +14,7 @@ export interface UserSummary {
   status: UserStatus;
   email_verified: boolean;
   phone_verified: boolean;
+  has_passkey?: boolean;
   created_at: string;
 }
 
