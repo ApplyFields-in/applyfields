@@ -1,8 +1,18 @@
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UsersStore } from './users.store.js';
+import { extractEducationFromResume, extractTextFromBuffer } from './resume-parser.js';
 import type { UpdateProfileDto } from './dto/update-profile.dto.js';
 import type { CreateEducationDto, UpdateEducationDto } from './dto/education.dto.js';
-import type { MeResponse, UserEducation, UserProfile } from '@applyfields/types';
+import type { UploadResumeDto } from './dto/resume.dto.js';
+import type {
+  MeResponse,
+  ResumeApiResponse,
+  UserEducation,
+  UserProfile,
+  UserResumeDocument,
+} from '@applyfields/types';
 
 @Injectable()
 export class UsersService {
@@ -62,6 +72,99 @@ export class UsersService {
     if (!deleted) {
       throw new NotFoundException('Education record not found');
     }
+    return { success: true };
+  }
+
+  // --- Resume Document & AI Extraction ---
+  async uploadAndExtractResume(
+    userId: string,
+    dto: UploadResumeDto,
+  ): Promise<ResumeApiResponse> {
+    const user = await this.store.findUserById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Strip data:mime;base64, prefix if present
+    const base64Data = dto.fileBase64.includes(';base64,')
+      ? dto.fileBase64.split(';base64,')[1]
+      : dto.fileBase64;
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Save file securely to server storage directory
+    const uploadDir = join(process.cwd(), 'uploads', 'resumes', userId);
+    if (!existsSync(uploadDir)) {
+      mkdirSync(uploadDir, { recursive: true });
+    }
+    const safeName = dto.fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storagePath = join(uploadDir, `${Date.now()}_${safeName}`);
+    writeFileSync(storagePath, buffer);
+
+    // Extract text with OCR fallback for scanned/image PDFs
+    let extractedText = dto.text?.trim() || '';
+    if (!extractedText || extractedText.length < 30) {
+      extractedText = await extractTextFromBuffer(buffer, dto.mimeType, dto.fileName);
+    }
+
+    // Parse qualifications using precision segmenter
+    const qualifications = extractEducationFromResume(extractedText);
+
+    // Save or replace active resume in user_documents
+    const docEntity = await this.store.saveUserResumeDocument(userId, {
+      title: `Resume - ${dto.fileName}`,
+      file_name: dto.fileName,
+      storage_path: storagePath,
+      mime_type: dto.mimeType,
+      size_bytes: buffer.length,
+      details: {
+        extracted_text: extractedText,
+        qualifications,
+        uploaded_at: new Date().toISOString(),
+      },
+    });
+
+    const userResume: UserResumeDocument = {
+      id: docEntity.id,
+      user_id: docEntity.user_id,
+      document_type_code: docEntity.document_type_code,
+      title: docEntity.title,
+      file_name: docEntity.file_name,
+      mime_type: docEntity.mime_type,
+      size_bytes: docEntity.size_bytes,
+      storage_path: docEntity.storage_path,
+      details: docEntity.details,
+      created_at: docEntity.created_at,
+      updated_at: docEntity.updated_at,
+    };
+
+    return {
+      success: true,
+      resume: userResume,
+      qualifications,
+      text: extractedText,
+    };
+  }
+
+  async getResume(userId: string): Promise<UserResumeDocument | null> {
+    const docEntity = await this.store.getUserResumeDocument(userId);
+    if (!docEntity) return null;
+    return {
+      id: docEntity.id,
+      user_id: docEntity.user_id,
+      document_type_code: docEntity.document_type_code,
+      title: docEntity.title,
+      file_name: docEntity.file_name,
+      mime_type: docEntity.mime_type,
+      size_bytes: docEntity.size_bytes,
+      storage_path: docEntity.storage_path,
+      details: docEntity.details,
+      created_at: docEntity.created_at,
+      updated_at: docEntity.updated_at,
+    };
+  }
+
+  async deleteResume(userId: string): Promise<{ success: boolean }> {
+    await this.store.deleteUserResumeDocument(userId);
     return { success: true };
   }
 }

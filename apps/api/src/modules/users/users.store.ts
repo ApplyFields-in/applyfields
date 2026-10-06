@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, OnModuleInit, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -11,6 +11,21 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 const STORE_FILE_PATH = join(process.cwd(), '.data', 'users-store.json');
+
+export interface UserDocumentEntity {
+  id: string;
+  user_id: string;
+  document_type_code: string;
+  title: string | null;
+  storage_path: string;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  details: Record<string, any>;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface UserEntity {
   id: string;
@@ -64,7 +79,7 @@ export interface ConsentEntity {
 }
 
 @Injectable()
-export class UsersStore {
+export class UsersStore implements OnModuleInit {
   // In-memory fallback (used when prisma is not provided or in unit tests)
   private users = new Map<string, UserEntity>();
   private sessions = new Map<string, UserSessionEntity>();
@@ -72,10 +87,32 @@ export class UsersStore {
   private consents: ConsentEntity[] = [];
   private profiles = new Map<string, UserProfile>();
   private educations = new Map<string, UserEducation>();
+  private documents = new Map<string, UserDocumentEntity>();
 
   constructor(@Optional() private readonly prisma?: PrismaService) {
     if (!this.prisma || this.isTestEnv()) {
       this.loadFromDisk();
+    }
+  }
+
+  async onModuleInit(): Promise<void> {
+    if (this.prisma && !this.isTestEnv()) {
+      try {
+        await this.prisma.document_types.upsert({
+          where: { code: 'resume' },
+          update: { name: 'Resume / Curriculum Vitae' },
+          create: {
+            code: 'resume',
+            name: 'Resume / Curriculum Vitae',
+            category: 'education',
+            has_expiry: false,
+            description: 'Candidate resume or CV document',
+            sort_order: 1,
+          },
+        });
+      } catch (err: any) {
+        console.warn('[UsersStore] Notice on document_types initialization:', err.message);
+      }
     }
   }
 
@@ -107,6 +144,9 @@ export class UsersStore {
         if (Array.isArray(data.educations)) {
           for (const e of data.educations) this.educations.set(e.id, e);
         }
+        if (Array.isArray(data.documents)) {
+          for (const d of data.documents) this.documents.set(d.id, d);
+        }
       }
     } catch (err) {
       console.warn('[UsersStore] Could not load data from disk, using fresh store:', err);
@@ -127,6 +167,7 @@ export class UsersStore {
         consents: this.consents,
         profiles: Array.from(this.profiles.values()),
         educations: Array.from(this.educations.values()),
+        documents: Array.from(this.documents.values()),
       };
       writeFileSync(STORE_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
@@ -189,6 +230,23 @@ export class UsersStore {
       status: e.status ?? 'completed',
       created_at: e.created_at ? e.created_at.toISOString() : new Date().toISOString(),
       updated_at: e.updated_at ? e.updated_at.toISOString() : new Date().toISOString(),
+    };
+  }
+
+  private mapDbDocumentToEntity(d: any): UserDocumentEntity {
+    return {
+      id: d.id,
+      user_id: d.user_id,
+      document_type_code: d.document_type_code,
+      title: d.title ?? null,
+      storage_path: d.storage_path,
+      file_name: d.file_name ?? null,
+      mime_type: d.mime_type ?? null,
+      size_bytes: d.size_bytes != null ? Number(d.size_bytes) : null,
+      details: typeof d.details === 'object' && d.details !== null ? d.details : {},
+      deleted_at: d.deleted_at ? d.deleted_at.toISOString() : null,
+      created_at: d.created_at ? d.created_at.toISOString() : new Date().toISOString(),
+      updated_at: d.updated_at ? d.updated_at.toISOString() : new Date().toISOString(),
     };
   }
 
@@ -907,5 +965,155 @@ export class UsersStore {
     const res = this.educations.delete(id);
     this.saveToDisk();
     return res;
+  }
+
+  // --- Resume Documents ---
+  async saveUserResumeDocument(
+    userId: string,
+    data: {
+      title: string;
+      file_name: string;
+      storage_path: string;
+      mime_type: string;
+      size_bytes: number;
+      details: Record<string, any>;
+    },
+  ): Promise<UserDocumentEntity> {
+    if (this.prisma && !this.isTestEnv()) {
+      try {
+        await this.prisma.document_types.upsert({
+          where: { code: 'resume' },
+          update: { name: 'Resume / Curriculum Vitae' },
+          create: {
+            code: 'resume',
+            name: 'Resume / Curriculum Vitae',
+            category: 'education',
+            has_expiry: false,
+            description: 'Candidate resume or CV document',
+            sort_order: 1,
+          },
+        });
+      } catch {}
+
+      const existing = await this.prisma.user_documents.findFirst({
+        where: {
+          user_id: userId,
+          document_type_code: 'resume',
+          deleted_at: null,
+        },
+      });
+
+      if (existing) {
+        const updated = await this.prisma.user_documents.update({
+          where: { id: existing.id },
+          data: {
+            title: data.title,
+            file_name: data.file_name,
+            storage_path: data.storage_path,
+            mime_type: data.mime_type,
+            size_bytes: data.size_bytes,
+            details: data.details,
+            updated_at: new Date(),
+          },
+        });
+        return this.mapDbDocumentToEntity(updated);
+      }
+
+      const created = await this.prisma.user_documents.create({
+        data: {
+          user_id: userId,
+          document_type_code: 'resume',
+          title: data.title,
+          file_name: data.file_name,
+          storage_path: data.storage_path,
+          mime_type: data.mime_type,
+          size_bytes: data.size_bytes,
+          details: data.details,
+        },
+      });
+      return this.mapDbDocumentToEntity(created);
+    }
+
+    const existing = Array.from(this.documents.values()).find(
+      (d) => d.user_id === userId && d.document_type_code === 'resume' && !d.deleted_at,
+    );
+    const now = new Date().toISOString();
+    if (existing) {
+      const updated: UserDocumentEntity = {
+        ...existing,
+        title: data.title,
+        file_name: data.file_name,
+        storage_path: data.storage_path,
+        mime_type: data.mime_type,
+        size_bytes: data.size_bytes,
+        details: data.details,
+        updated_at: now,
+      };
+      this.documents.set(existing.id, updated);
+      this.saveToDisk();
+      return updated;
+    }
+
+    const id = randomUUID();
+    const doc: UserDocumentEntity = {
+      id,
+      user_id: userId,
+      document_type_code: 'resume',
+      title: data.title,
+      file_name: data.file_name,
+      storage_path: data.storage_path,
+      mime_type: data.mime_type,
+      size_bytes: data.size_bytes,
+      details: data.details,
+      deleted_at: null,
+      created_at: now,
+      updated_at: now,
+    };
+    this.documents.set(id, doc);
+    this.saveToDisk();
+    return doc;
+  }
+
+  async getUserResumeDocument(userId: string): Promise<UserDocumentEntity | null> {
+    if (this.prisma && !this.isTestEnv()) {
+      const doc = await this.prisma.user_documents.findFirst({
+        where: {
+          user_id: userId,
+          document_type_code: 'resume',
+          deleted_at: null,
+        },
+        orderBy: { updated_at: 'desc' },
+      });
+      return doc ? this.mapDbDocumentToEntity(doc) : null;
+    }
+
+    const doc = Array.from(this.documents.values()).find(
+      (d) => d.user_id === userId && d.document_type_code === 'resume' && !d.deleted_at,
+    );
+    return doc ?? null;
+  }
+
+  async deleteUserResumeDocument(userId: string): Promise<boolean> {
+    if (this.prisma && !this.isTestEnv()) {
+      await this.prisma.user_documents.updateMany({
+        where: {
+          user_id: userId,
+          document_type_code: 'resume',
+          deleted_at: null,
+        },
+        data: {
+          deleted_at: new Date(),
+        },
+      });
+      return true;
+    }
+
+    for (const [id, doc] of this.documents.entries()) {
+      if (doc.user_id === userId && doc.document_type_code === 'resume' && !doc.deleted_at) {
+        this.documents.set(id, { ...doc, deleted_at: new Date().toISOString() });
+      }
+    }
+    this.saveToDisk();
+    return true;
   }
 }

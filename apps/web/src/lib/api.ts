@@ -121,12 +121,13 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, token?: st
     const authToken = resolveAuthToken(token);
     if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
+    const timeoutMs = path.includes('/resume') ? 45000 : 15000;
     let res = await fetch(`${API_URL}${path}`, {
       method: 'POST',
       headers,
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     if (
@@ -144,7 +145,7 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, token?: st
           headers,
           body: body ? JSON.stringify(body) : undefined,
           credentials: 'include',
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(timeoutMs),
         });
       }
     }

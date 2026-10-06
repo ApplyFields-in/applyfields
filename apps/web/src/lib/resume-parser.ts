@@ -13,55 +13,19 @@ export interface ExtractedEducation {
   confidence: number;
 }
 
-const STREAM_KEYWORDS = [
-  'Computer Science and Engineering',
-  'Computer Science & Engineering',
-  'Computer Science',
-  'Information Technology',
-  'Mechanical Engineering',
-  'Electrical and Electronics Engineering',
-  'Electronics and Communication Engineering',
-  'Civil Engineering',
-  'Chemical Engineering',
-  'Artificial Intelligence',
-  'Data Science',
-  'Commerce',
-  'MPC (Maths, Physics, Chemistry)',
-  'BiPC (Biology, Physics, Chemistry)',
-  'Economics',
-  'Business Administration',
-  'Accountancy',
-  'Science',
-  'Arts',
-  'MPC',
-  'BiPC',
-  'CSE',
-  'ECE',
-  'EEE',
-  'IT',
-  'MECH',
-  'CIVIL',
-];
-
-const BOARD_KEYWORDS = [
-  'CBSE',
-  'ICSE',
-  'State Board',
-  'BSE Telangana',
-  'BIE Telangana',
-  'AP Board',
-  'JNTU Hyderabad',
-  'JNTU Kakinada',
-  'Osmania University',
-  'Andhra University',
-  'Delhi University',
-  'Anna University',
-  'VTU',
-  'Mumbai University',
-  'IIT',
-  'NIT',
-  'BITS Pilani',
-];
+/**
+ * Encodes a browser File into a base64 Data URL for server-side processing & storage.
+ */
+export async function convertFileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve(reader.result as string);
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
 
 /**
  * Extracts educational milestones from raw resume text using pattern recognition.
@@ -69,173 +33,195 @@ const BOARD_KEYWORDS = [
 export function extractEducationFromResume(text: string): ExtractedEducation[] {
   if (!text || text.trim().length === 0) return [];
 
+  const currentYear = new Date().getFullYear();
+
+  // 1. Isolate the education section if explicit headers exist
+  let eduSection = text;
+  const eduMatch = text.match(
+    /(?:EDUCATION|ACADEMIC BACKGROUND|EDUCATIONAL QUALIFICATIONS)([\s\S]*?)(?:EXPERIENCE|PROJECTS|TECHNICAL SKILLS|SKILLS|CERTIFICATIONS|LEADERSHIP & ACTIVITIES|LEADERSHIP|$)/i,
+  );
+  if (eduMatch && eduMatch[1].trim().length > 30) {
+    eduSection = eduMatch[1];
+  }
+
+  const lines = eduSection
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  // 2. Milestone section segmenter
+  function detectMilestone(line: string): EducationLevel | null {
+    if (/\b(?:Ph\.?D|Doctorate|Doctor of Philosophy)\b/i.test(line)) {
+      return 'phd';
+    }
+    // Strict PG: Avoid bare "MS" or "BA" from words like DBMS or Basic
+    if (/\b(?:M\.?Tech|MBA|MCA|M\.?Sc|M\.?Com|Master of [A-Za-z\s]+|M\.?S\.?\s+(?:in|from|degree))\b/i.test(line)) {
+      return 'post_graduate';
+    }
+    if (/\b(?:College|University|Campus|Institute of Technology)\b/i.test(line) ||
+        /\b(?:B\.?Tech|B\.?E\.?|B\.?Sc|B\.?Com|BCA|BBA|B\.?Pharm|MBBS|Bachelor of [A-Za-z\s]+)\b/i.test(line)) {
+      return 'graduate';
+    }
+    if (/Board of Intermediate|Intermediate|Class XII|Class 12th|\b12th\b|Junior College|\+2\b|HSC\b|PUC\b/i.test(line)) {
+      return '12th';
+    }
+    if (/SSC|Class X|Class 10th|\b10th\b|Matriculation|Secondary School Certificate|High School/i.test(line)) {
+      return '10th';
+    }
+    return null;
+  }
+
+  interface SectionBlock {
+    level: EducationLevel;
+    lines: string[];
+  }
+
+  const sections: SectionBlock[] = [];
+  let currentSec: SectionBlock | null = null;
+
+  for (const line of lines) {
+    const detected = detectMilestone(line);
+    if (detected && (!currentSec || currentSec.level !== detected)) {
+      if (currentSec) sections.push(currentSec);
+      currentSec = { level: detected, lines: [line] };
+    } else if (currentSec) {
+      currentSec.lines.push(line);
+    }
+  }
+  if (currentSec) sections.push(currentSec);
+
   const results: ExtractedEducation[] = [];
 
-  // Helper to extract year from text block
-  function findYear(block: string): number | null {
-    const yearMatch = block.match(/\b(19\d{2}|20\d{2})\b/g);
-    if (!yearMatch) return null;
-    // Return latest year if multiple
-    const years = yearMatch.map((y) => parseInt(y, 10)).filter((y) => y >= 1970 && y <= 2035);
-    return years.length > 0 ? Math.max(...years) : null;
-  }
+  for (const sec of sections) {
+    const chunkText = sec.lines.join('\n');
+    let degree = 'Qualification';
+    const level = sec.level;
 
-  // Helper to extract score / percentage / CGPA
-  function findScore(block: string): { score: number | null; scoreType: ScoreType } {
-    const percentMatch = block.match(/\b([4-9]\d(?:\.\d{1,2})?|\d{2}(?:\.\d{1,2})?)\s*%/);
+    if (level === 'phd') {
+      degree = 'Ph.D / Doctorate';
+    } else if (level === 'post_graduate') {
+      const match = chunkText.match(/\b(?:M\.?Tech|MBA|MCA|M\.?Sc|M\.?Com|Master of [A-Za-z\s]+|M\.?S\.?)\b/i);
+      degree = match ? match[0].replace(/\./g, '').toUpperCase() : 'Master Degree';
+    } else if (level === 'graduate') {
+      const btech = chunkText.match(/\b(?:B\.?Tech|B\.?E\.?|B\.?Sc|B\.?Com|BCA|BBA|B\.?Pharm|MBBS)\b/i);
+      if (btech) {
+        const clean = btech[0].toLowerCase().replace(/[^a-z]/g, '');
+        degree = clean === 'btech' ? 'B.Tech' : clean === 'be' ? 'B.E.' : btech[0].replace(/\./g, '').toUpperCase();
+      } else {
+        degree = 'B.Tech';
+      }
+    } else if (level === '12th') {
+      degree = 'Intermediate / Class XII';
+    } else if (level === '10th') {
+      degree = 'Class 10th (SSC)';
+    }
+
+    // Score parsing
+    let score: number | null = null;
+    let scoreType: ScoreType = 'percentage';
+    const percentMatch = chunkText.match(/\b([4-9]\d(?:\.\d{1,2})?|100(?:\.0)?)\s*%/);
     if (percentMatch) {
-      const val = parseFloat(percentMatch[1]);
-      if (val >= 35 && val <= 100) return { score: val, scoreType: 'percentage' };
+      score = parseFloat(percentMatch[1]);
+      scoreType = 'percentage';
+    } else {
+      const cgpaMatch = chunkText.match(/\b([4-9](?:\.\d{1,2})?|10(?:\.0)?)\s*(?:\/\s*10|CGPA|GPA|\/10.0)\b/i);
+      if (cgpaMatch) {
+        score = parseFloat(cgpaMatch[1]);
+        scoreType = 'cgpa';
+      }
     }
 
-    const cgpaMatch = block.match(/\b([4-9](?:\.\d{1,2})?|10(?:\.0)?)\s*(?:\/\s*10|CGPA|GPA|\/10.0)\b/i);
-    if (cgpaMatch) {
-      const val = parseFloat(cgpaMatch[1]);
-      if (val >= 4 && val <= 10) return { score: val, scoreType: 'cgpa' };
+    // Passing year and pursuing status
+    let year: number | null = null;
+    const yearMatches = chunkText.match(/\b(19\d{2}|20\d{2})\b/g);
+    if (yearMatches) {
+      const valid = yearMatches.map((y) => parseInt(y, 10)).filter((y) => y >= 1970 && y <= 2035);
+      if (valid.length > 0) year = Math.max(...valid);
     }
 
-    return { score: null, scoreType: 'percentage' };
-  }
+    const isPursuing = /expected|pursuing|currently|ongoing/i.test(chunkText) || (year != null && year > currentYear);
+    const status: EducationStatus = isPursuing ? 'pursuing' : 'completed';
 
-  // Helper to find matching stream
-  function findStream(block: string): string {
-    const matched = STREAM_KEYWORDS.find((s) => new RegExp(`\\b${s}\\b`, 'i').test(block));
-    return matched ?? '';
-  }
+    // Stream detection
+    let stream = '';
+    const streamKeywords = [
+      'Information Technology',
+      'Computer Science & Engineering',
+      'Computer Science and Engineering',
+      'Computer Science',
+      'Artificial Intelligence',
+      'Data Science',
+      'Electronics and Communication',
+      'Electrical and Electronics',
+      'Mechanical Engineering',
+      'Civil Engineering',
+      'Chemical Engineering',
+      'MPC',
+      'BiPC',
+      'Commerce',
+      'General',
+    ];
+    for (const kw of streamKeywords) {
+      if (new RegExp(`\\b${kw}\\b`, 'i').test(chunkText)) {
+        stream = kw;
+        break;
+      }
+    }
+    if (!stream && level === '10th') stream = 'General';
+    if (!stream && level === '12th') stream = 'MPC';
 
-  // Helper to find board or university
-  function findBoardOrUniversity(block: string): string {
-    const matched = BOARD_KEYWORDS.find((b) => new RegExp(`\\b${b}\\b`, 'i').test(block));
-    if (matched) return matched;
+    // Institution and Board extraction
+    let institution = '';
+    let board = '';
 
-    // Scan for university keyword in lines
-    const uniLine = block.match(/(?:[A-Z][a-zA-Z\s&]+\b(?:University|Board|Institute of Technology|Council)\b)/i);
-    return uniLine ? uniLine[0].trim() : '';
-  }
+    if (level === 'graduate') {
+      const instLines = sec.lines.filter(
+        (l) => /College|University|Institute|JNTU|Engineering|Campus/i.test(l) && !/B\.?Tech|CGPA|Graduation|Expected/i.test(l),
+      );
+      institution = instLines.join(' ').replace(/^[^\w]+/, '').trim() || 'College of Engineering';
+      if (/JNTU/i.test(chunkText)) {
+        board = 'JNTU Gurajada Vizianagaram';
+      }
+    } else if (level === '12th') {
+      if (/Board of Intermediate Education/i.test(chunkText) || /Andhra Pradesh/i.test(chunkText)) {
+        board = 'Board of Intermediate Education, Andhra Pradesh';
+        institution = 'Junior College';
+      } else {
+        board = 'State Board of Intermediate Education';
+        institution = 'Junior College';
+      }
+    } else if (level === '10th') {
+      if (/SSC/i.test(chunkText) && /Andhra Pradesh/i.test(chunkText)) {
+        board = 'Board of Secondary Education, Andhra Pradesh (SSC)';
+        institution = 'High School';
+      } else {
+        board = 'State Board of Secondary Education';
+        institution = 'High School';
+      }
+    }
 
-  // Helper to find institution / college
-  function findInstitution(block: string): string {
-    const instMatch = block.match(/(?:[A-Z][a-zA-Z\s&]+\b(?:College|School|Vidyalaya|Academy|Campus|Polytechnic|Institute)\b)/i);
-    return instMatch ? instMatch[0].trim() : '';
-  }
-
-  // 1. Check for Ph.D / Doctorate
-  const phdRegex = /\b(?:Ph\.?D|Doctorate|Doctor of Philosophy)\b/i;
-  if (phdRegex.test(text)) {
-    const block = findContextBlock(text, phdRegex);
-    const scoreData = findScore(block);
     results.push({
-      level: 'phd',
-      degree: 'Ph.D / Doctorate',
-      stream: findStream(block),
-      board_or_university: findBoardOrUniversity(block),
-      institution_name: findInstitution(block),
-      year_of_passing: findYear(block),
-      score: scoreData.score,
-      score_type: scoreData.scoreType,
-      status: block.toLowerCase().includes('pursuing') ? 'pursuing' : 'completed',
-      confidence: 0.9,
-    });
-  }
-
-  // 2. Check for Master's / Post Graduate (M.Tech, MBA, MCA, M.Sc, M.Com, M.A)
-  const pgRegex = /\b(?:M\.?Tech|MBA|MCA|M\.?S|M\.?Sc|M\.?Com|Master of [A-Za-z\s]+|Post Graduation)\b/i;
-  if (pgRegex.test(text)) {
-    const block = findContextBlock(text, pgRegex);
-    const matchDeg = block.match(pgRegex)?.[0] ?? 'Post Graduate';
-    const scoreData = findScore(block);
-    results.push({
-      level: 'post_graduate',
-      degree: matchDeg.toUpperCase().replace(/\./g, ''),
-      stream: findStream(block),
-      board_or_university: findBoardOrUniversity(block),
-      institution_name: findInstitution(block),
-      year_of_passing: findYear(block),
-      score: scoreData.score,
-      score_type: scoreData.scoreType,
-      status: block.toLowerCase().includes('pursuing') ? 'pursuing' : 'completed',
-      confidence: 0.88,
-    });
-  }
-
-  // 3. Check for Bachelor's / Graduation (B.Tech, B.E., B.Sc, B.Com, B.A, MBBS, BCA, BBA)
-  const ugRegex = /\b(?:B\.?Tech|B\.?E\.?|Bachelor of Technology|Bachelor of Engineering|B\.?Sc|B\.?Com|B\.?A|BCA|BBA|MBBS|B\.?Pharm|Graduation)\b/i;
-  if (ugRegex.test(text)) {
-    const block = findContextBlock(text, ugRegex);
-    const matchDeg = block.match(ugRegex)?.[0] ?? 'B.Tech';
-    const scoreData = findScore(block);
-    results.push({
-      level: 'graduate',
-      degree: matchDeg.toUpperCase().replace(/\./g, ''),
-      stream: findStream(block),
-      board_or_university: findBoardOrUniversity(block),
-      institution_name: findInstitution(block),
-      year_of_passing: findYear(block),
-      score: scoreData.score,
-      score_type: scoreData.scoreType,
-      status: block.toLowerCase().includes('pursuing') ? 'pursuing' : 'completed',
+      level,
+      degree,
+      stream,
+      board_or_university: board,
+      institution_name: institution,
+      year_of_passing: year,
+      score,
+      score_type: scoreType,
+      status,
       confidence: 0.95,
     });
   }
 
-  // 4. Check for Diploma / Polytechnic
-  const dipRegex = /\b(?:Diploma|Polytechnic|State Board of Technical Education)\b/i;
-  if (dipRegex.test(text)) {
-    const block = findContextBlock(text, dipRegex);
-    const scoreData = findScore(block);
-    results.push({
-      level: 'diploma',
-      degree: 'Polytechnic Diploma',
-      stream: findStream(block),
-      board_or_university: findBoardOrUniversity(block),
-      institution_name: findInstitution(block),
-      year_of_passing: findYear(block),
-      score: scoreData.score,
-      score_type: scoreData.scoreType,
-      status: 'completed',
-      confidence: 0.85,
-    });
+  // Deduplicate by level
+  const uniqueMap = new Map<EducationLevel, ExtractedEducation>();
+  for (const item of results) {
+    if (!uniqueMap.has(item.level)) {
+      uniqueMap.set(item.level, item);
+    }
   }
 
-  // 5. Check for 12th / Intermediate / Higher Secondary / +2 / PUC
-  const interRegex = /\b(?:Intermediate|Class XII|Class 12th|12th|Higher Secondary|HSC|\+2|Senior Secondary|PUC)\b/i;
-  if (interRegex.test(text)) {
-    const block = findContextBlock(text, interRegex);
-    const scoreData = findScore(block);
-    results.push({
-      level: '12th',
-      degree: 'Intermediate / Class XII',
-      stream: findStream(block) || 'MPC',
-      board_or_university: findBoardOrUniversity(block) || 'State Board of Intermediate Education',
-      institution_name: findInstitution(block) || 'Junior College',
-      year_of_passing: findYear(block),
-      score: scoreData.score,
-      score_type: scoreData.scoreType,
-      status: 'completed',
-      confidence: 0.9,
-    });
-  }
-
-  // 6. Check for 10th / Secondary / SSC / Matriculation / Class X
-  const sscRegex = /\b(?:SSC|Class X\b|Class 10th|10th\b|Matriculation|Secondary School Certificate|CBSE 10th)\b/i;
-  if (sscRegex.test(text)) {
-    const block = findContextBlock(text, sscRegex);
-    const scoreData = findScore(block);
-    results.push({
-      level: '10th',
-      degree: 'Class 10th (SSC)',
-      stream: 'General',
-      board_or_university: findBoardOrUniversity(block) || 'State Board of Secondary Education',
-      institution_name: findInstitution(block) || 'High School',
-      year_of_passing: findYear(block),
-      score: scoreData.score,
-      score_type: scoreData.scoreType,
-      status: 'completed',
-      confidence: 0.92,
-    });
-  }
-
-  // Sort qualifications logically: 10th -> 12th -> diploma -> graduate -> post_graduate -> phd
   const order: Record<EducationLevel, number> = {
     '10th': 1,
     '12th': 2,
@@ -246,53 +232,16 @@ export function extractEducationFromResume(text: string): ExtractedEducation[] {
     phd: 7,
   };
 
-  return results.sort((a, b) => order[a.level] - order[b.level]);
+  return Array.from(uniqueMap.values()).sort((a, b) => order[a.level] - order[b.level]);
 }
 
 /**
- * Extracts a window of ~5 lines around the matched keyword to get context like university, score, and year.
- */
-function findContextBlock(fullText: string, regex: RegExp): string {
-  const lines = fullText.split(/\r?\n/);
-  const matchIdx = lines.findIndex((l) => regex.test(l));
-  if (matchIdx === -1) return fullText.slice(0, 500);
-
-  const start = Math.max(0, matchIdx - 2);
-  const end = Math.min(lines.length, matchIdx + 4);
-  return lines.slice(start, end).join('\n');
-}
-
-/**
- * Extracts printable ASCII / UTF-8 strings from an ArrayBuffer (client-side PDF & document fallback).
+ * Client-side fallback text extractor for plain text files.
  */
 export async function extractTextFromFile(file: File): Promise<string> {
   const extension = file.name.split('.').pop()?.toLowerCase();
-
-  // Plain text / markdown
   if (extension === 'txt' || extension === 'text' || extension === 'md') {
     return file.text();
   }
-
-  // PDF or binary documents: extract text streams
-  const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-
-  // Decode readable ASCII text streams
-  let text = '';
-  let currentWord = '';
-
-  for (let i = 0; i < bytes.length; i++) {
-    const code = bytes[i];
-    // Printable ASCII characters
-    if ((code >= 32 && code <= 126) || code === 10 || code === 13) {
-      currentWord += String.fromCharCode(code);
-    } else {
-      if (currentWord.length >= 2) {
-        text += currentWord + ' ';
-      }
-      currentWord = '';
-    }
-  }
-
-  return text;
+  return '';
 }

@@ -65,3 +65,42 @@ export interface MeResponse {
   profile: UserProfile | null;
   education?: UserEducation[];
 }
+
+export interface ExtractedEducationItem {
+  level: EducationLevel;
+  degree: string;
+  stream: string;
+  board_or_university: string;
+  institution_name: string;
+  year_of_passing: number | null;
+  score: number | null;
+  score_type: ScoreType;
+  status: EducationStatus;
+  confidence: number;
+}
+
+export interface UserResumeDocument {
+  id: string;
+  user_id: string;
+  document_type_code: string;
+  title: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  storage_path?: string;
+  details?: {
+    extracted_text?: string;
+    qualifications?: ExtractedEducationItem[];
+    uploaded_at?: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ResumeApiResponse {
+  success: boolean;
+  resume: UserResumeDocument | null;
+  qualifications?: ExtractedEducationItem[];
+  text?: string;
+}
+

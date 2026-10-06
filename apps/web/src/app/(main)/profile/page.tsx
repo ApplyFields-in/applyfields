@@ -4,34 +4,39 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge, Card, ProgressBar } from '@applyfields/ui';
-import { apiGet, apiPut, apiPost, apiDelete } from '@/lib/api';
+import { apiGet, apiPut, apiPost, apiDelete, API_URL } from '@/lib/api';
 import { PixelAvatar, PIXEL_AVATARS } from '@/components/pixel-avatars';
 import {
+  convertFileToBase64,
   extractEducationFromResume,
-  extractTextFromFile,
   type ExtractedEducation,
 } from '@/lib/resume-parser';
 import type {
   EducationLevel,
   EducationStatus,
   MeResponse,
+  ResumeApiResponse,
   ScoreType,
   SocialCategory,
   UserEducation,
   UserGender,
   UserProfile,
+  UserResumeDocument,
   UserSummary,
 } from '@applyfields/types';
 import {
   Calendar,
   Check,
   CheckCircle2,
+  Download,
+  FileCheck2,
   FileText,
   GraduationCap,
   Info,
   LogIn,
   Pencil,
   Plus,
+  RefreshCw,
   Save,
   ShieldCheck,
   Sparkles,
@@ -175,6 +180,7 @@ export default function ProfilePage() {
 
   // Resume Upload & Extraction states
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [savedResume, setSavedResume] = useState<UserResumeDocument | null>(null);
   const [resumeText, setResumeText] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedEducations, setExtractedEducations] = useState<ExtractedEducation[]>([]);
@@ -224,6 +230,18 @@ export default function ProfilePage() {
       }
       if (res.education) {
         setEducations(res.education);
+      }
+
+      // Check if user has an active saved resume on file
+      const resumeRes = await apiGet<{ resume: UserResumeDocument | null }>('/me/resume');
+      if (resumeRes?.resume) {
+        setSavedResume(resumeRes.resume);
+        if (resumeRes.resume.details?.qualifications && resumeRes.resume.details.qualifications.length > 0) {
+          setExtractedEducations(resumeRes.resume.details.qualifications);
+        }
+        if (resumeRes.resume.details?.extracted_text) {
+          setResumeText(resumeRes.resume.details.extracted_text);
+        }
       }
 
       setLoading(false);
@@ -394,25 +412,88 @@ export default function ProfilePage() {
     setEduStatus('completed');
   }
 
-  // Resume File Upload handler
+  // Resume File Upload handler - persists resume on profile & runs OCR/AI extraction
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsExtracting(true);
     setSaveError(null);
+    setSaveSuccess(null);
+
     try {
-      const text = await extractTextFromFile(file);
-      setResumeText(text);
-      const parsed = extractEducationFromResume(text);
-      setExtractedEducations(parsed);
-      if (parsed.length === 0) {
-        setSaveError('Could not find standard degree/school keywords in this file. Try pasting your resume text below.');
-      } else {
-        setSaveSuccess(`Found ${parsed.length} educational qualification(s) in your resume!`);
+      // 1. Encode file to base64 Data URL
+      const fileBase64 = await convertFileToBase64(file);
+
+      // 2. Upload to server: saves file permanently to storage & user_documents, performs OCR/parsing
+      const res = await apiPost<ResumeApiResponse>('/me/resume', {
+        fileName: file.name,
+        mimeType: file.type || 'application/pdf',
+        fileBase64,
+        text: resumeText.trim() || undefined,
+      });
+
+      if (res.error || !res.data || !res.data.success) {
+        throw new Error(res.error || 'Server could not process resume file');
       }
+
+      setSavedResume(res.data.resume);
+      if (res.data.text) {
+        setResumeText(res.data.text);
+      }
+
+      const parsed = res.data.qualifications || [];
+      setExtractedEducations(parsed);
+
+      if (parsed.length === 0) {
+        setSaveSuccess('Resume uploaded and securely saved! No qualifications were auto-detected; you can add them manually or paste text.');
+      } else {
+        setSaveSuccess(`Resume securely saved to your profile! Extracted ${parsed.length} qualification(s). Review and click Import All below.`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to process resume file';
+      setSaveError(`Resume upload failed: ${msg}. You can try pasting your resume text directly below.`);
+    } finally {
+      setIsExtracting(false);
+      if (e.target) e.target.value = '';
+    }
+  }
+
+  async function handleDownloadResume() {
+    if (!savedResume) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      const res = await fetch(`${API_URL}/me/resume/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = savedResume.file_name || 'Resume.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
     } catch {
-      setSaveError('Failed to read resume file. You can paste your resume text directly below.');
+      setSaveError('Could not download saved resume.');
+    }
+  }
+
+  async function handleDeleteResume() {
+    if (!confirm('Are you sure you want to remove your saved resume from your profile?')) return;
+    setIsExtracting(true);
+    setSaveError(null);
+    try {
+      const res = await apiDelete<{ success: boolean }>('/me/resume');
+      if (res.error) throw new Error(res.error);
+      setSavedResume(null);
+      setExtractedEducations([]);
+      setResumeText('');
+      setSaveSuccess('Resume successfully removed from your profile.');
+    } catch {
+      setSaveError('Failed to remove saved resume.');
     } finally {
       setIsExtracting(false);
     }
@@ -1042,50 +1123,111 @@ export default function ProfilePage() {
         <div className="space-y-6">
           {/* Smart Resume Extraction Feature Card */}
           <Card className="p-6 sm:p-7 border-2 border-sea/30 bg-sea/10 rounded-3xl shadow-[0_16px_32px_-8px_rgba(2,128,144,0.15),0_4px_0_0_#028090] relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-              <div>
-                <Badge tone="celadon" className="mb-1.5 shadow-xs">
-                  <Sparkles className="size-3 text-sea mr-1" /> AI Resume Extractor
-                </Badge>
-                <h3 className="text-base sm:text-lg font-black text-teal">
-                  Upload Resume to Extract Educational Background
-                </h3>
-                <p className="text-xs text-teal/75 mt-0.5">
-                  Drop your resume file or paste text below. We will automatically parse your degrees, streams, universities, and scores.
-                </p>
-              </div>
+            {savedResume ? (
+              <div className="p-4 sm:p-5 rounded-2xl border-2 border-sea/30 bg-cream/90 shadow-xs mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-12 place-items-center rounded-2xl bg-sea text-cream shadow-xs shrink-0">
+                    <FileCheck2 className="size-6 text-cream" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm sm:text-base font-black text-teal">
+                        {savedResume.file_name || 'Resume.pdf'}
+                      </h4>
+                      <Badge tone="celadon" className="text-[10px] font-black uppercase">
+                        Saved On Profile
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-teal/70 mt-0.5">
+                      {savedResume.size_bytes ? `${Math.round(savedResume.size_bytes / 1024)} KB • ` : ''}
+                      Uploaded {new Date(savedResume.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.txt,.docx,.text"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isExtracting}
-                  className="h-10 px-4 rounded-xl bg-sea text-cream font-black text-xs flex items-center gap-2 border-b-2 border-sea/80 shadow-xs hover:-translate-y-0.5 active:translate-y-0.5 active:border-b-0 transition-all disabled:opacity-60"
-                >
-                  <UploadCloud className="size-4" />
-                  {isExtracting ? 'Extracting...' : 'Upload Resume (.pdf / .txt)'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResumeText(SAMPLE_RESUME_SNIPPET);
-                    const parsed = extractEducationFromResume(SAMPLE_RESUME_SNIPPET);
-                    setExtractedEducations(parsed);
-                    setSaveSuccess(`Loaded sample resume and recognized ${parsed.length} qualifications!`);
-                  }}
-                  className="h-10 px-3.5 rounded-xl bg-canvas border border-line text-teal font-extrabold text-xs hover:bg-tea/30 active:translate-y-0.5 transition-all"
-                >
-                  Try Sample
-                </button>
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.txt,.docx,.text,image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleDownloadResume}
+                    className="h-9 px-3.5 rounded-xl bg-teal text-cream font-bold text-xs flex items-center gap-1.5 hover:bg-teal/90 active:translate-y-0.5 transition-all shadow-xs"
+                    title="Download or view saved resume"
+                  >
+                    <Download className="size-3.5" /> Download
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isExtracting}
+                    className="h-9 px-3.5 rounded-xl bg-canvas border border-line text-teal font-bold text-xs flex items-center gap-1.5 hover:bg-tea/30 active:translate-y-0.5 transition-all disabled:opacity-60"
+                    title="Upload a new resume to replace this one"
+                  >
+                    <RefreshCw className={`size-3.5 ${isExtracting ? 'animate-spin' : ''}`} />
+                    {isExtracting ? 'Updating...' : 'Change Resume'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteResume}
+                    disabled={isExtracting}
+                    className="h-9 px-3 rounded-xl border border-coral/30 text-coral hover:bg-coral/10 font-bold text-xs flex items-center gap-1.5 active:translate-y-0.5 transition-all"
+                    title="Remove saved resume"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <div>
+                  <Badge tone="celadon" className="mb-1.5 shadow-xs">
+                    <Sparkles className="size-3 text-sea mr-1" /> AI Resume Extractor
+                  </Badge>
+                  <h3 className="text-base sm:text-lg font-black text-teal">
+                    Upload Resume to Extract Educational Background
+                  </h3>
+                  <p className="text-xs text-teal/75 mt-0.5">
+                    Drop your resume file or paste text below. We will save it to your profile and automatically parse your degrees, streams, universities, and scores.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.txt,.docx,.text,image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isExtracting}
+                    className="h-10 px-4 rounded-xl bg-sea text-cream font-black text-xs flex items-center gap-2 border-b-2 border-sea/80 shadow-xs hover:-translate-y-0.5 active:translate-y-0.5 active:border-b-0 transition-all disabled:opacity-60"
+                  >
+                    <UploadCloud className="size-4" />
+                    {isExtracting ? 'Extracting...' : 'Upload Resume (.pdf / .txt)'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResumeText(SAMPLE_RESUME_SNIPPET);
+                      const parsed = extractEducationFromResume(SAMPLE_RESUME_SNIPPET);
+                      setExtractedEducations(parsed);
+                      setSaveSuccess(`Loaded sample resume and recognized ${parsed.length} qualifications!`);
+                    }}
+                    className="h-10 px-3.5 rounded-xl bg-canvas border border-line text-teal font-extrabold text-xs hover:bg-tea/30 active:translate-y-0.5 transition-all"
+                  >
+                    Try Sample
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Paste or review text collapsible box */}
             <div className="rounded-2xl border-2 border-line bg-canvas p-3.5">
