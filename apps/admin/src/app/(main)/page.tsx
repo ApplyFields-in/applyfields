@@ -33,13 +33,42 @@ export default async function DashboardPage() {
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            {data.stats.map((s) => (
-              <Card key={s.key} className="p-5">
-                <p className="text-sm font-semibold text-teal/80">{s.label}</p>
-                <p className="mt-2 text-3xl font-extrabold tracking-tight">{s.value.toLocaleString('en-IN')}</p>
-                <p className="mt-1 text-xs font-semibold">{s.hint}</p>
-              </Card>
-            ))}
+            {data.stats.map((s) => {
+              const href =
+                s.key === 'users'
+                  ? '/users'
+                  : s.key === 'pending_reviews'
+                    ? '/review'
+                    : s.key === 'reports_open'
+                      ? '/reports'
+                      : s.key === 'published_week'
+                        ? '/opportunities'
+                        : undefined;
+
+              const content = (
+                <Card
+                  key={s.key}
+                  className={cn(
+                    'p-5 transition-shadow',
+                    href && 'hover:shadow-card-hover cursor-pointer hover:border-tea',
+                  )}
+                >
+                  <p className="text-sm font-semibold text-teal/80">{s.label}</p>
+                  <p className="mt-2 text-3xl font-extrabold tracking-tight">
+                    {s.value.toLocaleString('en-IN')}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold">{s.hint}</p>
+                </Card>
+              );
+
+              return href ? (
+                <Link key={s.key} href={href} className="block no-underline">
+                  {content}
+                </Link>
+              ) : (
+                content
+              );
+            })}
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
