@@ -101,6 +101,7 @@ The website footer shows **API connected** when everything is linked up.
 | `/api/v1/home` | Home dashboard data |
 | `/api/v1/opportunities?type=govt_job` | Jobs (also `exam`, `scholarship`, `admission`; add `&q=ssc` to search) |
 | `/api/v1/updates` | Results, admit cards, answer keys |
+| `/api/v1/admin/review` | Review queue — drafts waiting for review (local dev only until staff login) |
 | `/api/v1/admin/summary` | Internal Portal dashboard (still sample data) |
 
 ---
