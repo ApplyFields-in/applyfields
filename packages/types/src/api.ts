@@ -86,3 +86,24 @@ export interface AdminSummary {
   scrapers: ScraperStatus[];
   sample: boolean;
 }
+
+export interface AdminUserItem {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  status: string;
+  full_name: string | null;
+  gender: string | null;
+  category: string | null;
+  state_code: string | null;
+  avatar_url: string | null;
+  email_verified: boolean;
+  phone_verified: boolean;
+  created_at: string;
+}
+
+export interface AdminUserList {
+  users: AdminUserItem[];
+  total: number;
+}
+
