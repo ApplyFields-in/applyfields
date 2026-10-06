@@ -221,3 +221,114 @@ export interface ReviewDetail {
   created_at: string;
   updated_at: string;
 }
+
+// ---------- Internal Portal: opportunities (create, edit, publish, unpublish, close) ----------
+
+/** What the editor sends to create or save an opportunity. Dates are YYYY-MM-DD, empty = null. */
+export interface OpportunityInput {
+  title: string;
+  type: OpportunityType;
+  category: OpportunityCategory;
+  organization_id: string;
+  notification_number: string | null;
+  summary: string | null;
+  state_codes: string[];
+  districts: string[];
+  vacancies_total: number | null;
+  fee_text: string | null;
+  application_start: string | null;
+  application_end: string | null;
+  notification_pdf_url: string | null;
+  official_page_url: string | null;
+  apply_url: string | null;
+  official_website: string | null;
+  source_url: string | null;
+  field_status: Record<string, FieldStatus>;
+  /** the rules for the whole notification (null = none extracted yet) */
+  eligibility: Omit<ReviewEligibility, 'id' | 'post_id'> | null;
+  /** full list — posts missing from it are deleted; no id = new post */
+  posts: (Omit<ReviewPost, 'id' | 'vacancies_by_category' | 'salary_min' | 'salary_max'> & { id?: string })[];
+  /** full list — dates missing from it are deleted; no id = new date */
+  dates: (Omit<ReviewDate, 'id'> & { id?: string })[];
+}
+
+/** Status changes other than publish. A reason is required to archive (= reject). */
+export interface StatusChange {
+  status: 'draft' | 'closed' | 'archived';
+  reason?: string;
+}
+
+export interface AdminOpportunityListItem {
+  id: string;
+  slug: string;
+  title: string;
+  type: OpportunityType;
+  status: OpportunityStatus;
+  organization: string;
+  source_key: string | null;
+  application_end: string | null;
+  version: number;
+  updated_at: string;
+  published_at: string | null;
+}
+
+export interface AdminOpportunityList {
+  total: number;
+  page: number;
+  page_size: number;
+  counts: Record<OpportunityStatus, number>;
+  items: AdminOpportunityListItem[];
+}
+
+export interface OrganizationOption {
+  id: string;
+  name: string;
+  short_name: string | null;
+  level: OrganizationLevel;
+}
+
+/** Returned by every write: the fresh record, or why it was refused. */
+export interface WriteResult {
+  id: string;
+  status: OpportunityStatus;
+  version?: number;
+}
+
+// ---------- Internal Portal: results & updates ----------
+
+export interface AdminUpdateListItem {
+  id: string;
+  kind: UpdateKind;
+  title: string;
+  date: string | null;
+  status: OpportunityStatus;
+  /** the job or service it belongs to */
+  parent: { kind: 'opportunity' | 'service'; id: string; title: string; status: OpportunityStatus | null } | null;
+  source_url: string | null;
+  created_at: string;
+}
+
+export interface AdminUpdateList {
+  total: number;
+  counts: Record<OpportunityStatus, number>;
+  items: AdminUpdateListItem[];
+}
+
+export interface AdminUpdateDetail extends AdminUpdateListItem {
+  url: string | null;
+  summary: string | null;
+  published_at: string | null;
+  updated_at: string;
+  /** publish blockers — empty = ready */
+  missing: string[];
+}
+
+export interface UpdateInput {
+  kind: UpdateKind;
+  title: string;
+  date: string | null;
+  url: string | null;
+  summary: string | null;
+  opportunity_id: string | null;
+  source_url: string | null;
+}
