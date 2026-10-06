@@ -35,9 +35,9 @@ export class SocialLoginDto {
 }
 
 export class PasskeyLoginDto {
-  @IsOptional()
+  @IsNotEmpty({ message: 'Registered email or phone number is required to sign in with passkey' })
   @IsString()
-  email?: string;
+  email!: string;
 
   @IsOptional()
   @IsString()

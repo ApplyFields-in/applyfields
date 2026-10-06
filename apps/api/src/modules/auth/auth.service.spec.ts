@@ -184,15 +184,30 @@ describe('AuthService', () => {
       expect(appleRes.user.email).toBe('apple.citizen@applyfields.in');
     });
 
-    it('should log in or register via passkey', async () => {
+    it('should log in existing registered user via passkey', async () => {
+      // Register user first
+      await authService.register({
+        email: 'registered.passkey@example.com',
+        password: 'ValidPassword123!',
+      });
+
       const passkeyRes = await authService.passkeyLogin({
-        email: 'biometric@applyfields.in',
+        email: 'registered.passkey@example.com',
         credentialId: 'cred-12345',
       });
 
       expect(passkeyRes.accessToken).toBeDefined();
       expect(passkeyRes.refreshToken).toBeDefined();
-      expect(passkeyRes.user.email).toBe('biometric@applyfields.in');
+      expect(passkeyRes.user.email).toBe('registered.passkey@example.com');
+    });
+
+    it('should reject passkey login for unregistered user', async () => {
+      await expect(
+        authService.passkeyLogin({
+          email: 'notfound@example.com',
+          credentialId: 'cred-12345',
+        }),
+      ).rejects.toThrow('No registered citizen account found');
     });
   });
 });

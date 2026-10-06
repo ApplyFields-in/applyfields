@@ -259,18 +259,15 @@ export class AuthService {
     dto: PasskeyLoginDto,
     meta: { userAgent?: string; ipAddress?: string } = {},
   ): Promise<AuthResponse & { refreshToken: string }> {
-    const targetEmail = dto.email ? dto.email.toLowerCase().trim() : 'passkey.citizen@applyfields.in';
+    if (!dto.email || !dto.email.trim()) {
+      throw new BadRequestException('Registered email or phone number is required to sign in with passkey');
+    }
 
-    let user = await this.store.findUserByEmail(targetEmail);
-    if (!user) {
-      const dummyPassword = randomBytes(24).toString('hex');
-      const password_hash = await argon2.hash(dummyPassword, { type: argon2.argon2id });
-      user = await this.store.createUser({
-        email: targetEmail,
-        password_hash,
-      });
-      await this.store.updateUser(user.id, { email_verified_at: new Date().toISOString() });
-      await this.store.updateProfile(user.id, { full_name: 'Passkey Verified Citizen' });
+    const identifier = dto.email.trim();
+    const user = await this.store.findUserByIdentifier(identifier);
+
+    if (!user || user.status !== 'active') {
+      throw new NotFoundException('No registered citizen account found with this email or phone. Please register first.');
     }
 
     await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });

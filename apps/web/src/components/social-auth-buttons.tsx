@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2, Fingerprint, Loader2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { apiPost } from '@/lib/api';
@@ -202,6 +203,13 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
   }
 
   async function handleDeviceBiometricAuth() {
+    const cleanEmail = emailInput.trim();
+    if (!cleanEmail) {
+      setStatus('error');
+      setErrorText('Please enter your registered account email first to sign in with passkey.');
+      return;
+    }
+
     setStatus('prompting');
     setErrorText(null);
     setStatusText('Awaiting biometric approval from Windows Hello / Touch ID...');
@@ -303,12 +311,19 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
   }
 
   async function handleSimulatedAuth() {
+    const cleanEmail = emailInput.trim();
+    if (!cleanEmail) {
+      setStatus('error');
+      setErrorText('Please enter your registered account email first to test passkey sign-in.');
+      return;
+    }
+
     setStatus('prompting');
     setErrorText(null);
     setStatusText('Simulating biometric sensor touch...');
 
     await new Promise((resolve) => setTimeout(resolve, 900));
-    await completePasskeyLogin('simulated-passkey-cred', emailInput.trim());
+    await completePasskeyLogin('simulated-passkey-cred', cleanEmail);
   }
 
   async function completePasskeyLogin(credentialId: string, emailTarget: string) {
@@ -395,10 +410,10 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
                 </div>
                 <div>
                   <h3 id="passkey-dialog-title" className="text-lg font-black text-teal">
-                    Passkey Verification
+                    Passkey Sign-In
                   </h3>
                   <p className="text-xs text-teal/70">
-                    Device biometrics (Windows Hello / Touch ID)
+                    Existing registered accounts only
                   </p>
                 </div>
               </div>
@@ -417,19 +432,22 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
             <div className="mt-4 space-y-4">
               {/* Account Identifier */}
               <div>
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5">
-                  Citizen Account Email
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5 flex items-center justify-between">
+                  <span>Registered Account Email</span>
+                  <span className="text-[10px] font-black uppercase text-sea bg-sea/15 px-1.5 py-0.5 rounded">
+                    Existing Users
+                  </span>
                 </label>
                 <input
                   type="email"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="name@example.com (or leave empty for device passkey)"
+                  placeholder="e.g. karthik@example.com"
                   disabled={status === 'prompting' || status === 'verifying' || status === 'success'}
                   className="w-full rounded-xl border-2 border-line bg-canvas px-3.5 py-2 text-xs text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea shadow-[inset_0_2px_4px_rgba(17,75,95,0.06)]"
                 />
                 <p className="mt-1 text-[11px] text-teal/60">
-                  Specify the account linked to your passkey, or sign in as your device&apos;s citizen profile.
+                  Passkey signs into existing registered accounts. New citizens must register first.
                 </p>
               </div>
 
@@ -437,9 +455,20 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
               {errorText && (
                 <div className="rounded-2xl border-2 border-line bg-tea/70 p-3 text-xs font-bold text-teal flex items-start gap-2 shadow-xs" role="alert">
                   <AlertCircle className="size-4 text-teal shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-extrabold block">Verification Cancelled / Failed</span>
-                    <span className="text-[11px] font-normal">{errorText}</span>
+                  <div className="flex-1">
+                    <span className="font-extrabold block">Verification Failed</span>
+                    <span className="text-[11px] font-normal leading-relaxed">{errorText}</span>
+                    {errorText.toLowerCase().includes('register') && (
+                      <div className="mt-2 pt-2 border-t border-line/60">
+                        <Link
+                          href="/register"
+                          onClick={closeModal}
+                          className="inline-flex items-center gap-1 text-xs font-black text-sea hover:text-teal underline"
+                        >
+                          Don&apos;t have an account yet? Register here &rarr;
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
