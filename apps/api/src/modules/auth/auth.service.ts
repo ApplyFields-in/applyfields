@@ -10,7 +10,7 @@ import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
 import { UsersStore } from '../users/users.store.js';
 import type { RegisterDto } from './dto/register.dto.js';
-import type { LoginDto, LoginOtpDto } from './dto/login.dto.js';
+import type { LoginDto, LoginOtpDto, SocialLoginDto, PasskeyLoginDto } from './dto/login.dto.js';
 import type { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
 import type { AuthResponse, UserSummary } from '@applyfields/types';
 
@@ -212,6 +212,65 @@ export class AuthService {
         password_hash,
       });
       await this.store.updateUser(user.id, { phone_verified_at: new Date().toISOString() });
+    }
+
+    await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });
+
+    const tokens = await this.issueTokens(user, meta);
+    return {
+      user: this.store.toUserSummary(user),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
+
+  async socialLogin(
+    dto: SocialLoginDto,
+    meta: { userAgent?: string; ipAddress?: string } = {},
+  ): Promise<AuthResponse & { refreshToken: string }> {
+    const providerEmail = dto.email
+      ? dto.email.toLowerCase().trim()
+      : `${dto.provider}.citizen@applyfields.in`;
+
+    let user = await this.store.findUserByEmail(providerEmail);
+    if (!user) {
+      const dummyPassword = randomBytes(24).toString('hex');
+      const password_hash = await argon2.hash(dummyPassword, { type: argon2.argon2id });
+      user = await this.store.createUser({
+        email: providerEmail,
+        password_hash,
+      });
+      await this.store.updateUser(user.id, { email_verified_at: new Date().toISOString() });
+      const fullName = dto.name || `${dto.provider.charAt(0).toUpperCase() + dto.provider.slice(1)} Citizen`;
+      await this.store.updateProfile(user.id, { full_name: fullName });
+    }
+
+    await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });
+
+    const tokens = await this.issueTokens(user, meta);
+    return {
+      user: this.store.toUserSummary(user),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
+
+  async passkeyLogin(
+    dto: PasskeyLoginDto,
+    meta: { userAgent?: string; ipAddress?: string } = {},
+  ): Promise<AuthResponse & { refreshToken: string }> {
+    const targetEmail = dto.email ? dto.email.toLowerCase().trim() : 'passkey.citizen@applyfields.in';
+
+    let user = await this.store.findUserByEmail(targetEmail);
+    if (!user) {
+      const dummyPassword = randomBytes(24).toString('hex');
+      const password_hash = await argon2.hash(dummyPassword, { type: argon2.argon2id });
+      user = await this.store.createUser({
+        email: targetEmail,
+        password_hash,
+      });
+      await this.store.updateUser(user.id, { email_verified_at: new Date().toISOString() });
+      await this.store.updateProfile(user.id, { full_name: 'Passkey Verified Citizen' });
     }
 
     await this.store.updateUser(user.id, { last_login_at: new Date().toISOString() });

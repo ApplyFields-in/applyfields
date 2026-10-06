@@ -10,7 +10,7 @@ import {
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
-import { LoginDto, LoginOtpDto } from './dto/login.dto.js';
+import { LoginDto, LoginOtpDto, SocialLoginDto, PasskeyLoginDto } from './dto/login.dto.js';
 import { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
 
 const REFRESH_COOKIE_NAME = 'refresh_token';
@@ -79,6 +79,50 @@ export class AuthController {
       ipAddress: req.ip || req.socket.remoteAddress,
     };
     const result = await this.authService.loginWithOtp(dto, meta);
+
+    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+
+    return {
+      user: result.user,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    };
+  }
+
+  @Post('social/login')
+  @HttpCode(HttpStatus.OK)
+  async socialLogin(
+    @Body() dto: SocialLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const meta = {
+      userAgent: req.headers['user-agent'],
+      ipAddress: req.ip || req.socket.remoteAddress,
+    };
+    const result = await this.authService.socialLogin(dto, meta);
+
+    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+
+    return {
+      user: result.user,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    };
+  }
+
+  @Post('passkey/login')
+  @HttpCode(HttpStatus.OK)
+  async passkeyLogin(
+    @Body() dto: PasskeyLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const meta = {
+      userAgent: req.headers['user-agent'],
+      ipAddress: req.ip || req.socket.remoteAddress,
+    };
+    const result = await this.authService.passkeyLogin(dto, meta);
 
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
 

@@ -8,6 +8,7 @@ import { apiPost } from '@/lib/api';
 import { CheckCircle2, KeyRound, Lock, LogIn, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
 import { OtpInput } from '@/components/otp-input';
+import { AuthDivider, PasskeyLoginButton, SocialAuthButtons } from '@/components/social-auth-buttons';
 import type { AuthResponse } from '@applyfields/types';
 
 function LoginForm() {
@@ -226,6 +227,14 @@ function LoginForm() {
               : 'Access your saved opportunities, profile, and application deadlines.'}
           </p>
         </div>
+
+        {/* Social Authentication: Google & Apple (Primary) */}
+        {mode !== 'forgot' && (
+          <div className="mb-4">
+            <SocialAuthButtons mode="login" onError={setError} onSuccess={setSuccess} />
+            <AuthDivider label="or sign in with password / otp" />
+          </div>
+        )}
 
         {/* 3D Segmented Tab Switcher (Password vs OTP) */}
         {mode !== 'forgot' && (
@@ -637,6 +646,11 @@ function LoginForm() {
               </button>
             </div>
           </form>
+        )}
+
+        {/* Modern & Faster Sign-In: Passkey */}
+        {mode !== 'forgot' && (
+          <PasskeyLoginButton onError={setError} onSuccess={setSuccess} />
         )}
 
         <p className="mt-6 text-center text-xs text-teal/70">

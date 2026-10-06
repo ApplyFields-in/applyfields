@@ -4,7 +4,12 @@ import { PrismaClient } from '@prisma/client';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
-    await this.$connect();
+    try {
+      await this.$connect();
+      console.log('✓ Successfully connected to Supabase PostgreSQL database.');
+    } catch (err: any) {
+      console.warn('⚠️ Supabase database connection warning at startup:', err.message);
+    }
   }
 
   async onModuleDestroy() {

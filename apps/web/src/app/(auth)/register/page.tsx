@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, Badge } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
-import { ArrowLeft, CheckCircle2, KeyRound, Mail, ShieldCheck, UserPlus } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Fingerprint, KeyRound, Mail, ShieldCheck, UserPlus } from 'lucide-react';
 import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
 import { OtpInput } from '@/components/otp-input';
+import { AuthDivider, SocialAuthButtons } from '@/components/social-auth-buttons';
 import type { UserSummary } from '@applyfields/types';
 
 export default function RegisterPage() {
@@ -177,6 +178,19 @@ export default function RegisterPage() {
               </div>
             )}
 
+            {successMsg && (
+              <div className="mb-4 rounded-2xl border-2 border-celadon bg-celadon/25 p-3.5 text-xs font-bold text-teal flex items-center gap-2.5 shadow-xs">
+                <CheckCircle2 className="size-4 text-sea shrink-0" />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            {/* 1-Click Social Sign-Up (Google & Apple Primary) */}
+            <div className="mb-4">
+              <SocialAuthButtons mode="register" onError={setError} onSuccess={setSuccessMsg} />
+              <AuthDivider label="or sign up with email" />
+            </div>
+
             <form onSubmit={handleRegister} className="space-y-4">
               <div>
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-teal/80 mb-1.5 flex items-center justify-between">
@@ -282,6 +296,15 @@ export default function RegisterPage() {
                 {loading ? 'Creating account...' : 'Create Account & Send Email OTP'}
               </button>
             </form>
+
+            {/* Passkey Fast Sign-In Highlight */}
+            <div className="mt-5 rounded-2xl border-2 border-dashed border-sea/40 bg-sea/10 p-3.5 flex items-start gap-2.5 text-xs text-teal/80">
+              <Fingerprint className="size-4 text-sea shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-teal font-extrabold block">Modern & Fast Login:</strong>
+                <span>You can enable instant 1-click Passkey (fingerprint, Face ID, or Windows Hello) authentication after creating your account!</span>
+              </div>
+            </div>
 
             <p className="mt-6 text-center text-xs text-teal/70">
               Already have an account?{' '}

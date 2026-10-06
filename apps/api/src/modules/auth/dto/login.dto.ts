@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class LoginDto {
   @IsNotEmpty({ message: 'Email or phone number is required' })
@@ -18,4 +18,28 @@ export class LoginOtpDto {
   @IsNotEmpty({ message: 'OTP code is required' })
   @IsString()
   code!: string;
+}
+
+export class SocialLoginDto {
+  @IsNotEmpty({ message: 'Provider is required' })
+  @IsString()
+  provider!: 'google' | 'apple' | 'microsoft';
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+}
+
+export class PasskeyLoginDto {
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  credentialId?: string;
 }

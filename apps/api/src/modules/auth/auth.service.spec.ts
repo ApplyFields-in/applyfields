@@ -164,4 +164,35 @@ describe('AuthService', () => {
       ).rejects.toThrow();
     });
   });
+
+  describe('Social and Passkey login', () => {
+    it('should log in or register via social provider (google / apple)', async () => {
+      const googleRes = await authService.socialLogin({
+        provider: 'google',
+        email: 'test.google@applyfields.in',
+        name: 'Google User',
+      });
+
+      expect(googleRes.accessToken).toBeDefined();
+      expect(googleRes.refreshToken).toBeDefined();
+      expect(googleRes.user.email).toBe('test.google@applyfields.in');
+
+      const appleRes = await authService.socialLogin({
+        provider: 'apple',
+      });
+      expect(appleRes.accessToken).toBeDefined();
+      expect(appleRes.user.email).toBe('apple.citizen@applyfields.in');
+    });
+
+    it('should log in or register via passkey', async () => {
+      const passkeyRes = await authService.passkeyLogin({
+        email: 'biometric@applyfields.in',
+        credentialId: 'cred-12345',
+      });
+
+      expect(passkeyRes.accessToken).toBeDefined();
+      expect(passkeyRes.refreshToken).toBeDefined();
+      expect(passkeyRes.user.email).toBe('biometric@applyfields.in');
+    });
+  });
 });
