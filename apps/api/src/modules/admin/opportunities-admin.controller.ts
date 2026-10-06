@@ -29,6 +29,8 @@ import { opportunityInputSchema, statusChangeSchema } from './admin.schemas.js';
 import { OpportunitiesAdminService } from './opportunities-admin.service.js';
 import { ReviewService } from './review.service.js';
 
+import { CacheService } from '../../common/cache.service.js';
+
 const STATUSES: OpportunityStatus[] = [
   'draft',
   'published',
@@ -63,6 +65,7 @@ export class OpportunitiesAdminController {
   constructor(
     private readonly opportunities: OpportunitiesAdminService,
     private readonly review: ReviewService,
+    private readonly cache: CacheService,
   ) {}
 
   /** GET /admin/opportunities?q=&status=&type=&page= — most recently changed first, 50 per page */
@@ -91,8 +94,11 @@ export class OpportunitiesAdminController {
   /** POST /admin/opportunities/close-expired — run the auto-close now (it also runs every hour) */
   @Post('opportunities/close-expired')
   @HttpCode(200)
-  closeExpired(@ActorId() actor: string | null): Promise<{ closed: number }> {
-    return this.opportunities.closeExpired(actor);
+  async closeExpired(@ActorId() actor: string | null): Promise<{ closed: number }> {
+    const res = await this.opportunities.closeExpired(actor);
+    this.cache.deletePrefix('opportunities');
+    this.cache.delete('home:summary');
+    return res;
   }
 
   /** GET /admin/opportunities/:id — same shape as the review screen */
@@ -103,41 +109,53 @@ export class OpportunitiesAdminController {
 
   /** POST /admin/opportunities — manual entry from an official notification (starts as a draft) */
   @Post('opportunities')
-  create(
+  async create(
     @Body(new ZodPipe(opportunityInputSchema)) input: OpportunityInput,
     @ActorId() actor: string | null,
   ): Promise<WriteResult> {
-    return this.opportunities.create(input, actor);
+    const res = await this.opportunities.create(input, actor);
+    this.cache.deletePrefix('opportunities');
+    this.cache.delete('home:summary');
+    return res;
   }
 
   /** PUT /admin/opportunities/:id — save every field (a live job must stay complete) */
   @Put('opportunities/:id')
-  save(
+  async save(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(opportunityInputSchema)) input: OpportunityInput,
     @ActorId() actor: string | null,
   ): Promise<WriteResult> {
-    return this.opportunities.save(id, input, actor);
+    const res = await this.opportunities.save(id, input, actor);
+    this.cache.deletePrefix('opportunities');
+    this.cache.delete('home:summary');
+    return res;
   }
 
   /** POST /admin/opportunities/:id/publish — runs the publish check, records a version */
   @Post('opportunities/:id/publish')
   @HttpCode(200)
-  publish(
+  async publish(
     @Param('id', ParseUUIDPipe) id: string,
     @ActorId() actor: string | null,
   ): Promise<WriteResult> {
-    return this.opportunities.publish(id, actor);
+    const res = await this.opportunities.publish(id, actor);
+    this.cache.deletePrefix('opportunities');
+    this.cache.delete('home:summary');
+    return res;
   }
 
   /** POST /admin/opportunities/:id/status with status draft, closed or archived (+ reason) — unpublish, close, reject */
   @Post('opportunities/:id/status')
   @HttpCode(200)
-  setStatus(
+  async setStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(statusChangeSchema)) change: StatusChange,
     @ActorId() actor: string | null,
   ): Promise<WriteResult> {
-    return this.opportunities.setStatus(id, change, actor);
+    const res = await this.opportunities.setStatus(id, change, actor);
+    this.cache.deletePrefix('opportunities');
+    this.cache.delete('home:summary');
+    return res;
   }
 }

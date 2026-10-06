@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import type { ApiHealth, HomeSummary } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { CacheService } from '../../common/cache.service.js';
 import {
   addDays,
   CARD_SELECT,
@@ -14,25 +15,29 @@ export class HomeController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly opportunities: OpportunitiesService,
+    private readonly cache: CacheService,
   ) {}
 
   /** GET /api/v1/health — used by the web footer to show "API connected" (also checks the database) */
   @Get('health')
   async health(): Promise<ApiHealth> {
-    await this.prisma.$queryRaw`select 1`;
-    return {
-      status: 'ok',
-      service: 'applyfields-api',
-      time: new Date().toISOString(),
-    };
+    return this.cache.wrap('health', 15, async () => {
+      await this.prisma.$queryRaw`select 1`;
+      return {
+        status: 'ok',
+        service: 'applyfields-api',
+        time: new Date().toISOString(),
+      };
+    });
   }
 
   /** GET /api/v1/home — everything the home dashboard needs, from the database */
   @Get('home')
   async summary(): Promise<HomeSummary> {
-    const today = todayIst();
-    const open = openWhere(today);
-    const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+    return this.cache.wrap('home:summary', 30, async () => {
+      const today = todayIst();
+      const open = openWhere(today);
+      const weekAgo = new Date(Date.now() - 7 * 86_400_000);
 
     const [
       openJobs,
@@ -125,5 +130,6 @@ export class HomeController {
       ],
       sample: false,
     };
+    });
   }
 }

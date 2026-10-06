@@ -1,13 +1,11 @@
-import type { ApiHealth } from '@applyfields/types';
 import { buttonClass, Shell, Sidebar } from '@applyfields/ui';
 import { Bell, Crown, Search, ShieldCheck, Sparkles, Store } from 'lucide-react';
 import Link from 'next/link';
-import { connection } from 'next/server';
 import type { ReactNode } from 'react';
-import { apiGet, API_URL } from '@/lib/api';
 import { NAV } from '@/lib/nav';
 import { TopNavAuth } from '@/components/top-nav-auth';
 import { PasskeyEnrollModal } from '@/components/passkey-enroll-modal';
+import { ApiStatus } from '@/components/api-status';
 
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
@@ -86,17 +84,3 @@ function Footer() {
   );
 }
 
-/** Proves the website ↔ API connection: shows whether the NestJS API answers. */
-async function ApiStatus() {
-  await connection();
-  const health = await apiGet<ApiHealth>('/health');
-  return (
-    <span
-      title={API_URL}
-      className="inline-flex items-center gap-1.5 rounded-full bg-cream px-2.5 py-1 font-semibold text-teal shadow-clay"
-    >
-      <span className={`size-2 rounded-full ${health ? 'bg-sea' : 'bg-teal/30'}`} aria-hidden="true" />
-      {health ? 'API connected' : 'API offline'}
-    </span>
-  );
-}

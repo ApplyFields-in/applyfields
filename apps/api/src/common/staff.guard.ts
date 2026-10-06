@@ -72,11 +72,23 @@ export class StaffGuard implements CanActivate {
       throw new UnauthorizedException('Invalid token payload');
     }
 
-    // 3. Load user & user_roles
+    // 3. Load user & user_roles in a single query
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
-      include: {
-        user_profiles: true,
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        user_profiles: {
+          select: {
+            full_name: true,
+          },
+        },
+        user_roles_user_roles_user_idTousers: {
+          select: {
+            role: true,
+          },
+        },
       },
     });
 
@@ -84,10 +96,7 @@ export class StaffGuard implements CanActivate {
       throw new UnauthorizedException('Account not found or suspended');
     }
 
-    const roleRows = await this.prisma.user_roles.findMany({
-      where: { user_id: userId },
-    });
-
+    const roleRows = user.user_roles_user_roles_user_idTousers;
     if (!roleRows || roleRows.length === 0) {
       throw new ForbiddenException("You don't have staff access");
     }

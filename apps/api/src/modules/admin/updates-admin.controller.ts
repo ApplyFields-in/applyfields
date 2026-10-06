@@ -33,12 +33,17 @@ const STATUSES: OpportunityStatus[] = [
   'archived',
 ];
 
+import { CacheService } from '../../common/cache.service.js';
+
 /** Internal Portal → Results & updates: admit cards, results, answer keys… Reviewer and above. */
 @Controller('admin')
 @UseGuards(StaffGuard)
 @Roles('reviewer')
 export class UpdatesAdminController {
-  constructor(private readonly updates: UpdatesAdminService) {}
+  constructor(
+    private readonly updates: UpdatesAdminService,
+    private readonly cache: CacheService,
+  ) {}
 
   /** GET /admin/updates?q=&status= */
   @Get('updates')
@@ -64,39 +69,52 @@ export class UpdatesAdminController {
 
   /** POST /admin/updates — manual entry (starts as a draft) */
   @Post('updates')
-  create(
+  async create(
     @Body(new ZodPipe(updateInputSchema)) input: UpdateInput,
     @ActorId() actor: string | null,
   ): Promise<WriteResult> {
-    return this.updates.create(input, actor);
+    const res = await this.updates.create(input, actor);
+    this.cache.deletePrefix('updates');
+    this.cache.delete('home:summary');
+    return res;
   }
 
   @Put('updates/:id')
-  save(
+  async save(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(updateInputSchema)) input: UpdateInput,
     @ActorId() actor: string | null,
   ): Promise<WriteResult> {
-    return this.updates.save(id, input, actor);
+    const res = await this.updates.save(id, input, actor);
+    this.cache.deletePrefix('updates');
+    this.cache.delete('home:summary');
+    return res;
   }
 
   @Post('updates/:id/publish')
   @HttpCode(200)
-  publish(
+  async publish(
     @Param('id', ParseUUIDPipe) id: string,
     @ActorId() actor: string | null,
   ): Promise<WriteResult> {
-    return this.updates.publish(id, actor);
+    const res = await this.updates.publish(id, actor);
+    this.cache.deletePrefix('updates');
+    this.cache.delete('home:summary');
+    return res;
   }
 
   /** POST /admin/updates/:id/status with status draft or archived (+ reason) */
   @Post('updates/:id/status')
   @HttpCode(200)
-  setStatus(
+  async setStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(statusChangeSchema)) change: StatusChange,
     @ActorId() actor: string | null,
   ): Promise<WriteResult> {
-    return this.updates.setStatus(id, change, actor);
+    const res = await this.updates.setStatus(id, change, actor);
+    this.cache.deletePrefix('updates');
+    this.cache.delete('home:summary');
+    return res;
   }
 }
+

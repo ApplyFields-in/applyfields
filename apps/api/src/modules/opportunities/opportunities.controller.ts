@@ -13,6 +13,8 @@ import type {
 } from '@applyfields/types';
 import { OpportunitiesService } from './opportunities.service.js';
 
+import { CacheService } from '../../common/cache.service.js';
+
 const TYPES: OpportunityType[] = [
   'govt_job',
   'exam',
@@ -22,7 +24,10 @@ const TYPES: OpportunityType[] = [
 
 @Controller()
 export class OpportunitiesController {
-  constructor(private readonly opportunities: OpportunitiesService) {}
+  constructor(
+    private readonly opportunities: OpportunitiesService,
+    private readonly cache: CacheService,
+  ) {}
 
   /** GET /api/v1/opportunities?type=govt_job&q=ssc — published, open opportunities from the database */
   @Get('opportunities')
@@ -33,17 +38,20 @@ export class OpportunitiesController {
     if (type && !TYPES.includes(type as OpportunityType)) {
       throw new BadRequestException(`type must be one of: ${TYPES.join(', ')}`);
     }
-    const items = await this.opportunities.list(
-      type as OpportunityType | undefined,
-      q,
-    );
-    return {
-      type: (type as OpportunityType | undefined) ?? 'all',
-      query: q ?? '',
-      total: items.length,
-      items,
-      sample: false,
-    };
+    const key = `opportunities:${type ?? 'all'}:${q ?? ''}`;
+    return this.cache.wrap(key, 30, async () => {
+      const items = await this.opportunities.list(
+        type as OpportunityType | undefined,
+        q,
+      );
+      return {
+        type: (type as OpportunityType | undefined) ?? 'all',
+        query: q ?? '',
+        total: items.length,
+        items,
+        sample: false,
+      };
+    });
   }
 
   /** GET /api/v1/opportunities/:slug — the detail page arrives in Week 3 */
@@ -57,6 +65,9 @@ export class OpportunitiesController {
   /** GET /api/v1/updates — published admit cards, results, answer keys, date changes */
   @Get('updates')
   async updates(): Promise<UpdateList> {
-    return { items: await this.opportunities.updates(), sample: false };
+    return this.cache.wrap('updates:latest', 30, async () => {
+      return { items: await this.opportunities.updates(), sample: false };
+    });
   }
 }
+
