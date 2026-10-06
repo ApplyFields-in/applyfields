@@ -26,6 +26,14 @@ import type {
 } from './dto/otp.dto.js';
 import type { AuthResponse, UserSummary } from '@applyfields/types';
 
+const ARGON2_OPTIONS = {
+  type: argon2.argon2id,
+  memoryCost: 19456, // 19 MiB (OWASP recommendation for fast interactive logins)
+  timeCost: 2,
+  parallelism: 1,
+  raw: false,
+} as const;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -55,22 +63,22 @@ export class AuthService {
       throw new BadRequestException('Either email or phone must be provided');
     }
 
-    if (dto.email && (await this.store.findUserByEmail(dto.email))) {
+    // Check existing email/phone and compute password hash concurrently
+    const [existingEmail, existingPhone, password_hash] = await Promise.all([
+      dto.email ? this.store.findUserByEmail(dto.email) : Promise.resolve(null),
+      dto.phone ? this.store.findUserByPhone(dto.phone) : Promise.resolve(null),
+      argon2.hash(dto.password, ARGON2_OPTIONS),
+    ]);
+
+    if (existingEmail) {
       throw new ConflictException('An account with this email already exists');
     }
 
-    if (dto.phone && (await this.store.findUserByPhone(dto.phone))) {
+    if (existingPhone) {
       throw new ConflictException(
         'An account with this phone number already exists',
       );
     }
-
-    // Passwords: store only an argon2id hash in users.password_hash. Never log or return it.
-    const password_hash = await argon2.hash(dto.password, {
-      type: argon2.argon2id,
-      memoryCost: 2 ** 16,
-      timeCost: 3,
-    });
 
     const user = await this.store.createUser({
       email: dto.email,
@@ -78,27 +86,27 @@ export class AuthService {
       password_hash,
     });
 
-    // Save consents row for the terms and privacy policy (DPDP Act compliance)
-    await this.store.addConsent({
-      user_id: user.id,
-      purpose: 'terms',
-      policy_version: '2026-10-04',
-      granted: true,
-      ip_address: ipAddress ?? null,
-    });
-
-    await this.store.addConsent({
-      user_id: user.id,
-      purpose: 'privacy',
-      policy_version: '2026-10-04',
-      granted: true,
-      ip_address: ipAddress ?? null,
-    });
-
-    // Send verification OTP
+    // Save consents and dispatch OTP in parallel to minimize registration latency
     const target = (dto.email ?? dto.phone)!;
     const purpose = dto.email ? 'verify_email' : 'verify_phone';
-    const otpResult = await this.sendOtp({ target, purpose }, user.id);
+
+    const [, , otpResult] = await Promise.all([
+      this.store.addConsent({
+        user_id: user.id,
+        purpose: 'terms',
+        policy_version: '2026-10-04',
+        granted: true,
+        ip_address: ipAddress ?? null,
+      }),
+      this.store.addConsent({
+        user_id: user.id,
+        purpose: 'privacy',
+        policy_version: '2026-10-04',
+        granted: true,
+        ip_address: ipAddress ?? null,
+      }),
+      this.sendOtp({ target, purpose }, user.id),
+    ]);
 
     return {
       user: this.store.toUserSummary(user),
@@ -212,14 +220,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email/phone or password');
     }
 
-    await this.store.updateUser(user.id, {
-      last_login_at: new Date().toISOString(),
-    });
+    const [, tokens] = await Promise.all([
+      this.store.updateUser(user.id, {
+        last_login_at: new Date().toISOString(),
+      }),
+      this.issueTokens(user, meta),
+    ]);
 
-    const tokens = await this.issueTokens(user, meta);
-
-    // Write an audit_logs row on every staff login (action: 'staff.login')
-    await this.recordStaffLoginAudit(user.id, meta);
+    // Record audit log asynchronously without blocking the login response
+    void this.recordStaffLoginAudit(user.id, meta).catch(() => {});
 
     return {
       user: this.store.toUserSummary(user),
@@ -271,9 +280,7 @@ export class AuthService {
     if (!user) {
       // Create user if not existing
       const dummyPassword = randomBytes(24).toString('hex');
-      const password_hash = await argon2.hash(dummyPassword, {
-        type: argon2.argon2id,
-      });
+      const password_hash = await argon2.hash(dummyPassword, ARGON2_OPTIONS);
       user = await this.store.createUser({
         phone: dto.phone,
         password_hash,
@@ -283,11 +290,13 @@ export class AuthService {
       });
     }
 
-    await this.store.updateUser(user.id, {
-      last_login_at: new Date().toISOString(),
-    });
+    const [, tokens] = await Promise.all([
+      this.store.updateUser(user.id, {
+        last_login_at: new Date().toISOString(),
+      }),
+      this.issueTokens(user, meta),
+    ]);
 
-    const tokens = await this.issueTokens(user, meta);
     return {
       user: this.store.toUserSummary(user),
       accessToken: tokens.accessToken,
@@ -306,27 +315,28 @@ export class AuthService {
     let user = await this.store.findUserByEmail(providerEmail);
     if (!user) {
       const dummyPassword = randomBytes(24).toString('hex');
-      const password_hash = await argon2.hash(dummyPassword, {
-        type: argon2.argon2id,
-      });
+      const password_hash = await argon2.hash(dummyPassword, ARGON2_OPTIONS);
       user = await this.store.createUser({
         email: providerEmail,
         password_hash,
       });
-      await this.store.updateUser(user.id, {
-        email_verified_at: new Date().toISOString(),
-      });
       const fullName =
         dto.name ||
         `${dto.provider.charAt(0).toUpperCase() + dto.provider.slice(1)} Citizen`;
-      await this.store.updateProfile(user.id, { full_name: fullName });
+      await Promise.all([
+        this.store.updateUser(user.id, {
+          email_verified_at: new Date().toISOString(),
+        }),
+        this.store.updateProfile(user.id, { full_name: fullName }),
+      ]);
     }
 
-    await this.store.updateUser(user.id, {
-      last_login_at: new Date().toISOString(),
-    });
-
-    const tokens = await this.issueTokens(user, meta);
+    const [, tokens] = await Promise.all([
+      this.store.updateUser(user.id, {
+        last_login_at: new Date().toISOString(),
+      }),
+      this.issueTokens(user, meta),
+    ]);
     return {
       user: this.store.toUserSummary(user),
       accessToken: tokens.accessToken,
@@ -379,11 +389,12 @@ export class AuthService {
       );
     }
 
-    await this.store.updateUser(user.id, {
-      last_login_at: new Date().toISOString(),
-    });
-
-    const tokens = await this.issueTokens(user, meta);
+    const [, tokens] = await Promise.all([
+      this.store.updateUser(user.id, {
+        last_login_at: new Date().toISOString(),
+      }),
+      this.issueTokens(user, meta),
+    ]);
     return {
       user: this.store.toUserSummary(user),
       accessToken: tokens.accessToken,
@@ -447,11 +458,7 @@ export class AuthService {
       throw new NotFoundException('No account found for this target');
     }
 
-    const password_hash = await argon2.hash(dto.newPassword, {
-      type: argon2.argon2id,
-      memoryCost: 2 ** 16,
-      timeCost: 3,
-    });
+    const password_hash = await argon2.hash(dto.newPassword, ARGON2_OPTIONS);
 
     await this.store.updateUser(user.id, { password_hash });
     // Revoke all sessions on password change

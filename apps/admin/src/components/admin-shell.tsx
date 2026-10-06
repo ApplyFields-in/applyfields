@@ -1,12 +1,12 @@
-import type { AdminMeResponse, ApiHealth } from '@applyfields/types';
+import type { AdminMeResponse } from '@applyfields/types';
 import { Badge, buttonClass, Card, Shell, Sidebar } from '@applyfields/ui';
 import { LogIn, Search, ShieldCheck, WifiOff } from 'lucide-react';
 import Link from 'next/link';
-import { connection } from 'next/server';
 import type { ReactNode } from 'react';
-import { API_URL, apiGet } from '@/lib/api';
+import { API_URL } from '@/lib/api';
 import { NAV } from '@/lib/nav';
 import { StaffLogoutButton } from './staff-logout-button';
+import { ApiStatus } from './api-status';
 
 export function AdminShell({
   children,
@@ -93,16 +93,6 @@ function Footer() {
   );
 }
 
-async function ApiStatus() {
-  await connection();
-  const health = await apiGet<ApiHealth>('/health');
-  return (
-    <span title={API_URL} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-cream px-2.5 py-1 font-semibold text-teal">
-      <span className={`size-2 rounded-full ${health ? 'bg-sea' : 'bg-teal/30'}`} aria-hidden="true" />
-      {health ? 'API connected' : 'API offline'}
-    </span>
-  );
-}
 
 export function ApiOffline() {
   return (
