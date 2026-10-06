@@ -29,9 +29,21 @@ async function bootstrap() {
   // Every route starts with /api/v1 (e.g. GET /api/v1/opportunities)
   app.setGlobalPrefix('api/v1');
 
+  const defaultOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+  ];
+  const configuredOrigins = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const origins = Array.from(new Set([...defaultOrigins, ...configuredOrigins]));
+
   // Only our own web apps may call the API from a browser
   app.enableCors({
-    origin: (process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://localhost:3001').split(','),
+    origin: origins,
     credentials: true,
   });
 
