@@ -7,6 +7,8 @@
 node_modules/
 .pnpm-store/
 dist/
+# Prisma client (rebuilt by pnpm install / pnpm --filter api db:generate)
+apps/api/src/generated/
 build/
 .next/
 out/

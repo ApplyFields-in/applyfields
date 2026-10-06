@@ -1,36 +1,59 @@
 import { Controller, Get } from '@nestjs/common';
 import type { ApiHealth, HomeSummary } from '@applyfields/types';
-import { sampleOpportunities, sampleUpdates } from '../opportunities/sample-data.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { addDays, CARD_SELECT, openWhere, OpportunitiesService, todayIst } from '../opportunities/opportunities.service.js';
 
 @Controller()
 export class HomeController {
-  /** GET /api/v1/health — used by the web footer to show "API connected" */
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly opportunities: OpportunitiesService,
+  ) {}
+
+  /** GET /api/v1/health — used by the web footer to show "API connected" (also checks the database) */
   @Get('health')
-  health(): ApiHealth {
+  async health(): Promise<ApiHealth> {
+    await this.prisma.$queryRaw`select 1`;
     return { status: 'ok', service: 'applyfields-api', time: new Date().toISOString() };
   }
 
-  /** GET /api/v1/home — everything the home dashboard needs in one call (sample data for now) */
+  /** GET /api/v1/home — everything the home dashboard needs, from the database */
   @Get('home')
-  summary(): HomeSummary {
-    const open = sampleOpportunities()
-      .filter((o) => o.days_left === null || o.days_left >= 0)
-      .sort((a, b) => (a.days_left ?? 999) - (b.days_left ?? 999));
-    const closingThisWeek = open.filter((o) => o.days_left !== null && o.days_left <= 7);
+  async summary(): Promise<HomeSummary> {
+    const today = todayIst();
+    const open = openWhere(today);
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+
+    const [openJobs, newJobs, openExams, admitCards, openScholarships, closingWeek, closingSoon, latest, updates] = await Promise.all([
+      this.prisma.opportunities.count({ where: { ...open, type: 'govt_job' } }),
+      this.prisma.opportunities.count({ where: { ...open, type: 'govt_job', published_at: { gte: weekAgo } } }),
+      this.prisma.opportunities.count({ where: { ...open, type: 'exam' } }),
+      this.prisma.updates.count({ where: { status: 'published', kind: 'admit_card', published_at: { gte: addDays(today, -30) } } }),
+      this.prisma.opportunities.count({ where: { ...open, type: 'scholarship' } }),
+      this.prisma.opportunities.count({ where: { status: 'published', application_end: { gte: today, lte: addDays(today, 7) } } }),
+      this.prisma.opportunities.findMany({
+        where: { status: 'published', application_end: { gte: today, lte: addDays(today, 12) } },
+        select: CARD_SELECT,
+        orderBy: { application_end: 'asc' },
+        take: 5,
+      }),
+      this.prisma.opportunities.findMany({ where: open, select: CARD_SELECT, orderBy: { published_at: 'desc' }, take: 4 }),
+      this.opportunities.updates(5),
+    ]);
 
     return {
       generated_at: new Date().toISOString(),
       stats: [
-        { key: 'open_jobs', label: 'Open government jobs', value: 1240, hint: '+38 this week' },
-        { key: 'exams_this_month', label: 'Exams this month', value: 18, hint: '6 admit cards out' },
-        { key: 'scholarships_open', label: 'Scholarships open', value: 64, hint: 'Central + state' },
-        { key: 'closing_this_week', label: 'Closing this week', value: closingThisWeek.length, hint: 'Don’t miss them' },
+        { key: 'open_jobs', label: 'Open government jobs', value: openJobs, hint: `+${newJobs} this week` },
+        { key: 'exams_this_month', label: 'Exams open now', value: openExams, hint: `${admitCards} admit card${admitCards === 1 ? '' : 's'} out` },
+        { key: 'scholarships_open', label: 'Scholarships open', value: openScholarships, hint: 'Central + state' },
+        { key: 'closing_this_week', label: 'Closing this week', value: closingWeek, hint: 'Don’t miss them' },
       ],
-      closing_soon: open.filter((o) => o.days_left !== null && o.days_left <= 12).slice(0, 5),
-      popular: [open[2], open[4], open[7], open[9]].filter(Boolean),
-      updates: sampleUpdates(),
+      closing_soon: closingSoon.map((r) => this.opportunities.toCard(r, today)),
+      popular: latest.map((r) => this.opportunities.toCard(r, today)),
+      updates,
       popular_searches: ['SSC CGL', 'APPSC Group 2', 'NEET UG', 'Police jobs Telangana', 'PAN card', 'NSP scholarship'],
-      sample: true,
+      sample: false,
     };
   }
 }

@@ -26,9 +26,69 @@
   /* font files are bundled (@fontsource-variable/plus-jakarta-sans) — no internet needed */
   --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
 
-  --radius-card: 1.25rem;
-  --shadow-card: 0 1px 2px color-mix(in srgb, #114b5f 6%, transparent),
-    0 14px 32px -20px color-mix(in srgb, #114b5f 45%, transparent);
+  /* ---------- Claymorphism: puffy shapes = soft outer shadow + inner shading (palette only) ---------- */
+  --radius-card: 1.75rem;
+
+  /* raised clay card */
+  --shadow-card:
+    0 22px 40px -24px color-mix(in srgb, #114b5f 50%, transparent),
+    0 8px 16px -10px color-mix(in srgb, #114b5f 20%, transparent),
+    inset 0 -8px 16px color-mix(in srgb, #114b5f 7%, transparent),
+    inset 0 6px 12px color-mix(in srgb, #f3e9d2 35%, transparent);
+  /* lifted on hover */
+  --shadow-card-hover:
+    0 30px 52px -24px color-mix(in srgb, #114b5f 55%, transparent),
+    0 14px 24px -12px color-mix(in srgb, #114b5f 22%, transparent),
+    inset 0 -8px 16px color-mix(in srgb, #114b5f 7%, transparent),
+    inset 0 6px 12px color-mix(in srgb, #f3e9d2 35%, transparent);
+  /* small clay pieces: tiles, chips, buttons */
+  --shadow-clay:
+    0 10px 18px -12px color-mix(in srgb, #114b5f 55%, transparent),
+    inset 0 -4px 8px color-mix(in srgb, #114b5f 12%, transparent),
+    inset 0 3px 6px color-mix(in srgb, #f3e9d2 45%, transparent);
+  /* pressed in: inputs, active buttons, progress tracks */
+  --shadow-pressed:
+    inset 0 4px 10px color-mix(in srgb, #114b5f 18%, transparent),
+    inset 0 -2px 5px color-mix(in srgb, #f3e9d2 60%, transparent);
+
+  /* smooth page entrance */
+  --animate-rise: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* one class for "interactive clay": lifts on hover, sinks on press */
+@utility clay-press {
+  transition:
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 200ms ease;
+  &:hover {
+    transform: translateY(-2px);
+  }
+  &:active {
+    transform: translateY(1px);
+    box-shadow: var(--shadow-pressed);
+  }
+}
+
+@utility clay-lift {
+  transition:
+    transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-card-hover);
+  }
 }
 
 @layer base {
@@ -50,5 +110,15 @@
   :focus-visible {
     outline: 2px solid var(--color-sea);
     outline-offset: 2px;
+  }
+
+  /* people who turn off animations in their OS get no movement */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

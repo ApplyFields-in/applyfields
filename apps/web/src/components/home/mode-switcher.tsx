@@ -50,7 +50,7 @@ export function ModeSwitcher() {
   const tiles = mode === 'apply' ? APPLY : CAREER;
 
   return (
-    <section aria-labelledby="quick-links" className="rounded-card border border-line bg-cream p-5 shadow-card">
+    <section aria-labelledby="quick-links" className="rounded-card bg-cream p-5 shadow-card">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 id="quick-links" className="text-base font-bold">
@@ -60,7 +60,7 @@ export function ModeSwitcher() {
             {mode === 'apply' ? 'Jobs, exams, scholarships, services and admissions.' : 'Careers, roadmaps, courses and colleges.'}
           </p>
         </div>
-        <div role="tablist" aria-label="Mode" className="inline-flex rounded-full bg-tea p-1">
+        <div role="tablist" aria-label="Mode" className="inline-flex rounded-full bg-tea p-1 shadow-pressed">
           {(['apply', 'career'] as const).map((m) => (
             <button
               key={m}
@@ -69,8 +69,8 @@ export function ModeSwitcher() {
               aria-selected={mode === m}
               onClick={() => setMode(m)}
               className={cn(
-                'rounded-full px-4 py-1.5 text-sm font-semibold transition-colors',
-                mode === m ? 'bg-teal text-cream shadow-card' : 'text-teal hover:bg-cream/60',
+                'rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-300',
+                mode === m ? 'bg-teal text-cream shadow-clay' : 'text-teal hover:bg-cream/60',
               )}
             >
               {m === 'apply' ? 'Apply Mode' : 'Career Mode'}
@@ -84,9 +84,9 @@ export function ModeSwitcher() {
           <Link
             key={label}
             href={href}
-            className="group flex flex-col gap-3 rounded-2xl border border-line bg-canvas p-4 transition-colors hover:border-teal/40"
+            className="clay-lift group flex flex-col gap-3 rounded-3xl bg-canvas p-4 shadow-clay"
           >
-            <span className={cn('grid size-10 place-items-center rounded-xl', tone)}>
+            <span className={cn('grid size-10 place-items-center rounded-2xl shadow-clay transition-transform duration-300 group-hover:scale-110', tone)}>
               <Icon className="size-5" aria-hidden="true" />
             </span>
             <span>

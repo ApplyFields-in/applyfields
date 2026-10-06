@@ -23,7 +23,7 @@ export function Hero({ popular }: { popular: string[] }) {
           profile.
         </p>
 
-        <form action="/search" role="search" className="mt-5 flex items-center gap-2 rounded-full bg-cream p-1.5 pl-4">
+        <form action="/search" role="search" className="mt-5 flex items-center gap-2 rounded-full bg-cream p-1.5 pl-4 shadow-pressed">
           <Search className="size-5 shrink-0 text-teal/80" aria-hidden="true" />
           <input
             name="q"
@@ -43,7 +43,7 @@ export function Hero({ popular }: { popular: string[] }) {
             <Link
               key={q}
               href={`/search?q=${encodeURIComponent(q)}`}
-              className="rounded-full bg-cream/10 px-3 py-1 font-medium text-cream hover:bg-cream/20"
+              className="clay-press rounded-full bg-cream/10 px-3 py-1 font-medium text-cream shadow-clay hover:bg-cream/20"
             >
               {q}
             </Link>
@@ -62,7 +62,7 @@ export function StatsRow({ stats }: { stats: HomeStat[] }) {
   return (
     <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
       {stats.map((s, i) => (
-        <Card key={s.key} className="p-5">
+        <Card key={s.key} interactive className="p-5">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-semibold text-teal/80">{s.label}</p>
             <div aria-hidden="true" className="flex h-7 items-end gap-0.5">
@@ -102,14 +102,15 @@ export function ClosingSoon({ items }: { items: OpportunityCard[] }) {
           </Link>
         }
       />
+      {items.length === 0 && <p className="text-sm text-cream/80">Nothing closes in the next 12 days.</p>}
       <ul className="space-y-2">
         {items.map((o) => (
           <li key={o.slug}>
             <Link
               href={`${TYPE_META[o.type].base}/${o.slug}`}
-              className="flex items-center gap-3 rounded-2xl bg-cream/10 p-3 transition-colors hover:bg-cream/15"
+              className="clay-press flex items-center gap-3 rounded-3xl bg-cream/10 p-3 shadow-clay hover:bg-cream/15"
             >
-              <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-cream text-center text-teal">
+              <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-cream text-center text-teal shadow-clay">
                 <span className="text-base font-extrabold leading-none">{o.days_left}</span>
                 <span className="sr-only"> days left</span>
                 <span aria-hidden="true" className="-mt-2 text-[9px] font-bold uppercase">days</span>
@@ -142,6 +143,7 @@ export function LatestUpdates({ items }: { items: UpdateItem[] }) {
           </Link>
         }
       />
+      {items.length === 0 && <p className="text-sm text-teal/80">No results or admit cards published yet.</p>}
       <ul className="divide-y divide-teal/10">
         {items.map((u) => (
           <li key={u.id} className="py-2.5">
@@ -197,7 +199,7 @@ export function DeadlineCalendar({ deadlines }: { deadlines: OpportunityCard[] }
               title={due?.map((d) => d.title).join(', ')}
               className={cn(
                 'relative grid aspect-square place-items-center rounded-full text-[13px] font-semibold',
-                due ? 'bg-teal text-cream' : 'text-teal',
+                due ? 'bg-teal text-cream shadow-clay' : 'text-teal',
                 isToday && !due && 'ring-2 ring-sea',
               )}
             >
@@ -280,7 +282,7 @@ export function AssistancePromo() {
 
 export function TrustNote() {
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-card border border-dashed border-teal/25 px-5 py-4 text-sm">
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-card bg-canvas px-5 py-4 text-sm shadow-pressed">
       {['Official links only', 'Never invents fees or eligibility', 'Shows when info was last verified', 'Your documents stay private'].map((t) => (
         <span key={t} className="flex items-center gap-2 font-semibold">
           <CircleCheck className="size-4 text-sea" aria-hidden="true" /> {t}

@@ -11,7 +11,7 @@ export const metadata = { title: 'Search' };
 const TABS = ['All', 'Jobs', 'Exams', 'Scholarships', 'Services', 'Admissions', 'Careers', 'Courses', 'Colleges'];
 const EXAMPLES = ['SSC CGL', 'NEET', 'Telangana', 'scholarship', 'police'];
 
-/** Universal search (founder doc §6) — today it searches the sample opportunities via GET /api/v1/opportunities?q= */
+/** Universal search (founder doc §6) — searches published opportunities via GET /api/v1/opportunities?q= */
 export default async function SearchPage({ searchParams }: PageProps<'/search'>) {
   const { q } = await searchParams;
   const query = typeof q === 'string' ? q.trim() : '';
@@ -28,7 +28,7 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
         actions={<BuildStatus owner="Harsha" when="Week 6" />}
       />
 
-      <form action="/search" role="search" className="mb-4 flex items-center gap-2 rounded-full border border-line bg-cream p-1.5 pl-4 shadow-card">
+      <form action="/search" role="search" className="mb-4 flex items-center gap-2 rounded-full bg-cream p-1.5 pl-4 shadow-pressed">
         <Search className="size-5 shrink-0 text-teal/80" aria-hidden="true" />
         <input
           name="q"
@@ -43,11 +43,11 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
         </button>
       </form>
 
-      <div className="-mx-1 mb-6 flex gap-2 overflow-x-auto px-1 pb-1">
+      <div className="-mx-1 mb-6 flex gap-2 overflow-x-auto px-1 pb-3 pt-1">
         {TABS.map((t, i) => (
           <span
             key={t}
-            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold ${i === 0 ? 'bg-teal text-cream' : 'bg-cream ring-1 ring-line'}`}
+            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold ${i === 0 ? 'bg-teal text-cream shadow-clay' : 'bg-cream shadow-clay'}`}
           >
             {t}
           </span>
@@ -72,7 +72,7 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
       ) : data === null ? (
         <ApiOffline />
       ) : data.total === 0 ? (
-        <EmptyState icon={<Search />} title="No matches yet" text="The search only covers sample jobs, exams, scholarships and admissions for now." />
+        <EmptyState icon={<Search />} title="No matches yet" text="Search covers published jobs, exams, scholarships and admissions. Try a shorter word, like the board name (SSC, APPSC)." />
       ) : (
         <>
           <div className="mb-3 flex items-center justify-between gap-3">

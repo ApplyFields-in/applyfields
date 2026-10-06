@@ -45,7 +45,7 @@ Likhith belongs to**, and give teammates their database login instead of dashboa
 1. Write the change as SQL, e.g. `alter table user_profiles add column nickname text;`
 2. Run it on **DEV** with your own login (DBeaver, TablePlus, psql or VS Code).
 3. Save the same SQL in `database/changes/` (see [`changes/README.md`](changes/README.md)).
-4. Refresh Prisma so the code knows the new column: `cd apps/api && pnpm prisma db pull && pnpm prisma generate`.
+4. Refresh Prisma so the code knows the new column: `cd apps/api && pnpm db:pull && pnpm db:generate`.
 5. Open one PR with the change file + updated `schema.prisma`. Likhith reviews and applies it to **PROD**.
 
 New tables, indexes and anything that drops data: ask Likhith.
@@ -53,15 +53,11 @@ New tables, indexes and anything that drops data: ask Likhith.
 > Use Prisma only for `db pull` and `generate`. **Never** run `prisma migrate` or `prisma db push` —
 > they would fight with the SQL files and can wipe the dev database.
 
-## First-time Prisma setup (Likhith, once)
+## Prisma (already set up)
 
-```bash
-cd apps/api
-pnpm add -D prisma && pnpm add @prisma/client
-pnpm prisma init          # then set DATABASE_URL / DIRECT_URL (see apps/api/.env.example)
-pnpm prisma db pull       # reads the 66 tables → Prisma models
-pnpm prisma generate
-```
+Prisma 7 lives in `apps/api`: `prisma/schema.prisma` (66 models read from the database), `prisma.config.ts`
+(reads `DIRECT_URL` from `apps/api/.env`) and the generated client in `src/generated/` (not in git —
+`pnpm install` rebuilds it). The API connects through `PrismaService` (`src/prisma/`).
 
 ## After Likhith adds new tables
 

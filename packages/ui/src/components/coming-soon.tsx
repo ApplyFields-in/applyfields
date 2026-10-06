@@ -46,7 +46,7 @@ export function ComingSoon({
       )}
 
       {items.length > 0 && (
-        <div className="mt-6 rounded-2xl bg-canvas p-4">
+        <div className="mt-6 rounded-3xl bg-canvas p-4 shadow-pressed">
           <p className="mb-2 text-sm font-bold">This page will include</p>
           <ul className="grid gap-2 sm:grid-cols-2">
             {items.map((item) => (

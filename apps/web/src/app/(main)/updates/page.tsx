@@ -1,5 +1,5 @@
 import type { UpdateList } from '@applyfields/types';
-import { Preview, SectionPage } from '@applyfields/ui';
+import { EmptyState, Preview, SectionPage } from '@applyfields/ui';
 import { Megaphone } from 'lucide-react';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/opportunity';
@@ -14,8 +14,12 @@ export default async function Page() {
   await connection();
   const data = await apiGet<UpdateList>('/updates');
   return (
-    <SectionPage info={SECTIONS.updates}>
-      {data ? (
+    <SectionPage info={SECTIONS.updates} liveTitle="Latest updates">
+      {data === null ? (
+        <ApiOffline />
+      ) : data.items.length === 0 ? (
+        <EmptyState icon={<Megaphone />} title="No updates yet" text="Admit cards, results, answer keys and date changes appear here once they are published." />
+      ) : (
         <Preview
           preview={{
             kind: 'list',
@@ -28,8 +32,6 @@ export default async function Page() {
             })),
           }}
         />
-      ) : (
-        <ApiOffline />
       )}
     </SectionPage>
   );

@@ -18,7 +18,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
 function SidebarFooter() {
   return (
     <div className="space-y-2">
-      <div className="rounded-2xl bg-cream/10 p-4">
+      <div className="rounded-3xl bg-cream/10 p-4 shadow-clay">
         <Crown className="size-5 text-celadon" aria-hidden="true" />
         <p className="mt-2 text-sm font-bold">ApplyFields Plus</p>
         <p className="text-xs text-cream/75">Optional plan · about ₹50/month. Core features stay free.</p>
@@ -43,20 +43,20 @@ function Topbar() {
           type="search"
           aria-label="Search ApplyFields"
           placeholder="Search jobs, exams, scholarships, services…"
-          className="h-10 w-full rounded-full border border-line bg-cream pl-10 pr-4 text-sm placeholder:text-teal/80"
+          className="h-10 w-full rounded-full bg-cream pl-10 pr-4 text-sm shadow-pressed outline-none transition-shadow placeholder:text-teal/80 focus:shadow-clay"
         />
       </form>
       <div className="ml-auto flex items-center gap-2">
-        <Link href="/search" aria-label="Search" className="grid size-10 place-items-center rounded-full border border-line bg-cream sm:hidden">
+        <Link href="/search" aria-label="Search" className="clay-press grid size-10 place-items-center rounded-full bg-cream shadow-clay sm:hidden">
           <Search className="size-4" />
         </Link>
         <Link
           href="/career/guidance"
-          className="hidden h-10 items-center gap-2 rounded-full border border-sea/40 bg-cream px-4 text-sm font-semibold md:inline-flex"
+          className="clay-press hidden h-10 items-center gap-2 rounded-full bg-cream px-4 text-sm font-semibold shadow-clay md:inline-flex"
         >
           <Sparkles className="size-4 text-sea" aria-hidden="true" /> Ask AI
         </Link>
-        <Link href="/notifications" aria-label="Notifications" className="relative grid size-10 place-items-center rounded-full border border-line bg-cream">
+        <Link href="/notifications" aria-label="Notifications" className="clay-press relative grid size-10 place-items-center rounded-full bg-cream shadow-clay">
           <Bell className="size-4" />
           <span className="absolute right-2.5 top-2.5 size-2 rounded-full bg-sea" aria-hidden="true" />
         </Link>
@@ -95,7 +95,7 @@ async function ApiStatus() {
   return (
     <span
       title={API_URL}
-      className="inline-flex items-center gap-1.5 rounded-full border border-line bg-cream px-2.5 py-1 font-semibold text-teal"
+      className="inline-flex items-center gap-1.5 rounded-full bg-cream px-2.5 py-1 font-semibold text-teal shadow-clay"
     >
       <span className={`size-2 rounded-full ${health ? 'bg-sea' : 'bg-teal/30'}`} aria-hidden="true" />
       {health ? 'API connected' : 'API offline'}

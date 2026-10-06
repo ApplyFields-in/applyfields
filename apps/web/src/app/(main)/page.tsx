@@ -1,6 +1,6 @@
 import type { HomeSummary } from '@applyfields/types';
-import { Badge, SectionTitle } from '@applyfields/ui';
-import { ArrowRight } from 'lucide-react';
+import { Badge, EmptyState, SectionTitle } from '@applyfields/ui';
+import { ArrowRight, BriefcaseBusiness } from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import {
@@ -60,11 +60,15 @@ export default async function HomePage() {
                 </Link>
               }
             />
-            <div className="grid gap-4 md:grid-cols-2">
-              {home.popular.map((item) => (
-                <OpportunityCardView key={item.slug} item={item} />
-              ))}
-            </div>
+            {home.popular.length === 0 ? (
+              <EmptyState icon={<BriefcaseBusiness />} title="No opportunities published yet" text="Every notification is checked against the official source before it appears here — new ones show up as soon as our team publishes them." />
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {home.popular.map((item) => (
+                  <OpportunityCardView key={item.slug} item={item} />
+                ))}
+              </div>
+            )}
           </section>
         )}
 

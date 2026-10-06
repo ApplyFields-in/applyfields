@@ -1,3 +1,5 @@
+// Load apps/api/.env before anything reads process.env (DATABASE_URL, CORS_ORIGINS, PORT…)
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 

@@ -33,7 +33,7 @@ export type SectionInfo = {
 
 export function BuildStatus({ owner, when }: { owner: string; when: string }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-teal/20 bg-cream px-3 py-1.5 text-xs font-semibold">
+    <span className="inline-flex items-center gap-2 rounded-full bg-cream px-3 py-1.5 text-xs font-semibold shadow-clay">
       <Construction className="size-4 text-sea" aria-hidden="true" />
       Being built · {when} · {owner}
     </span>
@@ -42,7 +42,8 @@ export function BuildStatus({ owner, when }: { owner: string; when: string }) {
 
 /* ------------------------------------------------------------------ section page */
 
-export function SectionPage({ info, children }: { info: SectionInfo; children?: ReactNode }) {
+/** `liveTitle`: the children show real data from the API, so drop the "Sample data" badge. */
+export function SectionPage({ info, children, liveTitle }: { info: SectionInfo; children?: ReactNode; liveTitle?: string }) {
   return (
     <>
       <PageHeader
@@ -55,7 +56,11 @@ export function SectionPage({ info, children }: { info: SectionInfo; children?: 
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <Card className="min-w-0 p-5">
-          <SectionTitle title="Preview" action={<Badge tone="celadon">Sample data</Badge>} />
+          {liveTitle ? (
+            <SectionTitle title={liveTitle} />
+          ) : (
+            <SectionTitle title="Preview" action={<Badge tone="celadon">Sample data</Badge>} />
+          )}
           {children ?? <Preview preview={info.preview} />}
           {info.note && <p className="mt-4 text-xs text-teal/80">{info.note}</p>}
         </Card>
@@ -109,7 +114,7 @@ export function Preview({ preview }: { preview: SectionPreview }) {
       return (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {preview.items.map((item) => (
-            <ItemShell key={item.title} item={item} className="flex flex-col gap-3 rounded-2xl border border-line bg-canvas p-4">
+            <ItemShell key={item.title} item={item} className="clay-lift flex flex-col gap-3 rounded-3xl bg-canvas p-4 shadow-clay">
               <div className="flex items-start justify-between gap-2">
                 {item.icon ? <IconTile tone="cream">{item.icon}</IconTile> : <span />}
                 {item.badge && <Badge tone="tea">{item.badge}</Badge>}
@@ -188,7 +193,7 @@ export function Preview({ preview }: { preview: SectionPreview }) {
                 {group.fields.map((field) => (
                   <label key={field} className="block text-sm">
                     <span className="mb-1 block font-medium text-teal/80">{field}</span>
-                    <span className="flex h-10 items-center rounded-xl border border-line bg-canvas px-3 text-teal/80">—</span>
+                    <span className="flex h-11 items-center rounded-2xl bg-canvas px-4 text-teal/80 shadow-pressed">—</span>
                   </label>
                 ))}
               </div>
@@ -206,7 +211,7 @@ export function Preview({ preview }: { preview: SectionPreview }) {
               <div key={i} className={cn('flex', m.from === 'user' ? 'justify-end' : 'justify-start')}>
                 <p
                   className={cn(
-                    'max-w-[80%] rounded-2xl px-4 py-2.5 text-sm',
+                    'max-w-[80%] rounded-3xl px-4 py-2.5 text-sm shadow-clay',
                     m.from === 'user' ? 'rounded-br-md bg-teal text-cream' : 'rounded-bl-md bg-tea text-teal',
                   )}
                 >
@@ -215,7 +220,7 @@ export function Preview({ preview }: { preview: SectionPreview }) {
               </div>
             ))}
           </div>
-          <div className="mt-5 flex items-center gap-2 rounded-full border border-line bg-canvas p-1.5 pl-4">
+          <div className="mt-5 flex items-center gap-2 rounded-full bg-canvas p-1.5 pl-4 shadow-pressed">
             <span className="flex-1 text-sm text-teal/80">Ask a career question… (coming soon)</span>
             <span aria-disabled="true" className={buttonClass({ size: 'sm' })}>
               <SendHorizontal aria-hidden="true" /> Send

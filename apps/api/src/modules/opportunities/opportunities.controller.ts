@@ -1,27 +1,21 @@
 import { BadRequestException, Controller, Get, NotImplementedException, Param, Query } from '@nestjs/common';
 import type { OpportunityList, OpportunityType, UpdateList } from '@applyfields/types';
-import { sampleOpportunities, sampleUpdates } from './sample-data.js';
+import { OpportunitiesService } from './opportunities.service.js';
 
 const TYPES: OpportunityType[] = ['govt_job', 'exam', 'scholarship', 'admission'];
 
 @Controller()
 export class OpportunitiesController {
-  /** GET /api/v1/opportunities?type=govt_job&q=ssc — list + simple search (sample data for now) */
+  constructor(private readonly opportunities: OpportunitiesService) {}
+
+  /** GET /api/v1/opportunities?type=govt_job&q=ssc — published, open opportunities from the database */
   @Get('opportunities')
-  list(@Query('type') type?: string, @Query('q') q?: string): OpportunityList {
+  async list(@Query('type') type?: string, @Query('q') q?: string): Promise<OpportunityList> {
     if (type && !TYPES.includes(type as OpportunityType)) {
       throw new BadRequestException(`type must be one of: ${TYPES.join(', ')}`);
     }
-    const words = (q ?? '').toLowerCase().split(/\s+/).filter(Boolean);
-    const items = sampleOpportunities()
-      .filter((o) => !type || o.type === type)
-      .filter((o) => {
-        const text = `${o.title} ${o.organization} ${o.location} ${o.tags.join(' ')}`.toLowerCase();
-        return words.every((w) => text.includes(w));
-      })
-      .sort((a, b) => (a.days_left ?? 999) - (b.days_left ?? 999));
-
-    return { type: (type as OpportunityType | undefined) ?? 'all', query: q ?? '', total: items.length, items, sample: true };
+    const items = await this.opportunities.list(type as OpportunityType | undefined, q);
+    return { type: (type as OpportunityType | undefined) ?? 'all', query: q ?? '', total: items.length, items, sample: false };
   }
 
   /** GET /api/v1/opportunities/:slug — the detail page arrives in Week 3 */
@@ -30,9 +24,9 @@ export class OpportunitiesController {
     throw new NotImplementedException(`Opportunity details for "${slug}" are being built (Week 3).`);
   }
 
-  /** GET /api/v1/updates — admit cards, results, answer keys, date changes */
+  /** GET /api/v1/updates — published admit cards, results, answer keys, date changes */
   @Get('updates')
-  updates(): UpdateList {
-    return { items: sampleUpdates(), sample: true };
+  async updates(): Promise<UpdateList> {
+    return { items: await this.opportunities.updates(), sample: false };
   }
 }

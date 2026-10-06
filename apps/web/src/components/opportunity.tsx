@@ -1,5 +1,5 @@
 import type { OpportunityCard, OpportunityList, OpportunityType } from '@applyfields/types';
-import { Badge, BuildStatus, Card, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
+import { Badge, BuildStatus, Card, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
 import { Bookmark, CalendarDays, ChevronDown, CircleCheck, GraduationCap, MapPin, Search, Users, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
@@ -12,7 +12,7 @@ import { daysLeftLabel, formatDate, TYPE_META, urgencyTone } from '@/lib/format'
 export function OpportunityCardView({ item }: { item: OpportunityCard }) {
   const meta = TYPE_META[item.type];
   return (
-    <Card className="flex flex-col p-4">
+    <Card interactive className="flex flex-col p-4">
       <div className="flex items-start gap-3">
         <IconTile tone={meta.tone}>{meta.icon}</IconTile>
         <div className="min-w-0 flex-1">
@@ -24,7 +24,7 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
         <Link
           href="/login"
           aria-label={`Save ${item.title}`}
-          className="grid size-8 shrink-0 place-items-center rounded-full border border-line hover:bg-tea"
+          className="clay-press grid size-8 shrink-0 place-items-center rounded-full bg-cream shadow-clay hover:bg-tea"
         >
           <Bookmark className="size-4" />
         </Link>
@@ -86,7 +86,7 @@ export function FilterBar({ placeholder, categories }: { placeholder: string; ca
             type="search"
             aria-label={placeholder}
             placeholder={placeholder}
-            className="h-11 w-full rounded-full border border-line bg-cream pl-10 pr-4 text-sm placeholder:text-teal/80"
+            className="h-11 w-full rounded-full bg-cream pl-10 pr-4 text-sm shadow-pressed outline-none transition-shadow placeholder:text-teal/80 focus:shadow-clay"
           />
         </form>
         <div className="flex flex-wrap gap-2">
@@ -96,17 +96,17 @@ export function FilterBar({ placeholder, categories }: { placeholder: string; ca
               type="button"
               aria-disabled="true"
               title="Filters arrive with this page's build"
-              className="inline-flex h-11 cursor-not-allowed items-center gap-1.5 rounded-full border border-line bg-cream px-4 text-sm font-semibold"
+              className="clay-press inline-flex h-11 cursor-not-allowed items-center gap-1.5 rounded-full bg-cream px-4 text-sm font-semibold shadow-clay"
             >
               {f} <ChevronDown className="size-4" aria-hidden="true" />
             </button>
           ))}
         </div>
       </div>
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-        <span className="shrink-0 rounded-full bg-teal px-3.5 py-1.5 text-xs font-semibold text-cream">All</span>
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-3 pt-1">
+        <span className="shrink-0 rounded-full bg-teal px-3.5 py-1.5 text-xs font-semibold text-cream shadow-clay">All</span>
         {categories.map((c) => (
-          <span key={c} className="shrink-0 rounded-full bg-cream px-3.5 py-1.5 text-xs font-semibold ring-1 ring-line">
+          <span key={c} className="shrink-0 rounded-full bg-cream px-3.5 py-1.5 text-xs font-semibold shadow-clay">
             {c}
           </span>
         ))}
@@ -147,6 +147,8 @@ export async function OpportunityListPage({
 
       {data === null ? (
         <ApiOffline />
+      ) : data.total === 0 ? (
+        <EmptyState icon={meta.icon} title={`No open ${meta.plural} yet`} text="Every notification is checked against the official source before it appears here — new ones show up as soon as our team publishes them." />
       ) : (
         <>
           <div className="mb-3 flex items-center justify-between gap-3">

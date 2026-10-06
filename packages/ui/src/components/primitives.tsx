@@ -4,7 +4,7 @@ import { cn } from '../cn';
 /* ------------------------------------------------------------------ Card */
 
 const cardTones = {
-  surface: 'bg-cream border border-line',
+  surface: 'bg-cream border border-cream',
   teal: 'bg-teal text-cream',
   sea: 'bg-sea text-cream',
   celadon: 'bg-celadon text-teal',
@@ -15,12 +15,13 @@ export type Tone = keyof typeof cardTones;
 
 export function Card({
   tone = 'surface',
+  interactive = false,
   className,
   children,
   ...rest
-}: { tone?: Tone } & HTMLAttributes<HTMLDivElement>) {
+}: { tone?: Tone; interactive?: boolean } & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('rounded-card shadow-card', cardTones[tone], className)} {...rest}>
+    <div className={cn('rounded-card shadow-card', interactive && 'clay-lift', cardTones[tone], className)} {...rest}>
       {children}
     </div>
   );
@@ -29,11 +30,11 @@ export function Card({
 /* ------------------------------------------------------------------ Badge */
 
 const badgeTones = {
-  celadon: 'bg-celadon text-teal',
-  tea: 'bg-tea text-teal',
-  teal: 'bg-teal text-cream',
-  cream: 'bg-cream text-teal',
-  outline: 'border border-teal/25 text-teal',
+  celadon: 'bg-celadon text-teal shadow-clay',
+  tea: 'bg-tea text-teal shadow-clay',
+  teal: 'bg-teal text-cream shadow-clay',
+  cream: 'bg-cream text-teal shadow-clay',
+  outline: 'border border-teal/20 text-teal',
 } as const;
 
 export function Badge({
@@ -77,9 +78,9 @@ export function ProgressBar({
       aria-valuenow={pct}
       aria-valuemin={0}
       aria-valuemax={100}
-      className={cn('h-2 w-full overflow-hidden rounded-full bg-teal/10', className)}
+      className={cn('h-2.5 w-full overflow-hidden rounded-full bg-teal/10 shadow-pressed', className)}
     >
-      <div className="h-full rounded-full bg-sea" style={{ width: `${pct}%` }} />
+      <div className="h-full rounded-full bg-sea shadow-clay transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -97,7 +98,7 @@ export function Avatar({ name, className }: { name: string; className?: string }
     <span
       aria-hidden="true"
       className={cn(
-        'grid size-9 shrink-0 place-items-center rounded-full bg-celadon text-xs font-bold text-teal ring-2 ring-cream',
+        'grid size-9 shrink-0 place-items-center rounded-full bg-celadon text-xs font-bold text-teal shadow-clay ring-2 ring-cream',
         className,
       )}
     >
@@ -129,7 +130,7 @@ export function IconTile({
     <span
       aria-hidden="true"
       className={cn(
-        'grid size-10 shrink-0 place-items-center rounded-xl [&>svg]:size-5',
+        'grid size-10 shrink-0 place-items-center rounded-2xl shadow-clay [&>svg]:size-5',
         tileTones[tone],
         className,
       )}
@@ -208,7 +209,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center rounded-2xl border border-dashed border-teal/25 px-6 py-10 text-center',
+        'flex flex-col items-center rounded-3xl bg-canvas px-6 py-10 text-center shadow-pressed',
         className,
       )}
     >

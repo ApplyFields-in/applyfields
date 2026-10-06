@@ -31,7 +31,7 @@ pnpm install
 |---|---|---|
 | `apps/web/.env.example` | `apps/web/.env.local` | Optional — defaults to `http://localhost:4000/api/v1` |
 | `apps/admin/.env.example` | `apps/admin/.env.local` | Optional — same default |
-| `apps/api/.env.example` | `apps/api/.env` | Once the database is connected (Prisma) |
+| `apps/api/.env.example` | `apps/api/.env` | **Yes** — the API reads jobs and exams from the database |
 | `apps/ingestion/.env.example` | `apps/ingestion/.env` | For the scraper |
 
 > Never commit `.env` files. Use your **own** database login (`karthik_dev`, `harsha_dev`, `ingestion_writer`) — never the `postgres` password.
@@ -94,14 +94,14 @@ The website footer shows **API connected** when everything is linked up.
 | `/users` · `/partners` · `/assistance` | People |
 | `/notifications` · `/reports` · `/payments` · `/audit` · `/settings` | Operations |
 
-### API endpoints (sample data until the database is connected)
+### API endpoints (data from the database — empty until jobs are published)
 | Endpoint | Returns |
 |---|---|
 | `/api/v1/health` | API status |
 | `/api/v1/home` | Home dashboard data |
 | `/api/v1/opportunities?type=govt_job` | Jobs (also `exam`, `scholarship`, `admission`; add `&q=ssc` to search) |
 | `/api/v1/updates` | Results, admit cards, answer keys |
-| `/api/v1/admin/summary` | Internal Portal dashboard |
+| `/api/v1/admin/summary` | Internal Portal dashboard (still sample data) |
 
 ---
 

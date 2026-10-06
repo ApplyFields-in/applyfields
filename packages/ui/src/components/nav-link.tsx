@@ -27,8 +27,8 @@ export function NavLink({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-        active ? 'bg-cream text-teal shadow-card' : 'text-cream/85 hover:bg-cream/10 hover:text-cream',
+        'flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition-all duration-200',
+        active ? 'bg-cream text-teal shadow-clay' : 'text-cream/85 hover:translate-x-0.5 hover:bg-cream/10 hover:text-cream',
       )}
     >
       <span className="grid size-5 place-items-center [&>svg]:size-[18px]">{icon}</span>

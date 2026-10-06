@@ -27,7 +27,7 @@ export function MobileDrawer({ children }: { children: ReactNode }) {
         onClick={() => setOpen(true)}
         aria-label="Open menu"
         aria-expanded={open}
-        className="grid size-10 place-items-center rounded-full border border-line bg-cream text-teal"
+        className="clay-press grid size-10 place-items-center rounded-full bg-cream text-teal shadow-clay"
       >
         <Menu className="size-5" />
       </button>
