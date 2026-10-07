@@ -19,15 +19,7 @@ export function TopNavAuth() {
   const syncAuth = useCallback(async () => {
     if (typeof window === 'undefined') return;
 
-    const token = localStorage.getItem('accessToken');
     const storedUserRaw = localStorage.getItem('currentUser');
-
-    if (!token && !storedUserRaw) {
-      setUser(null);
-      setAvatarId('pixel-scholar');
-      setDisplayName('');
-      return;
-    }
 
     if (storedUserRaw) {
       try {
@@ -40,20 +32,22 @@ export function TopNavAuth() {
       }
     }
 
-    // Background verify and sync profile avatar with backend
-    if (token) {
-      const me = await apiGet<MeResponse>('/me');
-      if (me && me.user) {
-        setUser(me.user);
-        if (me.profile?.avatar_url) {
-          setAvatarId(me.profile.avatar_url);
-        }
-        if (me.profile?.full_name?.trim()) {
-          setDisplayName(me.profile.full_name.trim());
-        } else if (me.user.email) {
-          setDisplayName(me.user.email.split('@')[0]);
-        }
+    // Verify and sync profile avatar with backend using httpOnly cookie
+    const me = await apiGet<MeResponse>('/me');
+    if (me && me.user) {
+      setUser(me.user);
+      if (me.profile?.avatar_url) {
+        setAvatarId(me.profile.avatar_url);
       }
+      if (me.profile?.full_name?.trim()) {
+        setDisplayName(me.profile.full_name.trim());
+      } else if (me.user.email) {
+        setDisplayName(me.user.email.split('@')[0]);
+      }
+    } else {
+      setUser(null);
+      setAvatarId('pixel-scholar');
+      setDisplayName('');
     }
   }, []);
 
@@ -84,12 +78,9 @@ export function TopNavAuth() {
   }, [syncAuth]);
 
   async function handleLogout() {
-    const rawRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') ?? undefined : undefined;
-    await apiPost('/auth/logout', { refreshToken: rawRefreshToken });
+    await apiPost('/auth/logout');
 
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
       localStorage.removeItem('currentUser');
       window.dispatchEvent(new Event('auth-changed'));
     }

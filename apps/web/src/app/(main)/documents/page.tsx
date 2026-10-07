@@ -72,9 +72,8 @@ export default function DocumentsPage() {
   async function handleDownload() {
     if (!resume) return;
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
       const res = await fetch(`${API_URL}/me/resume/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();

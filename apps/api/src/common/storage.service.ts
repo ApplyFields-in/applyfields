@@ -7,15 +7,57 @@ export class StorageService {
 
   /** Bucket where the scraper keeps downloaded notification PDFs (apps/ingestion STORAGE_BUCKET). */
   readonly notificationsBucket = process.env.STORAGE_BUCKET ?? 'notifications';
+  /** Bucket for user-uploaded resume files. */
+  readonly resumesBucket = process.env.RESUMES_BUCKET ?? 'resumes';
+
+  /**
+   * Upload a buffer to Supabase Storage. Returns the object path on success, null if Storage
+   * isn't configured or the upload failed (caller should fall back to local disk).
+   */
+  async upload(
+    bucket: string,
+    path: string,
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<string | null> {
+    const base = process.env.SUPABASE_URL?.replace(/\/$/, '');
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!base || !key) return null;
+
+    const encoded = path.split('/').map(encodeURIComponent).join('/');
+    try {
+      const res = await fetch(`${base}/storage/v1/object/${bucket}/${encoded}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          apikey: key,
+          'Content-Type': mimeType,
+          'x-upsert': 'true',
+        },
+        body: new Uint8Array(buffer),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!res.ok) {
+        this.logger.warn(`Upload failed ${bucket}/${path}: HTTP ${res.status}`);
+        return null;
+      }
+      return path;
+    } catch (err) {
+      this.logger.warn(`Upload failed ${bucket}/${path}: ${(err as Error).message}`);
+      return null;
+    }
+  }
 
   /**
    * A short-lived link to a private file, or null if Storage isn't configured or the file is missing.
    * `path` may include the bucket name as its first segment — it is stripped.
+   * Pass `download` to force Content-Disposition: attachment with that filename.
    */
   async signedUrl(
     bucket: string,
     path: string,
     expiresInSeconds = 600,
+    download?: string,
   ): Promise<string | null> {
     const base = process.env.SUPABASE_URL?.replace(/\/$/, '');
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -25,6 +67,8 @@ export class StorageService {
       .replace(/^\/+/, '')
       .replace(new RegExp(`^${bucket}/`), '');
     const encoded = objectPath.split('/').map(encodeURIComponent).join('/');
+    const body: Record<string, unknown> = { expiresIn: expiresInSeconds };
+    if (download) body.download = download;
     try {
       const res = await fetch(
         `${base}/storage/v1/object/sign/${bucket}/${encoded}`,
@@ -35,7 +79,7 @@ export class StorageService {
             apikey: key,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ expiresIn: expiresInSeconds }),
+          body: JSON.stringify(body),
           signal: AbortSignal.timeout(5000),
         },
       );
