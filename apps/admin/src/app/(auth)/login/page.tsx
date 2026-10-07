@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, Logo } from '@applyfields/ui';
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { API_URL } from '@/lib/api';
 
 function StaffLoginForm() {
@@ -28,7 +28,8 @@ function StaffLoginForm() {
       setError('Please enter your staff email or phone.');
       return;
     }
-    if (!password) {
+    const cleanPassword = password.trim();
+    if (!cleanPassword) {
       setError('Please enter your password.');
       return;
     }
@@ -45,13 +46,13 @@ function StaffLoginForm() {
         credentials: 'include',
         body: JSON.stringify({
           identifier: cleanIdentifier,
-          password,
+          password: cleanPassword,
         }),
       });
 
       const data = await res.json();
 
-      if (!res.ok || !data?.accessToken) {
+      if (!res.ok || !data?.user) {
         const msg = data?.message
           ? Array.isArray(data.message)
             ? data.message.join(', ')
@@ -84,10 +85,6 @@ function StaffLoginForm() {
       <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center text-center">
           <Logo subtitle="Internal Portal" />
-          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-line bg-cream px-3 py-1 text-xs font-semibold text-teal">
-            <ShieldCheck className="size-3.5 text-sea" aria-hidden="true" />
-            Staff Authorization Required
-          </div>
         </div>
 
         <Card className="p-7 shadow-clay-card">
