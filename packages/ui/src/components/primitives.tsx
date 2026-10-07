@@ -140,6 +140,12 @@ export function IconTile({
   );
 }
 
+/* ------------------------------------------------------------------ Skeleton */
+
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-tea/40', className)} />;
+}
+
 /* ------------------------------------------------------------------ Headings */
 
 export function SectionTitle({

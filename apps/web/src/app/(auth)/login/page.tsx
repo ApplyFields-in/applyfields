@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Badge, Card } from '@applyfields/ui';
+import { Card } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
 import { CheckCircle2, Eye, EyeOff, KeyRound, Lock, LogIn, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
@@ -211,7 +211,6 @@ function LoginForm() {
     <div className="w-full max-w-md [perspective:1000px]">
       <Card className="p-6 sm:p-8 border-2 border-line bg-cream rounded-3xl shadow-[0_20px_40px_-10px_rgba(17,75,95,0.22),0_6px_0_0_#114b5f] transition-all">
         <div className="mb-6">
-          <Badge tone="celadon" className="mb-2 shadow-xs">Citizen Portal</Badge>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-teal">
             {mode === 'forgot' ? 'Reset password' : 'Log in to ApplyFields'}
           </h1>
