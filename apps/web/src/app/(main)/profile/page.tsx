@@ -183,13 +183,6 @@ export default function ProfilePage() {
   useEffect(() => {
     async function loadData() {
       setLoading(true);
-      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-
-      if (!token) {
-        setIsGuest(true);
-        setLoading(false);
-        return;
-      }
 
       const res = await apiGet<MeResponse>('/me');
       if (!res || !res.user) {
@@ -450,9 +443,8 @@ export default function ProfilePage() {
   async function handleDownloadResume() {
     if (!savedResume) return;
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
       const res = await fetch(`${API_URL}/me/resume/download`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
@@ -540,11 +532,8 @@ export default function ProfilePage() {
 
   // Handle user logout
   async function handleLogout() {
-    const rawRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') ?? undefined : undefined;
-    await apiPost('/auth/logout', { refreshToken: rawRefreshToken });
+    await apiPost('/auth/logout');
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
       localStorage.removeItem('currentUser');
       window.dispatchEvent(new Event('auth-changed'));
     }

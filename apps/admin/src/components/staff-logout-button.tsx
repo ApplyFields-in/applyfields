@@ -18,14 +18,7 @@ export function StaffLogoutButton() {
       });
     } catch {}
 
-    // Clear client-side state & cookies
-    if (typeof document !== 'undefined') {
-      document.cookie = 'accessToken=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT;';
-      document.cookie = 'refresh_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT;';
-    }
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
       localStorage.removeItem('currentUser');
     }
 

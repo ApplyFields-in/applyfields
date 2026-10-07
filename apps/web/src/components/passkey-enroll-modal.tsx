@@ -18,9 +18,8 @@ export function PasskeyEnrollModal() {
 
       try {
         const rawUser = localStorage.getItem('currentUser');
-        const token = localStorage.getItem('accessToken');
 
-        if (!rawUser || !token) {
+        if (!rawUser) {
           setIsOpen(false);
           setCurrentUser(null);
           return;

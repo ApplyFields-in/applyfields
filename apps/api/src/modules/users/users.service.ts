@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { UsersStore } from './users.store.js';
+import { StorageService } from '../../common/storage.service.js';
 import {
   extractEducationFromResume,
   extractTextFromBuffer,
@@ -22,7 +23,10 @@ import type {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly store: UsersStore) {}
+  constructor(
+    private readonly store: UsersStore,
+    private readonly storageService: StorageService,
+  ) {}
 
   async getMe(userId: string): Promise<MeResponse> {
     const user = await this.store.findUserById(userId);
@@ -131,14 +135,25 @@ export class UsersService {
       throw new BadRequestException('File exceeds the 5 MB limit.');
     }
 
-    // Save file securely to server storage directory
-    const uploadDir = join(process.cwd(), 'uploads', 'resumes', userId);
-    if (!existsSync(uploadDir)) {
-      mkdirSync(uploadDir, { recursive: true });
-    }
+    // Upload to Supabase Storage; fall back to local disk when Storage isn't configured (dev/CI)
     const safeName = dto.fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const storagePath = join(uploadDir, `${Date.now()}_${safeName}`);
-    writeFileSync(storagePath, buffer);
+    const objectName = `${Date.now()}_${safeName}`;
+    const supabasePath = await this.storageService.upload(
+      this.storageService.resumesBucket,
+      `resumes/${userId}/${objectName}`,
+      buffer,
+      dto.mimeType,
+    );
+    let storagePath: string;
+    if (supabasePath) {
+      storagePath = `resumes/${userId}/${objectName}`;
+    } else {
+      // ponytail: local fallback for dev — remove once Supabase Storage is mandatory
+      const uploadDir = join(process.cwd(), 'uploads', 'resumes', userId);
+      if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
+      storagePath = join(uploadDir, objectName);
+      writeFileSync(storagePath, buffer);
+    }
 
     // Extract text with OCR fallback for scanned/image PDFs
     let extractedText = dto.text?.trim() || '';
@@ -217,6 +232,20 @@ export class UsersService {
       mime_type: docEntity.mime_type ?? null,
       file_name: docEntity.file_name ?? null,
     };
+  }
+
+  /** Returns a 1-hour signed download URL from Supabase Storage, or null if not on Supabase (dev). */
+  async getResumeSignedUrl(userId: string): Promise<string | null> {
+    const docEntity = await this.store.getUserResumeDocument(userId);
+    if (!docEntity?.storage_path) return null;
+    // Local FS paths (dev fallback) are absolute — don't try to sign them
+    if (docEntity.storage_path.startsWith('/') || docEntity.storage_path.includes(':\\')) return null;
+    return this.storageService.signedUrl(
+      this.storageService.resumesBucket,
+      docEntity.storage_path,
+      3600,
+      docEntity.file_name ?? undefined,
+    );
   }
 
   async deleteResume(userId: string): Promise<{ success: boolean }> {

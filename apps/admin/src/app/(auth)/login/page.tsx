@@ -62,15 +62,7 @@ function StaffLoginForm() {
         return;
       }
 
-      // Save token in cookie and local storage
-      if (typeof document !== 'undefined') {
-        document.cookie = `accessToken=${data.accessToken}; path=/; max-age=604800; SameSite=Lax;`;
-      }
       if (typeof window !== 'undefined') {
-        localStorage.setItem('accessToken', data.accessToken);
-        if (data.refreshToken) {
-          localStorage.setItem('refreshToken', data.refreshToken);
-        }
         localStorage.setItem('currentUser', JSON.stringify(data.user));
       }
 
@@ -130,7 +122,7 @@ function StaffLoginForm() {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="e.g. likhithmanakala@gmail.com"
+                  placeholder="e.g. applyfields@gmail.com"
                   className="h-10 w-full rounded-xl border border-line bg-cream pl-10 pr-3.5 text-sm text-ink placeholder:text-teal/50 focus:border-sea focus:outline-none focus:ring-1 focus:ring-sea"
                 />
               </div>

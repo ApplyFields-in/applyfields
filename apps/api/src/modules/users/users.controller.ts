@@ -84,11 +84,16 @@ export class UsersController {
 
   @Get('resume/download')
   async downloadResume(@Req() req: AuthenticatedRequest, @Res() res: Response) {
+    // Prefer a Supabase signed URL (staging/prod); fall back to local disk (dev)
+    const signedUrl = await this.usersService.getResumeSignedUrl(req.user.userId);
+    if (signedUrl) {
+      return res.redirect(302, signedUrl);
+    }
+
     const fileInfo = await this.usersService.getResumeStoragePath(req.user.userId);
     if (!fileInfo || !existsSync(fileInfo.storage_path)) {
       throw new NotFoundException('Saved resume file not found');
     }
-
     const safeType = ['application/pdf', 'text/plain'].includes(fileInfo.mime_type ?? '')
       ? fileInfo.mime_type!
       : 'application/octet-stream';
