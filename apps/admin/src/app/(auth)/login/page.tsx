@@ -81,15 +81,25 @@ function StaffLoginForm() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center p-4 bg-paper sm:p-8">
-      <div className="w-full max-w-md space-y-6">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center p-4 bg-teal bg-gradient-to-br from-[#041226] via-[#082046] to-[#0a2855] sm:p-8 overflow-hidden">
+      {/* Subtle brand glow circles */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 -left-32 size-96 rounded-full bg-sea/15 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-32 -right-32 size-96 rounded-full bg-celadon/15 blur-3xl"
+      />
+
+      <div className="relative z-10 w-full max-w-md space-y-6">
         <div className="flex flex-col items-center text-center">
-          <Logo subtitle="Internal Portal" />
+          <Logo subtitle="Internal Portal" inverse size="lg" />
         </div>
 
-        <Card className="p-7 shadow-clay-card">
-          <h1 className="text-xl font-bold text-ink">Staff Sign In</h1>
-          <p className="mt-1 text-xs text-teal/80">
+        <Card className="p-7 sm:p-8 shadow-card bg-cream border border-line">
+          <h1 className="text-xl font-bold text-teal">Staff Sign In</h1>
+          <p className="mt-1 text-xs text-teal/75">
             Sign in with your ApplyFields account credentials to access the Internal Portal.
           </p>
 
@@ -107,11 +117,11 @@ function StaffLoginForm() {
 
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
             <div>
-              <label htmlFor="identifier" className="block text-xs font-bold text-teal/90 mb-1.5">
+              <label htmlFor="identifier" className="block text-xs font-bold text-teal mb-1.5">
                 Staff Email or Phone
               </label>
               <div className="relative">
-                <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-teal/60" />
+                <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-teal/50" />
                 <input
                   id="identifier"
                   type="text"
@@ -120,19 +130,19 @@ function StaffLoginForm() {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="e.g. applyfields@gmail.com"
-                  className="h-10 w-full rounded-xl border border-line bg-cream pl-10 pr-3.5 text-sm text-ink placeholder:text-teal/50 focus:border-sea focus:outline-none focus:ring-1 focus:ring-sea"
+                  className="h-10 w-full rounded-xl border border-line bg-canvas pl-10 pr-3.5 text-sm text-ink placeholder:text-teal/40 focus:border-sea focus:outline-none focus:ring-1 focus:ring-sea transition-all"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="password" aria-label="Password" className="block text-xs font-bold text-teal/90">
+                <label htmlFor="password" aria-label="Password" className="block text-xs font-bold text-teal">
                   Password
                 </label>
               </div>
               <div className="relative">
-                <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-teal/60" />
+                <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-teal/50" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -141,7 +151,7 @@ function StaffLoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your staff password"
-                  className="h-10 w-full rounded-xl border border-line bg-cream pl-10 pr-10 text-sm text-ink placeholder:text-teal/50 focus:border-sea focus:outline-none focus:ring-1 focus:ring-sea"
+                  className="h-10 w-full rounded-xl border border-line bg-canvas pl-10 pr-10 text-sm text-ink placeholder:text-teal/40 focus:border-sea focus:outline-none focus:ring-1 focus:ring-sea transition-all"
                 />
                 <button
                   type="button"
@@ -161,7 +171,7 @@ function StaffLoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-teal px-4 text-sm font-semibold text-cream shadow-clay-card hover:bg-teal/90 disabled:opacity-60 transition-all cursor-pointer"
+              className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-sea px-4 text-sm font-semibold text-cream shadow-clay hover:bg-sea/90 disabled:opacity-60 transition-all cursor-pointer"
             >
               {loading ? (
                 <>
@@ -188,7 +198,7 @@ export default function StaffLoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-dvh items-center justify-center p-6 bg-paper text-teal">
+        <div className="flex min-h-dvh items-center justify-center p-6 bg-teal text-cream">
           <p className="text-sm font-semibold">Loading staff portal...</p>
         </div>
       }

@@ -1,127 +1,132 @@
 import { Logo } from '@applyfields/ui';
-import {
-  Bell,
-  CheckCircle2,
-  Clock,
-  GraduationCap,
-  Sparkles,
-  TrendingUp,
-} from 'lucide-react';
+import { Award, Briefcase, GraduationCap, Landmark, School, Search, Send, TrendingUp } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-/**
- * Login / Register layout with an interactive 3D opportunity showcase
- * using strictly the 5 ApplyFields theme palette colors.
- */
+// sample feed for the brand panel — illustrative, not live data
+const FEED = [
+  { icon: <Briefcase className="size-4" />, title: 'SSC CGL 2026', meta: 'Government job · Graduates' },
+  { icon: <GraduationCap className="size-4" />, title: 'UPSC Civil Services', meta: 'Exam · Prelims in May' },
+  { icon: <Award className="size-4" />, title: 'Post-Matric Scholarship', meta: 'Scholarship · SC/ST/OBC' },
+  { icon: <School className="size-4" />, title: 'AP EAPCET Counselling', meta: 'Admissions · Engineering' },
+  { icon: <Landmark className="size-4" />, title: 'Income Certificate', meta: 'Government service · MeeSeva' },
+  { icon: <Briefcase className="size-4" />, title: 'RRB NTPC', meta: 'Government job · 12th pass' },
+];
+
+// rising wave: Explore (bottom-left) → Apply → Grow (top-right); equal-length halves
+const WAVE = 'M60 180 C 120 180, 140 115, 200 115 S 280 50, 340 50';
+
+// spark travels 0→0.8 of the cycle, rests on Grow, then restarts; `at` = arrival time
+// labelY is in SVG units so labels always sit next to their dot at any panel width
+const STOPS = [
+  { cx: 60, cy: 180, at: 0, labelY: 194, icon: <Search className="size-3.5" />, label: 'Explore', hint: 'Find what fits you' },
+  { cx: 200, cy: 115, at: 0.4, labelY: 129, icon: <Send className="size-3.5" />, label: 'Apply', hint: 'On the official site' },
+  { cx: 340, cy: 50, at: 0.8, labelY: 0, icon: <TrendingUp className="size-3.5" />, label: 'Grow', hint: 'Track every step' },
+];
+
+/** Login / Register layout: animated brand panel on the left, form on the right. */
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="grid min-h-dvh lg:grid-cols-[1.1fr_1.15fr] bg-canvas">
-      {/* 3D Visual Hero Showcase (Desktop) */}
+    <div className="grid min-h-dvh lg:grid-cols-[1.1fr_1.15fr] bg-canvas overflow-hidden">
+      {/* Brand panel (desktop): Explore → Apply → Grow journey + opportunity feed */}
       <div className="relative hidden flex-col justify-between overflow-hidden bg-teal p-10 text-cream lg:flex select-none">
-        {/* Ambient 3D lighting orbs */}
-        <div
+        <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-sea/35 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-32 -left-24 size-96 rounded-full bg-celadon/20 blur-3xl" />
+        {/* oversized drifting logo mark as a watermark */}
+        <img
+          src="/logo-mark.png"
+          alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute -right-20 -top-20 size-96 rounded-full bg-sea/40 blur-3xl"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-28 -left-20 size-96 rounded-full bg-celadon/25 blur-3xl"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-1/3 size-64 rounded-full bg-tea/15 blur-2xl"
+          className="pointer-events-none absolute -right-20 top-1/4 w-[28rem] opacity-[0.07] animate-[drift_14s_ease-in-out_infinite]"
         />
 
-        {/* Brand Header */}
         <div className="relative z-10">
           <Logo inverse subtitle="Every opportunity. One place." />
         </div>
 
-        {/* 3D Floating Showcase Stage */}
-        <div className="relative z-10 my-auto py-6 [perspective:1000px]">
-          <div className="mb-6 max-w-md">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-celadon/20 px-3 py-1 text-xs font-bold text-celadon border border-celadon/30 shadow-[0_2px_4px_rgba(0,0,0,0.15)] mb-3">
-              <Sparkles className="size-3.5 text-celadon" />
-              <span>India&apos;s Single Citizen Gateway</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight text-cream">
-              One profile. <br />
-              <span className="text-celadon underline decoration-celadon/40 underline-offset-4">
-                Every opportunity.
-              </span>
-            </h2>
-            <p className="mt-2 text-sm text-cream/75 leading-relaxed">
-              Never miss government recruitments, exam dates, college admissions or scholarships.
-            </p>
-          </div>
+        <div className="relative z-10 my-auto w-full max-w-xl py-8">
+          <h2 className="text-4xl xl:text-5xl font-extrabold leading-[1.05] tracking-tight">
+            Explore. Apply.
+            <br />
+            <span className="bg-gradient-to-r from-celadon to-sea bg-clip-text text-transparent">Grow.</span>
+          </h2>
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-cream/70">
+            Jobs, exams, scholarships and admissions from official sources — matched to your profile, with every
+            deadline tracked for you.
+          </p>
 
-          {/* 3D Layered Mock Cards */}
-          <div className="relative h-64 w-full max-w-md">
-            {/* Background 3D Card 1: Notification Alert */}
-            <div className="absolute top-0 right-2 w-64 rounded-2xl border-2 border-cream/20 bg-teal/80 p-3.5 text-cream shadow-[0_12px_24px_-4px_rgba(0,0,0,0.35),0_4px_0_0_#1a936f] backdrop-blur-md transform rotate-6 hover:rotate-3 transition-transform duration-300">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="flex items-center gap-1.5 font-bold text-celadon">
-                  <Bell className="size-3.5 animate-bounce" /> Tier 1 Admit Card
-                </span>
-                <span className="text-[10px] text-cream/70 font-mono">Today</span>
-              </div>
-              <p className="text-xs font-bold text-cream truncate">SSC CGL 2026 Examination</p>
-              <p className="text-[11px] text-cream/70 mt-0.5">Official Portal: ssc.gov.in</p>
-            </div>
-
-            {/* Background 3D Card 2: Deadline Countdown */}
-            <div className="absolute bottom-4 left-0 w-64 rounded-2xl border-2 border-cream/20 bg-sea/90 p-3.5 text-cream shadow-[0_16px_28px_-6px_rgba(0,0,0,0.4),0_4px_0_0_#114b5f] backdrop-blur-md transform -rotate-6 hover:-rotate-2 transition-transform duration-300">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="flex items-center gap-1.5 font-bold text-cream">
-                  <Clock className="size-3.5" /> Closing Soon
-                </span>
-                <span className="rounded-full bg-cream/20 px-2 py-0.5 text-[10px] font-bold">
-                  3 Days Left
-                </span>
-              </div>
-              <p className="text-xs font-bold text-cream truncate">UPSC Civil Services 2026</p>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-cream/80">
-                <span>Vacancies: 1,056</span>
-                <span className="font-semibold text-celadon">Free Alert Set ✓</span>
-              </div>
-            </div>
-
-            {/* Foreground Main 3D Card: Match Profile Card */}
-            <div className="absolute top-10 left-6 right-6 rounded-2xl border-2 border-cream/30 bg-cream p-4 text-teal shadow-[0_20px_35px_-8px_rgba(0,0,0,0.45),0_6px_0_0_#114b5f] transform -rotate-1 hover:rotate-0 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-tea/60 px-2.5 py-0.5 text-[11px] font-bold text-teal border border-line">
-                  <GraduationCap className="size-3 text-teal" /> Central Recruitment
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-sea">
-                  <CheckCircle2 className="size-3.5 text-sea" /> 100% Eligible
-                </span>
-              </div>
-              <h4 className="text-sm font-black text-teal leading-tight">
-                Section Officer & Inspector Recruitment
-              </h4>
-              <p className="text-xs text-teal/75 mt-0.5">Pay Level 7: ₹44,900 – ₹1,42,400 / mo</p>
-              <div className="mt-3 flex items-center justify-between border-t border-line/60 pt-2 text-[11px]">
-                <span className="font-semibold text-teal/70">14,582 Total Vacancies</span>
-                <span className="font-bold text-sea flex items-center gap-1">
-                  <TrendingUp className="size-3" /> Auto-Tracked
-                </span>
-              </div>
-            </div>
+          {/* the journey: a spark travels the logo's wave through the three steps */}
+          <div className="mt-10">
+            <svg viewBox="0 0 400 240" className="w-full overflow-visible" aria-hidden="true">
+              <defs>
+                <linearGradient id="journey" x1="0" x2="1">
+                  <stop offset="0" stopColor="#38bdf8" stopOpacity="0.25" />
+                  <stop offset="1" stopColor="#0e7bf4" />
+                </linearGradient>
+              </defs>
+              <path id="journey-path" d={WAVE} fill="none" stroke="url(#journey)" strokeWidth="3" strokeLinecap="round" />
+              <path d={WAVE} fill="none" stroke="#ffffff" strokeOpacity="0.25" strokeWidth="1.5" strokeDasharray="2 8">
+                <animate attributeName="stroke-dashoffset" from="0" to="-40" dur="2s" repeatCount="indefinite" />
+              </path>
+              {STOPS.map((s) => {
+                const kt = `0;${s.at};${s.at + 0.15};1`;
+                return (
+                  <g key={s.label}>
+                    <circle cx={s.cx} cy={s.cy} r="7" fill="none" stroke="#38bdf8" strokeWidth="2">
+                      <animate attributeName="r" values="7;7;24;24" keyTimes={kt} dur="7s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0;0.9;0;0" keyTimes={kt} dur="7s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx={s.cx} cy={s.cy} r="7" fill="#082046" stroke="#38bdf8" strokeWidth="2.5" />
+                    <foreignObject x={s.cx - 60} y={s.labelY} width="120" height="40">
+                      <div className="flex flex-col items-center text-center">
+                        <span className="flex items-center gap-1 text-[13px] font-extrabold text-cream">
+                          <span className="text-celadon">{s.icon}</span>
+                          {s.label}
+                        </span>
+                        <span className="whitespace-nowrap text-[10px] text-cream/55">{s.hint}</span>
+                      </div>
+                    </foreignObject>
+                  </g>
+                );
+              })}
+              <circle r="7" fill="#ffffff" style={{ filter: 'drop-shadow(0 0 8px #38bdf8)' }}>
+                <animateMotion dur="7s" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;0.8;1" calcMode="linear">
+                  <mpath href="#journey-path" />
+                </animateMotion>
+                <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.04;0.92;1" dur="7s" repeatCount="indefinite" />
+              </circle>
+            </svg>
           </div>
         </div>
 
-        {/* Trust Badges Footer */}
-        <div className="relative z-10 border-t border-cream/15 pt-4">
-          <p className="text-xs text-cream/70 flex items-center gap-2">
-            <span>🛡️ Official notifications directly from verified sources.</span>
-            <span>•</span>
-            <span>ApplyFields is not a government website.</span>
+        {/* opportunity feed — scrolls forever, pauses on hover */}
+        <div className="relative z-10 -mx-10">
+          <div className="overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
+            <div className="flex w-max gap-3 animate-[marquee_200s_linear_infinite] hover:[animation-play-state:paused]">
+              {[...FEED, ...FEED].map((o, i) => (
+                <div
+                  key={i}
+                  className="flex w-60 shrink-0 items-center gap-3 rounded-2xl border border-cream/10 bg-cream/[0.06] p-3 backdrop-blur-sm"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-sea/25 text-celadon">{o.icon}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-xs font-bold text-cream">{o.title}</span>
+                    <span className="block truncate text-[11px] text-cream/55">{o.meta}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-5 px-10 text-[11px] text-cream/45">
+            ApplyFields is not a government website. Always apply through the official link.
           </p>
         </div>
       </div>
 
       {/* Form Container (Right Side) */}
-      <div className="flex flex-col items-center justify-center gap-6 p-4 sm:p-8 relative">
+      <div
+        className="flex flex-col items-center justify-center gap-6 p-4 sm:p-8 relative overflow-y-auto"
+        style={{ scrollbarWidth: 'none' }}
+      >
         {/* Subtle background ambient depth on right side */}
         <div
           aria-hidden="true"
@@ -132,9 +137,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           className="pointer-events-none absolute left-10 bottom-10 size-72 rounded-full bg-sea/10 blur-3xl"
         />
 
-        <div className="lg:hidden">
-          <Logo subtitle="Every opportunity. One place." />
-        </div>
+        <a href="/" aria-label="ApplyFields home" className="relative z-10">
+          <img src="/logo.png" alt="ApplyFields — Explore Apply Grow" className="h-24 sm:h-28 w-auto object-contain" />
+        </a>
         <div className="relative z-10 w-full flex justify-center">{children}</div>
       </div>
     </div>

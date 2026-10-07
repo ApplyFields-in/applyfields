@@ -116,12 +116,9 @@ export function TopNavAuth() {
           <div className="size-7 rounded-full bg-tea/40 border border-line overflow-hidden flex items-center justify-center shrink-0">
             <PixelAvatar avatarId={avatarId} size={24} />
           </div>
-          <div className="flex flex-col text-left">
-            <span className="text-xs font-black text-teal max-w-[120px] sm:max-w-[150px] truncate leading-tight group-hover:text-sea transition-colors">
+          <div className="flex items-center text-left">
+            <span className="text-xs font-black text-teal max-w-[130px] sm:max-w-[170px] truncate leading-tight group-hover:text-sea transition-colors">
               {displayName || 'Citizen Profile'}
-            </span>
-            <span className="text-[10px] font-bold text-sea/80 leading-tight hidden sm:block">
-              Citizen Account
             </span>
           </div>
         </Link>

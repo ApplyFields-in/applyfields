@@ -1,27 +1,30 @@
 /*
- * ApplyFields design tokens — the ONLY colours the apps may use.
- * Palette: Dark Teal #114B5F · Sea Green #1A936F · Celadon #88D498 · Tea Green #C6DABF · Vanilla Cream #F3E9D2
+ * ApplyFields design tokens — dark teal & azure brand palette.
+ * Palette: Dark Teal #082046 · Azure Blue #0E7BF4 · Sky Blue #38BDF8 · Ice Blue #E0EDFB · Crisp White #FFFFFF
  *
  * Tailwind's default colours are switched off (`--color-*: initial`), so classes like
  * bg-white or text-gray-500 simply don't exist. Lighter/darker shades are made only by
  * blending palette colours (opacity, e.g. bg-teal/10, or the canvas/line tokens below).
  *
  * Readable text pairs (WCAG AA): teal on cream/canvas/celadon/tea · cream on teal.
- * Sea Green is for icons, progress bars, big numbers and highlights — not small text on cream.
+ * Sea (Azure Blue) is for icons, progress bars, highlights, and primary actions.
  */
 
 @theme {
   --color-*: initial;
 
-  --color-teal: #114b5f;     /* Dark Teal     — text, sidebar, primary buttons */
-  --color-sea: #1a936f;      /* Sea Green     — progress, active states, icons */
-  --color-celadon: #88d498;  /* Celadon       — badges, highlights */
-  --color-tea: #c6dabf;      /* Tea Green     — soft backgrounds, chips */
-  --color-cream: #f3e9d2;    /* Vanilla Cream — cards, text on teal */
+  --color-teal: #082046;     /* Dark Teal / Midnight Navy — primary text, sidebar, dark accents */
+  --color-sea: #0e7bf4;      /* Azure Blue                — active states, progress, brand blue, icons */
+  --color-celadon: #38bdf8;  /* Sky Blue                  — badges, highlights */
+  --color-tea: #e0edfb;      /* Ice Blue Tint             — soft backgrounds, chips */
+  --color-cream: #ffffff;    /* Crisp White               — cards, surface, text on teal */
+  --color-paper: #f4f7fb;    /* Light clean canvas */
+  --color-ink: #082046;      /* Rich dark ink text */
+  --color-terracotta: #e11d48; /* Crimson / error alert */
 
   /* blends of palette colours only */
-  --color-canvas: color-mix(in srgb, #c6dabf 32%, #f3e9d2);   /* page background */
-  --color-line: color-mix(in srgb, #114b5f 14%, transparent);  /* borders */
+  --color-canvas: #f4f7fb;   /* page background */
+  --color-line: color-mix(in srgb, #082046 12%, transparent);  /* borders */
 
   /* font files are bundled (@fontsource-variable/plus-jakarta-sans) — no internet needed */
   --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
@@ -31,25 +34,25 @@
 
   /* raised clay card */
   --shadow-card:
-    0 22px 40px -24px color-mix(in srgb, #114b5f 50%, transparent),
-    0 8px 16px -10px color-mix(in srgb, #114b5f 20%, transparent),
-    inset 0 -8px 16px color-mix(in srgb, #114b5f 7%, transparent),
-    inset 0 6px 12px color-mix(in srgb, #f3e9d2 35%, transparent);
+    0 22px 40px -24px color-mix(in srgb, #082046 30%, transparent),
+    0 8px 16px -10px color-mix(in srgb, #082046 12%, transparent),
+    inset 0 -8px 16px color-mix(in srgb, #082046 4%, transparent),
+    inset 0 6px 12px color-mix(in srgb, #ffffff 40%, transparent);
   /* lifted on hover */
   --shadow-card-hover:
-    0 30px 52px -24px color-mix(in srgb, #114b5f 55%, transparent),
-    0 14px 24px -12px color-mix(in srgb, #114b5f 22%, transparent),
-    inset 0 -8px 16px color-mix(in srgb, #114b5f 7%, transparent),
-    inset 0 6px 12px color-mix(in srgb, #f3e9d2 35%, transparent);
+    0 30px 52px -24px color-mix(in srgb, #082046 35%, transparent),
+    0 14px 24px -12px color-mix(in srgb, #082046 15%, transparent),
+    inset 0 -8px 16px color-mix(in srgb, #082046 4%, transparent),
+    inset 0 6px 12px color-mix(in srgb, #ffffff 40%, transparent);
   /* small clay pieces: tiles, chips, buttons */
   --shadow-clay:
-    0 10px 18px -12px color-mix(in srgb, #114b5f 55%, transparent),
-    inset 0 -4px 8px color-mix(in srgb, #114b5f 12%, transparent),
-    inset 0 3px 6px color-mix(in srgb, #f3e9d2 45%, transparent);
+    0 10px 18px -12px color-mix(in srgb, #082046 30%, transparent),
+    inset 0 -4px 8px color-mix(in srgb, #082046 8%, transparent),
+    inset 0 3px 6px color-mix(in srgb, #ffffff 50%, transparent);
   /* pressed in: inputs, active buttons, progress tracks */
   --shadow-pressed:
-    inset 0 4px 10px color-mix(in srgb, #114b5f 18%, transparent),
-    inset 0 -2px 5px color-mix(in srgb, #f3e9d2 60%, transparent);
+    inset 0 4px 10px color-mix(in srgb, #082046 12%, transparent),
+    inset 0 -2px 5px color-mix(in srgb, #ffffff 70%, transparent);
 
   /* smooth page entrance */
   --animate-rise: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
