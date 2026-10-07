@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, Logo } from '@applyfields/ui';
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 import { API_URL } from '@/lib/api';
 
-export default function StaffLoginPage() {
+function StaffLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get('from') || '/';
@@ -194,3 +194,18 @@ export default function StaffLoginPage() {
     </div>
   );
 }
+
+export default function StaffLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center p-6 bg-paper text-teal">
+          <p className="text-sm font-semibold">Loading staff portal...</p>
+        </div>
+      }
+    >
+      <StaffLoginForm />
+    </Suspense>
+  );
+}
+
