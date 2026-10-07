@@ -77,10 +77,6 @@ function LoginForm() {
     }
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', res.data.accessToken);
-      if (res.data.refreshToken) {
-        localStorage.setItem('refreshToken', res.data.refreshToken);
-      }
       localStorage.setItem('currentUser', JSON.stringify(res.data.user));
       window.dispatchEvent(new Event('auth-changed'));
     }
@@ -139,10 +135,6 @@ function LoginForm() {
     }
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', res.data.accessToken);
-      if (res.data.refreshToken) {
-        localStorage.setItem('refreshToken', res.data.refreshToken);
-      }
       localStorage.setItem('currentUser', JSON.stringify(res.data.user));
       window.dispatchEvent(new Event('auth-changed'));
     }
