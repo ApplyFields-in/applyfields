@@ -9,12 +9,14 @@ import type {
   StaffRole,
 } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { StaffUser } from '../../common/actor.js';
 
 export interface AdminUsersQuery {
   q?: string;
   page?: number | string;
   limit?: number | string;
   status?: string;
+  type?: 'all' | 'staff' | 'citizens';
 }
 
 // ---- PII masking helpers ----
@@ -38,27 +40,105 @@ export class UsersAdminService {
 
   async list(
     query: AdminUsersQuery = {},
-  ): Promise<AdminUserList & { page: number; limit: number }> {
+    requester?: StaffUser,
+  ): Promise<
+    AdminUserList & {
+      page: number;
+      limit: number;
+      staff_count: number;
+      citizen_count: number;
+    }
+  > {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const isSuperAdmin = requester?.roles.includes('super_admin') ?? false;
+    const isAdmin = requester?.roles.includes('admin') ?? false;
+
+    const andConditions: any[] = [];
 
     if (query.status && query.status !== 'all') {
-      where.status = query.status;
+      andConditions.push({ status: query.status });
     }
 
     if (query.q && query.q.trim()) {
       const q = query.q.trim();
-      where.OR = [
-        { email: { contains: q, mode: 'insensitive' } },
-        { phone: { contains: q } },
-        { user_profiles: { full_name: { contains: q, mode: 'insensitive' } } },
-      ];
+      andConditions.push({
+        OR: [
+          { email: { contains: q, mode: 'insensitive' } },
+          { phone: { contains: q } },
+          { user_profiles: { full_name: { contains: q, mode: 'insensitive' } } },
+        ],
+      });
     }
 
-    const [total, userRows] = await Promise.all([
+    // Role-based visibility:
+    // 1. Other staff (reviewer, content_editor, support) only see normal citizen users (no staff roles)
+    // 2. Admin sees other staff and users, but CANNOT see or track super_admin
+    // 3. Super admin sees all users and all staff
+    if (!isSuperAdmin && !isAdmin) {
+      andConditions.push({
+        user_roles_user_roles_user_idTousers: { none: {} },
+      });
+    } else if (isAdmin && !isSuperAdmin) {
+      andConditions.push({
+        user_roles_user_roles_user_idTousers: { none: { role: 'super_admin' } },
+      });
+      if (query.type === 'staff') {
+        andConditions.push({
+          user_roles_user_roles_user_idTousers: { some: {} },
+        });
+      } else if (query.type === 'citizens') {
+        andConditions.push({
+          user_roles_user_roles_user_idTousers: { none: {} },
+        });
+      }
+    } else if (isSuperAdmin) {
+      if (query.type === 'staff') {
+        andConditions.push({
+          user_roles_user_roles_user_idTousers: { some: {} },
+        });
+      } else if (query.type === 'citizens') {
+        andConditions.push({
+          user_roles_user_roles_user_idTousers: { none: {} },
+        });
+      }
+    }
+
+    const where = andConditions.length > 0 ? { AND: andConditions } : {};
+
+    // Calculate staff and citizen totals visible to requester
+    let staffCountPromise: Promise<number>;
+    let citizenCountPromise: Promise<number>;
+
+    if (!isSuperAdmin && !isAdmin) {
+      staffCountPromise = Promise.resolve(0);
+      citizenCountPromise = this.prisma.users.count({
+        where: { user_roles_user_roles_user_idTousers: { none: {} } },
+      });
+    } else if (isAdmin && !isSuperAdmin) {
+      staffCountPromise = this.prisma.users.count({
+        where: {
+          AND: [
+            { user_roles_user_roles_user_idTousers: { some: {} } },
+            { user_roles_user_roles_user_idTousers: { none: { role: 'super_admin' } } },
+          ],
+        },
+      });
+      citizenCountPromise = this.prisma.users.count({
+        where: { user_roles_user_roles_user_idTousers: { none: {} } },
+      });
+    } else {
+      staffCountPromise = this.prisma.users.count({
+        where: { user_roles_user_roles_user_idTousers: { some: {} } },
+      });
+      citizenCountPromise = this.prisma.users.count({
+        where: { user_roles_user_roles_user_idTousers: { none: {} } },
+      });
+    }
+
+    const [total, userRows, staff_count, citizen_count] = await Promise.all([
       this.prisma.users.count({ where }),
       this.prisma.users.findMany({
         where,
@@ -70,6 +150,8 @@ export class UsersAdminService {
           user_roles_user_roles_user_idTousers: true,
         },
       }),
+      staffCountPromise,
+      citizenCountPromise,
     ]);
 
     const users: AdminUserItem[] = userRows.map((u) => ({
@@ -95,12 +177,14 @@ export class UsersAdminService {
       total,
       page,
       limit,
+      staff_count,
+      citizen_count,
     };
   }
 
   // ---- Single user detail (masked) ----
 
-  async detail(userId: string): Promise<AdminUserItem> {
+  async detail(userId: string, requester?: StaffUser): Promise<AdminUserItem> {
     const u = await this.prisma.users.findUnique({
       where: { id: userId },
       include: {
@@ -109,6 +193,23 @@ export class UsersAdminService {
       },
     });
     if (!u) throw new NotFoundException('User not found');
+
+    const targetRoles = (u.user_roles_user_roles_user_idTousers || []).map(
+      (r) => r.role as StaffRole,
+    );
+
+    const isSuperAdmin = requester?.roles.includes('super_admin') ?? false;
+    const isAdmin = requester?.roles.includes('admin') ?? false;
+
+    // Rule 1: Admin or other staff cannot see or track super_admin
+    if (targetRoles.includes('super_admin') && !isSuperAdmin) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Rule 2: Other staff only see citizen users (no staff accounts)
+    if (targetRoles.length > 0 && !isSuperAdmin && !isAdmin) {
+      throw new NotFoundException('User not found');
+    }
 
     return {
       id: u.id,
@@ -123,9 +224,7 @@ export class UsersAdminService {
       email_verified: Boolean(u.email_verified_at),
       phone_verified: Boolean(u.phone_verified_at),
       created_at: u.created_at.toISOString(),
-      roles: (u.user_roles_user_roles_user_idTousers || []).map(
-        (r) => r.role as StaffRole,
-      ),
+      roles: targetRoles,
     };
   }
 
@@ -135,9 +234,26 @@ export class UsersAdminService {
     userId: string,
     newStatus: 'active' | 'suspended',
     actorId: string | null,
+    requester?: StaffUser,
   ): Promise<AdminUserItem> {
-    const u = await this.prisma.users.findUnique({ where: { id: userId } });
+    const u = await this.prisma.users.findUnique({
+      where: { id: userId },
+      include: {
+        user_roles_user_roles_user_idTousers: true,
+      },
+    });
     if (!u) throw new NotFoundException('User not found');
+
+    const targetRoles = (u.user_roles_user_roles_user_idTousers || []).map(
+      (r) => r.role as StaffRole,
+    );
+    const isSuperAdmin = requester?.roles.includes('super_admin') ?? false;
+
+    // Admin cannot modify super_admin accounts
+    if (targetRoles.includes('super_admin') && !isSuperAdmin) {
+      throw new NotFoundException('User not found');
+    }
+
     if (u.status === newStatus)
       throw new BadRequestException(`User is already ${newStatus}`);
 
@@ -156,7 +272,7 @@ export class UsersAdminService {
       },
     });
 
-    return this.detail(userId);
+    return this.detail(userId, requester);
   }
 
   // ---- Grant / revoke staff role ----
@@ -173,6 +289,7 @@ export class UsersAdminService {
     userId: string,
     role: StaffRole,
     actorId: string | null,
+    requester?: StaffUser,
   ): Promise<AdminUserItem> {
     if (!UsersAdminService.VALID_ROLES.includes(role))
       throw new BadRequestException(`Invalid role: ${role}`);
@@ -200,13 +317,14 @@ export class UsersAdminService {
       },
     });
 
-    return this.detail(userId);
+    return this.detail(userId, requester);
   }
 
   async revokeRole(
     userId: string,
     role: StaffRole,
     actorId: string | null,
+    requester?: StaffUser,
   ): Promise<AdminUserItem> {
     if (!UsersAdminService.VALID_ROLES.includes(role))
       throw new BadRequestException(`Invalid role: ${role}`);
@@ -231,6 +349,6 @@ export class UsersAdminService {
       },
     });
 
-    return this.detail(userId);
+    return this.detail(userId, requester);
   }
 }
