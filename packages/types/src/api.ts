@@ -370,4 +370,8 @@ export interface AdminUserItem {
 export interface AdminUserList {
   users: AdminUserItem[];
   total: number;
+  page?: number;
+  limit?: number;
+  staff_count?: number;
+  citizen_count?: number;
 }
