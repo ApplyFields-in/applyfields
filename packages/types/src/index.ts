@@ -2,3 +2,4 @@
 // Usage:  import type { Opportunity, HomeSummary } from '@applyfields/types';
 export * from './opportunity';
 export * from './api';
+export * from './auth';

@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type {
   AdminOpportunityList,
   OpportunityInput,
@@ -15,11 +20,17 @@ import { publishBlockers } from './review.service.js';
 
 type Tx = Prisma.TransactionClient;
 
-const STATUSES: OpportunityStatus[] = ['draft', 'published', 'closed', 'archived'];
+const STATUSES: OpportunityStatus[] = [
+  'draft',
+  'published',
+  'closed',
+  'archived',
+];
 const day = (s: string | null) => (s ? new Date(`${s}T00:00:00Z`) : null);
 const isoDay = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 /** Prisma JSON input from any serialisable value (Dates → ISO strings, Decimals → strings). */
-const toJson = (v: unknown) => JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
+const toJson = (v: unknown) =>
+  JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
 
 /** "SSC CGL 2026 — Notice!" → "ssc-cgl-2026-notice" */
 export function slugify(title: string): string {
@@ -46,7 +57,13 @@ export class OpportunitiesAdminService {
 
   /* ------------------------------------------------------------------ read */
 
-  async list(f: { q?: string; status?: OpportunityStatus; type?: OpportunityType; page: number; pageSize: number }): Promise<AdminOpportunityList> {
+  async list(f: {
+    q?: string;
+    status?: OpportunityStatus;
+    type?: OpportunityType;
+    page: number;
+    pageSize: number;
+  }): Promise<AdminOpportunityList> {
     const words = (f.q ?? '').trim().split(/\s+/).filter(Boolean);
     const search: Prisma.opportunitiesWhereInput[] = words.map((w) => ({
       OR: [
@@ -57,8 +74,12 @@ export class OpportunitiesAdminService {
         { organizations: { short_name: { contains: w, mode: 'insensitive' } } },
       ],
     }));
-    const base: Prisma.opportunitiesWhereInput = { AND: [...search, ...(f.type ? [{ type: f.type }] : [])] };
-    const where: Prisma.opportunitiesWhereInput = f.status ? { AND: [base, { status: f.status }] } : base;
+    const base: Prisma.opportunitiesWhereInput = {
+      AND: [...search, ...(f.type ? [{ type: f.type }] : [])],
+    };
+    const where: Prisma.opportunitiesWhereInput = f.status
+      ? { AND: [base, { status: f.status }] }
+      : base;
 
     const [rows, total, grouped] = await Promise.all([
       this.prisma.opportunities.findMany({
@@ -81,10 +102,17 @@ export class OpportunitiesAdminService {
         take: f.pageSize,
       }),
       this.prisma.opportunities.count({ where }),
-      this.prisma.opportunities.groupBy({ by: ['status'], where: base, _count: { _all: true } }),
+      this.prisma.opportunities.groupBy({
+        by: ['status'],
+        where: base,
+        _count: { _all: true },
+      }),
     ]);
 
-    const counts = Object.fromEntries(STATUSES.map((s) => [s, 0])) as Record<OpportunityStatus, number>;
+    const counts = Object.fromEntries(STATUSES.map((s) => [s, 0])) as Record<
+      OpportunityStatus,
+      number
+    >;
     for (const g of grouped) counts[g.status] = g._count._all;
 
     return {
@@ -118,7 +146,10 @@ export class OpportunitiesAdminService {
   /* ------------------------------------------------------------------ write */
 
   /** Manual entry: a new draft typed in by staff from the official notification. */
-  async create(input: OpportunityInput, actor: string | null): Promise<WriteResult> {
+  async create(
+    input: OpportunityInput,
+    actor: string | null,
+  ): Promise<WriteResult> {
     await this.assertOrganization(input.organization_id);
     return this.prisma.$transaction(async (tx) => {
       const slug = await this.freeSlug(tx, slugify(`${input.title}`));
@@ -128,7 +159,10 @@ export class OpportunitiesAdminService {
           ...this.columns(input),
           status: 'draft',
           source_key: 'manual',
-          source_url: input.source_url ?? input.official_page_url ?? input.notification_pdf_url,
+          source_url:
+            input.source_url ??
+            input.official_page_url ??
+            input.notification_pdf_url,
           source_fetched_at: new Date(),
           extractor_version: 'manual',
           confidence: 1,
@@ -145,27 +179,55 @@ export class OpportunitiesAdminService {
    * Save every field. A published job stays live, so it must still pass the publish check —
    * each save of a live job is recorded as a new version.
    */
-  async save(id: string, input: OpportunityInput, actor: string | null): Promise<WriteResult> {
+  async save(
+    id: string,
+    input: OpportunityInput,
+    actor: string | null,
+  ): Promise<WriteResult> {
     await this.assertOrganization(input.organization_id);
     return this.prisma.$transaction(async (tx) => {
       const before = await this.load(tx, id);
-      const sourceUrl = before.source_key === 'manual' ? (input.source_url ?? input.official_page_url ?? input.notification_pdf_url) : (input.source_url ?? before.source_url);
+      const sourceUrl =
+        before.source_key === 'manual'
+          ? (input.source_url ??
+            input.official_page_url ??
+            input.notification_pdf_url)
+          : (input.source_url ?? before.source_url);
       const data = { ...this.columns(input), source_url: sourceUrl };
 
       if (before.status === 'published') {
-        const missing = publishBlockers({ ...data, field_status: input.field_status });
-        if (missing.length) throw new BadRequestException({ message: 'A live job must stay complete', missing });
+        const missing = publishBlockers({
+          ...data,
+          field_status: input.field_status,
+        });
+        if (missing.length)
+          throw new BadRequestException({
+            message: 'A live job must stay complete',
+            missing,
+          });
       }
 
-      const changed = changedFields(before as unknown as Record<string, unknown>, data as Record<string, unknown>);
+      const changed = changedFields(
+        before as unknown as Record<string, unknown>,
+        data as Record<string, unknown>,
+      );
       await tx.opportunities.update({ where: { id }, data });
       await this.writeChildren(tx, id, input);
 
       let version = before.version;
       if (before.status === 'published') {
-        version = await this.snapshot(tx, id, actor, 'Edited while live', changed);
+        version = await this.snapshot(
+          tx,
+          id,
+          actor,
+          'Edited while live',
+          changed,
+        );
       }
-      await this.audit(tx, actor, 'opportunity.update', id, { changed_fields: changed, status: before.status });
+      await this.audit(tx, actor, 'opportunity.update', id, {
+        changed_fields: changed,
+        status: before.status,
+      });
       return { id, status: before.status, version };
     });
   }
@@ -174,35 +236,76 @@ export class OpportunitiesAdminService {
   async publish(id: string, actor: string | null): Promise<WriteResult> {
     return this.prisma.$transaction(async (tx) => {
       const o = await this.load(tx, id);
-      if (o.status === 'published') throw new ConflictException('Already published');
+      if (o.status === 'published')
+        throw new ConflictException('Already published');
       const missing = publishBlockers(o);
-      if (o.application_end && o.application_end < todayIst()) missing.push('The last date has passed — close it instead');
-      if (missing.length) throw new BadRequestException({ message: 'Fix these before publishing', missing });
+      if (o.application_end && o.application_end < todayIst())
+        missing.push('The last date has passed — close it instead');
+      if (missing.length)
+        throw new BadRequestException({
+          message: 'Fix these before publishing',
+          missing,
+        });
 
       const now = new Date();
       await tx.opportunities.update({
         where: { id },
-        data: { status: 'published', published_at: now, published_by: actor, reviewed_by: actor, closed_at: null, last_verified_at: now },
+        data: {
+          status: 'published',
+          published_at: now,
+          published_by: actor,
+          reviewed_by: actor,
+          closed_at: null,
+          last_verified_at: now,
+        },
       });
-      const version = await this.snapshot(tx, id, actor, o.status === 'draft' ? 'Published' : `Published again (was ${o.status})`, []);
-      await this.audit(tx, actor, 'opportunity.publish', id, { from: o.status, version });
+      const version = await this.snapshot(
+        tx,
+        id,
+        actor,
+        o.status === 'draft'
+          ? 'Published'
+          : `Published again (was ${o.status})`,
+        [],
+      );
+      await this.audit(tx, actor, 'opportunity.publish', id, {
+        from: o.status,
+        version,
+      });
       return { id, status: 'published', version };
     });
   }
 
   /** Unpublish (→ draft), close, or reject/archive (→ archived, reason required). */
-  async setStatus(id: string, change: StatusChange, actor: string | null): Promise<WriteResult> {
+  async setStatus(
+    id: string,
+    change: StatusChange,
+    actor: string | null,
+  ): Promise<WriteResult> {
     return this.prisma.$transaction(async (tx) => {
       const o = await this.load(tx, id);
       if (!ALLOWED[change.status].includes(o.status)) {
-        throw new ConflictException(`Can't move from ${o.status} to ${change.status}`);
+        throw new ConflictException(
+          `Can't move from ${o.status} to ${change.status}`,
+        );
       }
       await tx.opportunities.update({
         where: { id },
-        data: { status: change.status, closed_at: change.status === 'closed' ? new Date() : null },
+        data: {
+          status: change.status,
+          closed_at: change.status === 'closed' ? new Date() : null,
+        },
       });
-      const action = { draft: 'opportunity.unpublish', closed: 'opportunity.close', archived: o.status === 'draft' ? 'opportunity.reject' : 'opportunity.archive' }[change.status];
-      await this.audit(tx, actor, action, id, { from: o.status, reason: change.reason ?? null });
+      const action = {
+        draft: 'opportunity.unpublish',
+        closed: 'opportunity.close',
+        archived:
+          o.status === 'draft' ? 'opportunity.reject' : 'opportunity.archive',
+      }[change.status];
+      await this.audit(tx, actor, action, id, {
+        from: o.status,
+        reason: change.reason ?? null,
+      });
       return { id, status: change.status, version: o.version };
     });
   }
@@ -216,8 +319,14 @@ export class OpportunitiesAdminService {
     if (expired.length === 0) return { closed: 0 };
     const ids = expired.map((e) => e.id);
     await this.prisma.$transaction(async (tx) => {
-      await tx.opportunities.updateMany({ where: { id: { in: ids }, status: 'published' }, data: { status: 'closed', closed_at: new Date() } });
-      await this.audit(tx, actor, 'opportunity.auto_close', null, { count: ids.length, ids });
+      await tx.opportunities.updateMany({
+        where: { id: { in: ids }, status: 'published' },
+        data: { status: 'closed', closed_at: new Date() },
+      });
+      await this.audit(tx, actor, 'opportunity.auto_close', null, {
+        count: ids.length,
+        ids,
+      });
     });
     return { closed: ids.length };
   }
@@ -248,9 +357,16 @@ export class OpportunitiesAdminService {
   }
 
   /** Main eligibility, posts and dates: the editor always sends the full list. */
-  private async writeChildren(tx: Tx, id: string, i: OpportunityInput): Promise<void> {
+  private async writeChildren(
+    tx: Tx,
+    id: string,
+    i: OpportunityInput,
+  ): Promise<void> {
     // Eligibility for the whole notification (post_id = null). Per-post rules are kept as they are.
-    const main = await tx.opportunity_eligibility.findFirst({ where: { opportunity_id: id, post_id: null }, select: { id: true } });
+    const main = await tx.opportunity_eligibility.findFirst({
+      where: { opportunity_id: id, post_id: null },
+      select: { id: true },
+    });
     if (i.eligibility) {
       const e = i.eligibility;
       const data = {
@@ -258,38 +374,88 @@ export class OpportunitiesAdminService {
         age_as_on_date: day(e.age_as_on_date),
         age_relaxations: toJson(e.age_relaxations),
       };
-      if (main) await tx.opportunity_eligibility.update({ where: { id: main.id }, data });
-      else await tx.opportunity_eligibility.create({ data: { ...data, opportunity_id: id } });
+      if (main)
+        await tx.opportunity_eligibility.update({
+          where: { id: main.id },
+          data,
+        });
+      else
+        await tx.opportunity_eligibility.create({
+          data: { ...data, opportunity_id: id },
+        });
     } else if (main) {
       await tx.opportunity_eligibility.delete({ where: { id: main.id } });
     }
 
     // Posts: update the ones sent with an id, create the new ones, delete the rest.
     const keepPosts = i.posts.flatMap((p) => (p.id ? [p.id] : []));
-    await tx.opportunity_posts.deleteMany({ where: { opportunity_id: id, id: { notIn: keepPosts } } });
+    await tx.opportunity_posts.deleteMany({
+      where: { opportunity_id: id, id: { notIn: keepPosts } },
+    });
     for (const [n, p] of i.posts.entries()) {
-      const data = { name: p.name, vacancies_total: p.vacancies_total, pay_level: p.pay_level, salary_text: p.salary_text, sort_order: n };
-      if (p.id) await tx.opportunity_posts.updateMany({ where: { id: p.id, opportunity_id: id }, data });
-      else await tx.opportunity_posts.create({ data: { ...data, opportunity_id: id } });
+      const data = {
+        name: p.name,
+        vacancies_total: p.vacancies_total,
+        pay_level: p.pay_level,
+        salary_text: p.salary_text,
+        sort_order: n,
+      };
+      if (p.id)
+        await tx.opportunity_posts.updateMany({
+          where: { id: p.id, opportunity_id: id },
+          data,
+        });
+      else
+        await tx.opportunity_posts.create({
+          data: { ...data, opportunity_id: id },
+        });
     }
 
     // Dates: same pattern.
     const keepDates = i.dates.flatMap((d) => (d.id ? [d.id] : []));
-    await tx.opportunity_dates.deleteMany({ where: { opportunity_id: id, id: { notIn: keepDates } } });
+    await tx.opportunity_dates.deleteMany({
+      where: { opportunity_id: id, id: { notIn: keepDates } },
+    });
     for (const d of i.dates) {
-      const data = { kind: d.kind, date: day(d.date)!, end_date: day(d.end_date), is_tentative: d.is_tentative, note: d.note };
-      if (d.id) await tx.opportunity_dates.updateMany({ where: { id: d.id, opportunity_id: id }, data });
-      else await tx.opportunity_dates.create({ data: { ...data, opportunity_id: id } });
+      const data = {
+        kind: d.kind,
+        date: day(d.date)!,
+        end_date: day(d.end_date),
+        is_tentative: d.is_tentative,
+        note: d.note,
+      };
+      if (d.id)
+        await tx.opportunity_dates.updateMany({
+          where: { id: d.id, opportunity_id: id },
+          data,
+        });
+      else
+        await tx.opportunity_dates.create({
+          data: { ...data, opportunity_id: id },
+        });
     }
   }
 
   /** Save the full current state as a new approved version; returns the new version number. */
-  private async snapshot(tx: Tx, id: string, actor: string | null, note: string, changed: string[]): Promise<number> {
+  private async snapshot(
+    tx: Tx,
+    id: string,
+    actor: string | null,
+    note: string,
+    changed: string[],
+  ): Promise<number> {
     const full = await tx.opportunities.findUniqueOrThrow({
       where: { id },
-      include: { opportunity_posts: true, opportunity_eligibility: true, opportunity_dates: true },
+      include: {
+        opportunity_posts: true,
+        opportunity_eligibility: true,
+        opportunity_dates: true,
+      },
     });
-    const last = await tx.opportunity_versions.aggregate({ where: { opportunity_id: id }, _max: { version_no: true } });
+    const last = await tx.opportunity_versions.aggregate({
+      where: { opportunity_id: id },
+      _max: { version_no: true },
+    });
     const version = Math.max(full.version, last._max.version_no ?? 0) + 1;
     await tx.opportunity_versions.create({
       data: {
@@ -308,9 +474,21 @@ export class OpportunitiesAdminService {
     return version;
   }
 
-  private audit(tx: Tx, actor: string | null, action: string, targetId: string | null, details: Record<string, unknown>) {
+  private audit(
+    tx: Tx,
+    actor: string | null,
+    action: string,
+    targetId: string | null,
+    details: Record<string, unknown>,
+  ) {
     return tx.audit_logs.create({
-      data: { actor_id: actor, action, target_type: 'opportunity', target_id: targetId, details: toJson(details) },
+      data: {
+        actor_id: actor,
+        action,
+        target_type: 'opportunity',
+        target_id: targetId,
+        details: toJson(details),
+      },
     });
   }
 
@@ -322,18 +500,36 @@ export class OpportunitiesAdminService {
 
   private async assertOrganization(id: string): Promise<void> {
     const found = await this.prisma.organizations.count({ where: { id } });
-    if (!found) throw new BadRequestException({ message: 'Some fields are not valid', errors: ['organization_id: unknown organisation'] });
+    if (!found)
+      throw new BadRequestException({
+        message: 'Some fields are not valid',
+        errors: ['organization_id: unknown organisation'],
+      });
   }
 
   private async freeSlug(tx: Tx, base: string): Promise<string> {
-    const taken = new Set((await tx.opportunities.findMany({ where: { slug: { startsWith: base } }, select: { slug: true } })).map((r) => r.slug));
+    const taken = new Set(
+      (
+        await tx.opportunities.findMany({
+          where: { slug: { startsWith: base } },
+          select: { slug: true },
+        })
+      ).map((r) => r.slug),
+    );
     if (!taken.has(base)) return base;
-    for (let n = 2; ; n++) if (!taken.has(`${base}-${n}`)) return `${base}-${n}`;
+    for (let n = 2; ; n++)
+      if (!taken.has(`${base}-${n}`)) return `${base}-${n}`;
   }
 }
 
 /** Top-level columns whose value changed (for the audit log and version history). */
-function changedFields(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
-  const norm = (v: unknown) => JSON.stringify(v instanceof Date ? v.toISOString().slice(0, 10) : v ?? null);
+function changedFields(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): string[] {
+  const norm = (v: unknown) =>
+    JSON.stringify(
+      v instanceof Date ? v.toISOString().slice(0, 10) : (v ?? null),
+    );
   return Object.keys(after).filter((k) => norm(before[k]) !== norm(after[k]));
 }

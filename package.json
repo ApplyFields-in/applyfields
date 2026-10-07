@@ -11,6 +11,7 @@
     "dev:web": "turbo run dev --filter=@applyfields/web",
     "dev:admin": "turbo run dev --filter=@applyfields/admin",
     "dev:api": "turbo run dev --filter=@applyfields/api",
+    "db:studio": "pnpm --filter @applyfields/api db:studio",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
