@@ -6,23 +6,22 @@
 --   content_editor:  editorAPPLY@123
 --   support:         supportAPPLY@123
 
--- 1. admin account: applyfieldsadmin@gmail.com and alias appyfieldsadmin@gmail.com
+-- 1. admin account: applyfieldsadmin@gmail.com
 insert into users (id, email, password_hash, status, created_at, updated_at)
 values
-  ('77f67ed0-fbc7-4fe6-921d-fcc1618573d2', 'applyfieldsadmin@gmail.com', '$argon2id$v=19$m=19456,p=1,t=2$FbcfR3D+onYwDV/GrjyYbA$XF2SooDJPRSVJtgjwBR1B9LoKs6o3ajbnDebzoRvJaE', 'active', now(), now()),
-  ('8cad3692-8121-497e-95a2-c1dae11821b3', 'appyfieldsadmin@gmail.com', '$argon2id$v=19$m=19456,p=1,t=2$FbcfR3D+onYwDV/GrjyYbA$XF2SooDJPRSVJtgjwBR1B9LoKs6o3ajbnDebzoRvJaE', 'active', now(), now())
+  ('77f67ed0-fbc7-4fe6-921d-fcc1618573d2', 'applyfieldsadmin@gmail.com', '$argon2id$v=19$m=19456,p=1,t=2$FbcfR3D+onYwDV/GrjyYbA$XF2SooDJPRSVJtgjwBR1B9LoKs6o3ajbnDebzoRvJaE', 'active', now(), now())
 on conflict (email) do update set password_hash = excluded.password_hash, status = 'active';
 
 insert into user_profiles (user_id, full_name, created_at, updated_at)
 select id, 'ApplyFields Admin', now(), now()
 from users
-where email in ('applyfieldsadmin@gmail.com', 'appyfieldsadmin@gmail.com')
+where email = 'applyfieldsadmin@gmail.com'
 on conflict (user_id) do update set full_name = 'ApplyFields Admin';
 
 insert into user_roles (user_id, role, granted_at)
 select id, 'admin'::staff_role, now()
 from users
-where email in ('applyfieldsadmin@gmail.com', 'appyfieldsadmin@gmail.com')
+where email = 'applyfieldsadmin@gmail.com'
 on conflict (user_id, role) do nothing;
 
 -- 2. reviewer account: applyfieldsreviewer@gmail.com

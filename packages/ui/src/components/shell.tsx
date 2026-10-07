@@ -6,20 +6,33 @@ import { NavLink } from './nav-link';
 
 /* ------------------------------------------------------------------ Logo */
 
-export function Logo({ subtitle, inverse = false }: { subtitle?: string; inverse?: boolean }) {
+export function Logo({
+  subtitle,
+  inverse = false,
+  size = 'md',
+}: {
+  subtitle?: string;
+  inverse?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+}) {
+  const iconSize = size === 'lg' ? 'size-12' : size === 'sm' ? 'size-7' : 'size-9';
+  const titleSize = size === 'lg' ? 'text-2xl' : size === 'sm' ? 'text-base' : 'text-[18px]';
+
   return (
-    <Link href="/" className="flex items-center gap-2.5" aria-label="ApplyFields home">
-      <svg viewBox="0 0 36 36" className="size-9 shrink-0" aria-hidden="true">
-        <rect width="36" height="36" rx="11" className="fill-sea" />
-        <path d="M10 25 L18 9 L26 25" className="stroke-cream" strokeWidth="3.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M13.5 19.5 H22.5" className="stroke-celadon" strokeWidth="3.2" strokeLinecap="round" />
-      </svg>
-      <span className="leading-tight">
-        <span className={cn('block text-[17px] font-extrabold tracking-tight', inverse ? 'text-cream' : 'text-teal')}>
-          ApplyFields
+    <Link href="/" className="flex items-center gap-2.5 group" aria-label="ApplyFields home">
+      {/* Official ApplyFields Logo Mark */}
+      <img
+        src="/logo-mark.png"
+        alt="ApplyFields"
+        className={cn(iconSize, 'shrink-0 object-contain drop-shadow-sm transition-transform duration-200 group-hover:scale-105')}
+      />
+      <span className="leading-tight text-left">
+        <span className={cn('flex items-center font-extrabold tracking-tight', titleSize)}>
+          <span className={inverse ? 'text-cream' : 'text-teal'}>Apply</span>
+          <span className="text-sea">Fields</span>
         </span>
         {subtitle && (
-          <span className={cn('block text-[11px] font-medium', inverse ? 'text-cream/75' : 'text-teal/80')}>
+          <span className={cn('block text-[11px] font-medium tracking-wide', inverse ? 'text-cream/80' : 'text-teal/70')}>
             {subtitle}
           </span>
         )}

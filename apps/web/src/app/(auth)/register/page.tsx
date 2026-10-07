@@ -110,17 +110,36 @@ export default function RegisterPage() {
         code: otpCode,
       },
     );
-    setLoading(false);
 
     if (res.error || !res.data) {
+      setLoading(false);
       setError(res.error || 'Verification failed. Please check the code.');
       return;
     }
 
-    setSuccessMsg('Email successfully verified! Redirecting to login...');
-    setTimeout(() => {
-      router.push('/login?verified=true');
-    }, 1500);
+    // Auto-login after successful verification — go straight to dashboard
+    const loginRes = await apiPost<{ user: UserSummary }>('/auth/login', {
+      identifier: email.toLowerCase().trim(),
+      password,
+    });
+    setLoading(false);
+
+    if (loginRes.data?.user) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('currentUser', JSON.stringify(loginRes.data.user));
+        window.dispatchEvent(new Event('auth-changed'));
+      }
+      setSuccessMsg('Account verified! Redirecting to dashboard...');
+      setTimeout(() => {
+        router.push('/');
+      }, 800);
+    } else {
+      // Fallback: if auto-login fails, send to login page
+      setSuccessMsg('Email verified! Redirecting to login...');
+      setTimeout(() => {
+        router.push('/login?verified=true');
+      }, 1500);
+    }
   }
 
   async function handleResendOtp() {
@@ -167,7 +186,6 @@ export default function RegisterPage() {
             </div>
 
             <div className="mb-6">
-              <Badge tone="celadon" className="mb-2 shadow-xs">Citizen Registration</Badge>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-teal">Create account</h1>
               <p className="mt-1 text-xs sm:text-sm text-teal/70">
                 To prevent fake accounts, a verification code (OTP) will be sent to your email.

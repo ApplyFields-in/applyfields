@@ -319,32 +319,14 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
   return (
     <>
       <div className="mt-5 pt-4 border-t-2 border-line/50">
-        <div className="rounded-2xl border-2 border-dashed border-sea/40 bg-sea/10 p-3.5 transition-all hover:border-sea/70">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="size-3.5 text-sea shrink-0" />
-              <span className="text-[11px] font-black uppercase tracking-wider text-sea">
-                Modern & Fastest Login
-              </span>
-            </div>
-            <span className="rounded-md bg-sea/20 px-1.5 py-0.5 text-[9px] font-black text-sea uppercase">
-              Biometric
-            </span>
-          </div>
-
-          <p className="text-[11px] text-teal/70 leading-relaxed mb-3">
-            Sign in using your device&apos;s fingerprint sensor, Face ID, or Windows Hello security key — no password or SMS OTP required.
-          </p>
-
-          <button
-            type="button"
-            onClick={openModal}
-            className="relative w-full h-11 rounded-xl bg-sea text-cream font-black text-xs tracking-wide border-b-4 border-sea/70 shadow-[0_4px_12px_rgba(26,147,111,0.25)] hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(26,147,111,0.35)] active:translate-y-0.5 active:border-b-0 active:shadow-none transition-all flex items-center justify-center gap-2"
-          >
-            <Fingerprint className="size-4 text-cream" />
-            <span>Sign in with Passkey</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={openModal}
+          className="relative w-full h-11 rounded-xl bg-sea text-cream font-black text-xs tracking-wide border-b-4 border-sea/70 shadow-[0_4px_12px_rgba(26,147,111,0.25)] hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(26,147,111,0.35)] active:translate-y-0.5 active:border-b-0 active:shadow-none transition-all flex items-center justify-center gap-2"
+        >
+          <Fingerprint className="size-4 text-cream" />
+          <span>Sign in with Passkey</span>
+        </button>
       </div>
 
       {/* Interactive Passkey Verification Modal */}

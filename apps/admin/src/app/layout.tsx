@@ -10,6 +10,14 @@ export const metadata: Metadata = {
   },
   description: 'Internal tools for the ApplyFields team.',
   robots: { index: false, follow: false },
+  icons: {
+    icon: [
+      { url: '/icon.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
