@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { jwtAccessSecret } from '../../common/jwt-secret.js';
 import { UsersStore } from '../users/users.store.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type {
@@ -481,13 +482,10 @@ export class AuthService {
       phone: user.phone,
     };
 
-    const accessSecret =
-      process.env.JWT_ACCESS_SECRET ??
-      'applyfields_dev_jwt_access_secret_32bytes_min_key';
     const accessTtl = process.env.JWT_ACCESS_TTL ?? '7d';
 
     const accessToken = await this.jwtService.signAsync(payload, {
-      secret: accessSecret,
+      secret: jwtAccessSecret(),
       expiresIn: accessTtl as any,
     });
 
