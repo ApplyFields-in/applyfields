@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { UsersStore } from './users.store.js';
 import {
   extractEducationFromResume,
@@ -95,10 +95,27 @@ export class UsersService {
   }
 
   // --- Resume Document & AI Extraction ---
+  private static readonly ALLOWED_MIME_TYPES = new Set([
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+  ]);
+  private static readonly MAX_RESUME_BYTES = 5 * 1024 * 1024; // 5 MB
+
   async uploadAndExtractResume(
     userId: string,
     dto: UploadResumeDto,
   ): Promise<ResumeApiResponse> {
+    if (!UsersService.ALLOWED_MIME_TYPES.has(dto.mimeType)) {
+      throw new BadRequestException(
+        'Unsupported file type. Only PDF, DOCX, TXT, and images are accepted.',
+      );
+    }
+
     const user = await this.store.findUserById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -109,6 +126,10 @@ export class UsersService {
       ? dto.fileBase64.split(';base64,')[1]
       : dto.fileBase64;
     const buffer = Buffer.from(base64Data, 'base64');
+
+    if (buffer.length > UsersService.MAX_RESUME_BYTES) {
+      throw new BadRequestException('File exceeds the 5 MB limit.');
+    }
 
     // Save file securely to server storage directory
     const uploadDir = join(process.cwd(), 'uploads', 'resumes', userId);
@@ -132,7 +153,8 @@ export class UsersService {
     // Parse qualifications using precision segmenter
     const qualifications = extractEducationFromResume(extractedText);
 
-    // Save or replace active resume in user_documents
+    // Save or replace active resume in user_documents.
+    // extracted_text is not persisted — it's PII we don't need to store long-term.
     const docEntity = await this.store.saveUserResumeDocument(userId, {
       title: `Resume - ${dto.fileName}`,
       file_name: dto.fileName,
@@ -140,12 +162,12 @@ export class UsersService {
       mime_type: dto.mimeType,
       size_bytes: buffer.length,
       details: {
-        extracted_text: extractedText,
         qualifications,
         uploaded_at: new Date().toISOString(),
       },
     });
 
+    // storage_path is an internal server path — never expose it to the client.
     const userResume: UserResumeDocument = {
       id: docEntity.id,
       user_id: docEntity.user_id,
@@ -154,7 +176,6 @@ export class UsersService {
       file_name: docEntity.file_name,
       mime_type: docEntity.mime_type,
       size_bytes: docEntity.size_bytes,
-      storage_path: docEntity.storage_path,
       details: docEntity.details,
       created_at: docEntity.created_at,
       updated_at: docEntity.updated_at,
@@ -179,10 +200,22 @@ export class UsersService {
       file_name: docEntity.file_name,
       mime_type: docEntity.mime_type,
       size_bytes: docEntity.size_bytes,
-      storage_path: docEntity.storage_path,
+      // storage_path intentionally omitted — internal server path
       details: docEntity.details,
       created_at: docEntity.created_at,
       updated_at: docEntity.updated_at,
+    };
+  }
+
+  async getResumeStoragePath(
+    userId: string,
+  ): Promise<{ storage_path: string; mime_type: string | null; file_name: string | null } | null> {
+    const docEntity = await this.store.getUserResumeDocument(userId);
+    if (!docEntity?.storage_path) return null;
+    return {
+      storage_path: docEntity.storage_path,
+      mime_type: docEntity.mime_type ?? null,
+      file_name: docEntity.file_name ?? null,
     };
   }
 

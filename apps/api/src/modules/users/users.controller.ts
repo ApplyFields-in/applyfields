@@ -84,17 +84,20 @@ export class UsersController {
 
   @Get('resume/download')
   async downloadResume(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    const doc = await this.usersService.getResume(req.user.userId);
-    if (!doc || !doc.storage_path || !existsSync(doc.storage_path)) {
+    const fileInfo = await this.usersService.getResumeStoragePath(req.user.userId);
+    if (!fileInfo || !existsSync(fileInfo.storage_path)) {
       throw new NotFoundException('Saved resume file not found');
     }
 
-    res.setHeader('Content-Type', doc.mime_type || 'application/pdf');
+    const safeType = ['application/pdf', 'text/plain'].includes(fileInfo.mime_type ?? '')
+      ? fileInfo.mime_type!
+      : 'application/octet-stream';
+    res.setHeader('Content-Type', safeType);
     res.setHeader(
       'Content-Disposition',
-      `inline; filename="${doc.file_name || 'resume.pdf'}"`,
+      `attachment; filename="${fileInfo.file_name || 'resume.pdf'}"`,
     );
-    return res.sendFile(doc.storage_path);
+    return res.sendFile(fileInfo.storage_path);
   }
 
   @Delete('resume')
