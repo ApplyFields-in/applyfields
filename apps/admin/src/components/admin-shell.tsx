@@ -1,15 +1,26 @@
-import type { ApiHealth } from '@applyfields/types';
+import type { AdminMeResponse } from '@applyfields/types';
 import { Badge, buttonClass, Card, Shell, Sidebar } from '@applyfields/ui';
 import { LogIn, Search, ShieldCheck, WifiOff } from 'lucide-react';
 import Link from 'next/link';
-import { connection } from 'next/server';
 import type { ReactNode } from 'react';
-import { API_URL, apiGet } from '@/lib/api';
+import { API_URL } from '@/lib/api';
 import { NAV } from '@/lib/nav';
+import { StaffLogoutButton } from './staff-logout-button';
+import { ApiStatus } from './api-status';
 
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({
+  children,
+  staff,
+}: {
+  children: ReactNode;
+  staff?: AdminMeResponse | null;
+}) {
   return (
-    <Shell sidebar={<Sidebar groups={NAV} subtitle="Internal Portal" footer={<SidebarFooter />} />} topbar={<Topbar />} footer={<Footer />}>
+    <Shell
+      sidebar={<Sidebar groups={NAV} subtitle="Internal Portal" footer={<SidebarFooter />} />}
+      topbar={<Topbar staff={staff} />}
+      footer={<Footer />}
+    >
       {children}
     </Shell>
   );
@@ -24,7 +35,9 @@ function SidebarFooter() {
   );
 }
 
-function Topbar() {
+function Topbar({ staff }: { staff?: AdminMeResponse | null }) {
+  const primaryRole = staff?.roles?.[0]?.replace('_', ' ') ?? 'staff';
+
   return (
     <>
       <form action="/opportunities" role="search" className="relative hidden max-w-xl flex-1 sm:block">
@@ -41,9 +54,31 @@ function Topbar() {
         <Badge tone="celadon" className="hidden md:inline-flex">
           Internal Portal
         </Badge>
-        <Link href="/login" className={buttonClass()}>
-          <LogIn aria-hidden="true" /> Staff log in
-        </Link>
+        {staff ? (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-full border border-line bg-cream/60 py-1 pl-1.5 pr-3">
+              <div className="flex size-7 items-center justify-center rounded-full bg-teal text-xs font-bold text-cream">
+                {(staff.name || staff.email || 'S').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="max-w-[120px] truncate text-xs font-bold text-ink sm:max-w-[160px]">
+                  {staff.name || staff.email}
+                </span>
+                <span className="text-[10px] capitalize leading-none text-teal/70">
+                  {primaryRole}
+                </span>
+              </div>
+            </div>
+            <Badge tone="celadon" className="hidden sm:inline-flex text-xs capitalize font-semibold">
+              {primaryRole}
+            </Badge>
+            <StaffLogoutButton />
+          </div>
+        ) : (
+          <Link href="/login" className={buttonClass()}>
+            <LogIn aria-hidden="true" /> Staff log in
+          </Link>
+        )}
       </div>
     </>
   );
@@ -58,16 +93,6 @@ function Footer() {
   );
 }
 
-async function ApiStatus() {
-  await connection();
-  const health = await apiGet<ApiHealth>('/health');
-  return (
-    <span title={API_URL} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-cream px-2.5 py-1 font-semibold text-teal">
-      <span className={`size-2 rounded-full ${health ? 'bg-sea' : 'bg-teal/30'}`} aria-hidden="true" />
-      {health ? 'API connected' : 'API offline'}
-    </span>
-  );
-}
 
 export function ApiOffline() {
   return (
