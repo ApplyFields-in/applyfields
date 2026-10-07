@@ -1,28 +1,32 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import type {
   AdminMeResponse,
   AdminSummary,
+  AdminUserItem,
   AdminUserList,
   ReviewDetail,
   ReviewList,
+  StaffRole,
 } from '@applyfields/types';
 import { StaffGuard } from '../../common/staff.guard.js';
 import { Roles } from '../../common/roles.decorator.js';
-import { StaffMember, type StaffUser } from '../../common/actor.js';
+import { ActorId, StaffMember, type StaffUser } from '../../common/actor.js';
 import { ReviewService } from './review.service.js';
 import { UsersAdminService } from './users.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 const HOUR_MS = 3_600_000;
-const hoursAgo = (h: number) =>
-  new Date(Date.now() - h * HOUR_MS).toISOString();
 
 @Controller('admin')
 @UseGuards(StaffGuard)
@@ -64,112 +68,105 @@ export class AdminController {
     return this.review.detail(id);
   }
 
-  /** GET /api/v1/admin/summary — Internal Portal dashboard with live user count from Supabase */
+  /** GET /api/v1/admin/summary — Internal Portal dashboard, all counts from real DB */
   @Get('summary')
   async summary(): Promise<AdminSummary> {
-    const userCount = await this.prisma.users.count();
+    const weekAgo = new Date(Date.now() - 7 * 24 * HOUR_MS);
+
+    const [
+      userCount,
+      pendingReviews,
+      publishedWeek,
+      deadlinesWeek,
+      reviewQueue,
+      scrapers,
+    ] = await Promise.all([
+      // total registered users
+      this.prisma.users.count(),
+      // drafts waiting for review
+      this.prisma.opportunities.count({ where: { status: 'draft' } }),
+      // published this calendar week
+      this.prisma.opportunities.count({
+        where: { status: 'published', published_at: { gte: weekAgo } },
+      }),
+      // application_end within the next 7 days
+      this.prisma.opportunities.count({
+        where: {
+          status: 'published',
+          application_end: {
+            gte: new Date(),
+            lte: new Date(Date.now() + 7 * 24 * HOUR_MS),
+          },
+        },
+      }),
+      // 10 most recent drafts for the review queue widget
+      this.prisma.opportunities.findMany({
+        where: { status: 'draft' },
+        orderBy: { created_at: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          title: true,
+          source_key: true,
+          confidence: true,
+          created_at: true,
+          source_fetched_at: true,
+        },
+      }),
+      // scraper sources
+      this.prisma.scrape_sources.findMany({
+        where: { is_active: true },
+        orderBy: { key: 'asc' },
+        select: {
+          key: true,
+          name: true,
+          last_success_at: true,
+          consecutive_failures: true,
+        },
+      }),
+    ]);
 
     return {
       stats: [
         {
           key: 'pending_reviews',
           label: 'Waiting for review',
-          value: 23,
-          hint: '5 need careful review',
+          value: pendingReviews,
+          hint: pendingReviews === 0 ? 'All clear' : `${pendingReviews} draft${pendingReviews === 1 ? '' : 's'}`,
         },
         {
           key: 'published_week',
           label: 'Published this week',
-          value: 41,
-          hint: '+12 vs last week',
+          value: publishedWeek,
+          hint: publishedWeek === 0 ? 'Nothing yet' : `${publishedWeek} since ${weekAgo.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
         },
         {
-          key: 'reports_open',
-          label: 'Open reports',
-          value: 7,
-          hint: '2 broken links',
+          key: 'deadlines_week',
+          label: 'Deadlines this week',
+          value: deadlinesWeek,
+          hint: deadlinesWeek === 0 ? 'None closing soon' : `${deadlinesWeek} closing within 7 days`,
         },
         {
           key: 'users',
           label: 'Registered users',
           value: userCount,
-          hint: `${userCount} active in Supabase`,
+          hint: `${userCount} in the database`,
         },
       ],
-      review_queue: [
-        {
-          id: 'r1',
-          title: 'SSC CGL 2026 — notification',
-          source: 'ssc',
-          confidence: 0.91,
-          found_at: hoursAgo(2),
-          kind: 'new',
-        },
-        {
-          id: 'r2',
-          title: 'APPSC Group II — last date changed',
-          source: 'appsc',
-          confidence: 0.84,
-          found_at: hoursAgo(5),
-          kind: 'change',
-        },
-        {
-          id: 'r3',
-          title: 'RRB NTPC — admit card released',
-          source: 'rrb',
-          confidence: 0.77,
-          found_at: hoursAgo(9),
-          kind: 'update',
-        },
-        {
-          id: 'r4',
-          title: 'TSPSC Group IV — notification',
-          source: 'tspsc',
-          confidence: 0.52,
-          found_at: hoursAgo(20),
-          kind: 'new',
-        },
-        {
-          id: 'r5',
-          title: 'UPSC CSE 2027 — notice',
-          source: 'upsc',
-          confidence: 0.68,
-          found_at: hoursAgo(26),
-          kind: 'new',
-        },
-      ],
-      scrapers: [
-        {
-          key: 'ssc',
-          name: 'Staff Selection Commission',
-          last_success_at: hoursAgo(1),
-          consecutive_failures: 0,
-        },
-        {
-          key: 'upsc',
-          name: 'Union Public Service Commission',
-          last_success_at: hoursAgo(3),
-          consecutive_failures: 0,
-        },
-        {
-          key: 'appsc',
-          name: 'APPSC',
-          last_success_at: hoursAgo(2),
-          consecutive_failures: 0,
-        },
-        {
-          key: 'tspsc',
-          name: 'TSPSC',
-          last_success_at: hoursAgo(30),
-          consecutive_failures: 4,
-        },
-        {
-          key: 'rrb',
-          name: 'Railway Recruitment Boards',
-          last_success_at: hoursAgo(4),
-          consecutive_failures: 0,
-        },
-      ],
+      review_queue: reviewQueue.map((r) => ({
+        id: r.id,
+        title: r.title,
+        source: r.source_key ?? 'manual',
+        confidence: r.confidence !== null ? Number(r.confidence) : 0,
+        found_at: (r.source_fetched_at ?? r.created_at).toISOString(),
+        kind: 'new' as const,
+      })),
+      scrapers: scrapers.map((s) => ({
+        key: s.key,
+        name: s.name,
+        last_success_at: s.last_success_at?.toISOString() ?? null,
+        consecutive_failures: s.consecutive_failures,
+      })),
       sample: false,
     };
   }
@@ -184,5 +181,55 @@ export class AdminController {
     @Query('status') status?: string,
   ): Promise<AdminUserList> {
     return this.usersService.list({ q, page, limit, status });
+  }
+
+  /** GET /api/v1/admin/users/:id — single user detail (masked PII) */
+  @Get('users/:id')
+  @Roles('admin')
+  getUser(@Param('id', ParseUUIDPipe) id: string): Promise<AdminUserItem> {
+    return this.usersService.detail(id);
+  }
+
+  /** POST /api/v1/admin/users/:id/block — suspend a user account */
+  @Post('users/:id/block')
+  @Roles('admin')
+  blockUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActorId() actor: string | null,
+  ): Promise<AdminUserItem> {
+    return this.usersService.setStatus(id, 'suspended', actor);
+  }
+
+  /** POST /api/v1/admin/users/:id/unblock — reactivate a suspended account */
+  @Post('users/:id/unblock')
+  @Roles('admin')
+  unblockUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActorId() actor: string | null,
+  ): Promise<AdminUserItem> {
+    return this.usersService.setStatus(id, 'active', actor);
+  }
+
+  /** POST /api/v1/admin/users/:id/roles — grant a staff role { role: "reviewer" } */
+  @Post('users/:id/roles')
+  @Roles('super_admin')
+  grantRole(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { role: string },
+    @ActorId() actor: string | null,
+  ): Promise<AdminUserItem> {
+    if (!body?.role) throw new BadRequestException('role is required');
+    return this.usersService.grantRole(id, body.role as StaffRole, actor);
+  }
+
+  /** DELETE /api/v1/admin/users/:id/roles/:role — revoke a staff role */
+  @Delete('users/:id/roles/:role')
+  @Roles('super_admin')
+  revokeRole(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('role') role: string,
+    @ActorId() actor: string | null,
+  ): Promise<AdminUserItem> {
+    return this.usersService.revokeRole(id, role as StaffRole, actor);
   }
 }

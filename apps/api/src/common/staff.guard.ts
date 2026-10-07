@@ -11,6 +11,7 @@ import type { Request } from 'express';
 import type { StaffRole } from '@applyfields/types';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ROLES_KEY, hasStaffPermission } from './roles.decorator.js';
+import { jwtAccessSecret } from './jwt-secret.js';
 import type { StaffUser } from './actor.js';
 
 export interface StaffRequest extends Request {
@@ -57,10 +58,9 @@ export class StaffGuard implements CanActivate {
     // 2. Verify token
     let payload: { sub?: string; userId?: string; email?: string } | undefined;
     try {
-      const secret =
-        process.env.JWT_ACCESS_SECRET ??
-        'applyfields_dev_jwt_access_secret_32bytes_min_key';
-      payload = await this.jwtService.verifyAsync(token, { secret });
+      payload = await this.jwtService.verifyAsync(token, {
+        secret: jwtAccessSecret(),
+      });
     } catch {
       throw new UnauthorizedException(
         'Invalid or expired authentication token',

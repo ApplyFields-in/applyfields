@@ -92,6 +92,7 @@ export class UpdatesAdminController {
   }
 
   @Post('updates/:id/publish')
+  @Roles('admin')
   @HttpCode(200)
   async publish(
     @Param('id', ParseUUIDPipe) id: string,
@@ -105,6 +106,7 @@ export class UpdatesAdminController {
 
   /** POST /admin/updates/:id/status with status draft or archived (+ reason) */
   @Post('updates/:id/status')
+  @Roles('admin')
   @HttpCode(200)
   async setStatus(
     @Param('id', ParseUUIDPipe) id: string,
