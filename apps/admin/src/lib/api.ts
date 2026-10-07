@@ -33,25 +33,13 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
       const { cookies } = await import('next/headers');
       const cookieStore = await cookies();
       const allCookies = cookieStore.toString();
-      const token = cookieStore.get('accessToken')?.value;
 
       if (allCookies) {
         headers['cookie'] = allCookies;
       }
-      if (token && !headers['authorization']) {
-        headers['authorization'] = `Bearer ${token}`;
-      }
     } catch {
       // Cookies not available outside request scope
     }
-  } else {
-    // Client-side browser
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (token && !headers['authorization']) {
-        headers['authorization'] = `Bearer ${token}`;
-      }
-    } catch {}
   }
 
   try {

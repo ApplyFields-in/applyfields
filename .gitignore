@@ -42,6 +42,9 @@ team-docs/
 
 # ---------- Claude session handoff notes — never in git ----------
 claude-sessions/
+.claude/
+CLAUDE.md
+graphify-out/
 
 # ---------- Editors / OS ----------
 .vscode/*

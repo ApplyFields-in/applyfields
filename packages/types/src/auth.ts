@@ -56,8 +56,6 @@ export interface UserEducation {
 
 export interface AuthResponse {
   user: UserSummary;
-  accessToken: string;
-  refreshToken?: string;
 }
 
 export interface MeResponse {

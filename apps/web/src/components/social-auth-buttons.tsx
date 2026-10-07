@@ -75,10 +75,6 @@ export function SocialAuthButtons({ mode, onError, onSuccess }: SocialAuthButton
       }
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('accessToken', res.data.accessToken);
-        if (res.data.refreshToken) {
-          localStorage.setItem('refreshToken', res.data.refreshToken);
-        }
         localStorage.setItem('currentUser', JSON.stringify(res.data.user));
         window.dispatchEvent(new Event('auth-changed'));
       }
@@ -306,10 +302,6 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
     }
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', res.data.accessToken);
-      if (res.data.refreshToken) {
-        localStorage.setItem('refreshToken', res.data.refreshToken);
-      }
       localStorage.setItem('currentUser', JSON.stringify(res.data.user));
       window.dispatchEvent(new Event('auth-changed'));
     }

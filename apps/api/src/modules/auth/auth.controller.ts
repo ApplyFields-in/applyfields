@@ -32,7 +32,7 @@ const REFRESH_COOKIE_OPTIONS = {
 
 const ACCESS_COOKIE_NAME = 'accessToken';
 const ACCESS_COOKIE_OPTIONS = {
-  httpOnly: false, // accessible to server cookies() and client
+  httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
   path: '/',
@@ -82,11 +82,7 @@ export class AuthController {
     );
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
 
-    return {
-      user: result.user,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    };
+    return { user: result.user };
   }
 
   @Post('login/otp')
@@ -109,11 +105,7 @@ export class AuthController {
     );
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
 
-    return {
-      user: result.user,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    };
+    return { user: result.user };
   }
 
   @Post('social/login')
@@ -136,11 +128,7 @@ export class AuthController {
     );
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
 
-    return {
-      user: result.user,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    };
+    return { user: result.user };
   }
 
   @Post('passkey/login')
@@ -163,11 +151,7 @@ export class AuthController {
     );
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
 
-    return {
-      user: result.user,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    };
+    return { user: result.user };
   }
 
   @Post('passkey/register')
@@ -203,7 +187,7 @@ export class AuthController {
     );
     res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, ACCESS_COOKIE_OPTIONS);
 
-    return tokens;
+    return { success: true };
   }
 
   @Post('logout')
@@ -224,7 +208,7 @@ export class AuthController {
       path: '/',
     });
     res.clearCookie(ACCESS_COOKIE_NAME, {
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
