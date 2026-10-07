@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
+import { ReviewActions } from '@/components/review-actions';
 import {
   CATEGORY_CODES,
   CATEGORY_LABEL,
@@ -29,7 +30,7 @@ const list = (values: string[]) => values.join(', ');
 
 /**
  * Review one draft: the official PDF on the left, editable fields on the right.
- * Data: GET /api/v1/admin/review/:id. Saving, publishing and rejecting arrive with the Publish API.
+ * Data: GET /api/v1/admin/review/:id.
  */
 export default async function Page({ params }: PageProps<'/review/[id]'>) {
   await connection();
@@ -79,8 +80,8 @@ export default async function Page({ params }: PageProps<'/review/[id]'>) {
         </div>
 
         {/* ------------------------------------------------ right: editable fields */}
-        <form className="min-w-0 space-y-5" aria-label="Draft fields">
-          <PublishCheck missing={d.missing} />
+        <div className="min-w-0 space-y-5" aria-label="Draft fields">
+          <ReviewActions id={d.id} missing={d.missing} />
 
           <FormSection title="Basic information">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -258,7 +259,7 @@ export default async function Page({ params }: PageProps<'/review/[id]'>) {
               </Info>
             </dl>
           </FormSection>
-        </form>
+        </div>
       </div>
     </>
   );
@@ -318,47 +319,6 @@ function PdfPanel({
           }
         />
       )}
-    </Card>
-  );
-}
-
-function PublishCheck({ missing }: { missing: string[] }) {
-  const ready = missing.length === 0;
-  return (
-    <Card tone={ready ? 'teal' : 'surface'} className="p-5">
-      <div className="flex items-start gap-3">
-        {ready ? (
-          <CircleCheck className="mt-0.5 size-5 shrink-0 text-celadon" aria-hidden="true" />
-        ) : (
-          <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="font-bold">{ready ? 'Ready to publish' : `${missing.length} thing${missing.length === 1 ? '' : 's'} to fix before publishing`}</p>
-          {ready ? (
-            <p className="mt-1 text-sm text-cream/80">Every required field is there. Still compare each value with the PDF.</p>
-          ) : (
-            <ul className="mt-2 list-inside list-disc space-y-0.5 text-sm">
-              {missing.map((m) => (
-                <li key={m}>{m}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" disabled title="Arrives with the Publish API" className={buttonClass({ variant: ready ? 'accent' : 'primary', size: 'sm' })}>
-          <Send aria-hidden="true" /> Publish
-        </button>
-        <button type="button" disabled title="Arrives with the Publish API" className={buttonClass({ variant: ready ? 'inverse' : 'secondary', size: 'sm' })}>
-          Save changes
-        </button>
-        <button type="button" disabled title="Arrives with the Publish API" className={buttonClass({ variant: ready ? 'inverse' : 'secondary', size: 'sm' })}>
-          <X aria-hidden="true" /> Reject
-        </button>
-        <span className={`self-center text-[11px] ${ready ? 'text-cream/70' : 'text-teal/70'}`}>
-          Saving, publishing and rejecting arrive with the Publish API.
-        </span>
-      </div>
     </Card>
   );
 }
