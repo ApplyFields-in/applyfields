@@ -97,21 +97,9 @@ const EDUCATION_LEVEL_LABELS: Record<EducationLevel, string> = {
   phd: 'Doctorate (Ph.D)',
 };
 
-const SAMPLE_RESUME_SNIPPET = `KARTHIK YGS
-Email: karthik@example.com | Phone: +91 9898989898
-
-EDUCATION
-• Bachelor of Technology (B.Tech) in Computer Science & Engineering
-  Jawaharlal Nehru Technological University (JNTU Hyderabad), 2024
-  CGPA: 8.45 / 10 | Status: Completed
-
-• Intermediate / Class 12th (MPC)
-  Telangana State Board of Intermediate Education, 2020
-  Percentage: 92.4% | Status: Completed
-
-• Class 10th (Secondary School Certificate)
-  State Board of Secondary Education, 2018
-  Percentage: 88.0% | Status: Completed`;
+const EDUCATION_LEVEL_ORDER: Record<string, number> = {
+  '10th': 1, '12th': 2, iti: 3, diploma: 4, graduate: 5, post_graduate: 6, phd: 7,
+};
 
 function calculateAge(dobString: string | null): { years: number; months: number } | null {
   if (!dobString) return null;
@@ -153,8 +141,8 @@ export default function ProfilePage() {
   // Form states - Personal details
   const [fullName, setFullName] = useState('');
   const [dob, setDob] = useState('');
-  const [gender, setGender] = useState<UserGender>('male');
-  const [category, setCategory] = useState<SocialCategory>('GEN');
+  const [gender, setGender] = useState<UserGender | ''>('');
+  const [category, setCategory] = useState<SocialCategory | ''>('');
   const [annualIncome, setAnnualIncome] = useState<string>('');
   const [stateCode, setStateCode] = useState('');
   const [district, setDistrict] = useState('');
@@ -216,8 +204,8 @@ export default function ProfilePage() {
         setAvatarUrl(res.profile.avatar_url || 'pixel-scholar');
         setFullName(res.profile.full_name ?? '');
         setDob(res.profile.date_of_birth ?? '');
-        setGender(res.profile.gender ?? 'male');
-        setCategory(res.profile.category ?? 'GEN');
+        setGender(res.profile.gender ?? '');
+        setCategory(res.profile.category ?? '');
         setAnnualIncome(res.profile.annual_family_income != null ? res.profile.annual_family_income.toString() : '');
         setStateCode(res.profile.state_code ?? '');
         setDistrict(res.profile.district ?? '');
@@ -278,8 +266,8 @@ export default function ProfilePage() {
       avatar_url: avatarUrl,
       full_name: fullName.trim() || undefined,
       date_of_birth: dob || undefined,
-      gender,
-      category,
+      gender: (gender as UserGender) || undefined,
+      category: (category as SocialCategory) || undefined,
       annual_family_income: annualIncome ? parseInt(annualIncome, 10) : undefined,
       state_code: stateCode || undefined,
       district: district.trim() || undefined,
@@ -586,7 +574,7 @@ export default function ProfilePage() {
             Citizen Profile & Eligibility
           </h1>
           <p className="mt-3 text-sm text-teal/75 max-w-md mx-auto leading-relaxed">
-            Create your central citizen profile to instantly match recruitment criteria across <strong>14,000+ government jobs</strong>, scholarships, and admissions.
+            Create your central citizen profile to instantly match recruitment criteria across government jobs, scholarships, and admissions.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
@@ -694,12 +682,16 @@ export default function ProfilePage() {
           </div>
           <div className="rounded-xl border border-line bg-canvas p-2.5">
             <span className="text-[10px] uppercase font-bold text-teal/60 block">Category</span>
-            <span className="font-extrabold text-teal">{category}</span>
+            <span className="font-extrabold text-teal">{category || 'Not set'}</span>
           </div>
           <div className="rounded-xl border border-line bg-canvas p-2.5">
             <span className="text-[10px] uppercase font-bold text-teal/60 block">Highest Qualification</span>
             <span className="font-extrabold text-teal">
-              {educations.length > 0 ? educations[educations.length - 1].level.toUpperCase() : 'Not added'}
+              {educations.length > 0
+                ? educations.reduce((best, e) =>
+                    (EDUCATION_LEVEL_ORDER[e.level] ?? 0) > (EDUCATION_LEVEL_ORDER[best.level] ?? 0) ? e : best
+                  ).level.toUpperCase()
+                : 'Not added'}
             </span>
           </div>
           <div className="rounded-xl border border-line bg-canvas p-2.5">
@@ -1212,18 +1204,6 @@ export default function ProfilePage() {
                   >
                     <UploadCloud className="size-4" />
                     {isExtracting ? 'Extracting...' : 'Upload Resume (.pdf / .txt)'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResumeText(SAMPLE_RESUME_SNIPPET);
-                      const parsed = extractEducationFromResume(SAMPLE_RESUME_SNIPPET);
-                      setExtractedEducations(parsed);
-                      setSaveSuccess(`Loaded sample resume and recognized ${parsed.length} qualifications!`);
-                    }}
-                    className="h-10 px-3.5 rounded-xl bg-canvas border border-line text-teal font-extrabold text-xs hover:bg-tea/30 active:translate-y-0.5 transition-all"
-                  >
-                    Try Sample
                   </button>
                 </div>
               </div>
