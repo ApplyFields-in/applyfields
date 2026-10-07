@@ -25,7 +25,10 @@ import type {
   SendOtpDto,
   VerifyOtpDto,
 } from './dto/otp.dto.js';
-import type { AuthResponse, UserSummary } from '@applyfields/types';
+import type { UserSummary } from '@applyfields/types';
+
+// Internal type — includes tokens so the controller can set cookies. Never sent to clients.
+type LoginResult = { user: UserSummary; accessToken: string; refreshToken: string };
 
 const ARGON2_OPTIONS = {
   type: argon2.argon2id,
@@ -210,7 +213,7 @@ export class AuthService {
   async login(
     dto: LoginDto,
     meta: { userAgent?: string; ipAddress?: string } = {},
-  ): Promise<AuthResponse & { refreshToken: string }> {
+  ): Promise<LoginResult> {
     const user = await this.store.findUserByIdentifier(dto.identifier);
     if (!user || user.status !== 'active') {
       throw new UnauthorizedException('Invalid email/phone or password');
@@ -270,7 +273,7 @@ export class AuthService {
   async loginWithOtp(
     dto: LoginOtpDto,
     meta: { userAgent?: string; ipAddress?: string } = {},
-  ): Promise<AuthResponse & { refreshToken: string }> {
+  ): Promise<LoginResult> {
     await this.verifyOtp({
       target: dto.phone,
       purpose: 'login',
@@ -308,7 +311,7 @@ export class AuthService {
   async socialLogin(
     dto: SocialLoginDto,
     meta: { userAgent?: string; ipAddress?: string } = {},
-  ): Promise<AuthResponse & { refreshToken: string }> {
+  ): Promise<LoginResult> {
     const providerEmail = dto.email
       ? dto.email.toLowerCase().trim()
       : `${dto.provider}.citizen@applyfields.in`;
@@ -368,7 +371,7 @@ export class AuthService {
   async passkeyLogin(
     dto: PasskeyLoginDto,
     meta: { userAgent?: string; ipAddress?: string } = {},
-  ): Promise<AuthResponse & { refreshToken: string }> {
+  ): Promise<LoginResult> {
     if (!dto.email || !dto.email.trim()) {
       throw new BadRequestException(
         'Registered email or phone number is required to sign in with passkey',
