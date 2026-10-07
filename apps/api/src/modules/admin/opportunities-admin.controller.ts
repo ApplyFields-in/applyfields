@@ -93,6 +93,7 @@ export class OpportunitiesAdminController {
 
   /** POST /admin/opportunities/close-expired — run the auto-close now (it also runs every hour) */
   @Post('opportunities/close-expired')
+  @Roles('admin')
   @HttpCode(200)
   async closeExpired(@ActorId() actor: string | null): Promise<{ closed: number }> {
     const res = await this.opportunities.closeExpired(actor);
@@ -134,6 +135,7 @@ export class OpportunitiesAdminController {
 
   /** POST /admin/opportunities/:id/publish — runs the publish check, records a version */
   @Post('opportunities/:id/publish')
+  @Roles('admin')
   @HttpCode(200)
   async publish(
     @Param('id', ParseUUIDPipe) id: string,
@@ -147,6 +149,7 @@ export class OpportunitiesAdminController {
 
   /** POST /admin/opportunities/:id/status with status draft, closed or archived (+ reason) — unpublish, close, reject */
   @Post('opportunities/:id/status')
+  @Roles('admin')
   @HttpCode(200)
   async setStatus(
     @Param('id', ParseUUIDPipe) id: string,

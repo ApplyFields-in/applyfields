@@ -121,9 +121,9 @@ export default async function UsersPage({
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <p className="font-bold text-teal leading-tight">
+                            <Link href={`/users/${u.id}`} className="font-bold text-teal leading-tight hover:underline">
                               {u.full_name || 'Profile incomplete'}
-                            </p>
+                            </Link>
                             {u.roles && u.roles.length > 0 && (
                               <Badge tone="celadon" className="text-[10px] uppercase font-bold py-0.5">
                                 {u.roles[0].replace('_', ' ')}
