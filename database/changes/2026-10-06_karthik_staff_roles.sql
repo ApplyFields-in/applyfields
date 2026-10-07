@@ -1,12 +1,13 @@
 -- database/changes/2026-10-06_karthik_staff_roles.sql
 -- Why: Likhith is the first super_admin staff account for the Internal Portal
 
--- Ensure Likhith's user row exists (with default password: ApplyFields@2026 if newly created)
+-- Ensure Likhith's user row exists. No password in git: the row is created with
+-- a NULL password_hash, so the account sets its password via the reset flow.
 insert into users (id, email, password_hash, status, created_at, updated_at)
 values (
   'a0000000-0000-0000-0000-000000000001',
   'likhithmanakala@gmail.com',
-  '$argon2id$v=19$m=65536,p=4,t=3$07ciNBrYe2zBXAKevsKd6g$H2heNCjSNNebJWmHKJiek9rDj29Vq2W+MGfJLlrg+0M',
+  null,
   'active',
   now(),
   now()

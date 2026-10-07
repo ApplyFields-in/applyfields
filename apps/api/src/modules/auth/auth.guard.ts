@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
+import { jwtAccessSecret } from '../../common/jwt-secret.js';
 
 export interface AuthenticatedUser {
   userId: string;
@@ -31,10 +32,9 @@ export class AuthGuard implements CanActivate {
 
     const token = authHeader.split(' ')[1];
     try {
-      const secret =
-        process.env.JWT_ACCESS_SECRET ??
-        'applyfields_dev_jwt_access_secret_32bytes_min_key';
-      const payload = await this.jwtService.verifyAsync(token, { secret });
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: jwtAccessSecret(),
+      });
       request.user = {
         userId: payload.sub,
         email: payload.email ?? null,
