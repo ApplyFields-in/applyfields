@@ -95,8 +95,10 @@ export async function apiGet<T>(path: string): Promise<T | null> {
   return res.data;
 }
 
+export type ApiMutationResult<T> = ApiFetchResult<T>;
+
 /** POST to a JSON endpoint. */
-export async function apiPost<T>(path: string, body?: unknown): Promise<ApiFetchResult<T>> {
+export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<ApiFetchResult<T>> {
   return apiFetch<T>(path, {
     method: 'POST',
     headers: {
@@ -105,3 +107,22 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<ApiFetch
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 }
+
+/** PUT to a JSON endpoint. */
+export async function apiPut<T, B = unknown>(path: string, body?: B): Promise<ApiFetchResult<T>> {
+  return apiFetch<T>(path, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
+/** DELETE a JSON endpoint. */
+export async function apiDelete<T>(path: string): Promise<ApiFetchResult<T>> {
+  return apiFetch<T>(path, {
+    method: 'DELETE',
+  });
+}
+
