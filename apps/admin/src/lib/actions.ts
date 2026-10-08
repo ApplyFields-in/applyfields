@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import type { AdminUserItem, OpportunityInput, OpportunityStatus, StatusChange, UpdateInput, WriteResult } from '@applyfields/types';
+import type { AdminUserItem, ManualAlertInput, ManualAlertResult, OpportunityInput, OpportunityStatus, StatusChange, UpdateInput, WriteResult } from '@applyfields/types';
 import { apiDelete, apiPost, apiPut } from './api';
 
 export interface ActionResponse<T = unknown> {
@@ -146,4 +146,20 @@ export async function revokeRoleAction(id: string, role: string): Promise<Action
   revalidatePath('/users');
   revalidatePath(`/users/${id}`);
   return { ok: true, data: res.data! };
+}
+
+/** Send a manual alert (in-app + email) to everyone who saved a job, or to one user. */
+export async function sendManualAlertAction(input: ManualAlertInput): Promise<ActionResponse<ManualAlertResult>> {
+  const res = await apiPost<ManualAlertResult>('/admin/notifications/alert', input);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/notifications');
+  return { ok: true, data: res.data! };
+}
+
+/** Put a failed email back in the queue. */
+export async function retryDeliveryAction(id: string): Promise<ActionResponse> {
+  const res = await apiPost(`/admin/notifications/${encodeURIComponent(id)}/retry`);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/notifications');
+  return { ok: true };
 }

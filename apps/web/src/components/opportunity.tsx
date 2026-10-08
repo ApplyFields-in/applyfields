@@ -1,6 +1,6 @@
 import type { OpportunityCard, OpportunityList, OpportunityType } from '@applyfields/types';
 import { Badge, BuildStatus, buttonClass, Card, cn, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
-import { Bookmark, CalendarDays, ChevronDown, CircleCheck, GraduationCap, MapPin, Search, UserCheck, Users, WifiOff } from 'lucide-react';
+import { CalendarDays, ChevronDown, CircleCheck, GraduationCap, MapPin, Search, UserCheck, Users, WifiOff } from 'lucide-react';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { connection } from 'next/server';
@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import { API_URL } from '@/lib/api';
 import { daysLeftLabel, ELIGIBILITY_META, formatDate, TYPE_META, urgencyTone } from '@/lib/format';
 import { apiGetAsUser } from '@/lib/server-api';
+import { SaveButton } from '@/components/save-button';
 
 /* ------------------------------------------------------------------ one card */
 
@@ -23,13 +24,7 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
             {item.title}
           </Link>
         </div>
-        <Link
-          href="/login"
-          aria-label={`Save ${item.title}`}
-          className="clay-press grid size-8 shrink-0 place-items-center rounded-full bg-cream shadow-clay hover:bg-tea"
-        >
-          <Bookmark className="size-4" />
-        </Link>
+        <SaveButton itemType="opportunity" slug={item.slug} title={item.title} initial={item.saved} />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">

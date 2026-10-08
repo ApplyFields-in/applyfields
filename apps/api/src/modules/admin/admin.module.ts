@@ -9,8 +9,10 @@ import { ReviewService } from './review.service.js';
 import { UpdatesAdminController } from './updates-admin.controller.js';
 import { UpdatesAdminService } from './updates-admin.service.js';
 import { UsersAdminService } from './users.service.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [
     AdminController,
     OpportunitiesAdminController,

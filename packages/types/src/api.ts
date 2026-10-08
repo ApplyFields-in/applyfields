@@ -36,6 +36,8 @@ export interface OpportunityCard {
   tags: string[];
   /** only when the request came from a logged-in user */
   eligibility?: EligibilityStatus;
+  /** only when the request came from a logged-in user */
+  saved?: boolean;
 }
 
 // ---------- Eligibility (GET /opportunities/:slug/eligibility) ----------
@@ -422,4 +424,122 @@ export interface AdminUserList {
   limit?: number;
   staff_count?: number;
   citizen_count?: number;
+}
+
+// ---------- Saved items (GET /saved, PUT|DELETE /saved/:item_type/:slug) ----------
+
+export type SavedItemType = 'opportunity' | 'service';
+
+export interface SavedItem {
+  item_type: SavedItemType;
+  slug: string;
+  saved_at: string;
+  reminder_enabled: boolean;
+  /** set for jobs, exams, scholarships and admissions */
+  card: OpportunityCard | null;
+  /** set for government services */
+  service: { slug: string; name: string } | null;
+}
+
+export interface SavedList {
+  total: number;
+  items: SavedItem[];
+}
+
+export interface SaveResult {
+  saved: boolean;
+  reminder_enabled: boolean;
+}
+
+// ---------- Notifications (GET /notifications, /notifications/preferences) ----------
+
+export type NotificationType =
+  | 'new_job'
+  | 'new_exam'
+  | 'new_scholarship'
+  | 'new_admission'
+  | 'service_update'
+  | 'closing_reminder'
+  | 'saved_item_changed'
+  | 'admit_card'
+  | 'answer_key'
+  | 'result'
+  | 'correction_window'
+  | 'date_change'
+  | 'profile_match'
+  | 'document_expiry'
+  | 'request_update'
+  | 'account_security'
+  | 'system';
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  /** a path on the website, e.g. /jobs/ssc-cgl-2026 */
+  link: string | null;
+  read: boolean;
+  created_at: string;
+}
+
+export interface NotificationList {
+  unread: number;
+  items: NotificationItem[];
+}
+
+/** The types a user can turn off. Account and system messages always arrive. */
+export type MutableNotificationType =
+  | 'closing_reminder'
+  | 'admit_card'
+  | 'answer_key'
+  | 'result'
+  | 'correction_window'
+  | 'date_change'
+  | 'saved_item_changed';
+
+export interface NotificationPreferences {
+  email_enabled: boolean;
+  /** false when the account has no verified email, so email can't be sent */
+  email_available: boolean;
+  muted_types: MutableNotificationType[];
+  /** reminders go out this many days before a last date or exam date */
+  reminder_days_before: number[];
+}
+
+export type NotificationPreferencesInput = Omit<NotificationPreferences, 'email_available'>;
+
+// ---------- Internal Portal → Notifications ----------
+
+export type DeliveryStatus = 'pending' | 'sent' | 'delivered' | 'failed';
+
+export interface AdminDeliveryItem {
+  id: string;
+  channel: 'email' | 'sms' | 'push' | 'whatsapp' | 'in_app';
+  status: DeliveryStatus;
+  attempts: number;
+  last_error: string | null;
+  created_at: string;
+  sent_at: string | null;
+  type: NotificationType;
+  title: string;
+  user_email: string | null;
+}
+
+export interface AdminNotificationOverview {
+  counts: Record<DeliveryStatus, number> & { in_app_total: number; in_app_unread: number };
+  items: AdminDeliveryItem[];
+}
+
+export interface ManualAlertInput {
+  title: string;
+  body: string | null;
+  /** a path on the website, e.g. /jobs/ssc-cgl-2026 */
+  link: string | null;
+  /** everyone who saved this job/exam, or one user by email */
+  audience: { kind: 'savers'; opportunity_slug: string } | { kind: 'user'; email: string };
+}
+
+export interface ManualAlertResult {
+  notified: number;
 }

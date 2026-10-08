@@ -69,8 +69,11 @@ export class OpportunitiesController {
     });
     if (!req.user) return data;
 
-    const profile = await this.eligibility.profile(req.user.userId);
-    let items = await this.eligibility.annotate(profile, data.items);
+    const [profile, saved] = await Promise.all([
+      this.eligibility.profile(req.user.userId),
+      this.opportunities.savedSlugs(req.user.userId),
+    ]);
+    let items = this.opportunities.markSaved(await this.eligibility.annotate(profile, data.items), saved);
     if (eligible === 'true' || eligible === '1') {
       items = items.filter((i) => i.eligibility !== 'not_eligible');
     }
