@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import type {
+  AgeRelaxation,
+  CategoryCode,
   DateKind,
+  Gender,
   OpportunityCategory,
   OpportunityInput,
   OpportunityStatus,
@@ -39,6 +42,7 @@ import {
   setOpportunityStatusAction,
 } from '@/lib/actions';
 import {
+  CATEGORY_CODES,
   CATEGORY_LABEL,
   DATE_KIND_LABEL,
   Field,
@@ -97,8 +101,23 @@ export function OpportunityForm({ initialData, organizations, mode }: Opportunit
   const [qualLevel, setQualLevel] = useState(mainElig?.qualification_level ?? '');
   const [qualStreams, setQualStreams] = useState(mainElig?.qualification_streams?.join(', ') ?? '');
   const [categoriesAllowed, setCategoriesAllowed] = useState(
-    mainElig?.categories_allowed?.join(', ') ?? 'GEN, OBC, SC, ST, EWS',
+    mainElig?.categories_allowed?.join(', ') ?? '',
   );
+  const [ageAsOn, setAgeAsOn] = useState(mainElig?.age_as_on_date ?? '');
+  const [relaxText, setRelaxText] = useState(
+    (mainElig?.age_relaxations ?? [])
+      .filter((r) => r.category && !r.gender && !r.condition)
+      .map((r) => `${r.category} ${r.years}`)
+      .join(', '),
+  );
+  const [gender, setGender] = useState<Gender>(mainElig?.gender ?? 'any');
+  const [domicile, setDomicile] = useState(mainElig?.domicile_states?.join(', ') ?? '');
+  const [incomeMax, setIncomeMax] = useState(mainElig?.income_max != null ? String(mainElig.income_max) : '');
+  const [finalYear, setFinalYear] = useState(
+    mainElig?.final_year_allowed == null ? '' : mainElig.final_year_allowed ? 'yes' : 'no',
+  );
+  const [minPct, setMinPct] = useState(mainElig?.min_percentage != null ? String(mainElig.min_percentage) : '');
+  const [officialText, setOfficialText] = useState(mainElig?.official_text ?? '');
 
   // Dynamic Posts
   const [posts, setPosts] = useState<
@@ -140,7 +159,27 @@ export function OpportunityForm({ initialData, organizations, mode }: Opportunit
     ]);
   const removeDate = (index: number) => setDates(dates.filter((_, i) => i !== index));
 
-  const buildPayload = (): OpportunityInput => {
+  const list = (s: string, upper = false) =>
+    s
+      .split(',')
+      .map((x) => (upper ? x.trim().toUpperCase() : x.trim()))
+      .filter(Boolean);
+
+  /** "OBC 3, SC 5, PWBD 10" → category relaxations; null if any entry is unreadable. */
+  const parseRelaxations = (): AgeRelaxation[] | null => {
+    const out: AgeRelaxation[] = [];
+    for (const part of list(relaxText)) {
+      const m = /^([A-Za-z]+)\s*[:+\s]\s*(\d+(?:\.\d+)?)$/.exec(part);
+      const code = m?.[1].toUpperCase() as CategoryCode | undefined;
+      if (!m || !code || !(CATEGORY_CODES as readonly string[]).includes(code)) return null;
+      out.push({ category: code, years: Number(m[2]) });
+    }
+    // relaxations with a gender or free-text condition aren't editable here — keep them as they are
+    const kept = (mainElig?.age_relaxations ?? []).filter((r) => !r.category || r.gender || r.condition);
+    return [...out, ...kept];
+  };
+
+  const buildPayload = (relaxations: AgeRelaxation[]): OpportunityInput => {
     return {
       title: title.trim(),
       type,
@@ -170,23 +209,17 @@ export function OpportunityForm({ initialData, organizations, mode }: Opportunit
         age_min: ageMin ? Number.parseInt(ageMin, 10) : null,
         age_max: ageMax ? Number.parseInt(ageMax, 10) : null,
         qualification_level: qualLevel || null,
-        qualification_streams: qualStreams
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        min_percentage: null,
-        final_year_allowed: null,
-        gender: 'any',
-        domicile_states: [],
-        categories_allowed: categoriesAllowed
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        income_max: null,
-        other_conditions: [],
-        official_text: null,
-        age_as_on_date: null,
-        age_relaxations: [],
+        qualification_streams: list(qualStreams),
+        min_percentage: minPct ? Number(minPct) : null,
+        final_year_allowed: finalYear === '' ? null : finalYear === 'yes',
+        gender,
+        domicile_states: list(domicile, true),
+        categories_allowed: list(categoriesAllowed, true),
+        income_max: incomeMax ? Number.parseInt(incomeMax, 10) : null,
+        other_conditions: mainElig?.other_conditions ?? [],
+        official_text: officialText.trim() || null,
+        age_as_on_date: ageAsOn || null,
+        age_relaxations: relaxations,
       },
       posts: posts
         .filter((p) => p.name.trim())
@@ -213,8 +246,13 @@ export function OpportunityForm({ initialData, organizations, mode }: Opportunit
   const handleSave = () => {
     setErrorMsg(null);
     setSuccessMsg(null);
+    const relaxations = parseRelaxations();
+    if (!relaxations) {
+      setErrorMsg('Age relaxations: write them like "OBC 3, SC 5, PWBD 10" (codes: GEN, OBC, SC, ST, EWS, PWBD, EXS).');
+      return;
+    }
     startTransition(async () => {
-      const payload = buildPayload();
+      const payload = buildPayload(relaxations);
       if (mode === 'create') {
         const res = await createOpportunityAction(payload);
         if (res.ok && res.data) {
@@ -722,11 +760,82 @@ export function OpportunityForm({ initialData, organizations, mode }: Opportunit
               />
             </Field>
 
-            <Field label="Categories Allowed" className="sm:col-span-2">
+            <Field label="Age calculated as on" hint="The cut-off date from the notification. Empty = today.">
+              <TextInput type="date" value={ageAsOn} onChange={(e) => setAgeAsOn(e.target.value)} />
+            </Field>
+
+            <Field label="Age relaxation (years)" hint="e.g. OBC 3, SC 5, ST 5, PWBD 10, EXS 3">
+              <TextInput
+                value={relaxText}
+                onChange={(e) => setRelaxText(e.target.value)}
+                placeholder="OBC 3, SC 5, ST 5"
+              />
+            </Field>
+
+            <Field label="Final-year students can apply?">
+              <SelectInput
+                value={finalYear}
+                onChange={(e) => setFinalYear(e.target.value)}
+                options={[
+                  { value: '', label: 'Not stated' },
+                  { value: 'yes', label: 'Yes' },
+                  { value: 'no', label: 'No — must have passed' },
+                ]}
+              />
+            </Field>
+
+            <Field label="Minimum percentage">
+              <TextInput
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={minPct}
+                onChange={(e) => setMinPct(e.target.value)}
+                placeholder="e.g. 50"
+              />
+            </Field>
+
+            <Field label="Gender">
+              <SelectInput
+                value={gender}
+                onChange={(e) => setGender(e.target.value as Gender)}
+                options={[
+                  { value: 'any', label: 'Any gender' },
+                  { value: 'male', label: 'Male only' },
+                  { value: 'female', label: 'Female only' },
+                  { value: 'transgender', label: 'Transgender only' },
+                ]}
+              />
+            </Field>
+
+            <Field label="Domicile states" hint="Empty = no domicile rule">
+              <TextInput value={domicile} onChange={(e) => setDomicile(e.target.value)} placeholder="AP, TS" />
+            </Field>
+
+            <Field label="Categories allowed" hint="Empty = all categories">
               <TextInput
                 value={categoriesAllowed}
                 onChange={(e) => setCategoriesAllowed(e.target.value)}
-                placeholder="GEN, OBC, SC, ST, EWS..."
+                placeholder="SC, ST, OBC"
+              />
+            </Field>
+
+            <Field label="Max annual family income (₹)" hint="Empty = no income limit">
+              <TextInput
+                type="number"
+                min="0"
+                value={incomeMax}
+                onChange={(e) => setIncomeMax(e.target.value)}
+                placeholder="e.g. 250000"
+              />
+            </Field>
+
+            <Field label="Official eligibility wording" className="sm:col-span-2">
+              <TextArea
+                value={officialText}
+                onChange={(e) => setOfficialText(e.target.value)}
+                placeholder="Paste the eligibility paragraph from the notification."
               />
             </Field>
           </div>

@@ -1,5 +1,5 @@
 import type { OpportunityCard, OpportunityList, OpportunityType } from '@applyfields/types';
-import { Badge, BuildStatus, Card, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
+import { Badge, BuildStatus, buttonClass, Card, cn, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
 import {
   CalendarDays,
   CircleCheck,
@@ -7,15 +7,18 @@ import {
   MapPin,
   RotateCcw,
   Search,
+  UserCheck,
   Users,
   WifiOff,
 } from 'lucide-react';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { SaveButton } from './opportunity-actions';
-import { API_URL, apiGet } from '@/lib/api';
-import { daysLeftLabel, formatDate, STATE_NAMES, TYPE_META, urgencyTone } from '@/lib/format';
+import { API_URL } from '@/lib/api';
+import { daysLeftLabel, ELIGIBILITY_META, formatDate, TYPE_META, urgencyTone } from '@/lib/format';
+import { apiGetAsUser } from '@/lib/server-api';
 
 /* ------------------------------------------------------------------ one card */
 
@@ -38,6 +41,11 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
+        {item.eligibility && (
+          <Badge tone={ELIGIBILITY_META[item.eligibility].tone}>
+            {ELIGIBILITY_META[item.eligibility].icon} {ELIGIBILITY_META[item.eligibility].label}
+          </Badge>
+        )}
         <Badge tone="outline">
           <MapPin aria-hidden="true" /> {item.location}
         </Badge>
@@ -82,39 +90,48 @@ export function ApiOffline() {
 
 /* ------------------------------------------------------------------ FilterBar */
 
+export interface ListSearchParams {
+  q?: string;
+  category?: string;
+  state?: string;
+  qualification?: string;
+  deadline?: string;
+  eligible?: string;
+}
+
 export function FilterBar({
   basePath,
   placeholder,
   categories,
   searchParams,
+  eligible,
 }: {
   basePath: string;
   placeholder: string;
   categories: string[];
-  searchParams: {
-    q?: string;
-    category?: string;
-    state?: string;
-    qualification?: string;
-    deadline?: string;
-  };
+  searchParams: ListSearchParams;
+  /** the "Eligible for me" toggle; omit to hide it */
+  eligible?: { on: boolean; loggedIn: boolean };
 }) {
   const currentCategory = searchParams.category || '';
   const currentState = searchParams.state || '';
   const currentQual = searchParams.qualification || '';
   const currentDeadline = searchParams.deadline || '';
   const currentQ = searchParams.q || '';
+  const eligibleOn = Boolean(eligible?.on);
 
-  const buildCategoryUrl = (cat: string) => {
+  const buildUrl = (cat: string, withEligible: boolean) => {
     const sp = new URLSearchParams();
     if (currentQ) sp.set('q', currentQ);
     if (cat && cat !== 'All') sp.set('category', cat);
     if (currentState) sp.set('state', currentState);
     if (currentQual) sp.set('qualification', currentQual);
     if (currentDeadline) sp.set('deadline', currentDeadline);
+    if (withEligible) sp.set('eligible', 'true');
     const qs = sp.toString();
     return qs ? `${basePath}?${qs}` : basePath;
   };
+  const buildCategoryUrl = (cat: string) => buildUrl(cat, eligibleOn);
 
   const hasActiveFilters = Boolean(currentCategory || currentState || currentQual || currentDeadline || currentQ);
 
@@ -137,10 +154,25 @@ export function FilterBar({
           />
         </div>
 
-        {/* Preserve active category on search */}
+        {/* Preserve active category and "Eligible for me" on search */}
         {currentCategory && <input type="hidden" name="category" value={currentCategory} />}
+        {eligibleOn && <input type="hidden" name="eligible" value="true" />}
 
         <div className="flex flex-wrap items-center gap-2">
+          {eligible && (
+            <Link
+              href={eligible.loggedIn ? buildUrl(currentCategory, !eligibleOn) : '/login'}
+              aria-pressed={eligibleOn}
+              title={eligible.loggedIn ? 'Hide what you’re not eligible for' : 'Log in to filter by your profile'}
+              className={cn(
+                'clay-press inline-flex h-11 items-center gap-1.5 rounded-full px-4 text-xs font-semibold shadow-clay',
+                eligibleOn ? 'bg-teal text-cream' : 'bg-cream text-teal',
+              )}
+            >
+              <UserCheck className="size-4" aria-hidden="true" /> Eligible for me
+            </Link>
+          )}
+
           {/* State Filter */}
           <select
             name="state"
@@ -260,7 +292,9 @@ export async function OpportunityListPage({
   categories,
   searchParams,
   features,
+  eligibleOnly = false,
 }: {
+  eligibleOnly?: boolean;
   type: OpportunityType;
   title: string;
   description: string;
@@ -269,17 +303,13 @@ export async function OpportunityListPage({
   when: string;
   basePath: string;
   categories: string[];
-  searchParams?: {
-    q?: string;
-    category?: string;
-    state?: string;
-    qualification?: string;
-    deadline?: string;
-  };
+  searchParams?: ListSearchParams;
   features: string[];
 }) {
   await connection();
   const sp = searchParams ?? {};
+  const loggedIn = (await cookies()).has('accessToken');
+  const only = eligibleOnly && loggedIn;
   const query = new URLSearchParams();
   query.set('type', type);
   if (sp.q) query.set('q', sp.q);
@@ -287,8 +317,9 @@ export async function OpportunityListPage({
   if (sp.state) query.set('state', sp.state);
   if (sp.qualification) query.set('qualification', sp.qualification);
   if (sp.deadline) query.set('deadline', sp.deadline);
+  if (only) query.set('eligible', 'true');
 
-  const data = await apiGet<OpportunityList>(`/opportunities?${query.toString()}`);
+  const data = await apiGetAsUser<OpportunityList>(`/opportunities?${query.toString()}`);
   const meta = TYPE_META[type];
   const hasActiveFilters = Boolean(sp.category || sp.state || sp.qualification || sp.deadline || sp.q);
 
@@ -307,10 +338,22 @@ export async function OpportunityListPage({
         placeholder={`Search ${meta.plural}…`}
         categories={categories}
         searchParams={sp}
+        eligible={{ on: only, loggedIn }}
       />
 
       {data === null ? (
         <ApiOffline />
+      ) : data.total === 0 && only ? (
+        <EmptyState
+          icon={<UserCheck />}
+          title={`No open ${meta.plural} match your profile`}
+          text="Turn off “Eligible for me” to see everything, or add more details to your profile."
+          action={
+            <Link href="/profile" className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+              Update profile
+            </Link>
+          }
+        />
       ) : data.total === 0 ? (
         <EmptyState
           icon={meta.icon}
@@ -335,7 +378,8 @@ export async function OpportunityListPage({
         <>
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-teal">
-              {data.total} {meta.plural} · closing soonest first
+              {data.total} {meta.plural}
+              {only ? ' you may be eligible for' : ''} · closing soonest first
               {hasActiveFilters && ' (filtered)'}
             </p>
             {data.sample && <Badge tone="celadon">Sample data from the API</Badge>}

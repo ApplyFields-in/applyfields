@@ -20,12 +20,14 @@ export default async function Page({
     state?: string;
     qualification?: string;
     deadline?: string;
+    eligible?: string;
   }>;
 }) {
   const sp = await searchParams;
 
   return (
     <OpportunityListPage
+      eligibleOnly={sp.eligible === 'true'}
       type="exam"
       title="Exams"
       description="Entrance, competitive and recruitment exams — dates, eligibility, admit cards, answer keys and results."
