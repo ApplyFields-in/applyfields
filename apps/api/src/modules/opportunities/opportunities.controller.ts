@@ -2,11 +2,12 @@ import {
   BadRequestException,
   Controller,
   Get,
-  NotImplementedException,
+  NotFoundException,
   Param,
   Query,
 } from '@nestjs/common';
 import type {
+  OpportunityDetail,
   OpportunityList,
   OpportunityType,
   UpdateList,
@@ -34,16 +35,24 @@ export class OpportunitiesController {
   async list(
     @Query('type') type?: string,
     @Query('q') q?: string,
+    @Query('category') category?: string,
+    @Query('state') state?: string,
+    @Query('qualification') qualification?: string,
+    @Query('deadline') deadline?: string,
   ): Promise<OpportunityList> {
     if (type && !TYPES.includes(type as OpportunityType)) {
       throw new BadRequestException(`type must be one of: ${TYPES.join(', ')}`);
     }
-    const key = `opportunities:${type ?? 'all'}:${q ?? ''}`;
+    const key = `opportunities:${type ?? 'all'}:${category ?? ''}:${state ?? ''}:${qualification ?? ''}:${deadline ?? ''}:${q ?? ''}`;
     return this.cache.wrap(key, 30, async () => {
-      const items = await this.opportunities.list(
-        type as OpportunityType | undefined,
+      const items = await this.opportunities.list({
+        type: type as OpportunityType | undefined,
         q,
-      );
+        category,
+        state,
+        qualification,
+        deadline,
+      });
       return {
         type: (type as OpportunityType | undefined) ?? 'all',
         query: q ?? '',
@@ -54,12 +63,17 @@ export class OpportunitiesController {
     });
   }
 
-  /** GET /api/v1/opportunities/:slug — the detail page arrives in Week 3 */
+  /** GET /api/v1/opportunities/:slug — complete published detail page */
   @Get('opportunities/:slug')
-  detail(@Param('slug') slug: string): never {
-    throw new NotImplementedException(
-      `Opportunity details for "${slug}" are being built (Week 3).`,
-    );
+  async detail(@Param('slug') slug: string): Promise<OpportunityDetail> {
+    const key = `opportunity:slug:${slug}`;
+    const item = await this.cache.wrap(key, 30, async () => {
+      return this.opportunities.findBySlug(slug);
+    });
+    if (!item) {
+      throw new NotFoundException(`Opportunity with slug "${slug}" not found`);
+    }
+    return item;
   }
 
   /** GET /api/v1/updates — published admit cards, results, answer keys, date changes */

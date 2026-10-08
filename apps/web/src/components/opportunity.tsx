@@ -1,11 +1,21 @@
 import type { OpportunityCard, OpportunityList, OpportunityType } from '@applyfields/types';
 import { Badge, BuildStatus, Card, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
-import { Bookmark, CalendarDays, ChevronDown, CircleCheck, GraduationCap, MapPin, Search, Users, WifiOff } from 'lucide-react';
+import {
+  CalendarDays,
+  CircleCheck,
+  GraduationCap,
+  MapPin,
+  RotateCcw,
+  Search,
+  Users,
+  WifiOff,
+} from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
+import { SaveButton } from './opportunity-actions';
 import { API_URL, apiGet } from '@/lib/api';
-import { daysLeftLabel, formatDate, TYPE_META, urgencyTone } from '@/lib/format';
+import { daysLeftLabel, formatDate, STATE_NAMES, TYPE_META, urgencyTone } from '@/lib/format';
 
 /* ------------------------------------------------------------------ one card */
 
@@ -17,17 +27,14 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
         <IconTile tone={meta.tone}>{meta.icon}</IconTile>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-semibold text-teal/80">{item.organization}</p>
-          <Link href={`${meta.base}/${item.slug}`} className="mt-0.5 line-clamp-2 font-bold leading-snug hover:underline">
+          <Link
+            href={`${meta.base}/${item.slug}`}
+            className="mt-0.5 line-clamp-2 font-bold leading-snug text-teal hover:underline"
+          >
             {item.title}
           </Link>
         </div>
-        <Link
-          href="/login"
-          aria-label={`Save ${item.title}`}
-          className="clay-press grid size-8 shrink-0 place-items-center rounded-full bg-cream shadow-clay hover:bg-tea"
-        >
-          <Bookmark className="size-4" />
-        </Link>
+        <SaveButton slug={item.slug} title={item.title} />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -73,43 +80,168 @@ export function ApiOffline() {
   );
 }
 
-/* ------------------------------------------------------------------ filters (look only) */
+/* ------------------------------------------------------------------ FilterBar */
 
-export function FilterBar({ placeholder, categories }: { placeholder: string; categories: string[] }) {
+export function FilterBar({
+  basePath,
+  placeholder,
+  categories,
+  searchParams,
+}: {
+  basePath: string;
+  placeholder: string;
+  categories: string[];
+  searchParams: {
+    q?: string;
+    category?: string;
+    state?: string;
+    qualification?: string;
+    deadline?: string;
+  };
+}) {
+  const currentCategory = searchParams.category || '';
+  const currentState = searchParams.state || '';
+  const currentQual = searchParams.qualification || '';
+  const currentDeadline = searchParams.deadline || '';
+  const currentQ = searchParams.q || '';
+
+  const buildCategoryUrl = (cat: string) => {
+    const sp = new URLSearchParams();
+    if (currentQ) sp.set('q', currentQ);
+    if (cat && cat !== 'All') sp.set('category', cat);
+    if (currentState) sp.set('state', currentState);
+    if (currentQual) sp.set('qualification', currentQual);
+    if (currentDeadline) sp.set('deadline', currentDeadline);
+    const qs = sp.toString();
+    return qs ? `${basePath}?${qs}` : basePath;
+  };
+
+  const hasActiveFilters = Boolean(currentCategory || currentState || currentQual || currentDeadline || currentQ);
+
   return (
     <div className="mb-5 space-y-3">
-      <div className="flex flex-col gap-2 lg:flex-row">
-        <form action="/search" role="search" className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-teal/80" aria-hidden="true" />
+      {/* Search Input & Dropdown Filters Form */}
+      <form action={basePath} method="GET" className="flex flex-col gap-2.5 lg:flex-row">
+        <div className="relative flex-1">
+          <Search
+            className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-teal/70"
+            aria-hidden="true"
+          />
           <input
             name="q"
             type="search"
+            defaultValue={currentQ}
             aria-label={placeholder}
             placeholder={placeholder}
-            className="h-11 w-full rounded-full bg-cream pl-10 pr-4 text-sm shadow-pressed outline-none transition-shadow placeholder:text-teal/80 focus:shadow-clay"
+            className="h-11 w-full rounded-full bg-cream pl-10 pr-4 text-sm shadow-pressed outline-none transition-shadow placeholder:text-teal/70 focus:shadow-clay"
           />
-        </form>
-        <div className="flex flex-wrap gap-2">
-          {['State', 'Qualification', 'Category', 'Last date', 'Eligible for me'].map((f) => (
-            <button
-              key={f}
-              type="button"
-              aria-disabled="true"
-              title="Filters arrive with this page's build"
-              className="clay-press inline-flex h-11 cursor-not-allowed items-center gap-1.5 rounded-full bg-cream px-4 text-sm font-semibold shadow-clay"
-            >
-              {f} <ChevronDown className="size-4" aria-hidden="true" />
-            </button>
-          ))}
         </div>
-      </div>
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-3 pt-1">
-        <span className="shrink-0 rounded-full bg-teal px-3.5 py-1.5 text-xs font-semibold text-cream shadow-clay">All</span>
-        {categories.map((c) => (
-          <span key={c} className="shrink-0 rounded-full bg-cream px-3.5 py-1.5 text-xs font-semibold shadow-clay">
-            {c}
-          </span>
-        ))}
+
+        {/* Preserve active category on search */}
+        {currentCategory && <input type="hidden" name="category" value={currentCategory} />}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* State Filter */}
+          <select
+            name="state"
+            defaultValue={currentState}
+            aria-label="Filter by state"
+            className="h-11 rounded-full bg-cream px-3.5 text-xs font-semibold text-teal shadow-clay outline-none"
+          >
+            <option value="">All States / All India</option>
+            <option value="AP">Andhra Pradesh</option>
+            <option value="TS">Telangana</option>
+            <option value="KA">Karnataka</option>
+            <option value="TN">Tamil Nadu</option>
+            <option value="MH">Maharashtra</option>
+            <option value="KL">Kerala</option>
+            <option value="DL">Delhi</option>
+            <option value="UP">Uttar Pradesh</option>
+            <option value="WB">West Bengal</option>
+            <option value="GJ">Gujarat</option>
+            <option value="RJ">Rajasthan</option>
+            <option value="MP">Madhya Pradesh</option>
+            <option value="BR">Bihar</option>
+          </select>
+
+          {/* Qualification Filter */}
+          <select
+            name="qualification"
+            defaultValue={currentQual}
+            aria-label="Filter by qualification"
+            className="h-11 rounded-full bg-cream px-3.5 text-xs font-semibold text-teal shadow-clay outline-none"
+          >
+            <option value="">All Qualifications</option>
+            <option value="10th">10th pass</option>
+            <option value="12th">12th pass</option>
+            <option value="iti">ITI</option>
+            <option value="diploma">Diploma</option>
+            <option value="graduate">Graduate</option>
+            <option value="post_graduate">Post-Graduate</option>
+            <option value="phd">PhD</option>
+          </select>
+
+          {/* Deadline Filter */}
+          <select
+            name="deadline"
+            defaultValue={currentDeadline}
+            aria-label="Filter by deadline"
+            className="h-11 rounded-full bg-cream px-3.5 text-xs font-semibold text-teal shadow-clay outline-none"
+          >
+            <option value="">All Deadlines</option>
+            <option value="closing_soon">Closing in 7 days</option>
+            <option value="this_month">Closing this month</option>
+            <option value="today">Closing today</option>
+          </select>
+
+          <button
+            type="submit"
+            className="clay-press inline-flex h-11 items-center justify-center rounded-full bg-teal px-4 text-xs font-bold text-cream shadow-clay hover:bg-teal/90"
+          >
+            Apply
+          </button>
+
+          {hasActiveFilters && (
+            <Link
+              href={basePath}
+              className="clay-press inline-flex h-11 items-center gap-1.5 rounded-full bg-cream px-3.5 text-xs font-semibold text-teal shadow-clay hover:bg-tea"
+              title="Clear all filters"
+            >
+              <RotateCcw className="size-3.5" />
+              Reset
+            </Link>
+          )}
+        </div>
+      </form>
+
+      {/* Category Pills (Horizontal scrolling at 390px) */}
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-3 pt-1 scrollbar-none">
+        <Link
+          href={buildCategoryUrl('')}
+          className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+            !currentCategory
+              ? 'bg-teal text-cream shadow-clay'
+              : 'bg-cream text-teal shadow-clay hover:bg-tea'
+          }`}
+        >
+          All
+        </Link>
+        {categories.map((c) => {
+          const isSelected = currentCategory.toLowerCase() === c.toLowerCase();
+          return (
+            <Link
+              key={c}
+              href={buildCategoryUrl(c)}
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                isSelected
+                  ? 'bg-teal text-cream shadow-clay'
+                  : 'bg-cream text-teal shadow-clay hover:bg-tea'
+              }`}
+            >
+              {c}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
@@ -124,7 +256,9 @@ export async function OpportunityListPage({
   icon,
   owner,
   when,
+  basePath,
   categories,
+  searchParams,
   features,
 }: {
   type: OpportunityType;
@@ -133,27 +267,76 @@ export async function OpportunityListPage({
   icon: ReactNode;
   owner: string;
   when: string;
+  basePath: string;
   categories: string[];
+  searchParams?: {
+    q?: string;
+    category?: string;
+    state?: string;
+    qualification?: string;
+    deadline?: string;
+  };
   features: string[];
 }) {
   await connection();
-  const data = await apiGet<OpportunityList>(`/opportunities?type=${type}`);
+  const sp = searchParams ?? {};
+  const query = new URLSearchParams();
+  query.set('type', type);
+  if (sp.q) query.set('q', sp.q);
+  if (sp.category) query.set('category', sp.category);
+  if (sp.state) query.set('state', sp.state);
+  if (sp.qualification) query.set('qualification', sp.qualification);
+  if (sp.deadline) query.set('deadline', sp.deadline);
+
+  const data = await apiGet<OpportunityList>(`/opportunities?${query.toString()}`);
   const meta = TYPE_META[type];
+  const hasActiveFilters = Boolean(sp.category || sp.state || sp.qualification || sp.deadline || sp.q);
 
   return (
     <>
-      <PageHeader eyebrow="Apply mode" title={title} description={description} icon={icon} actions={<BuildStatus owner={owner} when={when} />} />
-      <FilterBar placeholder={`Search ${meta.plural}…`} categories={categories} />
+      <PageHeader
+        eyebrow="Apply mode"
+        title={title}
+        description={description}
+        icon={icon}
+        actions={<BuildStatus owner={owner} when={when} />}
+      />
+
+      <FilterBar
+        basePath={basePath}
+        placeholder={`Search ${meta.plural}…`}
+        categories={categories}
+        searchParams={sp}
+      />
 
       {data === null ? (
         <ApiOffline />
       ) : data.total === 0 ? (
-        <EmptyState icon={meta.icon} title={`No open ${meta.plural} yet`} text="Every notification is checked against the official source before it appears here — new ones show up as soon as our team publishes them." />
+        <EmptyState
+          icon={meta.icon}
+          title={hasActiveFilters ? `No matching ${meta.plural} found` : `No open ${meta.plural} yet`}
+          text={
+            hasActiveFilters
+              ? 'Try relaxing your filter criteria or searching with broader keywords.'
+              : 'Every notification is checked against the official source before it appears here — new ones show up as soon as our team publishes them.'
+          }
+          action={
+            hasActiveFilters ? (
+              <Link
+                href={basePath}
+                className="clay-press inline-flex h-9 items-center gap-1.5 rounded-full bg-teal px-4 text-xs font-bold text-cream shadow-clay hover:bg-teal/90"
+              >
+                <RotateCcw className="size-3.5" /> Clear filters
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
         <>
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold">
+            <p className="text-sm font-semibold text-teal">
               {data.total} {meta.plural} · closing soonest first
+              {hasActiveFilters && ' (filtered)'}
             </p>
             {data.sample && <Badge tone="celadon">Sample data from the API</Badge>}
           </div>
@@ -166,10 +349,10 @@ export async function OpportunityListPage({
       )}
 
       <Card className="mt-6 p-5">
-        <SectionTitle title="Coming to this page" />
+        <SectionTitle title="Page features" />
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
-            <li key={f} className="flex gap-2 text-sm">
+            <li key={f} className="flex gap-2 text-sm text-teal">
               <CircleCheck className="mt-0.5 size-4 shrink-0 text-sea" aria-hidden="true" />
               {f}
             </li>

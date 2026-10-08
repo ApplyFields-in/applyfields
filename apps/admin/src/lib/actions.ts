@@ -147,3 +147,48 @@ export async function revokeRoleAction(id: string, role: string): Promise<Action
   revalidatePath(`/users/${id}`);
   return { ok: true, data: res.data! };
 }
+
+// ---------- Government Services (Session 06) ----------
+
+export async function createServiceAction(input: any): Promise<ActionResponse<WriteResult>> {
+  const res = await apiPost<WriteResult>('/admin/services', input);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/services');
+  return { ok: true, data: res.data! };
+}
+
+export async function saveServiceAction(id: string, input: any): Promise<ActionResponse<WriteResult>> {
+  const res = await apiPut<WriteResult>(`/admin/services/${encodeURIComponent(id)}`, input);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/services');
+  revalidatePath(`/services/${id}`);
+  return { ok: true, data: res.data! };
+}
+
+export async function publishServiceAction(id: string): Promise<ActionResponse<WriteResult>> {
+  const res = await apiPost<WriteResult>(`/admin/services/${encodeURIComponent(id)}/publish`);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/services');
+  revalidatePath(`/services/${id}`);
+  return { ok: true, data: res.data! };
+}
+
+export async function setServiceStatusAction(
+  id: string,
+  status: OpportunityStatus,
+  reason?: string,
+): Promise<ActionResponse<WriteResult>> {
+  const res = await apiPost<WriteResult>(`/admin/services/${encodeURIComponent(id)}/status`, { status, reason });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/services');
+  revalidatePath(`/services/${id}`);
+  return { ok: true, data: res.data! };
+}
+
+export async function deleteServiceAction(id: string): Promise<ActionResponse<{ success: boolean }>> {
+  const res = await apiDelete<{ success: boolean }>(`/admin/services/${encodeURIComponent(id)}`);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/services');
+  return { ok: true, data: res.data! };
+}
+
