@@ -41,3 +41,45 @@ export function urgencyTone(days: number | null): 'teal' | 'celadon' | 'tea' {
   if (days !== null && days <= 7) return 'celadon';
   return 'tea';
 }
+
+export const DATE_KIND_LABEL: Record<string, string> = {
+  notification_date: 'Notification released',
+  application_start: 'Application starts',
+  application_end: 'Last date to apply',
+  fee_last_date: 'Fee payment deadline',
+  correction_window: 'Correction window',
+  admit_card: 'Admit card release',
+  exam_date: 'Examination date',
+  answer_key: 'Answer key release',
+  result: 'Result declaration',
+  interview: 'Interview date',
+  counselling: 'Counselling begins',
+  other: 'Important date',
+};
+
+export const STATE_NAMES: Record<string, string> = {
+  AP: 'Andhra Pradesh',
+  TS: 'Telangana',
+  KA: 'Karnataka',
+  TN: 'Tamil Nadu',
+  MH: 'Maharashtra',
+  KL: 'Kerala',
+  DL: 'Delhi',
+  UP: 'Uttar Pradesh',
+  WB: 'West Bengal',
+  GJ: 'Gujarat',
+  RJ: 'Rajasthan',
+  MP: 'Madhya Pradesh',
+  BR: 'Bihar',
+  PB: 'Punjab',
+  HR: 'Haryana',
+  OD: 'Odisha',
+  AS: 'Assam',
+  JH: 'Jharkhand',
+  ALL: 'All India',
+};
+
+export function formatCurrency(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined) return '';
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
