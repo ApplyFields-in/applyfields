@@ -168,7 +168,7 @@ export class UpdatesAdminService {
     });
   }
 
-  /** Make it public. People who saved the job will be notified here once notifications exist (Week 5). */
+  /** Make it public. The controller then notifies everyone who saved the job (NotificationsService). */
   async publish(id: string, actor: string | null): Promise<WriteResult> {
     return this.prisma.$transaction(async (tx) => {
       const r = await tx.updates.findUnique({ where: { id }, select: SELECT });

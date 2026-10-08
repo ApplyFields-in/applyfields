@@ -7,6 +7,8 @@ import { HomeModule } from './modules/home/home.module.js';
 import { OpportunitiesModule } from './modules/opportunities/opportunities.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { UsersModule } from './modules/users/users.module.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { SavedModule } from './modules/saved/saved.module.js';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { UsersModule } from './modules/users/users.module.js';
     AdminModule,
     AuthModule,
     UsersModule,
+    SavedModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

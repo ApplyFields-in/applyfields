@@ -6,6 +6,7 @@ import { NAV } from '@/lib/nav';
 import { TopNavAuth } from '@/components/top-nav-auth';
 import { PasskeyEnrollModal } from '@/components/passkey-enroll-modal';
 import { ApiStatus } from '@/components/api-status';
+import { NotificationBellDot } from '@/components/notification-center';
 
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
@@ -59,7 +60,7 @@ function Topbar() {
         </Link>
         <Link href="/notifications" aria-label="Notifications" className="clay-press relative grid size-10 place-items-center rounded-full bg-cream shadow-clay">
           <Bell className="size-4" />
-          <span className="absolute right-2.5 top-2.5 size-2 rounded-full bg-sea" aria-hidden="true" />
+          <NotificationBellDot />
         </Link>
         <TopNavAuth />
       </div>
