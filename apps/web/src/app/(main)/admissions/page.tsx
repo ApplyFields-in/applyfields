@@ -20,12 +20,14 @@ export default async function Page({
     state?: string;
     qualification?: string;
     deadline?: string;
+    eligible?: string;
   }>;
 }) {
   const sp = await searchParams;
 
   return (
     <OpportunityListPage
+      eligibleOnly={sp.eligible === 'true'}
       type="admission"
       title="Admissions"
       description="College, university and course admissions — entrance-based and direct, with the official application route."

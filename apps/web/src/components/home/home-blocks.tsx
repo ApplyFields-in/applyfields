@@ -1,6 +1,6 @@
 import type { HomeStat, OpportunityCard, UpdateItem } from '@applyfields/types';
 import { Avatar, Badge, buttonClass, Card, cn, EmptyState, ProgressBar, SectionTitle } from '@applyfields/ui';
-import { ArrowRight, Bookmark, CircleCheck, Circle, Clock, HandHelping, Search, TrendingUp } from 'lucide-react';
+import { ArrowRight, Bookmark, CircleCheck, Circle, Clock, HandHelping, History, Search, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate, TYPE_META, UPDATE_LABEL } from '@/lib/format';
 
@@ -102,7 +102,7 @@ export function ClosingSoon({ items }: { items: OpportunityCard[] }) {
           </Link>
         }
       />
-      {items.length === 0 && <p className="text-sm text-cream/80">Nothing closes in the next 12 days.</p>}
+      {items.length === 0 && <p className="text-sm text-cream/80">Nothing closes in the next 30 days.</p>}
       <ul className="space-y-2">
         {items.map((o) => (
           <li key={o.slug}>
@@ -243,21 +243,62 @@ export function ProfileStrength() {
   );
 }
 
-export function SavedPreview() {
+/** A short linked list of cards for the side column. */
+function MiniList({ items }: { items: OpportunityCard[] }) {
+  return (
+    <ul className="divide-y divide-teal/10">
+      {items.map((o) => (
+        <li key={o.slug}>
+          <Link href={`${TYPE_META[o.type].base}/${o.slug}`} className="block py-2.5 hover:underline">
+            <p className="truncate text-sm font-semibold">{o.title}</p>
+            <p className="truncate text-xs text-teal/80">
+              {o.organization} · {o.last_date ? `Last date ${formatDate(o.last_date)}` : 'Dates not announced'}
+            </p>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** items undefined = logged out. */
+export function SavedPreview({ items }: { items?: OpportunityCard[] }) {
   return (
     <Card className="p-5">
       <SectionTitle title="Saved items" />
-      <EmptyState
-        icon={<Bookmark />}
-        title="Nothing saved yet"
-        text="Save jobs, exams and scholarships to get reminders before the last date."
-        action={
-          <Link href="/login" className={buttonClass({ variant: 'secondary', size: 'sm' })}>
-            Log in to save
-          </Link>
+      {items?.length ? (
+        <MiniList items={items} />
+      ) : (
+        <EmptyState
+          icon={<Bookmark />}
+          title="Nothing saved yet"
+          text="Save jobs, exams and scholarships to get reminders before the last date."
+          action={
+            items ? undefined : (
+              <Link href="/login" className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+                Log in to save
+              </Link>
+            )
+          }
+          className="py-6"
+        />
+      )}
+    </Card>
+  );
+}
+
+export function RecentlyViewed({ items }: { items: OpportunityCard[] }) {
+  if (items.length === 0) return null;
+  return (
+    <Card className="p-5">
+      <SectionTitle
+        title={
+          <span className="flex items-center gap-2">
+            <History className="size-4" aria-hidden="true" /> Recently viewed
+          </span>
         }
-        className="py-6"
       />
+      <MiniList items={items} />
     </Card>
   );
 }

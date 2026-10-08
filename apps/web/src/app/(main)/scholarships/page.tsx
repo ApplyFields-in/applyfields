@@ -20,12 +20,14 @@ export default async function Page({
     state?: string;
     qualification?: string;
     deadline?: string;
+    eligible?: string;
   }>;
 }) {
   const sp = await searchParams;
 
   return (
     <OpportunityListPage
+      eligibleOnly={sp.eligible === 'true'}
       type="scholarship"
       title="Scholarships"
       description="Central, state and NSP scholarships — with income and category conditions checked against your profile."

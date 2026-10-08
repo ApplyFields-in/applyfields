@@ -20,12 +20,14 @@ export default async function Page({
     state?: string;
     qualification?: string;
     deadline?: string;
+    eligible?: string;
   }>;
 }) {
   const sp = await searchParams;
 
   return (
     <OpportunityListPage
+      eligibleOnly={sp.eligible === 'true'}
       type="govt_job"
       title="Government jobs"
       description="Central, state, district, PSU, railways, banking, defence and police jobs — with eligibility explained simply."

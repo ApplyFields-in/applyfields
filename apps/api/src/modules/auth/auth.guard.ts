@@ -18,22 +18,19 @@ export interface AuthenticatedRequest extends Request {
   user: AuthenticatedUser;
 }
 
+function tokenFrom(request: Request): string | undefined {
+  const authHeader = request.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) return authHeader.split(' ')[1];
+  return request.cookies?.accessToken ?? request.cookies?.access_token;
+}
+
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private readonly jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    let token: string | undefined;
-    const authHeader = request.headers.authorization;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-    } else if (request.cookies?.accessToken) {
-      token = request.cookies.accessToken;
-    } else if (request.cookies?.access_token) {
-      token = request.cookies.access_token;
-    }
+    const token = tokenFrom(request);
 
     if (!token) {
       throw new UnauthorizedException('Authentication token missing');
@@ -53,3 +50,14 @@ export class AuthGuard implements CanActivate {
     }
   }
 }
+
+/** No token → anonymous (req.user unset). A bad token still gets 401, so the web app refreshes it. */
+@Injectable()
+export class OptionalAuthGuard extends AuthGuard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<Request>();
+    return tokenFrom(request) ? super.canActivate(context) : true;
+  }
+}
+
+export type MaybeUserRequest = Request & { user?: AuthenticatedUser };

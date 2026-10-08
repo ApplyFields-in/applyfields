@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import type { AdminUserItem, OpportunityInput, OpportunityStatus, StatusChange, UpdateInput, WriteResult } from '@applyfields/types';
+import type { AdminUserItem, GovServiceInput, OpportunityInput, OpportunityStatus, StatusChange, UpdateInput, WriteResult } from '@applyfields/types';
 import { apiDelete, apiPost, apiPut } from './api';
 
 export interface ActionResponse<T = unknown> {
@@ -150,14 +150,14 @@ export async function revokeRoleAction(id: string, role: string): Promise<Action
 
 // ---------- Government Services (Session 06) ----------
 
-export async function createServiceAction(input: any): Promise<ActionResponse<WriteResult>> {
+export async function createServiceAction(input: GovServiceInput): Promise<ActionResponse<WriteResult>> {
   const res = await apiPost<WriteResult>('/admin/services', input);
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/services');
   return { ok: true, data: res.data! };
 }
 
-export async function saveServiceAction(id: string, input: any): Promise<ActionResponse<WriteResult>> {
+export async function saveServiceAction(id: string, input: GovServiceInput): Promise<ActionResponse<WriteResult>> {
   const res = await apiPut<WriteResult>(`/admin/services/${encodeURIComponent(id)}`, input);
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/services');
