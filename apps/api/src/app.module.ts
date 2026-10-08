@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { HomeModule } from './modules/home/home.module.js';
 import { OpportunitiesModule } from './modules/opportunities/opportunities.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { ServicesModule } from './modules/services/services.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
@@ -13,6 +14,7 @@ import { UsersModule } from './modules/users/users.module.js';
     PrismaModule,
     HomeModule,
     OpportunitiesModule,
+    ServicesModule,
     AdminModule,
     AuthModule,
     UsersModule,

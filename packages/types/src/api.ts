@@ -270,6 +270,157 @@ export interface ReviewDetail {
   updated_at: string;
 }
 
+/** Complete detail for public view of an opportunity. */
+export interface OpportunityDetail {
+  id: string;
+  slug: string;
+  type: OpportunityType;
+  category: OpportunityCategory;
+  title: string;
+  organization: {
+    id: string;
+    name: string;
+    short_name: string | null;
+    level: OrganizationLevel;
+  };
+  notification_number: string | null;
+  summary: string | null;
+  state_codes: string[];
+  districts: string[];
+  vacancies_total: number | null;
+  fees: Fee[];
+  fee_text: string | null;
+  payment_modes: string[];
+  selection_process: string[];
+  required_documents: RequiredDocument[];
+  syllabus: { text: string | null; url: string | null } | null;
+  previous_papers: { title: string; url: string }[];
+  benefits_text: string | null;
+  application_start: string | null;
+  application_end: string | null;
+  days_left: number | null;
+  links: {
+    notification_pdf_url: string | null;
+    official_page_url: string | null;
+    apply_url: string | null;
+    official_website: string | null;
+  };
+  posts: ReviewPost[];
+  eligibility: ReviewEligibility[];
+  dates: ReviewDate[];
+  updates: UpdateItem[];
+  last_verified_at: string | null;
+  published_at: string | null;
+  status: OpportunityStatus;
+}
+
+// ---------- Government Services ----------
+
+export interface GovServiceCard {
+  id: string;
+  slug: string;
+  name: string;
+  category: string | null;
+  organization: string | null;
+  authority_name: string | null;
+  authority_level: OrganizationLevel | null;
+  location: string;
+  state_codes: string[];
+  description: string | null;
+  fee_text: string | null;
+  processing_time_text: string | null;
+  required_documents_count: number;
+  official_url: string | null;
+  apply_url: string | null;
+  assistance_available: boolean;
+  status: OpportunityStatus;
+  published_at: string | null;
+}
+
+export interface GovServiceList {
+  total: number;
+  query: string;
+  category: string;
+  items: GovServiceCard[];
+}
+
+export interface GovServiceProcessStep {
+  step: number;
+  title: string;
+  description: string;
+  portal?: 'official' | 'assisted' | 'offline';
+}
+
+export interface GovServiceDetail {
+  id: string;
+  slug: string;
+  name: string;
+  category: string | null;
+  organization_id: string | null;
+  organization: {
+    id: string;
+    name: string;
+    short_name: string | null;
+    level: OrganizationLevel;
+  } | null;
+  description: string | null;
+  who_needs_it: string | null;
+  eligibility_text: string | null;
+  required_documents: RequiredDocument[];
+  fees: Fee[];
+  fee_text: string | null;
+  process_steps: GovServiceProcessStep[];
+  processing_time_text: string | null;
+  authority_name: string | null;
+  authority_level: OrganizationLevel | null;
+  state_codes: string[];
+  official_url: string | null;
+  apply_url: string | null;
+  assistance_available: boolean;
+  status: OpportunityStatus;
+  published_at: string | null;
+  last_verified_at: string | null;
+  updates: UpdateItem[];
+}
+
+export interface GovServiceInput {
+  name: string;
+  category: string | null;
+  organization_id?: string | null;
+  description: string | null;
+  who_needs_it: string | null;
+  eligibility_text: string | null;
+  required_documents: RequiredDocument[];
+  fees: Fee[];
+  fee_text: string | null;
+  process_steps: GovServiceProcessStep[];
+  processing_time_text: string | null;
+  authority_name: string | null;
+  authority_level?: OrganizationLevel | null;
+  state_codes: string[];
+  official_url: string | null;
+  apply_url: string | null;
+  assistance_available: boolean;
+}
+
+export interface AdminGovServiceListItem {
+  id: string;
+  slug: string;
+  name: string;
+  category: string | null;
+  authority_name: string | null;
+  status: OpportunityStatus;
+  state_codes: string[];
+  updated_at: string;
+  published_at: string | null;
+}
+
+export interface AdminGovServiceList {
+  total: number;
+  counts: Record<OpportunityStatus, number>;
+  items: AdminGovServiceListItem[];
+}
+
 // ---------- Internal Portal: opportunities (create, edit, publish, unpublish, close) ----------
 
 /** What the editor sends to create or save an opportunity. Dates are YYYY-MM-DD, empty = null. */
