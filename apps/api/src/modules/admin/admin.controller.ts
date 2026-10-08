@@ -171,65 +171,74 @@ export class AdminController {
     };
   }
 
-  /** GET /api/v1/admin/users — users list with search & pagination, admin and above only */
+  /** GET /api/v1/admin/users — users list with search & pagination, scoped by staff role */
   @Get('users')
-  @Roles('admin')
+  @Roles('support')
   getUsers(
     @Query('q') q?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: string,
+    @Query('type') type?: 'all' | 'staff' | 'citizens',
+    @StaffMember() staff?: StaffUser,
   ): Promise<AdminUserList> {
-    return this.usersService.list({ q, page, limit, status });
+    return this.usersService.list({ q, page, limit, status, type }, staff);
   }
 
-  /** GET /api/v1/admin/users/:id — single user detail (masked PII) */
+  /** GET /api/v1/admin/users/:id — single user detail (masked PII, scoped by role) */
   @Get('users/:id')
-  @Roles('admin')
-  getUser(@Param('id', ParseUUIDPipe) id: string): Promise<AdminUserItem> {
-    return this.usersService.detail(id);
+  @Roles('support')
+  getUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @StaffMember() staff?: StaffUser,
+  ): Promise<AdminUserItem> {
+    return this.usersService.detail(id, staff);
   }
 
-  /** POST /api/v1/admin/users/:id/block — suspend a user account */
+  /** POST /api/v1/admin/users/:id/block — suspend a user account (admin and above) */
   @Post('users/:id/block')
   @Roles('admin')
   blockUser(
     @Param('id', ParseUUIDPipe) id: string,
     @ActorId() actor: string | null,
+    @StaffMember() staff?: StaffUser,
   ): Promise<AdminUserItem> {
-    return this.usersService.setStatus(id, 'suspended', actor);
+    return this.usersService.setStatus(id, 'suspended', actor, staff);
   }
 
-  /** POST /api/v1/admin/users/:id/unblock — reactivate a suspended account */
+  /** POST /api/v1/admin/users/:id/unblock — reactivate a suspended account (admin and above) */
   @Post('users/:id/unblock')
   @Roles('admin')
   unblockUser(
     @Param('id', ParseUUIDPipe) id: string,
     @ActorId() actor: string | null,
+    @StaffMember() staff?: StaffUser,
   ): Promise<AdminUserItem> {
-    return this.usersService.setStatus(id, 'active', actor);
+    return this.usersService.setStatus(id, 'active', actor, staff);
   }
 
-  /** POST /api/v1/admin/users/:id/roles — grant a staff role { role: "reviewer" } */
+  /** POST /api/v1/admin/users/:id/roles — grant a staff role { role: "reviewer" } (super_admin only) */
   @Post('users/:id/roles')
   @Roles('super_admin')
   grantRole(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { role: string },
     @ActorId() actor: string | null,
+    @StaffMember() staff?: StaffUser,
   ): Promise<AdminUserItem> {
     if (!body?.role) throw new BadRequestException('role is required');
-    return this.usersService.grantRole(id, body.role as StaffRole, actor);
+    return this.usersService.grantRole(id, body.role as StaffRole, actor, staff);
   }
 
-  /** DELETE /api/v1/admin/users/:id/roles/:role — revoke a staff role */
+  /** DELETE /api/v1/admin/users/:id/roles/:role — revoke a staff role (super_admin only) */
   @Delete('users/:id/roles/:role')
   @Roles('super_admin')
   revokeRole(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('role') role: string,
     @ActorId() actor: string | null,
+    @StaffMember() staff?: StaffUser,
   ): Promise<AdminUserItem> {
-    return this.usersService.revokeRole(id, role as StaffRole, actor);
+    return this.usersService.revokeRole(id, role as StaffRole, actor, staff);
   }
 }
