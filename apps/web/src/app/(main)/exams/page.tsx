@@ -4,9 +4,11 @@ import { OpportunityListPage } from '@/components/opportunity';
 export const metadata = { title: 'Exams' };
 
 /** List page — data comes from GET /api/v1/opportunities?type=exam */
-export default function Page() {
+export default async function Page({ searchParams }: PageProps<'/exams'>) {
+  const { eligible } = await searchParams;
   return (
     <OpportunityListPage
+      eligibleOnly={eligible === 'true'}
       type="exam"
       title='Exams'
       description='Entrance, competitive and recruitment exams — dates, eligibility, admit cards, answer keys and results.'

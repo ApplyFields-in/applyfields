@@ -1,6 +1,6 @@
 import type { HomeSummary } from '@applyfields/types';
-import { Badge, EmptyState, SectionTitle } from '@applyfields/ui';
-import { ArrowRight, BriefcaseBusiness } from 'lucide-react';
+import { Badge, buttonClass, EmptyState, SectionTitle } from '@applyfields/ui';
+import { ArrowRight, BriefcaseBusiness, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import {
@@ -10,18 +10,20 @@ import {
   Hero,
   LatestUpdates,
   ProfileStrength,
+  RecentlyViewed,
   SavedPreview,
   StatsRow,
   TrustNote,
 } from '@/components/home/home-blocks';
 import { ModeSwitcher } from '@/components/home/mode-switcher';
 import { ApiOffline, OpportunityCardView } from '@/components/opportunity';
-import { apiGet } from '@/lib/api';
+import { apiGetAsUser } from '@/lib/server-api';
 
-/** Home dashboard (founder doc §5). Data comes from GET /api/v1/home. */
+/** Home dashboard (founder doc §5). Data comes from GET /api/v1/home (personal parts when logged in). */
 export default async function HomePage() {
   await connection();
-  const home = await apiGet<HomeSummary>('/home');
+  const home = await apiGetAsUser<HomeSummary>('/home');
+  const me = home?.personal ?? null;
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -48,6 +50,43 @@ export default async function HomePage() {
           <ApiOffline />
         )}
 
+        {me && (
+          <section>
+            <SectionTitle
+              title="Recommended for you"
+              action={
+                <Link href="/jobs?eligible=true" className="flex items-center gap-1 text-xs font-semibold hover:underline">
+                  All jobs you can apply for <ArrowRight className="size-3.5" aria-hidden="true" />
+                </Link>
+              }
+            />
+            {!me.profile_ready ? (
+              <EmptyState
+                icon={<UserCheck />}
+                title="Add your details to get matches"
+                text="We need your date of birth and at least one qualification to check eligibility for you."
+                action={
+                  <Link href="/profile" className={buttonClass({ size: 'sm' })}>
+                    Complete profile
+                  </Link>
+                }
+              />
+            ) : me.recommended.length === 0 ? (
+              <EmptyState
+                icon={<UserCheck />}
+                title="No open matches right now"
+                text="Nothing open fits your profile yet. New notifications are checked against it as soon as they’re published."
+              />
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {me.recommended.map((item) => (
+                  <OpportunityCardView key={item.slug} item={item} />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
         <ModeSwitcher />
 
         {home && (
@@ -55,9 +94,11 @@ export default async function HomePage() {
             <SectionTitle
               title="Popular right now"
               action={
-                <Link href="/register" className="flex items-center gap-1 text-xs font-semibold hover:underline">
-                  Get matches for your profile <ArrowRight className="size-3.5" aria-hidden="true" />
-                </Link>
+                me ? undefined : (
+                  <Link href="/register" className="flex items-center gap-1 text-xs font-semibold hover:underline">
+                    Get matches for your profile <ArrowRight className="size-3.5" aria-hidden="true" />
+                  </Link>
+                )
               }
             />
             {home.popular.length === 0 ? (
@@ -77,8 +118,9 @@ export default async function HomePage() {
 
       <aside className="space-y-6" aria-label="Your dashboard">
         <DeadlineCalendar deadlines={home?.closing_soon ?? []} />
-        <ProfileStrength />
-        <SavedPreview />
+        {!me && <ProfileStrength />}
+        <SavedPreview items={me?.saved} />
+        {me && <RecentlyViewed items={me.recently_viewed} />}
         <AssistancePromo />
       </aside>
     </div>

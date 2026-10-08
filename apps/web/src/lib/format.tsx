@@ -1,5 +1,5 @@
-import type { OpportunityType, UpdateKind } from '@applyfields/types';
-import { Award, Briefcase, GraduationCap, School } from 'lucide-react';
+import type { EligibilityStatus, OpportunityType, UpdateKind } from '@applyfields/types';
+import { Award, Briefcase, CircleCheck, CircleDashed, CircleHelp, CircleX, GraduationCap, School } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export const TYPE_META: Record<
@@ -10,6 +10,16 @@ export const TYPE_META: Record<
   exam: { label: 'Exam', plural: 'exams', base: '/exams', icon: <GraduationCap />, tone: 'sea' },
   scholarship: { label: 'Scholarship', plural: 'scholarships', base: '/scholarships', icon: <Award />, tone: 'celadon' },
   admission: { label: 'Admission', plural: 'admissions', base: '/admissions', icon: <School />, tone: 'tea' },
+};
+
+export const ELIGIBILITY_META: Record<
+  EligibilityStatus,
+  { label: string; icon: ReactNode; tone: 'teal' | 'celadon' | 'tea' | 'outline' }
+> = {
+  eligible: { label: 'Eligible', icon: <CircleCheck />, tone: 'teal' },
+  likely_eligible: { label: 'Likely eligible', icon: <CircleDashed />, tone: 'celadon' },
+  not_eligible: { label: 'Not eligible', icon: <CircleX />, tone: 'outline' },
+  manual_check: { label: 'Check notification', icon: <CircleHelp />, tone: 'tea' },
 };
 
 export const UPDATE_LABEL: Record<UpdateKind, string> = {
