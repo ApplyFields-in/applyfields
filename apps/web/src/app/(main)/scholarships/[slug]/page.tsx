@@ -1,18 +1,62 @@
-import { ComingSoon } from '@applyfields/ui';
-import { DETAIL_SECTIONS } from '@/lib/sections';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { connection } from 'next/server';
+import type { OpportunityDetail } from '@applyfields/types';
+import { OpportunityDetailView } from '@/components/opportunity-detail-view';
+import { apiGet } from '@/lib/api';
 
-export default async function Page({ params }: PageProps<'/scholarships/[slug]'>) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
   const { slug } = await params;
-  return (
-    <ComingSoon
-      title='Scholarship details'
-      description='Who can apply, what you get, the documents you need and the official way to apply.'
-      owner="Karthik"
-      when='Week 5'
-      detail={`/scholarships/${slug}`}
-      items={DETAIL_SECTIONS.scholarship}
-      backHref="/scholarships"
-      backLabel='Back to scholarships'
-    />
-  );
+  const item = await apiGet<OpportunityDetail>(`/opportunities/${slug}`);
+
+  if (!item) {
+    return {
+      title: 'Scholarship Not Found — ApplyFields',
+      description: 'The requested scholarship could not be found.',
+    };
+  }
+
+  const title = `${item.title} — Benefits, Eligibility & Application Deadline`;
+  const description =
+    item.summary ||
+    `Apply for ${item.title} offered by ${item.organization.name}. Check income criteria, qualification requirements, benefits, and the official application portal.`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `https://applyfields.in/scholarships/${slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `https://applyfields.in/scholarships/${slug}`,
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
+  };
+}
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  await connection();
+  const { slug } = await params;
+  const item = await apiGet<OpportunityDetail>(`/opportunities/${slug}`);
+
+  if (!item || item.type !== 'scholarship') {
+    notFound();
+  }
+
+  return <OpportunityDetailView item={item} />;
 }
