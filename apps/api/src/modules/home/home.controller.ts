@@ -149,7 +149,7 @@ export class HomeController {
     const mine = { user_id: userId, item_type: 'opportunity' as const };
     const [profile, open, saved, viewed, savedSlugs] = await Promise.all([
       this.eligibility.profile(userId),
-      this.opportunities.list(undefined, undefined, 200),
+      this.opportunities.list({ take: 200 }),
       this.prisma.saved_items.findMany({
         where: mine,
         select: { item_id: true },
