@@ -4,9 +4,11 @@ import { OpportunityListPage } from '@/components/opportunity';
 export const metadata = { title: 'Government jobs' };
 
 /** List page — data comes from GET /api/v1/opportunities?type=govt_job */
-export default function Page() {
+export default async function Page({ searchParams }: PageProps<'/jobs'>) {
+  const { eligible } = await searchParams;
   return (
     <OpportunityListPage
+      eligibleOnly={eligible === 'true'}
       type="govt_job"
       title='Government jobs'
       description='Central, state, district, PSU, railways, banking, defence and police jobs — with eligibility explained simply.'

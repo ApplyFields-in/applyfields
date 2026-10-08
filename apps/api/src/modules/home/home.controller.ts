@@ -1,7 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
-import type { ApiHealth, HomeSummary } from '@applyfields/types';
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import type { ApiHealth, HomePersonal, HomeSummary } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CacheService } from '../../common/cache.service.js';
+import { OptionalAuthGuard, type MaybeUserRequest } from '../auth/auth.guard.js';
+import { EligibilityService } from '../eligibility/eligibility.service.js';
 import {
   addDays,
   CARD_SELECT,
@@ -15,6 +17,7 @@ export class HomeController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly opportunities: OpportunitiesService,
+    private readonly eligibility: EligibilityService,
     private readonly cache: CacheService,
   ) {}
 
@@ -31,9 +34,18 @@ export class HomeController {
     });
   }
 
-  /** GET /api/v1/home — everything the home dashboard needs, from the database */
+  /** GET /api/v1/home — the home dashboard. Logged in: adds recommended, saved and recently viewed. */
   @Get('home')
-  async summary(): Promise<HomeSummary> {
+  @UseGuards(OptionalAuthGuard)
+  async summary(@Req() req: MaybeUserRequest): Promise<HomeSummary> {
+    const [shared, personal] = await Promise.all([
+      this.shared(),
+      req.user ? this.personal(req.user.userId) : null,
+    ]);
+    return { ...shared, personal };
+  }
+
+  private shared(): Promise<Omit<HomeSummary, 'personal'>> {
     return this.cache.wrap('home:summary', 30, async () => {
       const today = todayIst();
       const open = openWhere(today);
@@ -74,11 +86,11 @@ export class HomeController {
       this.prisma.opportunities.findMany({
         where: {
           status: 'published',
-          application_end: { gte: today, lte: addDays(today, 12) },
+          application_end: { gte: today, lte: addDays(today, 30) },
         },
         select: CARD_SELECT,
         orderBy: { application_end: 'asc' },
-        take: 5,
+        take: 8,
       }),
       this.prisma.opportunities.findMany({
         where: open,
@@ -131,5 +143,39 @@ export class HomeController {
       sample: false,
     };
     });
+  }
+
+  private async personal(userId: string): Promise<HomePersonal> {
+    const mine = { user_id: userId, item_type: 'opportunity' as const };
+    const [profile, open, saved, viewed] = await Promise.all([
+      this.eligibility.profile(userId),
+      this.opportunities.list(undefined, undefined, 200),
+      this.prisma.saved_items.findMany({
+        where: mine,
+        select: { item_id: true },
+        orderBy: { created_at: 'desc' },
+        take: 5,
+      }),
+      this.prisma.recently_viewed.findMany({
+        where: mine,
+        select: { item_id: true },
+        orderBy: { viewed_at: 'desc' },
+        take: 5,
+      }),
+    ]);
+    const ready = EligibilityService.ready(profile);
+    const [recommended, savedCards, viewedCards] = await Promise.all([
+      ready ? this.eligibility.annotate(profile, open) : [],
+      this.opportunities.cardsByIds(saved.map((s) => s.item_id)),
+      this.opportunities.cardsByIds(viewed.map((v) => v.item_id)),
+    ]);
+    return {
+      profile_ready: ready,
+      recommended: recommended
+        .filter((c) => c.eligibility === 'eligible' || c.eligibility === 'likely_eligible')
+        .slice(0, 6),
+      saved: savedCards,
+      recently_viewed: viewedCards,
+    };
   }
 }

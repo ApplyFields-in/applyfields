@@ -50,5 +50,6 @@ graphify-out/
 .vscode/*
 !.vscode/extensions.json
 .idea/
+.codex/
 .DS_Store
 Thumbs.db

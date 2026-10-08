@@ -1,4 +1,5 @@
 import { Logo } from '@applyfields/ui';
+import Link from 'next/link';
 import { Award, Briefcase, GraduationCap, Landmark, School, Search, Send, TrendingUp } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -137,9 +138,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           className="pointer-events-none absolute left-10 bottom-10 size-72 rounded-full bg-sea/10 blur-3xl"
         />
 
-        <a href="/" aria-label="ApplyFields home" className="relative z-10">
+        <Link href="/" aria-label="ApplyFields home" className="relative z-10">
           <img src="/logo.png" alt="ApplyFields — Explore Apply Grow" className="h-24 sm:h-28 w-auto object-contain" />
-        </a>
+        </Link>
         <div className="relative z-10 w-full flex justify-center">{children}</div>
       </div>
     </div>

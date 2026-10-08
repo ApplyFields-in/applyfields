@@ -1,11 +1,13 @@
 import type { OpportunityCard, OpportunityList, OpportunityType } from '@applyfields/types';
-import { Badge, BuildStatus, Card, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
-import { Bookmark, CalendarDays, ChevronDown, CircleCheck, GraduationCap, MapPin, Search, Users, WifiOff } from 'lucide-react';
+import { Badge, BuildStatus, buttonClass, Card, cn, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
+import { Bookmark, CalendarDays, ChevronDown, CircleCheck, GraduationCap, MapPin, Search, UserCheck, Users, WifiOff } from 'lucide-react';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
-import { API_URL, apiGet } from '@/lib/api';
-import { daysLeftLabel, formatDate, TYPE_META, urgencyTone } from '@/lib/format';
+import { API_URL } from '@/lib/api';
+import { daysLeftLabel, ELIGIBILITY_META, formatDate, TYPE_META, urgencyTone } from '@/lib/format';
+import { apiGetAsUser } from '@/lib/server-api';
 
 /* ------------------------------------------------------------------ one card */
 
@@ -31,6 +33,11 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
+        {item.eligibility && (
+          <Badge tone={ELIGIBILITY_META[item.eligibility].tone}>
+            {ELIGIBILITY_META[item.eligibility].icon} {ELIGIBILITY_META[item.eligibility].label}
+          </Badge>
+        )}
         <Badge tone="outline">
           <MapPin aria-hidden="true" /> {item.location}
         </Badge>
@@ -75,7 +82,16 @@ export function ApiOffline() {
 
 /* ------------------------------------------------------------------ filters (look only) */
 
-export function FilterBar({ placeholder, categories }: { placeholder: string; categories: string[] }) {
+export function FilterBar({
+  placeholder,
+  categories,
+  eligible,
+}: {
+  placeholder: string;
+  categories: string[];
+  /** the working "Eligible for me" toggle; omit to keep it look-only */
+  eligible?: { on: boolean; href: string; loggedIn: boolean };
+}) {
   return (
     <div className="mb-5 space-y-3">
       <div className="flex flex-col gap-2 lg:flex-row">
@@ -90,7 +106,20 @@ export function FilterBar({ placeholder, categories }: { placeholder: string; ca
           />
         </form>
         <div className="flex flex-wrap gap-2">
-          {['State', 'Qualification', 'Category', 'Last date', 'Eligible for me'].map((f) => (
+          {eligible && (
+            <Link
+              href={eligible.loggedIn ? eligible.href : '/login'}
+              aria-pressed={eligible.on}
+              title={eligible.loggedIn ? 'Hide what you’re not eligible for' : 'Log in to filter by your profile'}
+              className={cn(
+                'clay-press inline-flex h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold shadow-clay',
+                eligible.on ? 'bg-teal text-cream' : 'bg-cream',
+              )}
+            >
+              <UserCheck className="size-4" aria-hidden="true" /> Eligible for me
+            </Link>
+          )}
+          {['State', 'Qualification', 'Category', 'Last date', ...(eligible ? [] : ['Eligible for me'])].map((f) => (
             <button
               key={f}
               type="button"
@@ -126,7 +155,9 @@ export async function OpportunityListPage({
   when,
   categories,
   features,
+  eligibleOnly = false,
 }: {
+  eligibleOnly?: boolean;
   type: OpportunityType;
   title: string;
   description: string;
@@ -137,23 +168,41 @@ export async function OpportunityListPage({
   features: string[];
 }) {
   await connection();
-  const data = await apiGet<OpportunityList>(`/opportunities?type=${type}`);
+  const loggedIn = (await cookies()).has('accessToken');
+  const only = eligibleOnly && loggedIn;
+  const data = await apiGetAsUser<OpportunityList>(`/opportunities?type=${type}${only ? '&eligible=true' : ''}`);
   const meta = TYPE_META[type];
 
   return (
     <>
       <PageHeader eyebrow="Apply mode" title={title} description={description} icon={icon} actions={<BuildStatus owner={owner} when={when} />} />
-      <FilterBar placeholder={`Search ${meta.plural}…`} categories={categories} />
+      <FilterBar
+        placeholder={`Search ${meta.plural}…`}
+        categories={categories}
+        eligible={{ on: only, href: only ? meta.base : `${meta.base}?eligible=true`, loggedIn }}
+      />
 
       {data === null ? (
         <ApiOffline />
+      ) : data.total === 0 && only ? (
+        <EmptyState
+          icon={<UserCheck />}
+          title={`No open ${meta.plural} match your profile`}
+          text="Turn off “Eligible for me” to see everything, or add more details to your profile."
+          action={
+            <Link href="/profile" className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+              Update profile
+            </Link>
+          }
+        />
       ) : data.total === 0 ? (
         <EmptyState icon={meta.icon} title={`No open ${meta.plural} yet`} text="Every notification is checked against the official source before it appears here — new ones show up as soon as our team publishes them." />
       ) : (
         <>
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-sm font-semibold">
-              {data.total} {meta.plural} · closing soonest first
+              {data.total} {meta.plural}
+              {only ? ' you may be eligible for' : ''} · closing soonest first
             </p>
             {data.sample && <Badge tone="celadon">Sample data from the API</Badge>}
           </div>

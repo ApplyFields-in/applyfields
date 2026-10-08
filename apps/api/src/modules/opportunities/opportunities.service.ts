@@ -167,6 +167,18 @@ export class OpportunitiesService {
     return rows.map((r) => this.toCard(r, today));
   }
 
+  /** Cards for these ids, in the same order (live or closed only). */
+  async cardsByIds(ids: string[]): Promise<OpportunityCard[]> {
+    if (ids.length === 0) return [];
+    const today = todayIst();
+    const rows = await this.prisma.opportunities.findMany({
+      where: { id: { in: ids }, status: { in: ['published', 'closed'] } },
+      select: { ...CARD_SELECT, id: true },
+    });
+    const byId = new Map(rows.map((r) => [r.id, this.toCard(r, today)]));
+    return ids.flatMap((id) => byId.get(id) ?? []);
+  }
+
   /** Latest published updates: admit cards, results, answer keys, date changes… */
   async updates(take = 20): Promise<UpdateItem[]> {
     const rows = await this.prisma.updates.findMany({

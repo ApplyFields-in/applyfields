@@ -34,7 +34,44 @@ export interface OpportunityCard {
   last_date: string | null;   // YYYY-MM-DD
   days_left: number | null;
   tags: string[];
+  /** only when the request came from a logged-in user */
+  eligibility?: EligibilityStatus;
 }
+
+// ---------- Eligibility (GET /opportunities/:slug/eligibility) ----------
+
+export type EligibilityStatus = 'eligible' | 'likely_eligible' | 'not_eligible' | 'manual_check';
+
+export type EligibilityRule =
+  | 'rules'
+  | 'age'
+  | 'qualification'
+  | 'stream'
+  | 'final_year'
+  | 'min_percentage'
+  | 'gender'
+  | 'domicile'
+  | 'category'
+  | 'income'
+  | 'other';
+
+export interface EligibilityRuleResult {
+  rule: EligibilityRule;
+  /** missing = the profile lacks this info · manual = too complex to decide, read the notification */
+  status: 'pass' | 'fail' | 'missing' | 'manual';
+  reason: string;
+}
+
+export interface EligibilityResult {
+  status: EligibilityStatus;
+  rules: EligibilityRuleResult[];
+  /** set when the best match was a post with its own rules */
+  post: string | null;
+}
+
+export type EligibilityResponse =
+  | ({ slug: string } & EligibilityResult)
+  | { slug: string; status: 'login_required' };
 
 export interface OpportunityList {
   type: OpportunityType | 'all';
@@ -72,7 +109,18 @@ export interface HomeSummary {
   popular: OpportunityCard[];
   updates: UpdateItem[];
   popular_searches: string[];
+  /** null when logged out */
+  personal: HomePersonal | null;
   sample: boolean;
+}
+
+export interface HomePersonal {
+  /** false until the profile has date of birth and at least one qualification */
+  profile_ready: boolean;
+  /** eligible or likely eligible, closing soonest first */
+  recommended: OpportunityCard[];
+  saved: OpportunityCard[];
+  recently_viewed: OpportunityCard[];
 }
 
 /** Internal Portal dashboard. */

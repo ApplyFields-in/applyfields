@@ -4,9 +4,11 @@ import { OpportunityListPage } from '@/components/opportunity';
 export const metadata = { title: 'Scholarships' };
 
 /** List page — data comes from GET /api/v1/opportunities?type=scholarship */
-export default function Page() {
+export default async function Page({ searchParams }: PageProps<'/scholarships'>) {
+  const { eligible } = await searchParams;
   return (
     <OpportunityListPage
+      eligibleOnly={eligible === 'true'}
       type="scholarship"
       title='Scholarships'
       description='Central, state and NSP scholarships — with income and category conditions checked against your profile.'
