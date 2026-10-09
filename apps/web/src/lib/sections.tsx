@@ -460,7 +460,7 @@ export const SECTIONS = {
       items: [
         { title: 'Login & security', meta: 'Password, OTP, devices', href: '/account/security' },
         { title: 'Privacy & consent', meta: 'What we store and why', href: '/account/privacy' },
-        { title: 'Notification settings', meta: 'In-app, email, SMS, push', href: '/account/notifications' },
+        { title: 'Notification settings', meta: 'In-app, email, SMS, push', href: '/notifications#preferences' },
         { title: 'ApplyFields Plus', meta: 'About ₹50/month · optional', badge: 'Optional', href: '/account/plus' },
         { title: 'Payment history', meta: 'Convenience fees and subscriptions', href: '/account/payments' },
         { title: 'Delete account', meta: 'Remove your data', href: '/account/delete' },

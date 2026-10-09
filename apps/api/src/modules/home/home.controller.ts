@@ -147,7 +147,7 @@ export class HomeController {
 
   private async personal(userId: string): Promise<HomePersonal> {
     const mine = { user_id: userId, item_type: 'opportunity' as const };
-    const [profile, open, saved, viewed] = await Promise.all([
+    const [profile, open, saved, viewed, savedSlugs] = await Promise.all([
       this.eligibility.profile(userId),
       this.opportunities.list({ take: 200 }),
       this.prisma.saved_items.findMany({
@@ -162,6 +162,7 @@ export class HomeController {
         orderBy: { viewed_at: 'desc' },
         take: 5,
       }),
+      this.opportunities.savedSlugs(userId),
     ]);
     const ready = EligibilityService.ready(profile);
     const [recommended, savedCards, viewedCards] = await Promise.all([
@@ -169,13 +170,16 @@ export class HomeController {
       this.opportunities.cardsByIds(saved.map((s) => s.item_id)),
       this.opportunities.cardsByIds(viewed.map((v) => v.item_id)),
     ]);
+    const mark = (cards: typeof savedCards) => this.opportunities.markSaved(cards, savedSlugs);
     return {
       profile_ready: ready,
-      recommended: recommended
-        .filter((c) => c.eligibility === 'eligible' || c.eligibility === 'likely_eligible')
-        .slice(0, 6),
-      saved: savedCards,
-      recently_viewed: viewedCards,
+      recommended: mark(
+        recommended
+          .filter((c) => c.eligibility === 'eligible' || c.eligibility === 'likely_eligible')
+          .slice(0, 6),
+      ),
+      saved: mark(savedCards),
+      recently_viewed: mark(viewedCards),
     };
   }
 }

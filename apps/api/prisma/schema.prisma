@@ -535,9 +535,11 @@ model notifications {
   item_id                 String?                   @db.Uuid
   read_at                 DateTime?                 @db.Timestamptz(6)
   created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  dedupe_key              String?
   notification_deliveries notification_deliveries[]
   users                   users                     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@unique([user_id, dedupe_key], map: "notifications_user_dedupe_key")
   @@index([user_id, created_at(sort: Desc)])
 }
 

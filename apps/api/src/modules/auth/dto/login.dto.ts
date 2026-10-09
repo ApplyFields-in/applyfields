@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class LoginDto {
   @IsNotEmpty({ message: 'Email or phone number is required' })
@@ -8,6 +8,10 @@ export class LoginDto {
   @IsNotEmpty({ message: 'Password is required' })
   @IsString()
   password!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
 }
 
 export class LoginOtpDto {
@@ -18,6 +22,10 @@ export class LoginOtpDto {
   @IsNotEmpty({ message: 'OTP code is required' })
   @IsString()
   code!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
 }
 
 export class SocialLoginDto {

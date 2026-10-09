@@ -15,10 +15,10 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
-import { SaveButton } from './opportunity-actions';
 import { API_URL } from '@/lib/api';
 import { daysLeftLabel, ELIGIBILITY_META, formatDate, TYPE_META, urgencyTone } from '@/lib/format';
 import { apiGetAsUser } from '@/lib/server-api';
+import { SaveButton } from '@/components/save-button';
 
 /* ------------------------------------------------------------------ one card */
 
@@ -37,7 +37,7 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
             {item.title}
           </Link>
         </div>
-        <SaveButton slug={item.slug} title={item.title} />
+        <SaveButton itemType="opportunity" slug={item.slug} title={item.title} initial={item.saved} />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">

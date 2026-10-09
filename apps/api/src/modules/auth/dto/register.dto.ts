@@ -4,11 +4,17 @@ import {
   IsOptional,
   IsString,
   Matches,
+  MaxLength,
   MinLength,
   ValidateIf,
 } from 'class-validator';
 
 export class RegisterDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(100, { message: 'Name must be at most 100 characters' })
+  fullName?: string;
+
   @IsOptional()
   @IsEmail({}, { message: 'Invalid email address' })
   email?: string;

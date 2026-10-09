@@ -290,7 +290,7 @@ export default async function ServicesPage({
           </li>
           <li className="flex gap-2 text-sm text-teal">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-sea" aria-hidden="true" />
-            Clear document checklists so your application isn't rejected
+            Clear document checklists so your application isn’t rejected
           </li>
           <li className="flex gap-2 text-sm text-teal">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-sea" aria-hidden="true" />

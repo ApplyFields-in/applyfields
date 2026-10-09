@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Logger,
   Param,
   ParseUUIDPipe,
   Post,
@@ -25,6 +26,7 @@ import { Roles } from '../../common/roles.decorator.js';
 import { ZodPipe } from '../../common/zod.pipe.js';
 import { statusChangeSchema, updateInputSchema } from './admin.schemas.js';
 import { UpdatesAdminService } from './updates-admin.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 const STATUSES: OpportunityStatus[] = [
   'draft',
@@ -40,9 +42,12 @@ import { CacheService } from '../../common/cache.service.js';
 @UseGuards(StaffGuard)
 @Roles('reviewer')
 export class UpdatesAdminController {
+  private readonly logger = new Logger(UpdatesAdminController.name);
+
   constructor(
     private readonly updates: UpdatesAdminService,
     private readonly cache: CacheService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** GET /admin/updates?q=&status= */
@@ -101,6 +106,10 @@ export class UpdatesAdminController {
     const res = await this.updates.publish(id, actor);
     this.cache.deletePrefix('updates');
     this.cache.delete('home:summary');
+    // already published at this point, so a notification failure is logged, not returned as an error
+    await this.notifications
+      .notifyUpdatePublished(id)
+      .catch((err: Error) => this.logger.warn(`Notify savers of update ${id} failed: ${err.message}`));
     return res;
   }
 

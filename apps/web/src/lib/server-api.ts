@@ -1,3 +1,4 @@
+import type { SavedItemType, SavedList } from '@applyfields/types';
 import { cookies } from 'next/headers';
 import { API_URL } from './api';
 
@@ -20,4 +21,11 @@ export async function apiGetAsUser<T>(path: string): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+/** Server components only: has the logged-in user saved this item? False when logged out. */
+export async function isSaved(itemType: SavedItemType, slug: string): Promise<boolean> {
+  if (!(await cookies()).has('accessToken')) return false;
+  const list = await apiGetAsUser<SavedList>('/saved');
+  return Boolean(list?.items.some((i) => i.item_type === itemType && i.slug === slug));
 }

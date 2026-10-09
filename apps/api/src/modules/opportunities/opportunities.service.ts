@@ -432,14 +432,37 @@ export class OpportunitiesService {
 
   /** Cards for these ids, in the same order (live or closed only). */
   async cardsByIds(ids: string[]): Promise<OpportunityCard[]> {
-    if (ids.length === 0) return [];
+    const byId = await this.cardMap(ids);
+    return ids.flatMap((id) => byId.get(id) ?? []);
+  }
+
+  /** id → card, live or closed only. */
+  async cardMap(ids: string[]): Promise<Map<string, OpportunityCard>> {
+    if (ids.length === 0) return new Map();
     const today = todayIst();
     const rows = await this.prisma.opportunities.findMany({
       where: { id: { in: ids }, status: { in: ['published', 'closed'] } },
       select: { ...CARD_SELECT, id: true },
     });
-    const byId = new Map(rows.map((r) => [r.id, this.toCard(r, today)]));
-    return ids.flatMap((id) => byId.get(id) ?? []);
+    return new Map(rows.map((r) => [r.id, this.toCard(r, today)]));
+  }
+
+  /** Slugs of the jobs/exams/scholarships/admissions this user saved. */
+  async savedSlugs(userId: string): Promise<Set<string>> {
+    const saved = await this.prisma.saved_items.findMany({
+      where: { user_id: userId, item_type: 'opportunity' },
+      select: { item_id: true },
+    });
+    if (saved.length === 0) return new Set();
+    const rows = await this.prisma.opportunities.findMany({
+      where: { id: { in: saved.map((s) => s.item_id) } },
+      select: { slug: true },
+    });
+    return new Set(rows.map((r) => r.slug));
+  }
+
+  markSaved(cards: OpportunityCard[], slugs: Set<string>): OpportunityCard[] {
+    return cards.map((c) => ({ ...c, saved: slugs.has(c.slug) }));
   }
 
   /** Latest published updates: admit cards, results, answer keys, date changes… */

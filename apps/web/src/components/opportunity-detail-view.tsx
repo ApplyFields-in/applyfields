@@ -33,9 +33,10 @@ import { ApplyGuide } from './apply-guide';
 import {
   CheckEligibilityButton,
   ReminderButton,
-  SaveButton,
   ShareButton,
 } from './opportunity-actions';
+import { SaveButton } from './save-button';
+import { isSaved } from '@/lib/server-api';
 import {
   DATE_KIND_LABEL,
   daysLeftLabel,
@@ -46,7 +47,8 @@ import {
   urgencyTone,
 } from '@/lib/format';
 
-export function OpportunityDetailView({ item }: { item: OpportunityDetail }) {
+export async function OpportunityDetailView({ item }: { item: OpportunityDetail }) {
+  const saved = await isSaved('opportunity', item.slug);
   const meta = TYPE_META[item.type];
   const generalEligibility = item.eligibility.find((e) => e.post_id === null) ?? item.eligibility[0];
 
@@ -181,7 +183,7 @@ export function OpportunityDetailView({ item }: { item: OpportunityDetail }) {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 shrink-0">
-            <SaveButton slug={item.slug} title={item.title} />
+            <SaveButton itemType="opportunity" slug={item.slug} title={item.title} initial={saved} />
             <ShareButton title={item.title} />
             <ReminderButton title={item.title} deadline={item.application_end} />
             {generalEligibility && (
