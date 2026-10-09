@@ -7,6 +7,7 @@ import { TopNavAuth } from '@/components/top-nav-auth';
 import { PasskeyEnrollModal } from '@/components/passkey-enroll-modal';
 import { ApiStatus } from '@/components/api-status';
 import { NotificationBellDot } from '@/components/notification-center';
+import { SearchBox } from '@/components/search-box';
 
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
@@ -38,16 +39,7 @@ function SidebarFooter() {
 function Topbar() {
   return (
     <>
-      <form action="/search" role="search" className="relative hidden max-w-xl flex-1 sm:block">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-teal/80" aria-hidden="true" />
-        <input
-          name="q"
-          type="search"
-          aria-label="Search ApplyFields"
-          placeholder="Search jobs, exams, scholarships, services…"
-          className="h-10 w-full rounded-full bg-cream pl-10 pr-4 text-sm shadow-pressed outline-none transition-shadow placeholder:text-teal/80 focus:shadow-clay"
-        />
-      </form>
+      <SearchBox />
       <div className="ml-auto flex items-center gap-2">
         <Link href="/search" aria-label="Search" className="clay-press grid size-10 place-items-center rounded-full bg-cream shadow-clay sm:hidden">
           <Search className="size-4" />
