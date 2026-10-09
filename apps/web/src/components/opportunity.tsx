@@ -97,6 +97,8 @@ export interface ListSearchParams {
   qualification?: string;
   deadline?: string;
   eligible?: string;
+  /** /search only */
+  sort?: string;
 }
 
 export function FilterBar({
@@ -128,6 +130,7 @@ export function FilterBar({
     if (currentQual) sp.set('qualification', currentQual);
     if (currentDeadline) sp.set('deadline', currentDeadline);
     if (withEligible) sp.set('eligible', 'true');
+    if (searchParams.sort) sp.set('sort', searchParams.sort);
     const qs = sp.toString();
     return qs ? `${basePath}?${qs}` : basePath;
   };
@@ -157,6 +160,7 @@ export function FilterBar({
         {/* Preserve active category and "Eligible for me" on search */}
         {currentCategory && <input type="hidden" name="category" value={currentCategory} />}
         {eligibleOn && <input type="hidden" name="eligible" value="true" />}
+        {searchParams.sort && <input type="hidden" name="sort" value={searchParams.sort} />}
 
         <div className="flex flex-wrap items-center gap-2">
           {eligible && (

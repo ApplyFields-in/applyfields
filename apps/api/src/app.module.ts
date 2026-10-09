@@ -10,6 +10,7 @@ import { ServicesModule } from './modules/services/services.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { SavedModule } from './modules/saved/saved.module.js';
+import { SearchModule } from './modules/search/search.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { SavedModule } from './modules/saved/saved.module.js';
     AuthModule,
     UsersModule,
     SavedModule,
+    SearchModule,
     NotificationsModule,
   ],
   controllers: [AppController],

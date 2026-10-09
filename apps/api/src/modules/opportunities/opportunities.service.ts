@@ -41,6 +41,14 @@ const STATE_NAMES: Record<string, string> = {
   RJ: 'Rajasthan',
 };
 
+/** ['ALL'] → 'All India'; ['AP', 'TS'] → 'Andhra Pradesh, Telangana' */
+export function locationLabel(stateCodes: string[]): string {
+  const states = stateCodes.filter((s) => s !== 'ALL');
+  return states.length === 0
+    ? 'All India'
+    : states.map((s) => STATE_NAMES[s] ?? s).join(', ');
+}
+
 const QUALIFICATION: Record<string, string> = {
   '10th': '10th pass',
   '12th': '12th pass',
@@ -105,7 +113,6 @@ export class OpportunitiesService {
   constructor(private readonly prisma: PrismaService) {}
 
   toCard(row: CardRow, today: Date): OpportunityCard {
-    const states = row.state_codes.filter((s) => s !== 'ALL');
     const level = row.opportunity_eligibility[0]?.qualification_level;
     const org = row.organizations;
     return {
@@ -116,10 +123,7 @@ export class OpportunitiesService {
         org.short_name && !org.name.includes(org.short_name)
           ? `${org.name} (${org.short_name})`
           : org.name,
-      location:
-        states.length === 0
-          ? 'All India'
-          : states.map((s) => STATE_NAMES[s] ?? s).join(', '),
+      location: locationLabel(row.state_codes),
       qualification: (level && QUALIFICATION[level]) || 'See notification',
       vacancies: row.vacancies_total,
       last_date: row.application_end ? isoDate(row.application_end) : null,
