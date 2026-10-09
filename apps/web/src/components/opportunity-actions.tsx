@@ -18,74 +18,6 @@ import {
   XCircle,
 } from 'lucide-react';
 
-/* ------------------------------------------------------------------ Save Button */
-
-export function SaveButton({
-  slug,
-  title,
-  className,
-}: {
-  slug: string;
-  title: string;
-  className?: string;
-}) {
-  const [isSaved, setIsSaved] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const saved = JSON.parse(localStorage.getItem('saved_opportunities') || '[]');
-      return Array.isArray(saved) && saved.includes(slug);
-    } catch {
-      return false;
-    }
-  });
-  const [toast, setToast] = useState<string | null>(null);
-
-  const toggleSave = () => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('saved_opportunities') || '[]');
-      let next: string[];
-      if (saved.includes(slug)) {
-        next = saved.filter((s: string) => s !== slug);
-        setIsSaved(false);
-        setToast('Removed from saved list');
-      } else {
-        next = [...saved, slug];
-        setIsSaved(true);
-        setToast('Saved to your list');
-      }
-      localStorage.setItem('saved_opportunities', JSON.stringify(next));
-    } catch {
-      setIsSaved(!isSaved);
-    }
-    setTimeout(() => setToast(null), 2500);
-  };
-
-  return (
-    <div className="relative inline-flex">
-      <button
-        type="button"
-        onClick={toggleSave}
-        className={cn(
-          buttonClass({ variant: isSaved ? 'accent' : 'secondary', size: 'md' }),
-          className,
-        )}
-        title={isSaved ? `Saved "${title}"` : `Save "${title}" for later`}
-      >
-        <Bookmark className={cn('size-4', isSaved && 'fill-teal text-teal')} aria-hidden="true" />
-        <span>{isSaved ? 'Saved' : 'Save'}</span>
-      </button>
-      {toast && (
-        <span
-          role="status"
-          className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-teal px-2 py-1 text-xs font-semibold text-cream shadow-md transition-all animate-in fade-in"
-        >
-          {toast}
-        </span>
-      )}
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------ Share Button */
 
 export function ShareButton({
@@ -324,24 +256,26 @@ export function CheckEligibilityButton({
   const qualMet = reqRank === 0 || userRank >= reqRank;
 
   const isEligible = (ageMet === true || ageMet === null) && qualMet;
+  const btnVariant = open ? 'secondary' : 'primary';
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className={cn(buttonClass({ variant: 'primary', size: 'md' }), className)}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(buttonClass({ variant: btnVariant, size: 'md' }), className)}
       >
         <UserCheck className="size-4" aria-hidden="true" />
-        <span>Check eligibility</span>
+        <span>{open ? 'Hide eligibility' : 'Check eligibility'}</span>
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-teal/40 p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
-          <Card className="my-8 w-full max-w-lg p-6 shadow-2xl">
+        /* basis-full forces this onto its own line inside the parent flex-wrap row */
+        <div className="basis-full mt-3 animate-in fade-in slide-in-from-top-2 duration-150">
+          <Card className="w-full max-w-2xl p-5">
             <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
               <div>
-                <h3 className="text-lg font-bold text-teal">Check Your Eligibility</h3>
+                <h3 className="text-base font-bold text-teal">Check Your Eligibility</h3>
                 <p className="mt-0.5 text-xs text-teal/70">
                   Instant eligibility verification based on notification guidelines.
                 </p>
@@ -351,11 +285,11 @@ export function CheckEligibilityButton({
                 onClick={() => setOpen(false)}
                 className="rounded-full p-1 text-teal/60 hover:bg-tea/50 hover:text-teal"
               >
-                <X className="size-5" />
+                <X className="size-4" />
               </button>
             </div>
 
-            <div className="mt-4 space-y-4">
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="block text-xs font-bold text-teal">Date of Birth</label>
                 <input
@@ -369,7 +303,7 @@ export function CheckEligibilityButton({
                 />
                 {ageAsOnDate && (
                   <span className="mt-1 block text-[11px] text-teal/70">
-                    Age is calculated as on {ageAsOnDate}
+                    Age calculated as on {ageAsOnDate}
                   </span>
                 )}
               </div>
@@ -394,13 +328,13 @@ export function CheckEligibilityButton({
                 </select>
                 {extraYears > 0 && (
                   <span className="mt-1 block text-[11px] text-sea font-semibold">
-                    +{extraYears} years age relaxation applicable for {category}
+                    +{extraYears} yrs relaxation for {category}
                   </span>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-teal">Your Highest Education Qualification</label>
+                <label className="block text-xs font-bold text-teal">Highest Qualification</label>
                 <select
                   value={userQual}
                   onChange={(e) => {
@@ -413,90 +347,79 @@ export function CheckEligibilityButton({
                   <option value="12th">12th / Intermediate / Higher Secondary</option>
                   <option value="iti">ITI</option>
                   <option value="diploma">Polytechnic / Diploma</option>
-                  <option value="graduate">Graduate (Bachelor's Degree: B.Tech, B.Sc, B.Com, BA...)</option>
-                  <option value="post_graduate">Post-Graduate (Master's Degree: M.Tech, M.Sc, MBA, MA...)</option>
+                  <option value="graduate">Graduate (B.Tech, B.Sc, B.Com, BA...)</option>
+                  <option value="post_graduate">Post-Graduate (M.Tech, M.Sc, MBA, MA...)</option>
                   <option value="phd">PhD / Doctorate</option>
                 </select>
               </div>
-
-              {/* Assessment Report */}
-              {submitted && (
-                <div
-                  className={cn(
-                    'mt-5 rounded-2xl p-4 text-xs',
-                    isEligible ? 'bg-celadon/40 border border-teal/20' : 'bg-red-50 border border-red-200',
-                  )}
-                >
-                  <div className="flex items-center gap-2 text-sm font-bold">
-                    {isEligible ? (
-                      <>
-                        <CheckCircle2 className="size-5 text-sea" />
-                        <span className="text-teal">You appear eligible to apply!</span>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="size-5 text-red-600" />
-                        <span className="text-red-800">You may not meet all criteria</span>
-                      </>
-                    )}
-                  </div>
-
-                  <ul className="mt-3 space-y-2 border-t border-teal/10 pt-2.5">
-                    <li className="flex items-start gap-2">
-                      {ageMet === null ? (
-                        <HelpCircle className="mt-0.5 size-3.5 text-teal/60 shrink-0" />
-                      ) : ageMet ? (
-                        <Check className="mt-0.5 size-3.5 text-sea shrink-0" />
-                      ) : (
-                        <X className="mt-0.5 size-3.5 text-red-600 shrink-0" />
-                      )}
-                      <div>
-                        <strong>Age Requirement: </strong>
-                        {ageMin !== null ? `${ageMin} to ` : 'Up to '}
-                        {ageMax !== null ? `${ageMax} years` : 'No max limit'}
-                        {extraYears > 0 ? ` (${effectiveMaxAge} with ${category} relaxation)` : ''}
-                        {computedAge !== null && ` · You are ${computedAge} years old`}
-                      </div>
-                    </li>
-
-                    <li className="flex items-start gap-2">
-                      {qualMet ? (
-                        <Check className="mt-0.5 size-3.5 text-sea shrink-0" />
-                      ) : (
-                        <X className="mt-0.5 size-3.5 text-red-600 shrink-0" />
-                      )}
-                      <div>
-                        <strong>Education: </strong>
-                        Required {qualificationLevel || 'See notification'} · You selected {userQual}
-                      </div>
-                    </li>
-
-                    {domicileStates.length > 0 && !domicileStates.includes('ALL') && (
-                      <li className="flex items-start gap-2 text-teal/80">
-                        <HelpCircle className="mt-0.5 size-3.5 text-teal/60 shrink-0" />
-                        <div>
-                          <strong>Domicile: </strong>
-                          Restricted to residents of {domicileStates.join(', ')}
-                        </div>
-                      </li>
-                    )}
-                  </ul>
-                  <p className="mt-3 text-[11px] text-teal/70 italic">
-                    Note: This check is an automated guideline. Please refer to the official notification for exact subject stream requirements, physical fitness standards, and cutoff dates.
-                  </p>
-                </div>
-              )}
             </div>
 
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className={buttonClass({ variant: 'secondary', size: 'sm' })}
+            {submitted && (
+              <div
+                className={cn(
+                  'mt-4 rounded-2xl p-4 text-xs',
+                  isEligible ? 'bg-celadon/40 border border-teal/20' : 'bg-red-50 border border-red-200',
+                )}
               >
-                Close
-              </button>
-            </div>
+                <div className="flex items-center gap-2 text-sm font-bold">
+                  {isEligible ? (
+                    <>
+                      <CheckCircle2 className="size-5 text-sea" />
+                      <span className="text-teal">You appear eligible to apply!</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="size-5 text-red-600" />
+                      <span className="text-red-800">You may not meet all criteria</span>
+                    </>
+                  )}
+                </div>
+
+                <ul className="mt-3 space-y-2 border-t border-teal/10 pt-2.5">
+                  <li className="flex items-start gap-2">
+                    {ageMet === null ? (
+                      <HelpCircle className="mt-0.5 size-3.5 text-teal/60 shrink-0" />
+                    ) : ageMet ? (
+                      <Check className="mt-0.5 size-3.5 text-sea shrink-0" />
+                    ) : (
+                      <X className="mt-0.5 size-3.5 text-red-600 shrink-0" />
+                    )}
+                    <div>
+                      <strong>Age: </strong>
+                      {ageMin !== null ? `${ageMin} to ` : 'Up to '}
+                      {ageMax !== null ? `${ageMax} years` : 'No max limit'}
+                      {extraYears > 0 ? ` (${effectiveMaxAge} with ${category} relaxation)` : ''}
+                      {computedAge !== null && ` · You are ${computedAge} years old`}
+                    </div>
+                  </li>
+
+                  <li className="flex items-start gap-2">
+                    {qualMet ? (
+                      <Check className="mt-0.5 size-3.5 text-sea shrink-0" />
+                    ) : (
+                      <X className="mt-0.5 size-3.5 text-red-600 shrink-0" />
+                    )}
+                    <div>
+                      <strong>Education: </strong>
+                      Required {qualificationLevel || 'See notification'} · You selected {userQual}
+                    </div>
+                  </li>
+
+                  {domicileStates.length > 0 && !domicileStates.includes('ALL') && (
+                    <li className="flex items-start gap-2 text-teal/80">
+                      <HelpCircle className="mt-0.5 size-3.5 text-teal/60 shrink-0" />
+                      <div>
+                        <strong>Domicile: </strong>
+                        Restricted to {domicileStates.join(', ')}
+                      </div>
+                    </li>
+                  )}
+                </ul>
+                <p className="mt-3 text-[11px] text-teal/70 italic">
+                  Automated guideline only. Refer to the official notification for exact requirements.
+                </p>
+              </div>
+            )}
           </Card>
         </div>
       )}

@@ -91,78 +91,44 @@ export function SocialAuthButtons({ mode, onError, onSuccess }: SocialAuthButton
     }
   }
 
-  const isRegister = mode === 'register';
+  const verb = mode === 'register' ? 'Sign up' : 'Sign in';
+  const providers = [
+    { id: 'google', name: 'Google', Icon: GoogleIcon, dark: false },
+    { id: 'microsoft', name: 'Microsoft', Icon: MicrosoftIcon, dark: false },
+    { id: 'apple', name: 'Apple', Icon: AppleIcon, dark: true },
+  ] as const;
 
   return (
-    <div className="space-y-3">
-      {/* Primary OAuth: Google and Apple */}
-      <div className="grid grid-cols-2 gap-2.5">
-        {/* Google Button */}
+    <div className="space-y-2.5">
+      {providers.map(({ id, name, Icon, dark }) => (
         <button
+          key={id}
           type="button"
-          onClick={() => handleSocialAuth('google')}
+          onClick={() => handleSocialAuth(id)}
           disabled={activeProvider !== null}
-          aria-label={isRegister ? 'Sign up with Google' : 'Sign in with Google'}
-          className="group relative flex h-11 items-center justify-center gap-2 rounded-2xl border-2 border-line bg-cream px-3 text-xs font-black text-teal transition-all shadow-[0_3px_0_0_#114b5f] hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#114b5f] active:translate-y-0.5 active:shadow-[0_1px_0_0_#114b5f] disabled:opacity-60 disabled:cursor-not-allowed"
+          className={`flex h-11 w-full items-center justify-center gap-3 rounded-xl text-sm font-semibold transition active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${
+            dark ? 'bg-teal text-cream hover:bg-teal/90' : 'border border-line bg-cream text-teal hover:bg-paper'
+          }`}
         >
-          {activeProvider === 'google' ? (
-            <Loader2 className="size-4 animate-spin text-teal" />
+          {activeProvider === id ? (
+            <Loader2 className="size-[18px] animate-spin" />
           ) : (
-            <GoogleIcon className="size-4 shrink-0 transition-transform group-hover:scale-110" />
+            <Icon className="size-[18px] shrink-0" />
           )}
-          <span className="truncate">
-            {isRegister ? 'Google Sign-up' : 'Google'}
-          </span>
+          {verb} with {name}
         </button>
-
-        {/* Apple Button */}
-        <button
-          type="button"
-          onClick={() => handleSocialAuth('apple')}
-          disabled={activeProvider !== null}
-          aria-label={isRegister ? 'Sign up with Apple' : 'Sign in with Apple'}
-          className="group relative flex h-11 items-center justify-center gap-2 rounded-2xl border-2 border-teal bg-teal px-3 text-xs font-black text-cream transition-all shadow-[0_3px_0_0_#092631] hover:-translate-y-0.5 hover:shadow-[0_5px_0_0_#092631] active:translate-y-0.5 active:shadow-[0_1px_0_0_#092631] disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {activeProvider === 'apple' ? (
-            <Loader2 className="size-4 animate-spin text-cream" />
-          ) : (
-            <AppleIcon className="size-4 shrink-0 transition-transform group-hover:scale-110" />
-          )}
-          <span className="truncate">
-            {isRegister ? 'Apple Sign-up' : 'Apple'}
-          </span>
-        </button>
-      </div>
-
-      {/* Secondary OAuth: Microsoft (Compact Pill) */}
-      <div className="flex items-center justify-center">
-        <button
-          type="button"
-          onClick={() => handleSocialAuth('microsoft')}
-          disabled={activeProvider !== null}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-line/70 bg-tea/30 px-3 py-1 text-[11px] font-bold text-teal/80 transition-all hover:bg-tea/60 hover:text-teal active:translate-y-0.5 disabled:opacity-60"
-        >
-          {activeProvider === 'microsoft' ? (
-            <Loader2 className="size-3 animate-spin text-teal" />
-          ) : (
-            <MicrosoftIcon className="size-3 shrink-0" />
-          )}
-          <span>Or sign in with Microsoft</span>
-        </button>
-      </div>
+      ))}
     </div>
   );
 }
 
 export function AuthDivider({ label = 'or continue with mobile or email' }: { label?: string }) {
   return (
-    <div className="relative my-4 flex items-center justify-center">
+    <div className="relative my-5 flex items-center justify-center">
       <div className="absolute inset-0 flex items-center" aria-hidden="true">
-        <div className="w-full border-t border-line/70" />
+        <div className="w-full border-t border-line" />
       </div>
-      <span className="relative bg-cream px-3 text-[10px] font-extrabold uppercase tracking-wider text-teal/60">
-        {label}
-      </span>
+      <span className="relative bg-cream px-3 text-xs font-medium text-teal/50">{label}</span>
     </div>
   );
 }
@@ -318,16 +284,14 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
 
   return (
     <>
-      <div className="mt-5 pt-4 border-t-2 border-line/50">
-        <button
-          type="button"
-          onClick={openModal}
-          className="relative w-full h-11 rounded-xl bg-sea text-cream font-black text-xs tracking-wide border-b-4 border-sea/70 shadow-[0_4px_12px_rgba(26,147,111,0.25)] hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(26,147,111,0.35)] active:translate-y-0.5 active:border-b-0 active:shadow-none transition-all flex items-center justify-center gap-2"
-        >
-          <Fingerprint className="size-4 text-cream" />
-          <span>Sign in with Passkey</span>
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={openModal}
+        className="mt-2.5 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-sea/40 text-sm font-semibold text-sea transition hover:bg-tea/40"
+      >
+        <Fingerprint className="size-[18px]" aria-hidden="true" />
+        Sign in with a passkey
+      </button>
 
       {/* Interactive Passkey Verification Modal */}
       {isModalOpen && (

@@ -22,22 +22,24 @@ import {
 import { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
 
 const REFRESH_COOKIE_NAME = 'refresh_token';
-const REFRESH_COOKIE_OPTIONS = {
+const ACCESS_COOKIE_NAME = 'accessToken';
+
+const COOKIE_BASE = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
   path: '/',
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
-const ACCESS_COOKIE_NAME = 'accessToken';
-const ACCESS_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  path: '/',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-};
+function cookieOpts(rememberMe?: boolean) {
+  if (rememberMe) {
+    return {
+      access: { ...COOKIE_BASE, maxAge: 7 * 24 * 60 * 60 * 1000 },
+      refresh: { ...COOKIE_BASE, maxAge: 30 * 24 * 60 * 60 * 1000 },
+    };
+  }
+  return { access: { ...COOKIE_BASE }, refresh: { ...COOKIE_BASE } };
+}
 
 @Controller('auth')
 export class AuthController {
@@ -74,13 +76,9 @@ export class AuthController {
     };
     const result = await this.authService.login(dto, meta);
 
-    // Set refresh token and access token cookies
-    res.cookie(
-      REFRESH_COOKIE_NAME,
-      result.refreshToken,
-      REFRESH_COOKIE_OPTIONS,
-    );
-    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
+    const opts = cookieOpts(dto.rememberMe);
+    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
     return { user: result.user };
   }
@@ -98,12 +96,9 @@ export class AuthController {
     };
     const result = await this.authService.loginWithOtp(dto, meta);
 
-    res.cookie(
-      REFRESH_COOKIE_NAME,
-      result.refreshToken,
-      REFRESH_COOKIE_OPTIONS,
-    );
-    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
+    const opts = cookieOpts(dto.rememberMe);
+    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
     return { user: result.user };
   }
@@ -121,12 +116,9 @@ export class AuthController {
     };
     const result = await this.authService.socialLogin(dto, meta);
 
-    res.cookie(
-      REFRESH_COOKIE_NAME,
-      result.refreshToken,
-      REFRESH_COOKIE_OPTIONS,
-    );
-    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
+    const opts = cookieOpts(true);
+    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
     return { user: result.user };
   }
@@ -144,12 +136,9 @@ export class AuthController {
     };
     const result = await this.authService.passkeyLogin(dto, meta);
 
-    res.cookie(
-      REFRESH_COOKIE_NAME,
-      result.refreshToken,
-      REFRESH_COOKIE_OPTIONS,
-    );
-    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, ACCESS_COOKIE_OPTIONS);
+    const opts = cookieOpts(true);
+    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
     return { user: result.user };
   }
@@ -180,12 +169,12 @@ export class AuthController {
 
     const tokens = await this.authService.refreshTokens(rawRefreshToken, meta);
 
-    res.cookie(
-      REFRESH_COOKIE_NAME,
-      tokens.newRefreshToken,
-      REFRESH_COOKIE_OPTIONS,
-    );
-    res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, ACCESS_COOKIE_OPTIONS);
+    // Refresh inherits the cookie style of the original login — if the
+    // existing refresh cookie has a maxAge it was a "remember me" session.
+    const remembered = req.cookies?.[REFRESH_COOKIE_NAME] !== undefined;
+    const opts = cookieOpts(remembered);
+    res.cookie(REFRESH_COOKIE_NAME, tokens.newRefreshToken, opts.refresh);
+    res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, opts.access);
 
     return { success: true };
   }

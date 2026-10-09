@@ -61,6 +61,7 @@ export function CountryPhoneInput({
   onChange,
   disabled = false,
   placeholder = '9876543210',
+  id,
 }: CountryPhoneInputProps) {
   // Determine country and phone number directly from value
   const matchedCountry = COUNTRIES.find((c) => value.startsWith(c.dialCode));
@@ -114,14 +115,14 @@ export function CountryPhoneInput({
   );
 
   return (
-    <div className="relative flex rounded-xl border-2 border-line bg-canvas shadow-[inset_0_2px_4px_rgba(17,75,95,0.06),0_2px_0_0_#114b5f] focus-within:border-sea transition-all">
+    <div className="relative flex h-12 rounded-xl border border-line bg-cream transition focus-within:border-sea focus-within:ring-4 focus-within:ring-sea/10">
       {/* Country Selector Trigger */}
       <div ref={dropdownRef} className="relative">
         <button
           type="button"
           disabled={disabled}
           onClick={() => setIsOpen((prev) => !prev)}
-          className="flex h-10 items-center gap-1.5 rounded-l-xl px-3 text-xs font-bold text-teal hover:bg-tea/40 disabled:opacity-60 transition-all active:translate-y-0.5"
+          className="flex h-full items-center gap-1.5 rounded-l-xl pl-4 pr-3 text-sm font-semibold text-teal transition hover:bg-paper disabled:opacity-60"
           aria-haspopup="listbox"
           aria-expanded={isOpen}
         >
@@ -134,7 +135,7 @@ export function CountryPhoneInput({
 
         {/* Dropdown Menu with 3D Depth */}
         {isOpen && (
-          <div className="absolute left-0 top-full z-50 mt-2 max-h-64 w-68 overflow-hidden rounded-2xl border-2 border-teal/20 bg-cream shadow-[0_16px_36px_-6px_rgba(17,75,95,0.3),0_6px_0_0_#114b5f] animate-in fade-in zoom-in-95 duration-150">
+          <div className="absolute left-0 top-full z-50 mt-2 max-h-64 w-68 overflow-hidden rounded-xl border border-line bg-cream shadow-[0_16px_36px_-12px_rgb(8_32_70/0.3)] animate-in fade-in zoom-in-95 duration-150">
             <div className="p-2.5 border-b border-line bg-tea/20">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 size-3.5 text-teal/50" />
@@ -181,12 +182,14 @@ export function CountryPhoneInput({
 
       {/* Phone Number Input */}
       <input
+        id={id}
         type="tel"
+        autoComplete="tel-national"
         disabled={disabled}
         value={phoneNumber}
         onChange={handleNumberChange}
         placeholder={placeholder}
-        className="w-full rounded-r-xl bg-transparent px-3 py-2 text-sm text-teal placeholder:text-teal/40 focus:outline-none disabled:opacity-60"
+        className="h-full w-full min-w-0 rounded-r-xl bg-transparent px-3 text-sm text-teal placeholder:text-teal/40 focus:outline-none disabled:opacity-60"
       />
     </div>
   );
