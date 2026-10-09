@@ -5,11 +5,3 @@
 
 /* let Tailwind see the class names used inside the shared components */
 @source "../../../../packages/ui/src";
-
-/* auth page: opportunity feed scroll + slow logo drift */
-@keyframes marquee {
-  to { transform: translateX(-50%); }
-}
-@keyframes drift {
-  50% { transform: translateY(-14px) rotate(4deg); }
-}
