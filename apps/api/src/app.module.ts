@@ -13,6 +13,9 @@ import { SavedModule } from './modules/saved/saved.module.js';
 import { SearchModule } from './modules/search/search.module.js';
 
 import { CareerModule } from './modules/career/career.module.js';
+import { RoadmapsModule } from './modules/roadmaps/roadmaps.module.js';
+import { InstitutionsModule } from './modules/institutions/institutions.module.js';
+import { GuidanceModule } from './modules/guidance/guidance.module.js';
 
 @Module({
   imports: [
@@ -26,6 +29,9 @@ import { CareerModule } from './modules/career/career.module.js';
     SavedModule,
     SearchModule,
     NotificationsModule,
+    RoadmapsModule,
+    InstitutionsModule,
+    GuidanceModule,
     CareerModule,
   ],
   controllers: [AppController],

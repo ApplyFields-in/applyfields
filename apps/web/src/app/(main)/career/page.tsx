@@ -67,14 +67,54 @@ export default async function CareerPage({ searchParams }: CareerPageProps) {
           description="Discover career trajectories, educational milestones, and suggested learning resources (platforms, books, and videos)."
           icon={<Compass />}
         />
-        <div className="shrink-0">
+        <div className="shrink-0 flex items-center gap-2">
+          <Link
+            href="/career/guidance"
+            className={buttonClass({ variant: 'secondary', size: 'md', className: 'gap-2' })}
+          >
+            <Sparkles className="size-4" /> AI Guide
+          </Link>
           <Link
             href="/career/profile"
             className={buttonClass({ variant: 'primary', size: 'md', className: 'gap-2 shadow-clay' })}
           >
-            <UserCheck className="size-4" /> My Career Profile
+            <UserCheck className="size-4" /> My Profile
           </Link>
         </div>
+      </div>
+
+      {/* Career Mode Navigation Tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-line/60 pb-3 text-xs font-bold">
+        <Link
+          href="/career"
+          className="rounded-xl bg-teal px-3.5 py-1.5 text-cream shadow-sm"
+        >
+          All Careers
+        </Link>
+        <Link
+          href="/career/roadmaps"
+          className="rounded-xl bg-cream px-3.5 py-1.5 text-teal hover:bg-tea border border-line/60 transition-colors"
+        >
+          Roadmaps
+        </Link>
+        <Link
+          href="/career/courses"
+          className="rounded-xl bg-cream px-3.5 py-1.5 text-teal hover:bg-tea border border-line/60 transition-colors"
+        >
+          Courses & Degrees
+        </Link>
+        <Link
+          href="/career/colleges"
+          className="rounded-xl bg-cream px-3.5 py-1.5 text-teal hover:bg-tea border border-line/60 transition-colors"
+        >
+          Colleges & Universities
+        </Link>
+        <Link
+          href="/career/guidance"
+          className="rounded-xl bg-cream px-3.5 py-1.5 text-teal hover:bg-tea border border-line/60 transition-colors flex items-center gap-1"
+        >
+          <Sparkles className="size-3 text-celadon" /> AI Advisor
+        </Link>
       </div>
 
       {/* Category Filter Pills */}
