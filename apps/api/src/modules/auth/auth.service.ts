@@ -94,6 +94,7 @@ export class AuthService {
     const target = (dto.email ?? dto.phone)!;
     const purpose = dto.email ? 'verify_email' : 'verify_phone';
 
+    const fullName = dto.fullName?.trim();
     const [, , otpResult] = await Promise.all([
       this.store.addConsent({
         user_id: user.id,
@@ -110,6 +111,7 @@ export class AuthService {
         ip_address: ipAddress ?? null,
       }),
       this.sendOtp({ target, purpose }, user.id),
+      fullName ? this.store.updateProfile(user.id, { full_name: fullName }) : null,
     ]);
 
     return {
