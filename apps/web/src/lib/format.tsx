@@ -16,6 +16,7 @@ export const TYPE_META: Record<
 export const RESULT_META: Record<SearchResultType, (typeof TYPE_META)[OpportunityType]> = {
   ...TYPE_META,
   service: { label: 'Government service', plural: 'services', base: '/services', icon: <Landmark />, tone: 'tea' },
+  career: { label: 'Career option', plural: 'careers', base: '/career', icon: <Briefcase />, tone: 'celadon' },
 };
 
 /** Marks where the search words start a word: ('SSC Combined…', 'ssc c') → <mark>SSC</mark> <mark>C</mark>ombined… */

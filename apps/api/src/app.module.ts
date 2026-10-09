@@ -12,6 +12,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { SavedModule } from './modules/saved/saved.module.js';
 import { SearchModule } from './modules/search/search.module.js';
 
+import { CareerModule } from './modules/career/career.module.js';
+
 @Module({
   imports: [
     PrismaModule,
@@ -24,6 +26,7 @@ import { SearchModule } from './modules/search/search.module.js';
     SavedModule,
     SearchModule,
     NotificationsModule,
+    CareerModule,
   ],
   controllers: [AppController],
   providers: [AppService],
