@@ -697,7 +697,7 @@ export interface ManualAlertResult {
 
 /* ------------------------------------------------------------------ universal search (Session 09) */
 
-export type SearchResultType = OpportunityType | 'service';
+export type SearchResultType = OpportunityType | 'service' | 'career';
 export type SearchSort = 'relevance' | 'deadline';
 
 /** GET /search — one result of any type. */
@@ -732,3 +732,99 @@ export interface SearchSuggestResponse {
   related: string[];
   items: SearchResult[];
 }
+
+/* ------------------------------------------------------------------ Career Foundation (Session 11) */
+
+export interface CareerCategory {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  icon: string;
+  sort_order: number;
+  careers_count?: number;
+}
+
+export interface LearningResource {
+  type: 'platform' | 'book' | 'video' | 'course';
+  title: string;
+  provider_or_author?: string;
+  url?: string;
+  description?: string;
+  is_free?: boolean;
+}
+
+export interface PathwayStep {
+  step: number;
+  title: string;
+  description: string;
+  duration?: string;
+}
+
+export interface LinkedOpportunity {
+  type: string;
+  title: string;
+  url: string;
+}
+
+export interface CareerSummary {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  category_id: string;
+  category_slug: string;
+  category_name: string;
+  category_icon: string;
+  education_required: string;
+  salary_text: string | null;
+  outlook_text: string | null;
+  skills: string[];
+  resources_count: number;
+}
+
+export interface CareerDetail extends CareerSummary {
+  what_it_involves: string | null;
+  learning_areas: string[];
+  pros: string[];
+  cons: string[];
+  pathway_steps: PathwayStep[];
+  learning_resources: LearningResource[];
+  linked_opportunities: LinkedOpportunity[];
+  views_count: number;
+}
+
+export interface UserCareerProfile {
+  user_id: string;
+  education_stage: string;
+  current_qualification: string | null;
+  subjects: string[];
+  interests: string[];
+  skills: string[];
+  career_interests: string[];
+  goals: string | null;
+  preferred_direction: string | null;
+}
+
+export interface AdminCareerListItem {
+  id: string;
+  slug: string;
+  title: string;
+  category_name: string;
+  status: OpportunityStatus | string;
+  views_count: number;
+  resources_count: number;
+  updated_at: string;
+}
+
+export interface AdminCareerList {
+  total: number;
+  counts: {
+    all: number;
+    published: number;
+    draft: number;
+    archived: number;
+  };
+  items: AdminCareerListItem[];
+}
+
