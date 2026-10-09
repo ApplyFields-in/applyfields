@@ -1,5 +1,5 @@
-import type { EligibilityStatus, OpportunityType, UpdateKind } from '@applyfields/types';
-import { Award, Briefcase, CircleCheck, CircleDashed, CircleHelp, CircleX, GraduationCap, School } from 'lucide-react';
+import type { EligibilityStatus, OpportunityType, SearchResultType, UpdateKind } from '@applyfields/types';
+import { Award, Briefcase, CircleCheck, CircleDashed, CircleHelp, CircleX, GraduationCap, Landmark, School } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export const TYPE_META: Record<
@@ -11,6 +11,20 @@ export const TYPE_META: Record<
   scholarship: { label: 'Scholarship', plural: 'scholarships', base: '/scholarships', icon: <Award />, tone: 'celadon' },
   admission: { label: 'Admission', plural: 'admissions', base: '/admissions', icon: <School />, tone: 'tea' },
 };
+
+/** Every kind of search result: the four opportunity types plus government services. */
+export const RESULT_META: Record<SearchResultType, (typeof TYPE_META)[OpportunityType]> = {
+  ...TYPE_META,
+  service: { label: 'Government service', plural: 'services', base: '/services', icon: <Landmark />, tone: 'tea' },
+};
+
+/** Marks where the search words start a word: ('SSC Combined…', 'ssc c') → <mark>SSC</mark> <mark>C</mark>ombined… */
+export function Highlight({ text, query }: { text: string; query: string }) {
+  const words = query.toLowerCase().match(/[\p{L}\p{M}\p{N}]+/gu); // same words the API searches for
+  if (!words) return text;
+  const parts = text.split(new RegExp(`(?<![\\p{L}\\p{M}\\p{N}])(${words.join('|')})`, 'giu'));
+  return parts.map((p, i) => (i % 2 ? <mark key={i} className="rounded bg-celadon/70 px-0.5 text-teal">{p}</mark> : p));
+}
 
 export const ELIGIBILITY_META: Record<
   EligibilityStatus,

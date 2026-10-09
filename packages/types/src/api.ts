@@ -694,3 +694,41 @@ export interface ManualAlertInput {
 export interface ManualAlertResult {
   notified: number;
 }
+
+/* ------------------------------------------------------------------ universal search (Session 09) */
+
+export type SearchResultType = OpportunityType | 'service';
+export type SearchSort = 'relevance' | 'deadline';
+
+/** GET /search — one result of any type. */
+export interface SearchResult {
+  type: SearchResultType;
+  title: string;
+  /** organisation / authority */
+  subtitle: string | null;
+  /** website path, e.g. /exams/ssc-cgl-2026 */
+  url: string;
+  location: string;
+  last_date: string | null;   // YYYY-MM-DD
+  days_left: number | null;
+}
+
+export interface SearchResponse {
+  query: string;
+  total: number;
+  items: SearchResult[];
+  related?: string[];
+}
+
+export interface SearchSuggestionItem {
+  term: string;
+  display: string;
+  category: string;
+}
+
+export interface SearchSuggestResponse {
+  query: string;
+  suggestions: string[];
+  related: string[];
+  items: SearchResult[];
+}

@@ -34,6 +34,7 @@ test/                # end-to-end tests
 | `GET /api/v1/opportunities?type=&q=` | jobs, exams, scholarships, admissions, search | `modules/opportunities` |
 | `GET /api/v1/opportunities/:slug` | detail pages | `modules/opportunities` |
 | `GET /api/v1/updates` | results & updates | `modules/opportunities` |
+| `GET /api/v1/search?q=&type=&state=&qualification=&deadline=&sort=&limit=` | universal search + top-bar suggestions (published only, typo-tolerant) | `modules/search` |
 | `POST /api/v1/auth/register` | citizen sign-up | `modules/auth` |
 | `POST /api/v1/auth/login` | citizen login → JWT + refresh cookie | `modules/auth` |
 | `POST /api/v1/auth/refresh` | refresh access token | `modules/auth` |
