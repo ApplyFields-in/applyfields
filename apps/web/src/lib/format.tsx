@@ -1,5 +1,5 @@
 import type { EligibilityStatus, OpportunityType, SearchResultType, UpdateKind } from '@applyfields/types';
-import { Award, Briefcase, CircleCheck, CircleDashed, CircleHelp, CircleX, GraduationCap, Landmark, School } from 'lucide-react';
+import { Award, BookOpen, Briefcase, Building, CircleCheck, CircleDashed, CircleHelp, CircleX, Compass, GraduationCap, Landmark, School } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export const TYPE_META: Record<
@@ -12,11 +12,14 @@ export const TYPE_META: Record<
   admission: { label: 'Admission', plural: 'admissions', base: '/admissions', icon: <School />, tone: 'tea' },
 };
 
-/** Every kind of search result: the four opportunity types plus government services. */
+/** Every kind of search result: opportunity types, services, careers, courses, colleges, roadmaps. */
 export const RESULT_META: Record<SearchResultType, (typeof TYPE_META)[OpportunityType]> = {
   ...TYPE_META,
   service: { label: 'Government service', plural: 'services', base: '/services', icon: <Landmark />, tone: 'tea' },
-  career: { label: 'Career option', plural: 'careers', base: '/career', icon: <Briefcase />, tone: 'celadon' },
+  career: { label: 'Career option', plural: 'careers', base: '/career', icon: <Compass />, tone: 'celadon' },
+  course: { label: 'Course / Degree', plural: 'courses', base: '/career/courses', icon: <BookOpen />, tone: 'teal' },
+  institution: { label: 'College / University', plural: 'colleges', base: '/career/colleges', icon: <Building />, tone: 'sea' },
+  roadmap: { label: 'Career Roadmap', plural: 'roadmaps', base: '/career/roadmaps', icon: <Compass />, tone: 'celadon' },
 };
 
 /** Marks where the search words start a word: ('SSC Combined…', 'ssc c') → <mark>SSC</mark> <mark>C</mark>ombined… */
