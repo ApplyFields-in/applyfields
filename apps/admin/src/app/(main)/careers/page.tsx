@@ -2,6 +2,7 @@ import type { AdminCareerList, OpportunityStatus } from '@applyfields/types';
 import { Badge, buttonClass, Card, cn, EmptyState, PageHeader } from '@applyfields/ui';
 import {
   BookOpen,
+  Building,
   CheckCircle2,
   Compass,
   ExternalLink,
@@ -49,19 +50,43 @@ export default async function CareersAdminPage({
   return (
     <>
       <PageHeader
-        eyebrow="Content"
-        title="Career Management"
-        description="Curate career profiles, roadmap steps, milestones, and suggested learning resources (platforms, books, and videos)."
+        eyebrow="Content Management (v3)"
+        title="Career & Education Content"
+        description="Curate career profiles, roadmap steps, milestones, courses, and college data."
         icon={<Compass />}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <a
-              href="http://localhost:3000/career"
+              href="http://localhost:3000/career/roadmaps"
               target="_blank"
               rel="noopener noreferrer"
               className={buttonClass({ variant: 'secondary', size: 'sm' })}
             >
-              <ExternalLink className="size-4" aria-hidden="true" /> View Student Portal
+              <Compass className="size-3.5 mr-1" aria-hidden="true" /> Roadmaps
+            </a>
+            <a
+              href="http://localhost:3000/career/courses"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClass({ variant: 'secondary', size: 'sm' })}
+            >
+              <BookOpen className="size-3.5 mr-1" aria-hidden="true" /> Courses
+            </a>
+            <a
+              href="http://localhost:3000/career/colleges"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClass({ variant: 'secondary', size: 'sm' })}
+            >
+              <Building className="size-3.5 mr-1" aria-hidden="true" /> Colleges
+            </a>
+            <a
+              href="http://localhost:3000/career"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClass({ variant: 'primary', size: 'sm' })}
+            >
+              <ExternalLink className="size-3.5 mr-1" aria-hidden="true" /> Live Portal
             </a>
           </div>
         }

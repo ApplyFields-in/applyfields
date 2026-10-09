@@ -697,7 +697,7 @@ export interface ManualAlertResult {
 
 /* ------------------------------------------------------------------ universal search (Session 09) */
 
-export type SearchResultType = OpportunityType | 'service' | 'career';
+export type SearchResultType = OpportunityType | 'service' | 'career' | 'course' | 'institution' | 'roadmap';
 export type SearchSort = 'relevance' | 'deadline';
 
 /** GET /search — one result of any type. */
@@ -827,4 +827,167 @@ export interface AdminCareerList {
   };
   items: AdminCareerListItem[];
 }
+
+// ---------- Session 12: Roadmaps, Courses, Colleges & AI Guidance ----------
+
+export type RoadmapStepKind = 'education' | 'course' | 'exam' | 'skill' | 'certification' | 'project' | 'internship' | 'job' | 'milestone';
+export type ProgressStatus = 'todo' | 'in_progress' | 'done' | 'skipped';
+
+export interface RoadmapStepResource {
+  title: string;
+  url?: string;
+  type: string;
+}
+
+export interface RoadmapStepItem {
+  id: string;
+  stage: string;
+  sort_order: number;
+  kind: RoadmapStepKind;
+  title: string;
+  description: string | null;
+  course_id: string | null;
+  course_slug?: string | null;
+  exam_id: string | null;
+  resources: RoadmapStepResource[];
+  estimated_duration_text: string | null;
+  is_milestone: boolean;
+  user_status?: ProgressStatus;
+}
+
+export interface RoadmapSummary {
+  id: string;
+  slug: string;
+  career_id: string | null;
+  career_slug?: string | null;
+  career_title?: string | null;
+  title: string;
+  description: string | null;
+  for_stage: string | null;
+  estimated_duration_text: string | null;
+  steps_count: number;
+  milestones_count: number;
+}
+
+export interface RoadmapDetail extends RoadmapSummary {
+  steps: RoadmapStepItem[];
+  user_progress?: {
+    is_saved: boolean;
+    total_steps: number;
+    completed_steps: number;
+    completion_percentage: number;
+  };
+}
+
+export type CourseLevel = 'certificate' | 'iti' | 'diploma' | 'ug' | 'pg' | 'phd';
+
+export interface CourseSummary {
+  id: string;
+  slug: string;
+  name: string;
+  short_name: string | null;
+  level: CourseLevel;
+  stream: string | null;
+  duration_months: number | null;
+  min_qualification: string | null;
+  skills_developed: string[];
+  careers_count?: number;
+  colleges_count?: number;
+}
+
+export interface CourseDetail extends CourseSummary {
+  description: string | null;
+  eligibility_text: string | null;
+  career_outcomes: string | null;
+  careers: Array<{ id: string; slug: string; title: string }>;
+  exams: Array<{ id: string; slug: string; title: string }>;
+  institutions: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    short_name: string | null;
+    city: string | null;
+    state_code: string | null;
+    seats: number | null;
+    fee_per_year: number | null;
+    fees_text: string | null;
+    admission_process: string | null;
+  }>;
+}
+
+export interface PlacementStats {
+  highest_package?: string;
+  avg_package?: string;
+  top_recruiters?: string[];
+}
+
+export interface InstitutionSummary {
+  id: string;
+  slug: string;
+  name: string;
+  short_name: string | null;
+  type: string;
+  ownership: string | null;
+  state_code: string | null;
+  city: string | null;
+  district: string | null;
+  website: string | null;
+  ranking_text: string | null;
+  fees_text: string | null;
+  accreditation: Record<string, any>;
+  placement_stats: PlacementStats;
+  courses_count?: number;
+}
+
+export interface InstitutionDetail extends InstitutionSummary {
+  description: string | null;
+  established_year: number | null;
+  campus_facilities: string[];
+  courses: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    short_name: string | null;
+    level: string;
+    seats: number | null;
+    fee_per_year: number | null;
+    fees_text: string | null;
+    admission_process: string | null;
+  }>;
+}
+
+export interface GuidanceSource {
+  title: string;
+  url: string;
+  type: string;
+}
+
+export interface GuidanceMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sources: GuidanceSource[];
+  created_at: string;
+}
+
+export interface GuidanceConversation {
+  id: string;
+  title: string | null;
+  messages: GuidanceMessage[];
+  updated_at: string;
+}
+
+export interface AskGuidanceDto {
+  question: string;
+  conversation_id?: string;
+  student_stage?: string;
+}
+
+export interface AskGuidanceResponse {
+  conversation_id: string;
+  answer: string;
+  sources: GuidanceSource[];
+  is_fallback?: boolean;
+}
+
 
