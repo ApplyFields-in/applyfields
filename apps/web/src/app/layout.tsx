@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 // Font files ship with the app (no download from Google at runtime)
 import '@fontsource-variable/plus-jakarta-sans';
 import './globals.css';
+import { LanguageProvider } from '@/lib/i18n/language-context';
 
 export const metadata: Metadata = {
   title: {
@@ -20,10 +21,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full font-sans">{children}</body>
+      <body className="min-h-full font-sans">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }
+
