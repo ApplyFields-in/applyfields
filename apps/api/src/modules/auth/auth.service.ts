@@ -221,7 +221,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email/phone or password');
     }
 
-    const isValid = await argon2.verify(user.password_hash, dto.password);
+    let isValid = false;
+    try {
+      isValid = Boolean(user.password_hash) && (await argon2.verify(user.password_hash, dto.password));
+    } catch {
+      isValid = false;
+    }
+
     if (!isValid) {
       throw new UnauthorizedException('Invalid email/phone or password');
     }
