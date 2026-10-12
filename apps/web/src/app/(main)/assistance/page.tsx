@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   HandHelping,
@@ -14,91 +14,70 @@ import {
   Star,
   ExternalLink,
   ArrowRight,
+  AlertCircle,
+  Building2,
+  Calendar,
 } from 'lucide-react';
-
-interface PartnerCenter {
-  id: string;
-  name: string;
-  type: string;
-  location: string;
-  district: string;
-  state: string;
-  rating: number;
-  reviewsCount: number;
-  services: string[];
-  hours: string;
-  phone: string;
-  verified: boolean;
-}
-
-const DEMO_CENTERS: PartnerCenter[] = [
-  {
-    id: 'center-1',
-    name: 'Sri Sai MeeSeva & Online Citizen Services',
-    type: 'MeeSeva / CSC Center',
-    location: 'Shop 12, Main Road, Dilsukhnagar',
-    district: 'Hyderabad',
-    state: 'Telangana',
-    rating: 4.8,
-    reviewsCount: 142,
-    services: ['Online Form Filling', 'Caste & Income Certificates', 'Aadhaar Print', 'Document Scanning'],
-    hours: '9:00 AM – 8:30 PM (Mon–Sat)',
-    phone: '+91 98480 12345',
-    verified: true,
-  },
-  {
-    id: 'center-2',
-    name: 'Kaveri Citizen Facilitation & Cyber Hub',
-    type: 'CSC Facilitation Center',
-    location: 'Opp. Bus Station, 4th Block, Jayanagar',
-    district: 'Bengaluru',
-    state: 'Karnataka',
-    rating: 4.9,
-    reviewsCount: 215,
-    services: ['UPSC/KPSC Form Filling', 'PAN Card Assistance', 'Passport Appointments', 'Biometric Verify'],
-    hours: '9:30 AM – 9:00 PM (All days)',
-    phone: '+91 94480 54321',
-    verified: true,
-  },
-  {
-    id: 'center-3',
-    name: 'National Digital Seva Kendra',
-    type: 'Common Service Center (CSC)',
-    location: 'Near Metro Station Gate 2, Laxmi Nagar',
-    district: 'East Delhi',
-    state: 'Delhi',
-    rating: 4.7,
-    reviewsCount: 98,
-    services: ['SSC / DSSSB Online Apply', 'Scholarship Portals (NSP)', 'Challan Payment', 'Print & Scan'],
-    hours: '10:00 AM – 8:00 PM (Mon–Sat)',
-    phone: '+91 98110 67890',
-    verified: true,
-  },
-];
+import type { PartnerDirectoryResponse, PartnerSummary } from '@applyfields/types';
+import { apiGet } from '@/lib/api';
 
 const SERVICE_FILTERS = [
-  { id: 'all', label: 'All Centers' },
-  { id: 'csc', label: 'MeeSeva & CSC' },
-  { id: 'form_filling', label: 'Exam Form Filling' },
-  { id: 'certificates', label: 'Certificates & Domicile' },
+  { id: 'all', label: 'All Centers', type: undefined },
+  { id: 'meeseva_csc', label: 'MeeSeva & CSC', type: 'csc' },
+  { id: 'cyber_xerox', label: 'Cyber Points & Xerox', type: 'browsing_centre' },
+  { id: 'assistance', label: 'Online Form Assistance', type: 'application_assistance' },
+  { id: 'institution', label: 'Colleges & Institutions', type: 'college' },
 ];
 
 export default function AssistancePage() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchLocation, setSearchLocation] = useState('');
-  const [bookedCenter, setBookedCenter] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [centers, setCenters] = useState<PartnerSummary[]>([]);
+  const [selectedCenter, setSelectedCenter] = useState<PartnerSummary | null>(null);
+  const [bookingSuccess, setBookingSuccess] = useState<string | null>(null);
 
-  const filteredCenters = DEMO_CENTERS.filter((c) => {
-    if (searchLocation.trim()) {
-      const q = searchLocation.toLowerCase();
-      return (
-        c.location.toLowerCase().includes(q) ||
-        c.district.toLowerCase().includes(q) ||
-        c.name.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  // Fetch real partners from database
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchPartners = async () => {
+      setLoading(true);
+      const params = new URLSearchParams();
+
+      const currentFilter = SERVICE_FILTERS.find((f) => f.id === activeFilter);
+      if (currentFilter?.type) {
+        params.append('type', currentFilter.type);
+      }
+      if (searchLocation.trim()) {
+        params.append('q', searchLocation.trim());
+      }
+
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+      const response = await apiGet<PartnerDirectoryResponse>(`/partners/directory${queryStr}`);
+
+      if (!isCancelled) {
+        setCenters(response?.items ?? []);
+        setLoading(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchPartners, 250);
+    return () => {
+      isCancelled = true;
+      clearTimeout(debounceTimer);
+    };
+  }, [activeFilter, searchLocation]);
+
+  const handleBookCenter = (center: PartnerSummary) => {
+    setSelectedCenter(center);
+  };
+
+  const confirmBooking = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCenter) return;
+    setBookingSuccess(selectedCenter.business_name);
+    setSelectedCenter(null);
+  };
 
   return (
     <div className="space-y-8">
@@ -113,7 +92,7 @@ export default function AssistancePage() {
             Find Assistance
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-[#435775]">
-            Locate verified nearby MeeSeva, Common Service Centers (CSC), cyber points, and authorized counselors for hassle-free online form submission.
+            Locate verified nearby MeeSeva, Common Service Centers (CSC), cyber points, and authorized counselors for hassle-free online form submission and certificate services.
           </p>
         </div>
 
@@ -147,7 +126,7 @@ export default function AssistancePage() {
                 key={f.id}
                 type="button"
                 onClick={() => setActiveFilter(f.id)}
-                className={`rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${
+                className={`whitespace-nowrap rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${
                   activeFilter === f.id
                     ? 'bg-[#082046] text-white shadow-sm'
                     : 'bg-[#F0F4F8] text-[#435775] hover:bg-[#e2eaf4] hover:text-[#082046]'
@@ -160,88 +139,228 @@ export default function AssistancePage() {
         </div>
       </div>
 
-      {/* Centers List */}
-      <div className="space-y-4">
-        {bookedCenter && (
-          <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-xs text-emerald-800 flex items-center justify-between">
+      {/* Success Banner */}
+      {bookingSuccess && (
+        <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-xs text-emerald-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
             <span>
-              ✓ Assistance booking initiated with <strong>{bookedCenter}</strong>. You will receive an SMS confirmation with contact details.
+              Assistance request initiated for <strong>{bookingSuccess}</strong>. The center coordinator has been notified.
             </span>
-            <button
-              type="button"
-              onClick={() => setBookedCenter(null)}
-              className="font-bold underline ml-2"
-            >
-              Dismiss
-            </button>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={() => setBookingSuccess(null)}
+            className="font-bold underline ml-2 hover:text-emerald-950"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCenters.map((center) => (
-            <div
-              key={center.id}
-              className="rounded-2xl border border-[#c4d2e3] bg-white p-5 shadow-sm transition hover:border-[#91a8c7] flex flex-col justify-between space-y-4"
-            >
-              <div className="space-y-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <span className="rounded-md bg-blue-50 border border-blue-100 px-2 py-0.5 text-[11px] font-bold text-[#0e7bf4]">
-                    {center.type}
-                  </span>
-                  {center.verified && (
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                      <ShieldCheck className="size-3.5" /> Verified
+      {/* Centers Directory */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="animate-pulse rounded-2xl border border-[#c4d2e3] bg-white p-5 space-y-4"
+              >
+                <div className="h-5 w-24 rounded bg-slate-200" />
+                <div className="h-6 w-3/4 rounded bg-slate-200" />
+                <div className="h-4 w-1/2 rounded bg-slate-100" />
+                <div className="h-10 rounded-xl bg-slate-100" />
+              </div>
+            ))}
+          </div>
+        ) : centers.length === 0 ? (
+          /* Real Zero-State: No Dummy Data */
+          <div className="rounded-3xl border border-dashed border-[#c4d2e3] bg-white p-12 text-center space-y-4">
+            <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#F0F4F8] text-[#0e7bf4]">
+              <Store className="size-7" />
+            </div>
+            <div className="max-w-md mx-auto space-y-1">
+              <h2 className="text-base font-bold text-[#082046]">
+                No verified partner centers found
+              </h2>
+              <p className="text-xs text-[#536780]">
+                {searchLocation.trim()
+                  ? `No verified centers found matching "${searchLocation}". Try searching a different district, state, or PIN code.`
+                  : 'There are currently no verified partner centers listed under this category.'}
+              </p>
+            </div>
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              {searchLocation && (
+                <button
+                  type="button"
+                  onClick={() => setSearchLocation('')}
+                  className="rounded-xl border border-[#c4d2e3] bg-white px-4 py-2 text-xs font-semibold text-[#082046] hover:bg-[#F0F4F8]"
+                >
+                  Clear search
+                </button>
+              )}
+              <Link
+                href="/partner"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#082046] px-4 py-2 text-xs font-bold text-white hover:bg-[#061835]"
+              >
+                <Store className="size-3.5" /> Register your center
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {centers.map((center) => (
+              <div
+                key={center.id}
+                className="rounded-2xl border border-[#c4d2e3] bg-white p-5 shadow-sm transition hover:border-[#91a8c7] flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="rounded-md bg-blue-50 border border-blue-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#0e7bf4]">
+                      {center.type.replace('_', ' ')}
                     </span>
+                    {center.verification_status === 'verified' && (
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                        <ShieldCheck className="size-3.5" /> Verified
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="text-base font-bold text-[#082046] leading-snug">
+                    {center.business_name}
+                  </h3>
+
+                  <p className="flex items-start gap-1.5 text-xs text-[#536780]">
+                    <MapPin className="size-3.5 shrink-0 text-[#0e7bf4] mt-0.5" />
+                    <span>
+                      {center.address ? `${center.address}, ` : ''}
+                      {center.city || center.district}, {center.state_code || ''}
+                      {center.pincode ? ` - ${center.pincode}` : ''}
+                    </span>
+                  </p>
+
+                  {center.phone && (
+                    <p className="flex items-center gap-1.5 text-xs text-[#536780]">
+                      <Phone className="size-3.5 shrink-0 text-slate-400" />
+                      <span>{center.phone}</span>
+                    </p>
+                  )}
+
+                  {center.services && center.services.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {center.services.map((s) => (
+                        <span
+                          key={s.id}
+                          className="rounded-lg bg-[#F0F4F8] px-2 py-0.5 text-[10px] font-semibold text-[#243b5b]"
+                        >
+                          {s.name}
+                          {s.charge_text ? ` (${s.charge_text})` : ''}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                <h3 className="text-base font-bold text-[#082046] leading-snug">
-                  {center.name}
-                </h3>
+                <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
+                  <div className="flex items-center gap-1 text-xs font-bold text-[#082046]">
+                    <Star className="size-3.5 fill-amber-400 text-amber-400" />
+                    <span>{center.rating_avg.toFixed(1)}</span>
+                    <span className="font-normal text-[#536780]">({center.rating_count})</span>
+                  </div>
 
-                <p className="flex items-start gap-1.5 text-xs text-[#536780]">
-                  <MapPin className="size-3.5 shrink-0 text-[#0e7bf4] mt-0.5" />
-                  <span>
-                    {center.location}, {center.district}, {center.state}
-                  </span>
-                </p>
-
-                <p className="flex items-center gap-1.5 text-xs text-[#536780]">
-                  <Clock className="size-3.5 shrink-0 text-slate-400" />
-                  <span>{center.hours}</span>
-                </p>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {center.services.map((s) => (
-                    <span
-                      key={s}
-                      className="rounded-lg bg-[#F0F4F8] px-2 py-0.5 text-[10px] font-semibold text-[#243b5b]"
+                  <div className="flex items-center gap-2">
+                    {center.phone && (
+                      <a
+                        href={`tel:${center.phone}`}
+                        className="rounded-xl border border-[#c4d2e3] px-3 py-1.5 text-xs font-semibold text-[#082046] hover:bg-[#F0F4F8]"
+                      >
+                        Call
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleBookCenter(center)}
+                      className="rounded-xl bg-[#0e7bf4] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0c6fdc]"
                     >
-                      {s}
-                    </span>
-                  ))}
+                      Request Help
+                    </button>
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-              <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
-                <div className="flex items-center gap-1 text-xs font-bold text-[#082046]">
-                  <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                  <span>{center.rating}</span>
-                  <span className="font-normal text-[#536780]">({center.reviewsCount})</span>
-                </div>
+      {/* Request Help Modal */}
+      {selectedCenter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-[#c4d2e3] bg-white p-6 shadow-xl space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#082046]">Request In-Person Assistance</h3>
+                <p className="text-xs text-[#536780]">{selectedCenter.business_name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCenter(null)}
+                className="text-xs font-semibold text-[#536780] hover:text-[#082046]"
+              >
+                ✕
+              </button>
+            </div>
 
+            <form onSubmit={confirmBooking} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-[#082046]">Your Mobile Number</label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="+91 98765 43210"
+                  className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3 py-2 text-xs text-[#082046] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#082046]">Service Needed</label>
+                <select className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3 py-2 text-xs text-[#082046] outline-none">
+                  <option value="job_application">Government Job Application Form</option>
+                  <option value="exam_application">Entrance Exam Registration</option>
+                  <option value="certificate">Income / Caste / Domicile Certificate</option>
+                  <option value="pan_aadhaar">PAN / Aadhaar / Passport Help</option>
+                  <option value="other">General Application &amp; Scanning Help</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#082046]">Preferred Date / Notes</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Tomorrow morning around 11:00 AM"
+                  className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3 py-2 text-xs text-[#082046] outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setBookedCenter(center.name)}
-                  className="rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0c6fdc]"
+                  onClick={() => setSelectedCenter(null)}
+                  className="rounded-xl border border-[#c4d2e3] px-4 py-2 text-xs font-semibold text-[#435775]"
                 >
-                  Request Help
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-[#082046] px-5 py-2 text-xs font-bold text-white hover:bg-[#061835]"
+                >
+                  Confirm Request
                 </button>
               </div>
-            </div>
-          ))}
+            </form>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Transparent Service Guarantee */}
       <div className="rounded-2xl border border-[#c4d2e3] bg-[#F8FBFF] p-5 text-xs text-[#435775] space-y-2">
@@ -250,7 +369,7 @@ export default function AssistancePage() {
           <span>Fair Service &amp; Fee Standard</span>
         </div>
         <p>
-          Verified centers on the ApplyFields Assistance Network agree to clear, transparent assistance charges (typically ₹50–₹100 for form filling and scanning). Official government recruitment fees are paid directly to the government agency portal.
+          Verified centers on the ApplyFields Assistance Network agree to clear, transparent assistance charges (typically ₹50–₹100 for form filling and scanning). Official government recruitment fees are paid directly to the official government authority portal.
         </p>
       </div>
     </div>

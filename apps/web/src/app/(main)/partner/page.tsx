@@ -13,20 +13,85 @@ import {
   ArrowRight,
   HandHelping,
   FileCheck2,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
+import type { PartnerDetail, PartnerRegistrationInput, PartnerType } from '@applyfields/types';
+import { apiPost } from '@/lib/api';
+
+const PARTNER_CATEGORIES: { id: PartnerType; label: string; desc: string }[] = [
+  { id: 'csc', label: 'CSC (Common Service Center)', desc: 'Official digital seva center with government certificate services' },
+  { id: 'meeseva', label: 'MeeSeva Facilitation Center', desc: 'Authorized state citizen services kiosk' },
+  { id: 'browsing_centre', label: 'Cyber Cafe / Online Point', desc: 'Internet browsing and computer application submission hub' },
+  { id: 'xerox_printing', label: 'Xerox & Scanning Center', desc: 'Document photo, printing and scan submission desk' },
+  { id: 'application_assistance', label: 'Application Assistance Agency', desc: 'Professional exam and competitive test form filing desk' },
+  { id: 'college', label: 'College / Degree Institution', desc: 'Higher education institution desk for student inquiries' },
+  { id: 'consultant', label: 'Career Counselor / Consultant', desc: 'Individual guidance and admission advisor' },
+];
+
+const STATES = [
+  { code: 'TG', name: 'Telangana' },
+  { code: 'AP', name: 'Andhra Pradesh' },
+  { code: 'KA', name: 'Karnataka' },
+  { code: 'MH', name: 'Maharashtra' },
+  { code: 'DL', name: 'Delhi NCR' },
+  { code: 'TN', name: 'Tamil Nadu' },
+  { code: 'UP', name: 'Uttar Pradesh' },
+  { code: 'WB', name: 'West Bengal' },
+  { code: 'KL', name: 'Kerala' },
+  { code: 'MP', name: 'Madhya Pradesh' },
+];
 
 export default function PartnerPage() {
-  const [partnerType, setPartnerType] = useState('csc');
+  const [partnerType, setPartnerType] = useState<PartnerType>('csc');
   const [businessName, setBusinessName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
-  const [stateName, setStateName] = useState('Telangana');
-  const [submitted, setSubmitted] = useState(false);
+  const [address, setAddress] = useState('');
+  const [stateCode, setStateCode] = useState('TG');
+  const [district, setDistrict] = useState('');
+  const [city, setCity] = useState('');
+  const [pincode, setPincode] = useState('');
+  const [description, setDescription] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [registeredPartner, setRegisteredPartner] = useState<PartnerDetail | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+    setErrorMsg(null);
+
+    const payload: PartnerRegistrationInput = {
+      business_name: businessName.trim(),
+      type: partnerType,
+      owner_name: ownerName.trim(),
+      phone: phone.trim().replace(/\s+/g, ''),
+      whatsapp: whatsapp.trim() ? whatsapp.trim().replace(/\s+/g, '') : undefined,
+      email: email.trim() || undefined,
+      address: address.trim(),
+      state_code: stateCode,
+      district: district.trim(),
+      city: city.trim(),
+      pincode: pincode.trim(),
+      description: description.trim() || undefined,
+    };
+
+    const res = await apiPost<PartnerDetail, PartnerRegistrationInput>(
+      '/partners/register',
+      payload,
+    );
+
+    setIsSubmitting(false);
+
+    if (res.error || !res.data) {
+      setErrorMsg(res.error || 'Failed to submit partner application. Please verify details.');
+    } else {
+      setRegisteredPartner(res.data);
+    }
   };
 
   return (
@@ -41,11 +106,11 @@ export default function PartnerPage() {
           Partner Portal
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-[#435775]">
-          Empower citizens in your locality. Register your facilitation center, college, or service desk on ApplyFields to manage admissions, receive walk-ins, and build verified local trust.
+          Empower citizens in your locality. Register your facilitation center, cyber cafe, college desk, or service kiosk on ApplyFields to receive walk-ins, offer transparent form assistance, and build verified community trust.
         </p>
       </div>
 
-      {/* Track Cards */}
+      {/* Feature Cards */}
       <div className="grid gap-6 md:grid-cols-3">
         <div className="rounded-2xl border border-[#c4d2e3] bg-white p-6 shadow-sm space-y-3">
           <div className="grid size-10 place-items-center rounded-xl bg-blue-50 text-[#0e7bf4]">
@@ -53,11 +118,11 @@ export default function PartnerPage() {
           </div>
           <h2 className="text-base font-bold text-[#082046]">Citizen Service Centers</h2>
           <p className="text-xs text-[#536780]">
-            For CSC, MeeSeva, cyber cafes, and xerox shops offering computer form filling, scanning, and certificate assistance.
+            For CSC, MeeSeva, cyber cafes, and xerox shops offering exam form filling, scanning, and certificate assistance.
           </p>
           <ul className="space-y-1.5 text-xs text-[#435775]">
             <li className="flex items-center gap-1.5">✓ Verified location badge</li>
-            <li className="flex items-center gap-1.5">✓ Direct local walk-in requests</li>
+            <li className="flex items-center gap-1.5">✓ Direct local citizen walk-ins</li>
           </ul>
         </div>
 
@@ -90,61 +155,90 @@ export default function PartnerPage() {
         </div>
       </div>
 
-      {/* Onboarding Form */}
+      {/* Onboarding Form Container */}
       <div className="rounded-3xl border border-[#c4d2e3] bg-white p-6 sm:p-8 shadow-sm">
         <div className="max-w-2xl space-y-6">
           <div>
             <h2 className="text-xl font-bold text-[#082046]">Partner Registration &amp; Verification</h2>
             <p className="mt-1 text-xs text-[#536780]">
-              Submit your center details for verification. Once approved, your center appears in the Citizen Assistance Directory.
+              Submit your center details for verification. Once approved by ApplyFields staff, your center will be listed in the Citizen Assistance Directory.
             </p>
           </div>
 
-          {submitted ? (
-            <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-6 text-sm text-emerald-900 space-y-2">
-              <h3 className="font-bold flex items-center gap-2">
-                <CheckCircle2 className="size-5 text-emerald-600" /> Registration Received
+          {registeredPartner ? (
+            <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-6 text-sm text-emerald-900 space-y-3">
+              <h3 className="font-bold flex items-center gap-2 text-base">
+                <CheckCircle2 className="size-5 text-emerald-600 shrink-0" /> Application Successfully Received!
               </h3>
-              <p className="text-xs text-emerald-800">
-                Thank you, <strong>{ownerName || 'Partner'}</strong>. Our network verification coordinator will review your documents and contact you at <strong>{phone}</strong> within 2 business days.
+              <p className="text-xs text-emerald-800 leading-relaxed">
+                Thank you, <strong>{registeredPartner.owner_name}</strong>. Your partner profile for{' '}
+                <strong>{registeredPartner.business_name}</strong> (Slug: <code className="bg-emerald-100 px-1 py-0.5 rounded font-mono">{registeredPartner.slug}</code>) has been logged in our verification queue.
+              </p>
+              <div className="rounded-xl bg-white/70 p-3 text-xs text-emerald-900 border border-emerald-200 space-y-1">
+                <div><strong>Location:</strong> {registeredPartner.city}, {registeredPartner.district} ({registeredPartner.pincode})</div>
+                <div><strong>Status:</strong> Under Review (Pending Staff Verification)</div>
+                <div><strong>Mobile:</strong> {registeredPartner.phone}</div>
+              </div>
+              <p className="text-xs text-emerald-700">
+                Our verification team will review your center information and contact you to verify authorization before listing your profile live on the public directory.
               </p>
               <button
                 type="button"
-                onClick={() => setSubmitted(false)}
-                className="mt-3 text-xs font-semibold text-emerald-700 underline"
+                onClick={() => {
+                  setRegisteredPartner(null);
+                  setBusinessName('');
+                  setOwnerName('');
+                  setPhone('');
+                  setWhatsapp('');
+                  setEmail('');
+                  setAddress('');
+                  setDistrict('');
+                  setCity('');
+                  setPincode('');
+                  setDescription('');
+                }}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm hover:bg-emerald-100"
               >
-                Submit another location
+                Register another center
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {errorMsg && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800 flex items-center gap-2">
+                  <AlertCircle className="size-4 shrink-0 text-rose-600" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
+                <div className="sm:col-span-2">
                   <label htmlFor="partnerType" className="block text-xs font-bold text-[#082046]">
-                    Partner Category
+                    Partner Category *
                   </label>
                   <select
                     id="partnerType"
                     value={partnerType}
-                    onChange={(e) => setPartnerType(e.target.value)}
+                    onChange={(e) => setPartnerType(e.target.value as PartnerType)}
                     className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
                   >
-                    <option value="csc">MeeSeva / Common Service Center (CSC)</option>
-                    <option value="cyber">Cyber Point &amp; Online Services Desk</option>
-                    <option value="institution">College / Educational Institution</option>
-                    <option value="counselor">Career Counselor / Consultant</option>
+                    {PARTNER_CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                <div>
+                <div className="sm:col-span-2">
                   <label htmlFor="businessName" className="block text-xs font-bold text-[#082046]">
-                    Center / Business Name
+                    Center / Business Name *
                   </label>
                   <input
                     id="businessName"
                     type="text"
                     required
-                    placeholder="e.g. Sri Balaji Digital Seva Kendra"
+                    placeholder="e.g. Sri Balaji Digital Seva & Cyber Center"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
                     className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
@@ -153,7 +247,7 @@ export default function PartnerPage() {
 
                 <div>
                   <label htmlFor="ownerName" className="block text-xs font-bold text-[#082046]">
-                    Owner / Contact Person
+                    Owner / Manager Full Name *
                   </label>
                   <input
                     id="ownerName"
@@ -168,13 +262,15 @@ export default function PartnerPage() {
 
                 <div>
                   <label htmlFor="phone" className="block text-xs font-bold text-[#082046]">
-                    Mobile Number (SMS / WhatsApp)
+                    Mobile Number (10 digits) *
                   </label>
                   <input
                     id="phone"
                     type="tel"
                     required
-                    placeholder="+91 98765 43210"
+                    pattern="[6-9][0-9]{9}"
+                    title="10-digit Indian mobile number"
+                    placeholder="e.g. 9848012345"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
@@ -182,13 +278,26 @@ export default function PartnerPage() {
                 </div>
 
                 <div>
+                  <label htmlFor="whatsapp" className="block text-xs font-bold text-[#082046]">
+                    WhatsApp Number (Optional)
+                  </label>
+                  <input
+                    id="whatsapp"
+                    type="tel"
+                    placeholder="e.g. 9848012345"
+                    value={whatsapp}
+                    onChange={(e) => setWhatsapp(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
+                </div>
+
+                <div>
                   <label htmlFor="email" className="block text-xs font-bold text-[#082046]">
-                    Email Address
+                    Email Address (Optional)
                   </label>
                   <input
                     id="email"
                     type="email"
-                    required
                     placeholder="contact@center.in"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -196,32 +305,114 @@ export default function PartnerPage() {
                   />
                 </div>
 
+                <div className="sm:col-span-2">
+                  <label htmlFor="address" className="block text-xs font-bold text-[#082046]">
+                    Shop / Center Address *
+                  </label>
+                  <input
+                    id="address"
+                    type="text"
+                    required
+                    placeholder="Shop/Door No., Landmark, Street"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
+                </div>
+
                 <div>
-                  <label htmlFor="stateName" className="block text-xs font-bold text-[#082046]">
-                    Operating State
+                  <label htmlFor="stateCode" className="block text-xs font-bold text-[#082046]">
+                    State *
                   </label>
                   <select
-                    id="stateName"
-                    value={stateName}
-                    onChange={(e) => setStateName(e.target.value)}
+                    id="stateCode"
+                    value={stateCode}
+                    onChange={(e) => setStateCode(e.target.value)}
                     className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
                   >
-                    <option value="Telangana">Telangana</option>
-                    <option value="Andhra Pradesh">Andhra Pradesh</option>
-                    <option value="Karnataka">Karnataka</option>
-                    <option value="Maharashtra">Maharashtra</option>
-                    <option value="Delhi">Delhi NCR</option>
-                    <option value="Tamil Nadu">Tamil Nadu</option>
+                    {STATES.map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.name} ({s.code})
+                      </option>
+                    ))}
                   </select>
+                </div>
+
+                <div>
+                  <label htmlFor="district" className="block text-xs font-bold text-[#082046]">
+                    District *
+                  </label>
+                  <input
+                    id="district"
+                    type="text"
+                    required
+                    placeholder="e.g. Hyderabad / Rangareddy"
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="city" className="block text-xs font-bold text-[#082046]">
+                    City / Town / Village *
+                  </label>
+                  <input
+                    id="city"
+                    type="text"
+                    required
+                    placeholder="e.g. Dilsukhnagar"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="pincode" className="block text-xs font-bold text-[#082046]">
+                    6-Digit PIN Code *
+                  </label>
+                  <input
+                    id="pincode"
+                    type="text"
+                    required
+                    pattern="[1-9][0-9]{5}"
+                    maxLength={6}
+                    placeholder="500060"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label htmlFor="description" className="block text-xs font-bold text-[#082046]">
+                    Services Offered &amp; Facilities (Optional)
+                  </label>
+                  <textarea
+                    id="description"
+                    rows={3}
+                    placeholder="e.g. High-speed scanners, biometric iris scanner, color printers, UPSC/SSC application submission help."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-3">
                 <button
                   type="submit"
-                  className="rounded-xl bg-[#082046] px-6 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#061835]"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#082046] px-6 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#061835] disabled:opacity-60"
                 >
-                  Submit Center for Verification
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Submitting...
+                    </>
+                  ) : (
+                    'Submit Center for Verification'
+                  )}
                 </button>
               </div>
             </form>
