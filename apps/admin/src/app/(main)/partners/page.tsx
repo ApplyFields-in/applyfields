@@ -1,6 +1,6 @@
 import type { AdminPartnerListResponse } from '@applyfields/types';
-import { Card, cn, PageHeader } from '@applyfields/ui';
-import { Store, Search, ShieldCheck } from 'lucide-react';
+import { buttonClass, Card, cn, PageHeader } from '@applyfields/ui';
+import { GraduationCap, Store, Search, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
@@ -51,6 +51,40 @@ export default async function PartnersAdminPage({
         description="Verify citizen assistance centers, MeeSeva kiosks, cyber points, and college desks. Approve rate cards and enable public directory listings."
         icon={<Store />}
       />
+
+      {/* Mode Switcher Tabs */}
+      <div className="flex items-center gap-2 border-b border-teal/10 pb-3">
+        <Link
+          href="/partners"
+          className={buttonClass({
+            variant: 'primary',
+            size: 'sm',
+            className: 'gap-1.5 text-xs shadow-clay',
+          })}
+        >
+          <Store className="size-3.5" /> Partner Centers &amp; KYC
+        </Link>
+        <Link
+          href="/partners/enquiries"
+          className={buttonClass({
+            variant: 'ghost',
+            size: 'sm',
+            className: 'gap-1.5 text-xs text-teal/70 hover:text-teal',
+          })}
+        >
+          <GraduationCap className="size-3.5" /> College Admission Inquiries
+        </Link>
+        <Link
+          href="/assistance"
+          className={buttonClass({
+            variant: 'ghost',
+            size: 'sm',
+            className: 'gap-1.5 text-xs text-teal/70 hover:text-teal',
+          })}
+        >
+          Assistance Bookings Network
+        </Link>
+      </div>
 
       {data === null ? (
         <ApiOffline />

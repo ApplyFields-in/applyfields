@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { apiGet } from '@/lib/api';
+import { EnquiryDialog } from './enquiry-dialog';
 
 export default async function CollegeDetailPage({
   params,
@@ -193,8 +194,15 @@ export default async function CollegeDetailPage({
           )}
         </div>
 
-        {/* Right Col: Top Recruiters & Accreditation */}
+        {/* Right Col: Admission Desk, Top Recruiters & Accreditation */}
         <div className="space-y-6">
+          {/* Admission Inquiry Desk */}
+          <EnquiryDialog
+            collegeSlug={college.slug}
+            collegeName={college.name}
+            courses={college.courses.map((c) => ({ id: c.id, name: c.name, level: c.level }))}
+          />
+
           {/* Top Recruiters */}
           {college.placement_stats?.top_recruiters && college.placement_stats.top_recruiters.length > 0 && (
             <Card className="p-6">

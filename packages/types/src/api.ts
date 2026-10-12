@@ -1243,6 +1243,77 @@ export interface CreateReviewInput {
   comment?: string;
 }
 
+// ============================================================================
+// INSTITUTION PARTNERS & ADMISSION INQUIRIES (Session 13 — Module 3)
+// ============================================================================
+
+export type InstitutionEnquiryStatus = 'new' | 'responded' | 'closed';
+
+export interface InstitutionEnquiry {
+  id: string;
+  institution_id: string;
+  institution_name: string;
+  institution_slug: string;
+  user_id: string | null;
+  course_id: string | null;
+  course_name: string | null;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  message: string;
+  status: InstitutionEnquiryStatus;
+  response: string | null;
+  responded_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateInstitutionEnquiryInput {
+  name: string;
+  phone: string;
+  email?: string;
+  course_id?: string;
+  message: string;
+}
+
+export interface RespondInstitutionEnquiryInput {
+  status: InstitutionEnquiryStatus;
+  response: string;
+}
+
+export interface InstitutionPartnerProfile {
+  id: string;
+  slug: string;
+  name: string;
+  short_name: string | null;
+  type: string;
+  ownership: string | null;
+  website: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  fees_text: string | null;
+  description: string | null;
+  established_year: number | null;
+  enquiries_count: number;
+  courses_count: number;
+}
+
+export interface UpdateInstitutionProfileInput {
+  name?: string;
+  short_name?: string;
+  website?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  fees_text?: string;
+  description?: string;
+}
+
+export interface InstitutionEnquiryListResponse {
+  total: number;
+  items: InstitutionEnquiry[];
+}
+
+
 
 
 

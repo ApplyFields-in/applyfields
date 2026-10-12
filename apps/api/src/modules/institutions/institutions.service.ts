@@ -1,13 +1,26 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type {
   CourseDetail,
   CourseSummary,
+  CreateInstitutionEnquiryInput,
   InstitutionDetail,
+  InstitutionEnquiry,
+  InstitutionEnquiryListResponse,
+  InstitutionEnquiryStatus,
+  InstitutionPartnerProfile,
   InstitutionSummary,
+  RespondInstitutionEnquiryInput,
+  UpdateInstitutionProfileInput,
 } from '@applyfields/types';
 import { z } from 'zod';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { enquiry_status } from '../../generated/prisma/enums.js';
 
 export const courseListQuerySchema = z.object({
   q: z.string().trim().optional(),
@@ -22,6 +35,29 @@ export const institutionListQuerySchema = z.object({
   state: z.string().trim().optional(),
 });
 export type InstitutionListQuery = z.infer<typeof institutionListQuerySchema>;
+
+export const createInstitutionEnquirySchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  phone: z.string().trim().regex(/^(\+91)?[6-9]\d{9}$/, 'Invalid Indian mobile number'),
+  email: z.string().trim().email().optional().or(z.literal('')),
+  course_id: z.string().uuid().optional().or(z.literal('')),
+  message: z.string().trim().min(5).max(1000),
+});
+
+export const respondInstitutionEnquirySchema = z.object({
+  status: z.enum(['new', 'responded', 'closed']),
+  response: z.string().trim().min(2).max(1000),
+});
+
+export const updateInstitutionProfileSchema = z.object({
+  name: z.string().trim().min(2).max(150).optional(),
+  short_name: z.string().trim().max(50).optional().or(z.literal('')),
+  website: z.string().trim().url().optional().or(z.literal('')),
+  contact_email: z.string().trim().email().optional().or(z.literal('')),
+  contact_phone: z.string().trim().regex(/^(\+91)?[6-9]\d{9}$/).optional().or(z.literal('')),
+  fees_text: z.string().trim().max(200).optional().or(z.literal('')),
+  description: z.string().trim().max(2000).optional().or(z.literal('')),
+});
 
 @Injectable()
 export class InstitutionsService {
@@ -336,4 +372,492 @@ export class InstitutionsService {
     }
     return list;
   }
+
+  // =========================================================================
+  // MODULE 3: STUDENT ADMISSION INQUIRIES & PARTNER COLLEGE DESK
+  // =========================================================================
+
+  /** Helper: resolve partner's linked institution ID */
+  private async getLinkedInstitutionId(userId: string): Promise<string> {
+    const pRows = await this.prisma.$queryRaw<
+      Array<{ partner_id: string; institution_id: string | null }>
+    >`
+      select id::text as partner_id, institution_id::text
+      from partners
+      where user_id = ${userId}::uuid and type = 'college'
+      limit 1
+    `;
+
+    if (!pRows || pRows.length === 0 || !pRows[0].institution_id) {
+      throw new ForbiddenException(
+        'You are not registered as a verified college institution partner desk',
+      );
+    }
+    return pRows[0].institution_id;
+  }
+
+  /** Helper: get institution profile with metrics */
+  private async getInstitutionPartnerProfileById(
+    institutionId: string,
+  ): Promise<InstitutionPartnerProfile> {
+    const iRows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        slug: string;
+        name: string;
+        short_name: string | null;
+        type: string;
+        ownership: string | null;
+        website: string | null;
+        contact_email: string | null;
+        contact_phone: string | null;
+        fees_text: string | null;
+        description: string | null;
+        established_year: number | null;
+      }>
+    >`
+      select id::text, slug, name, short_name, type::text as type,
+             ownership::text as ownership, website, contact_email, contact_phone,
+             fees_text, description, established_year
+      from institutions
+      where id = ${institutionId}::uuid
+      limit 1
+    `;
+
+    if (!iRows || iRows.length === 0) {
+      throw new NotFoundException('Institution profile not found');
+    }
+    const inst = iRows[0];
+
+    const countEnquiries = await this.prisma.$queryRaw<Array<{ count: number }>>`
+      select count(*)::int as count
+      from institution_enquiries
+      where institution_id = ${institutionId}::uuid
+    `;
+    const countCourses = await this.prisma.$queryRaw<Array<{ count: number }>>`
+      select count(*)::int as count
+      from institution_courses
+      where institution_id = ${institutionId}::uuid
+    `;
+
+    return {
+      id: inst.id,
+      slug: inst.slug,
+      name: inst.name,
+      short_name: inst.short_name,
+      type: inst.type,
+      ownership: inst.ownership,
+      website: inst.website,
+      contact_email: inst.contact_email,
+      contact_phone: inst.contact_phone,
+      fees_text: inst.fees_text,
+      description: inst.description,
+      established_year: inst.established_year,
+      enquiries_count: countEnquiries[0]?.count ?? 0,
+      courses_count: countCourses[0]?.count ?? 0,
+    };
+  }
+
+  /** Submit student admission inquiry to a college */
+  async createEnquiry(
+    slug: string,
+    userId: string | null,
+    rawInput: unknown,
+  ): Promise<InstitutionEnquiry> {
+    const input = createInstitutionEnquirySchema.parse(rawInput);
+
+    const instRows = await this.prisma.$queryRaw<
+      Array<{ id: string; name: string; slug: string }>
+    >`
+      select id::text, name, slug
+      from institutions
+      where slug = ${slug} and status = 'published'
+      limit 1
+    `;
+
+    if (!instRows || instRows.length === 0) {
+      throw new NotFoundException(`Institution '${slug}' not found`);
+    }
+    const inst = instRows[0];
+
+    let courseName: string | null = null;
+    const courseId = input.course_id && input.course_id.length > 0 ? input.course_id : null;
+    if (courseId) {
+      const cRows = await this.prisma.$queryRaw<Array<{ id: string; name: string }>>`
+        select id::text, name from courses where id = ${courseId}::uuid limit 1
+      `;
+      if (!cRows || cRows.length === 0) {
+        throw new NotFoundException('Selected course not found');
+      }
+      courseName = cRows[0].name;
+    }
+
+    const email = input.email && input.email.length > 0 ? input.email : null;
+
+    const inserted = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        institution_id: string;
+        user_id: string | null;
+        course_id: string | null;
+        name: string | null;
+        phone: string | null;
+        email: string | null;
+        message: string;
+        status: string;
+        response: string | null;
+        responded_at: Date | null;
+        created_at: Date;
+        updated_at: Date;
+      }>
+    >`
+      insert into institution_enquiries (
+        institution_id,
+        user_id,
+        course_id,
+        name,
+        phone,
+        email,
+        message,
+        status
+      ) values (
+        ${inst.id}::uuid,
+        ${userId ? Prisma.sql`${userId}::uuid` : Prisma.sql`null`},
+        ${courseId ? Prisma.sql`${courseId}::uuid` : Prisma.sql`null`},
+        ${input.name},
+        ${input.phone},
+        ${email},
+        ${input.message},
+        'new'
+      )
+      returning id::text, institution_id::text, user_id::text, course_id::text,
+                name, phone, email, message, status::text, response,
+                responded_at, created_at, updated_at
+    `;
+
+    const row = inserted[0];
+    return {
+      id: row.id,
+      institution_id: row.institution_id,
+      institution_name: inst.name,
+      institution_slug: inst.slug,
+      user_id: row.user_id,
+      course_id: row.course_id,
+      course_name: courseName,
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      message: row.message,
+      status: row.status as InstitutionEnquiryStatus,
+      response: row.response,
+      responded_at: row.responded_at ? new Date(row.responded_at).toISOString() : null,
+      created_at: new Date(row.created_at).toISOString(),
+      updated_at: new Date(row.updated_at).toISOString(),
+    };
+  }
+
+  /** List citizen's inquiries */
+  async listUserEnquiries(userId: string): Promise<InstitutionEnquiryListResponse> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        institution_id: string;
+        institution_name: string;
+        institution_slug: string;
+        user_id: string | null;
+        course_id: string | null;
+        course_name: string | null;
+        name: string | null;
+        phone: string | null;
+        email: string | null;
+        message: string;
+        status: string;
+        response: string | null;
+        responded_at: Date | null;
+        created_at: Date;
+        updated_at: Date;
+      }>
+    >`
+      select e.id::text, e.institution_id::text, i.name as institution_name, i.slug as institution_slug,
+             e.user_id::text, e.course_id::text, c.name as course_name,
+             e.name, e.phone, e.email, e.message, e.status::text as status,
+             e.response, e.responded_at, e.created_at, e.updated_at
+      from institution_enquiries e
+      join institutions i on i.id = e.institution_id
+      left join courses c on c.id = e.course_id
+      where e.user_id = ${userId}::uuid
+      order by e.created_at desc
+    `;
+
+    return {
+      total: rows.length,
+      items: rows.map((r) => ({
+        id: r.id,
+        institution_id: r.institution_id,
+        institution_name: r.institution_name,
+        institution_slug: r.institution_slug,
+        user_id: r.user_id,
+        course_id: r.course_id,
+        course_name: r.course_name,
+        name: r.name,
+        phone: r.phone,
+        email: r.email,
+        message: r.message,
+        status: r.status as InstitutionEnquiryStatus,
+        response: r.response,
+        responded_at: r.responded_at ? new Date(r.responded_at).toISOString() : null,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString(),
+      })),
+    };
+  }
+
+  /** Partner institution desk profile */
+  async getPartnerInstitutionDesk(userId: string): Promise<InstitutionPartnerProfile> {
+    const institutionId = await this.getLinkedInstitutionId(userId);
+    return this.getInstitutionPartnerProfileById(institutionId);
+  }
+
+  /** Partner institution desk profile update */
+  async updatePartnerInstitutionDesk(
+    userId: string,
+    rawInput: unknown,
+  ): Promise<InstitutionPartnerProfile> {
+    const input = updateInstitutionProfileSchema.parse(rawInput);
+    const institutionId = await this.getLinkedInstitutionId(userId);
+
+    await this.prisma.$executeRaw`
+      update institutions
+      set name = coalesce(${input.name ?? null}, name),
+          short_name = coalesce(${input.short_name || null}, short_name),
+          website = coalesce(${input.website || null}, website),
+          contact_email = coalesce(${input.contact_email || null}, contact_email),
+          contact_phone = coalesce(${input.contact_phone || null}, contact_phone),
+          fees_text = coalesce(${input.fees_text || null}, fees_text),
+          description = coalesce(${input.description || null}, description),
+          updated_at = now()
+      where id = ${institutionId}::uuid
+    `;
+
+    return this.getInstitutionPartnerProfileById(institutionId);
+  }
+
+  /** Partner institution inquiries desk */
+  async listPartnerEnquiries(
+    userId: string,
+    status?: string,
+  ): Promise<InstitutionEnquiryListResponse> {
+    const institutionId = await this.getLinkedInstitutionId(userId);
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        institution_id: string;
+        institution_name: string;
+        institution_slug: string;
+        user_id: string | null;
+        course_id: string | null;
+        course_name: string | null;
+        name: string | null;
+        phone: string | null;
+        email: string | null;
+        message: string;
+        status: string;
+        response: string | null;
+        responded_at: Date | null;
+        created_at: Date;
+        updated_at: Date;
+      }>
+    >`
+      select e.id::text, e.institution_id::text, i.name as institution_name, i.slug as institution_slug,
+             e.user_id::text, e.course_id::text, c.name as course_name,
+             e.name, e.phone, e.email, e.message, e.status::text as status,
+             e.response, e.responded_at, e.created_at, e.updated_at
+      from institution_enquiries e
+      join institutions i on i.id = e.institution_id
+      left join courses c on c.id = e.course_id
+      where e.institution_id = ${institutionId}::uuid
+        ${status ? Prisma.sql`and e.status = ${status}::enquiry_status` : Prisma.empty}
+      order by e.created_at desc
+    `;
+
+    return {
+      total: rows.length,
+      items: rows.map((r) => ({
+        id: r.id,
+        institution_id: r.institution_id,
+        institution_name: r.institution_name,
+        institution_slug: r.institution_slug,
+        user_id: r.user_id,
+        course_id: r.course_id,
+        course_name: r.course_name,
+        name: r.name,
+        phone: r.phone,
+        email: r.email,
+        message: r.message,
+        status: r.status as InstitutionEnquiryStatus,
+        response: r.response,
+        responded_at: r.responded_at ? new Date(r.responded_at).toISOString() : null,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString(),
+      })),
+    };
+  }
+
+  /** Respond to student inquiry by partner desk */
+  async respondToPartnerEnquiry(
+    userId: string,
+    enquiryId: string,
+    rawInput: unknown,
+  ): Promise<InstitutionEnquiry> {
+    const input = respondInstitutionEnquirySchema.parse(rawInput);
+    const institutionId = await this.getLinkedInstitutionId(userId);
+
+    const existing = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      select id::text from institution_enquiries
+      where id = ${enquiryId}::uuid and institution_id = ${institutionId}::uuid
+      limit 1
+    `;
+    if (!existing || existing.length === 0) {
+      throw new NotFoundException('Enquiry not found for your institution desk');
+    }
+
+    await this.prisma.$executeRaw`
+      update institution_enquiries
+      set status = ${input.status}::enquiry_status,
+          response = ${input.response},
+          responded_at = now(),
+          updated_at = now()
+      where id = ${enquiryId}::uuid
+    `;
+
+    const updatedRows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        institution_id: string;
+        institution_name: string;
+        institution_slug: string;
+        user_id: string | null;
+        course_id: string | null;
+        course_name: string | null;
+        name: string | null;
+        phone: string | null;
+        email: string | null;
+        message: string;
+        status: string;
+        response: string | null;
+        responded_at: Date | null;
+        created_at: Date;
+        updated_at: Date;
+      }>
+    >`
+      select e.id::text, e.institution_id::text, i.name as institution_name, i.slug as institution_slug,
+             e.user_id::text, e.course_id::text, c.name as course_name,
+             e.name, e.phone, e.email, e.message, e.status::text as status,
+             e.response, e.responded_at, e.created_at, e.updated_at
+      from institution_enquiries e
+      join institutions i on i.id = e.institution_id
+      left join courses c on c.id = e.course_id
+      where e.id = ${enquiryId}::uuid
+      limit 1
+    `;
+
+    const r = updatedRows[0];
+    return {
+      id: r.id,
+      institution_id: r.institution_id,
+      institution_name: r.institution_name,
+      institution_slug: r.institution_slug,
+      user_id: r.user_id,
+      course_id: r.course_id,
+      course_name: r.course_name,
+      name: r.name,
+      phone: r.phone,
+      email: r.email,
+      message: r.message,
+      status: r.status as InstitutionEnquiryStatus,
+      response: r.response,
+      responded_at: r.responded_at ? new Date(r.responded_at).toISOString() : null,
+      created_at: new Date(r.created_at).toISOString(),
+      updated_at: new Date(r.updated_at).toISOString(),
+    };
+  }
+
+  /** Staff oversight: list all enquiries across colleges */
+  async adminListEnquiries(query: {
+    institutionId?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<InstitutionEnquiryListResponse> {
+    const page = Math.max(1, query.page || 1);
+    const limit = Math.min(100, Math.max(1, query.limit || 20));
+    const offset = (page - 1) * limit;
+
+    const countRows = await this.prisma.$queryRaw<Array<{ count: number }>>`
+      select count(*)::int as count
+      from institution_enquiries e
+      where 1=1
+        ${query.institutionId ? Prisma.sql`and e.institution_id = ${query.institutionId}::uuid` : Prisma.empty}
+        ${query.status ? Prisma.sql`and e.status = ${query.status}::enquiry_status` : Prisma.empty}
+    `;
+    const total = countRows[0]?.count ?? 0;
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        institution_id: string;
+        institution_name: string;
+        institution_slug: string;
+        user_id: string | null;
+        course_id: string | null;
+        course_name: string | null;
+        name: string | null;
+        phone: string | null;
+        email: string | null;
+        message: string;
+        status: string;
+        response: string | null;
+        responded_at: Date | null;
+        created_at: Date;
+        updated_at: Date;
+      }>
+    >`
+      select e.id::text, e.institution_id::text, i.name as institution_name, i.slug as institution_slug,
+             e.user_id::text, e.course_id::text, c.name as course_name,
+             e.name, e.phone, e.email, e.message, e.status::text as status,
+             e.response, e.responded_at, e.created_at, e.updated_at
+      from institution_enquiries e
+      join institutions i on i.id = e.institution_id
+      left join courses c on c.id = e.course_id
+      where 1=1
+        ${query.institutionId ? Prisma.sql`and e.institution_id = ${query.institutionId}::uuid` : Prisma.empty}
+        ${query.status ? Prisma.sql`and e.status = ${query.status}::enquiry_status` : Prisma.empty}
+      order by e.created_at desc
+      limit ${limit} offset ${offset}
+    `;
+
+    return {
+      total,
+      items: rows.map((r) => ({
+        id: r.id,
+        institution_id: r.institution_id,
+        institution_name: r.institution_name,
+        institution_slug: r.institution_slug,
+        user_id: r.user_id,
+        course_id: r.course_id,
+        course_name: r.course_name,
+        name: r.name,
+        phone: r.phone,
+        email: r.email,
+        message: r.message,
+        status: r.status as InstitutionEnquiryStatus,
+        response: r.response,
+        responded_at: r.responded_at ? new Date(r.responded_at).toISOString() : null,
+        created_at: new Date(r.created_at).toISOString(),
+        updated_at: new Date(r.updated_at).toISOString(),
+      })),
+    };
+  }
 }
+

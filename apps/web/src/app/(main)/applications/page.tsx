@@ -19,9 +19,16 @@ import {
   Bookmark,
 } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
-import type { BookingDetail, BookingListResponse, OpportunityCard, SavedList } from '@applyfields/types';
+import type {
+  BookingDetail,
+  BookingListResponse,
+  InstitutionEnquiry,
+  InstitutionEnquiryListResponse,
+  OpportunityCard,
+  SavedList,
+} from '@applyfields/types';
 import { formatDate } from '@/lib/format';
-import { HandHelping, Star } from 'lucide-react';
+import { GraduationCap, HandHelping, Star } from 'lucide-react';
 
 interface ApplicationItem {
   id: string;
@@ -40,6 +47,7 @@ interface ApplicationItem {
 const STATUS_TABS = [
   { id: 'all', label: 'All Applications' },
   { id: 'assistance', label: 'Center Assistance' },
+  { id: 'enquiries', label: 'College Inquiries' },
   { id: 'planning', label: 'Planning to Apply' },
   { id: 'applied', label: 'Applied' },
   { id: 'admit_card', label: 'Admit Card & Exam' },
@@ -59,6 +67,7 @@ export default function ApplicationsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [bookings, setBookings] = useState<BookingDetail[]>([]);
+  const [enquiries, setEnquiries] = useState<InstitutionEnquiry[]>([]);
   const [reviewingBooking, setReviewingBooking] = useState<BookingDetail | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
@@ -78,6 +87,15 @@ export default function ApplicationsPage() {
       .then((res) => {
         if (res?.items) {
           setBookings(res.items);
+        }
+      })
+      .catch(() => {});
+
+    // Load college admission inquiries
+    apiGet<InstitutionEnquiryListResponse>('/career/colleges/my-enquiries')
+      .then((res) => {
+        if (res?.items) {
+          setEnquiries(res.items);
         }
       })
       .catch(() => {});
@@ -375,6 +393,95 @@ export default function ApplicationsPage() {
                         {b.review.rating}/5 Rated
                       </span>
                     )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )
+        ) : activeTab === 'enquiries' ? (
+          enquiries.length === 0 ? (
+            <div className="rounded-3xl border border-[#c4d2e3] bg-white p-10 text-center shadow-sm">
+              <GraduationCap className="mx-auto size-12 text-[#91a8c7]" />
+              <h3 className="mt-3 text-base font-bold text-[#082046]">No college admission inquiries submitted yet</h3>
+              <p className="mt-1 text-sm text-[#536780] max-w-md mx-auto">
+                Connect directly with admissions counselors at top colleges &amp; universities to inquire about cutoffs, quotas, and tuition fees.
+              </p>
+              <div className="mt-5">
+                <Link
+                  href="/career/colleges"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0c6fdc]"
+                >
+                  Explore Colleges &amp; Universities <ArrowRight className="size-3.5" />
+                </Link>
+              </div>
+            </div>
+          ) : (
+            enquiries.map((e) => (
+              <div
+                key={e.id}
+                className="rounded-2xl border border-[#c4d2e3] bg-white p-5 shadow-sm transition hover:border-[#91a8c7] space-y-3"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1.5 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs text-[#536780]">#{e.id.slice(0, 8)}</span>
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
+                          e.status === 'responded'
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                            : e.status === 'closed'
+                              ? 'bg-slate-100 text-slate-800 border-slate-200'
+                              : 'bg-amber-100 text-amber-800 border-amber-200'
+                        }`}
+                      >
+                        {e.status === 'responded'
+                          ? 'COLLEGE RESPONDED'
+                          : e.status === 'closed'
+                            ? 'INQUIRY CLOSED'
+                            : 'AWAITING RESPONSE'}
+                      </span>
+                      {e.course_name && (
+                        <span className="rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 font-semibold text-[11px] text-[#0e7bf4]">
+                          Program: {e.course_name}
+                        </span>
+                      )}
+                    </div>
+
+                    <h2 className="text-base font-bold text-[#082046]">
+                      {e.institution_name}
+                    </h2>
+
+                    <div className="text-xs text-[#435775] flex flex-wrap items-center gap-3">
+                      <span>Submitted on {formatDate(e.created_at)}</span>
+                      {e.phone && <span>· Registered Phone: {e.phone}</span>}
+                    </div>
+
+                    <div className="text-xs text-[#536780] bg-[#F8FBFF] border border-[#dce7f3] rounded-lg p-2.5 max-w-xl">
+                      <strong className="text-[#082046]">Your Inquiry:</strong> &ldquo;{e.message}&rdquo;
+                    </div>
+
+                    {e.response && (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 max-w-xl space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
+                          <CheckCircle2 className="size-3.5" /> Official Admission Desk Response:
+                        </div>
+                        <p className="text-xs text-emerald-800 leading-relaxed">&ldquo;{e.response}&rdquo;</p>
+                        {e.responded_at && (
+                          <span className="text-[10px] text-emerald-700/80 block mt-1">
+                            Responded on {formatDate(e.responded_at)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0">
+                    <Link
+                      href={`/career/colleges/${e.institution_slug}`}
+                      className="inline-flex items-center gap-1 rounded-xl bg-[#F0F4F8] px-3.5 py-2 text-xs font-semibold text-[#082046] hover:bg-[#dce7f3]"
+                    >
+                      View College <ExternalLink className="size-3" />
+                    </Link>
                   </div>
                 </div>
               </div>
