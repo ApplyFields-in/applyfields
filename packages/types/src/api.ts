@@ -1157,5 +1157,163 @@ export interface AdminPartnerVerifyInput {
   reviewer_note?: string;
 }
 
+// ============================================================================
+// ASSISTANCE BOOKINGS & WORKFLOW (Session 13 — Module 2)
+// ============================================================================
+
+export type BookingRequestStatus =
+  | 'new'
+  | 'accepted'
+  | 'rejected'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
+
+export interface BookingRequestEvent {
+  id: string;
+  request_id: string;
+  from_status: BookingRequestStatus | null;
+  to_status: BookingRequestStatus;
+  note: string | null;
+  actor_user_id: string | null;
+  created_at: string;
+}
+
+export interface BookingReview {
+  id: string;
+  partner_id: string;
+  user_id: string | null;
+  request_id: string | null;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface BookingDetail {
+  id: string;
+  user_id: string | null;
+  partner_id: string;
+  partner_business_name: string;
+  partner_slug: string;
+  partner_phone: string | null;
+  partner_address: string | null;
+  partner_service_id: string | null;
+  service_name: string | null;
+  service_id: string | null;
+  opportunity_id: string | null;
+  status: BookingRequestStatus;
+  appointment_at: string | null;
+  user_note: string | null;
+  partner_note: string | null;
+  quoted_paise: number | null;
+  final_paise: number | null;
+  cancelled_reason: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  events: BookingRequestEvent[];
+  review: BookingReview | null;
+}
+
+export interface BookingListResponse {
+  total: number;
+  items: BookingDetail[];
+}
+
+export interface CreateBookingInput {
+  partner_id: string;
+  partner_service_id?: string;
+  service_id?: string;
+  opportunity_id?: string;
+  appointment_at?: string;
+  user_note?: string;
+  contact_phone?: string;
+}
+
+export interface UpdateBookingStatusInput {
+  status: BookingRequestStatus;
+  partner_note?: string;
+  cancelled_reason?: string;
+  quoted_paise?: number;
+  final_paise?: number;
+}
+
+export interface CreateReviewInput {
+  rating: number;
+  comment?: string;
+}
+
+// ============================================================================
+// INSTITUTION PARTNERS & ADMISSION INQUIRIES (Session 13 — Module 3)
+// ============================================================================
+
+export type InstitutionEnquiryStatus = 'new' | 'responded' | 'closed';
+
+export interface InstitutionEnquiry {
+  id: string;
+  institution_id: string;
+  institution_name: string;
+  institution_slug: string;
+  user_id: string | null;
+  course_id: string | null;
+  course_name: string | null;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  message: string;
+  status: InstitutionEnquiryStatus;
+  response: string | null;
+  responded_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateInstitutionEnquiryInput {
+  name: string;
+  phone: string;
+  email?: string;
+  course_id?: string;
+  message: string;
+}
+
+export interface RespondInstitutionEnquiryInput {
+  status: InstitutionEnquiryStatus;
+  response: string;
+}
+
+export interface InstitutionPartnerProfile {
+  id: string;
+  slug: string;
+  name: string;
+  short_name: string | null;
+  type: string;
+  ownership: string | null;
+  website: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  fees_text: string | null;
+  description: string | null;
+  established_year: number | null;
+  enquiries_count: number;
+  courses_count: number;
+}
+
+export interface UpdateInstitutionProfileInput {
+  name?: string;
+  short_name?: string;
+  website?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  fees_text?: string;
+  description?: string;
+}
+
+export interface InstitutionEnquiryListResponse {
+  total: number;
+  items: InstitutionEnquiry[];
+}
+
+
+
 
 

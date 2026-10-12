@@ -17,6 +17,7 @@ import { RoadmapsModule } from './modules/roadmaps/roadmaps.module.js';
 import { InstitutionsModule } from './modules/institutions/institutions.module.js';
 import { GuidanceModule } from './modules/guidance/guidance.module.js';
 import { PartnersModule } from './modules/partners/partners.module.js';
+import { BookingsModule } from './modules/bookings/bookings.module.js';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { PartnersModule } from './modules/partners/partners.module.js';
     GuidanceModule,
     CareerModule,
     PartnersModule,
+    BookingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

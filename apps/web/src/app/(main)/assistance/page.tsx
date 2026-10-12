@@ -36,6 +36,11 @@ export default function AssistancePage() {
   const [centers, setCenters] = useState<PartnerSummary[]>([]);
   const [selectedCenter, setSelectedCenter] = useState<PartnerSummary | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState<string | null>(null);
+  const [userPhone, setUserPhone] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [bookingNotes, setBookingNotes] = useState('');
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   // Fetch real partners from database
   useEffect(() => {
@@ -70,13 +75,41 @@ export default function AssistancePage() {
 
   const handleBookCenter = (center: PartnerSummary) => {
     setSelectedCenter(center);
+    setSelectedServiceId(center.services?.[0]?.id ?? '');
+    setBookingError(null);
   };
 
-  const confirmBooking = (e: React.FormEvent) => {
+  const confirmBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCenter) return;
-    setBookingSuccess(selectedCenter.business_name);
-    setSelectedCenter(null);
+
+    setIsSubmittingBooking(true);
+    setBookingError(null);
+
+    const { apiPost } = await import('@/lib/api');
+    const res = await apiPost<any, any>('/bookings', {
+      partner_id: selectedCenter.id,
+      partner_service_id: selectedServiceId || undefined,
+      contact_phone: userPhone.trim().replace(/\s+/g, '') || undefined,
+      user_note: bookingNotes.trim() || undefined,
+    });
+
+    setIsSubmittingBooking(false);
+
+    if (res.error) {
+      if (res.status === 401) {
+        setBookingError('Please sign in or create an account to submit and track assistance requests.');
+      } else {
+        setBookingError(res.error);
+      }
+    } else {
+      setBookingSuccess(
+        `Assistance request #${res.data.id.slice(0, 8)} confirmed with ${selectedCenter.business_name}. You can track status in your Applications dashboard.`,
+      );
+      setSelectedCenter(null);
+      setUserPhone('');
+      setBookingNotes('');
+    }
   };
 
   return (
@@ -311,25 +344,45 @@ export default function AssistancePage() {
               </button>
             </div>
 
+            {bookingError && (
+              <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800 flex items-start gap-2">
+                <AlertCircle className="size-4 shrink-0 text-rose-600 mt-0.5" />
+                <span>{bookingError}</span>
+              </div>
+            )}
+
             <form onSubmit={confirmBooking} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-[#082046]">Your Mobile Number</label>
+                <label className="block text-xs font-bold text-[#082046]">Your Mobile Number *</label>
                 <input
                   type="tel"
                   required
                   placeholder="+91 98765 43210"
+                  value={userPhone}
+                  onChange={(e) => setUserPhone(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3 py-2 text-xs text-[#082046] outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-[#082046]">Service Needed</label>
-                <select className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3 py-2 text-xs text-[#082046] outline-none">
-                  <option value="job_application">Government Job Application Form</option>
-                  <option value="exam_application">Entrance Exam Registration</option>
-                  <option value="certificate">Income / Caste / Domicile Certificate</option>
-                  <option value="pan_aadhaar">PAN / Aadhaar / Passport Help</option>
-                  <option value="other">General Application &amp; Scanning Help</option>
+                <select
+                  value={selectedServiceId}
+                  onChange={(e) => setSelectedServiceId(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3 py-2 text-xs text-[#082046] outline-none"
+                >
+                  {selectedCenter.services && selectedCenter.services.length > 0 ? (
+                    selectedCenter.services.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.charge_text ? `(${s.charge_text})` : ''}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="">General Online Application &amp; Form Assistance</option>
+                      <option value="pan_aadhaar">PAN / Aadhaar / Certificate Assistance</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -338,6 +391,8 @@ export default function AssistancePage() {
                 <input
                   type="text"
                   placeholder="e.g. Tomorrow morning around 11:00 AM"
+                  value={bookingNotes}
+                  onChange={(e) => setBookingNotes(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3 py-2 text-xs text-[#082046] outline-none"
                 />
               </div>
@@ -352,9 +407,10 @@ export default function AssistancePage() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-[#082046] px-5 py-2 text-xs font-bold text-white hover:bg-[#061835]"
+                  disabled={isSubmittingBooking}
+                  className="rounded-xl bg-[#082046] px-5 py-2 text-xs font-bold text-white hover:bg-[#061835] disabled:opacity-60"
                 >
-                  Confirm Request
+                  {isSubmittingBooking ? 'Submitting...' : 'Confirm Request'}
                 </button>
               </div>
             </form>
