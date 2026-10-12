@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { ApplyGuide } from './apply-guide';
+import { TranslatedSummary } from './translated-summary';
+import { CommunityDiscussionSection } from './community-discussion-section';
 import {
   CheckEligibilityButton,
   ReminderButton,
@@ -251,6 +253,12 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         {/* Left 2 Cols: Main In-Depth Information */}
         <div className="space-y-6 lg:col-span-2">
+          {/* Section: Overview & Translated Summary (Source of Truth Disclaimer) */}
+          <TranslatedSummary
+            summaryEn={item.summary || item.title}
+            officialNotificationUrl={item.links.notification_pdf_url}
+          />
+
           {/* Section: Eligibility Criteria */}
           {generalEligibility && (
             <Card className="p-5 sm:p-6">
@@ -529,6 +537,12 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
             notificationPdfUrl={item.links.notification_pdf_url}
             opportunityTitle={item.title}
             type={item.type === 'govt_job' ? 'job' : item.type}
+          />
+
+          {/* Section: Community Discussion & Q&A */}
+          <CommunityDiscussionSection
+            opportunityId={item.id}
+            opportunityTitle={item.title}
           />
         </div>
 
