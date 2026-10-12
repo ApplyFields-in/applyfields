@@ -18,6 +18,7 @@ import { InstitutionsModule } from './modules/institutions/institutions.module.j
 import { GuidanceModule } from './modules/guidance/guidance.module.js';
 import { PartnersModule } from './modules/partners/partners.module.js';
 import { BookingsModule } from './modules/bookings/bookings.module.js';
+import { CommunityModule } from './modules/community/community.module.js';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { BookingsModule } from './modules/bookings/bookings.module.js';
     CareerModule,
     PartnersModule,
     BookingsModule,
+    CommunityModule,
   ],
   controllers: [AppController],
   providers: [AppService],
