@@ -990,4 +990,172 @@ export interface AskGuidanceResponse {
   is_fallback?: boolean;
 }
 
+// ============================================================================
+// PARTNER PORTAL & ASSISTANCE NETWORK (Session 13 — Module 1)
+// ============================================================================
+
+export type PartnerType =
+  | 'meeseva'
+  | 'csc'
+  | 'xerox_printing'
+  | 'browsing_centre'
+  | 'typing_centre'
+  | 'passport_studio'
+  | 'application_assistance'
+  | 'consultant'
+  | 'college'
+  | 'training_institution'
+  | 'other';
+
+export type PartnerVerificationStatus = 'pending' | 'verified' | 'rejected';
+
+export type PartnerMemberRole = 'owner' | 'staff';
+
+export interface PartnerWorkingHours {
+  [day: string]: [string, string];
+}
+
+export interface PartnerServiceSummary {
+  id: string;
+  partner_id: string;
+  service_id: string | null;
+  name: string;
+  description: string | null;
+  charge_paise: number | null;
+  charge_text: string | null;
+  estimated_time_text: string | null;
+  is_active: boolean;
+}
+
+export interface PartnerServiceDetail extends PartnerServiceSummary {
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PartnerDocumentSummary {
+  id: string;
+  partner_id: string;
+  document_kind: string;
+  storage_path: string;
+  status: PartnerVerificationStatus;
+  reviewer_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface PartnerSummary {
+  id: string;
+  slug: string;
+  type: PartnerType;
+  business_name: string;
+  description: string | null;
+  logo_url: string | null;
+  owner_name: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  address: string | null;
+  state_code: string | null;
+  district: string | null;
+  city: string | null;
+  pincode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  service_areas: string[];
+  working_hours: Record<string, string[]>;
+  is_available: boolean;
+  verification_status: PartnerVerificationStatus;
+  is_listed: boolean;
+  rating_avg: number;
+  rating_count: number;
+  services: PartnerServiceSummary[];
+}
+
+export interface PartnerDetail extends PartnerSummary {
+  institution_id: string | null;
+  verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+  services: PartnerServiceDetail[];
+  documents?: PartnerDocumentSummary[];
+}
+
+export interface PartnerDirectoryQuery {
+  q?: string;
+  type?: string;
+  state?: string;
+  district?: string;
+  pincode?: string;
+  service?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface PartnerDirectoryResponse {
+  total: number;
+  items: PartnerSummary[];
+}
+
+export interface PartnerRegistrationInput {
+  business_name: string;
+  type: PartnerType;
+  owner_name: string;
+  phone: string;
+  whatsapp?: string;
+  email?: string;
+  address: string;
+  state_code: string;
+  district: string;
+  city: string;
+  pincode: string;
+  service_areas?: string[];
+  working_hours?: Record<string, string[]>;
+  description?: string;
+}
+
+export interface PartnerUpdateInput {
+  business_name?: string;
+  description?: string;
+  owner_name?: string;
+  phone?: string;
+  whatsapp?: string;
+  address?: string;
+  state_code?: string;
+  district?: string;
+  city?: string;
+  pincode?: string;
+  working_hours?: Record<string, string[]>;
+  is_available?: boolean;
+}
+
+export interface PartnerServiceInput {
+  name: string;
+  description?: string;
+  charge_paise?: number;
+  charge_text?: string;
+  estimated_time_text?: string;
+  is_active?: boolean;
+  service_id?: string;
+}
+
+export interface AdminPartnerItem extends PartnerSummary {
+  owner_user_id?: string | null;
+  owner_user_email?: string | null;
+  documents_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminPartnerListResponse {
+  total: number;
+  items: AdminPartnerItem[];
+}
+
+export interface AdminPartnerVerifyInput {
+  verification_status: PartnerVerificationStatus;
+  is_listed: boolean;
+  reviewer_note?: string;
+}
+
+
 
