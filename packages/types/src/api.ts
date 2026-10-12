@@ -1157,5 +1157,92 @@ export interface AdminPartnerVerifyInput {
   reviewer_note?: string;
 }
 
+// ============================================================================
+// ASSISTANCE BOOKINGS & WORKFLOW (Session 13 — Module 2)
+// ============================================================================
+
+export type BookingRequestStatus =
+  | 'new'
+  | 'accepted'
+  | 'rejected'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
+
+export interface BookingRequestEvent {
+  id: string;
+  request_id: string;
+  from_status: BookingRequestStatus | null;
+  to_status: BookingRequestStatus;
+  note: string | null;
+  actor_user_id: string | null;
+  created_at: string;
+}
+
+export interface BookingReview {
+  id: string;
+  partner_id: string;
+  user_id: string | null;
+  request_id: string | null;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface BookingDetail {
+  id: string;
+  user_id: string | null;
+  partner_id: string;
+  partner_business_name: string;
+  partner_slug: string;
+  partner_phone: string | null;
+  partner_address: string | null;
+  partner_service_id: string | null;
+  service_name: string | null;
+  service_id: string | null;
+  opportunity_id: string | null;
+  status: BookingRequestStatus;
+  appointment_at: string | null;
+  user_note: string | null;
+  partner_note: string | null;
+  quoted_paise: number | null;
+  final_paise: number | null;
+  cancelled_reason: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  events: BookingRequestEvent[];
+  review: BookingReview | null;
+}
+
+export interface BookingListResponse {
+  total: number;
+  items: BookingDetail[];
+}
+
+export interface CreateBookingInput {
+  partner_id: string;
+  partner_service_id?: string;
+  service_id?: string;
+  opportunity_id?: string;
+  appointment_at?: string;
+  user_note?: string;
+  contact_phone?: string;
+}
+
+export interface UpdateBookingStatusInput {
+  status: BookingRequestStatus;
+  partner_note?: string;
+  cancelled_reason?: string;
+  quoted_paise?: number;
+  final_paise?: number;
+}
+
+export interface CreateReviewInput {
+  rating: number;
+  comment?: string;
+}
+
+
 
 
