@@ -107,10 +107,22 @@ export async function apiPut<T, B = unknown>(path: string, body?: B): Promise<Ap
   });
 }
 
+/** PATCH to a JSON endpoint. */
+export async function apiPatch<T, B = unknown>(path: string, body?: B): Promise<ApiFetchResult<T>> {
+  return apiFetch<T>(path, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
 /** DELETE a JSON endpoint. */
 export async function apiDelete<T>(path: string): Promise<ApiFetchResult<T>> {
   return apiFetch<T>(path, {
     method: 'DELETE',
   });
 }
+
 
