@@ -1313,6 +1313,119 @@ export interface InstitutionEnquiryListResponse {
   items: InstitutionEnquiry[];
 }
 
+// ============================================================================
+// COMMUNITY DISCUSSIONS & Q&A (Session 14 — Module 1)
+// ============================================================================
+
+export type CommunityThreadCategory =
+  | 'general'
+  | 'admit_card'
+  | 'exam_prep'
+  | 'syllabus'
+  | 'result'
+  | 'counselling';
+
+export interface CommunityComment {
+  id: string;
+  thread_id: string;
+  user_id: string | null;
+  author_name: string;
+  parent_comment_id: string | null;
+  content: string;
+  upvotes_count: number;
+  is_official_answer: boolean;
+  is_hidden: boolean;
+  user_has_upvoted?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommunityThread {
+  id: string;
+  opportunity_id: string | null;
+  opportunity_title?: string | null;
+  opportunity_slug?: string | null;
+  category: CommunityThreadCategory;
+  user_id: string | null;
+  author_name: string;
+  title: string;
+  content: string;
+  is_pinned: boolean;
+  is_locked: boolean;
+  is_hidden: boolean;
+  view_count: number;
+  upvotes_count: number;
+  replies_count: number;
+  user_has_upvoted?: boolean;
+  comments?: CommunityComment[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateThreadInput {
+  opportunity_id?: string;
+  category?: CommunityThreadCategory;
+  author_name?: string;
+  title: string;
+  content: string;
+}
+
+export interface CreateCommentInput {
+  author_name?: string;
+  parent_comment_id?: string;
+  content: string;
+}
+
+export interface ToggleUpvoteInput {
+  thread_id?: string;
+  comment_id?: string;
+}
+
+export interface ToggleUpvoteResponse {
+  upvoted: boolean;
+  upvotes_count: number;
+}
+
+export interface CommunityThreadListResponse {
+  total: number;
+  items: CommunityThread[];
+}
+
+export interface ReportContentInput {
+  item_type: 'opportunity' | 'exam' | 'service' | 'institution' | 'course' | 'career' | 'roadmap' | 'partner' | 'update';
+  item_id: string;
+  reason: 'incorrect_info' | 'broken_link' | 'fake_or_scam' | 'partner_issue' | 'service_complaint' | 'other';
+  details?: string;
+}
+
+export interface AdminReportDetail {
+  id: string;
+  reporter_id: string | null;
+  reporter_email?: string | null;
+  item_type: string;
+  item_id: string;
+  reason: string;
+  details: string | null;
+  status: string;
+  assigned_to: string | null;
+  resolution_note: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminReportListResponse {
+  total: number;
+  items: AdminReportDetail[];
+}
+
+export interface ResolveReportInput {
+  status: 'resolved' | 'rejected' | 'closed';
+  resolution_note: string;
+  action?: 'hide' | 'lock' | 'dismiss';
+}
+
+
 
 
 

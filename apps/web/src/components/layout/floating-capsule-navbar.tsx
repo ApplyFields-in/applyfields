@@ -17,13 +17,17 @@ import {
   User,
   Settings,
   ChevronDown,
+  MessageSquare,
 } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
 import type { MeResponse, UserSummary } from '@applyfields/types';
+import { LanguageSwitcher } from '../language-switcher';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 export function FloatingCapsuleNavbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [user, setUser] = useState<UserSummary | null>(null);
   const [displayName, setDisplayName] = useState<string>('Account');
@@ -35,6 +39,7 @@ export function FloatingCapsuleNavbar() {
   const isCareer = pathname.startsWith('/career');
   const isApply = pathname.startsWith('/apply') || pathname.startsWith('/jobs') || pathname.startsWith('/exams') || pathname.startsWith('/scholarships') || pathname.startsWith('/admissions');
   const isHome = pathname === '/';
+  const isCommunity = pathname.startsWith('/community');
 
   const syncAuth = useCallback(async () => {
     if (typeof window === 'undefined') return;
@@ -126,7 +131,7 @@ export function FloatingCapsuleNavbar() {
               }`}
             >
               <Home className="size-3.5" />
-              <span>Home</span>
+              <span>{t('nav_home', 'Home')}</span>
             </Link>
             <Link
               href="/career"
@@ -135,14 +140,23 @@ export function FloatingCapsuleNavbar() {
               }`}
             >
               <Compass className="size-3.5" />
-              <span>Explore</span>
+              <span>{t('nav_explore', 'Explore')}</span>
+            </Link>
+            <Link
+              href="/community"
+              className={`flex items-center gap-1.5 rounded-full px-3 py-2 transition-colors ${
+                isCommunity ? 'text-[#0e7bf4]' : 'hover:bg-[#ffffff] hover:text-[#082046]'
+              }`}
+            >
+              <MessageSquare className="size-3.5" />
+              <span>{t('nav_community', 'Community')}</span>
             </Link>
             <Link
               href="/documents"
               className="flex items-center gap-1.5 rounded-full px-3 py-2 transition-colors hover:bg-[#ffffff] hover:text-[#082046]"
             >
               <FolderOpen className="size-3.5" />
-              <span>Resources</span>
+              <span>{t('nav_documents', 'Resources')}</span>
             </Link>
           </nav>
         </div>
@@ -159,7 +173,7 @@ export function FloatingCapsuleNavbar() {
               }`}
             >
               <Briefcase className="size-4 text-[#0e7bf4]" />
-              <span>Career</span>
+              <span>{t('nav_career', 'Career')}</span>
             </Link>
             <Link
               href="/apply"
@@ -170,12 +184,12 @@ export function FloatingCapsuleNavbar() {
               }`}
             >
               <Send className="size-4 text-[#0e7bf4]" />
-              <span>Apply</span>
+              <span>{t('nav_apply', 'Apply')}</span>
             </Link>
           </div>
         </div>
 
-        {/* Right: Search + Icons + User Avatar Pill */}
+        {/* Right: Search + Icons + Language Switcher + User Avatar Pill */}
         <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 rounded-[30px] border border-[#ffffff] bg-[#F0F4F8] px-4 py-3.5 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.28),-8px_-8px_20px_rgba(255,255,255,0.95)] sm:gap-3 sm:px-5 xl:col-span-1">
           {/* Search Input Pill */}
           <form onSubmit={handleSearchSubmit} className="relative hidden min-w-0 flex-1 md:block xl:flex-none">
@@ -183,7 +197,7 @@ export function FloatingCapsuleNavbar() {
               <Search className="mr-1.5 size-4 shrink-0 text-[#526987]" />
               <input
                 type="text"
-                placeholder="Search"
+                placeholder={t('nav_search', 'Search')}
                 value={searchVal}
                 onChange={(e) => setSearchVal(e.target.value)}
                 className="w-full bg-transparent text-sm text-[#082046] placeholder:text-[#71839b] outline-none"
@@ -191,11 +205,14 @@ export function FloatingCapsuleNavbar() {
             </div>
           </form>
 
+          {/* Language Switcher */}
+          <LanguageSwitcher />
+
           {/* Notifications */}
           <Link
             href="/notifications"
             className="relative rounded-full p-2 text-[#082046] transition-colors hover:bg-[#ffffff] hover:text-[#0e7bf4]"
-            title="Notifications"
+            title={t('nav_notifications', 'Notifications')}
           >
             <Bell className="size-4" />
             <span className="absolute top-1.5 right-1.5 size-2 bg-[#0e7bf4] rounded-full" />
@@ -205,7 +222,7 @@ export function FloatingCapsuleNavbar() {
           <Link
             href="/saved"
             className="hidden rounded-full p-2 text-[#082046] transition-colors hover:bg-[#ffffff] hover:text-[#0e7bf4] sm:block"
-            title="Saved Opportunities"
+            title={t('nav_saved', 'Saved Opportunities')}
           >
             <Bookmark className="size-4" />
           </Link>
@@ -233,13 +250,16 @@ export function FloatingCapsuleNavbar() {
                     <p className="truncate text-[11px] text-[#536780]">{user.email}</p>
                   </div>
                   <Link href="/profile" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-3.5 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
-                    <User className="size-3.5 text-[#536780]" /> My Profile
+                    <User className="size-3.5 text-[#536780]" /> {t('nav_profile', 'My Profile')}
+                  </Link>
+                  <Link href="/community" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-3.5 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
+                    <MessageSquare className="size-3.5 text-[#536780]" /> {t('nav_community', 'Community Discussions')}
                   </Link>
                   <Link href="/applications" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-3.5 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
-                    <Send className="size-3.5 text-[#536780]" /> My Applications
+                    <Send className="size-3.5 text-[#536780]" /> {t('nav_applications', 'My Applications')}
                   </Link>
                   <Link href="/saved" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-3.5 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
-                    <Bookmark className="size-3.5 text-[#536780]" /> Saved Items
+                    <Bookmark className="size-3.5 text-[#536780]" /> {t('nav_saved', 'Saved Items')}
                   </Link>
                   <Link href="/account" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-3.5 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
                     <Settings className="size-3.5 text-[#536780]" /> Settings &amp; Security
@@ -251,6 +271,7 @@ export function FloatingCapsuleNavbar() {
                 </div>
               )}
             </div>
+
           ) : (
             <div className="flex items-center gap-1.5">
               <Link
