@@ -3,8 +3,11 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 export function DarkNavyFooter() {
+  const { t } = useLanguage();
+
   function setDemoSignedIn() {
     if (typeof window !== 'undefined') {
       const demoUser = {
@@ -38,12 +41,12 @@ export function DarkNavyFooter() {
               <span className="text-lg font-bold tracking-tight text-white">Apply<span className="text-[#0e7bf4]">Fields</span></span>
             </div>
             <p className="max-w-sm text-xs leading-relaxed text-[#c8d5e6]">
-              Discover, understand and prepare for public opportunities — in one place.
+              {t('footer_tagline')}
             </p>
 
             <div className="pt-1">
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                Prototype Screens
+                {t('footer_prototype_screens')}
               </p>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#c8d5e6]">
                 <button
@@ -51,14 +54,14 @@ export function DarkNavyFooter() {
                   onClick={setDemoPublic}
                   className="hover:text-white"
                 >
-                  Citizen - public
+                  {t('footer_demo_public')}
                 </button>
                 <button
                   type="button"
                   onClick={setDemoSignedIn}
                   className="hover:text-white"
                 >
-                  Citizen - signed in
+                  {t('footer_demo_signed_in')}
                 </button>
                 <a
                   href="http://localhost:3001/login"
@@ -66,7 +69,7 @@ export function DarkNavyFooter() {
                   rel="noopener noreferrer"
                   className="hover:text-white"
                 >
-                  Internal - login
+                  {t('footer_internal_login')}
                 </a>
                 <a
                   href="http://localhost:3001"
@@ -74,7 +77,7 @@ export function DarkNavyFooter() {
                   rel="noopener noreferrer"
                   className="hover:text-white"
                 >
-                  Internal - workspace
+                  {t('footer_internal_workspace')}
                 </a>
               </div>
             </div>
@@ -82,31 +85,31 @@ export function DarkNavyFooter() {
 
           {/* Column 1: Apply */}
           <div className="space-y-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white">Apply</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white">{t('footer_apply')}</p>
             <ul className="space-y-1.5 text-xs text-[#c8d5e6]">
               <li>
                 <Link href="/jobs" className="hover:text-white transition-colors">
-                  Government Jobs
+                  {t('footer_gov_jobs')}
                 </Link>
               </li>
               <li>
                 <Link href="/exams" className="hover:text-white transition-colors">
-                  Exams
+                  {t('footer_exams')}
                 </Link>
               </li>
               <li>
                 <Link href="/scholarships" className="hover:text-white transition-colors">
-                  Scholarships
+                  {t('footer_scholarships')}
                 </Link>
               </li>
               <li>
                 <Link href="/admissions" className="hover:text-white transition-colors">
-                  Admissions
+                  {t('footer_admissions')}
                 </Link>
               </li>
               <li>
                 <Link href="/services" className="hover:text-white transition-colors">
-                  Services
+                  {t('footer_services')}
                 </Link>
               </li>
             </ul>
@@ -114,26 +117,26 @@ export function DarkNavyFooter() {
 
           {/* Column 2: Career */}
           <div className="space-y-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white">Career</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white">{t('footer_career')}</p>
             <ul className="space-y-1.5 text-xs text-[#c8d5e6]">
               <li>
                 <Link href="/career" className="hover:text-white transition-colors">
-                  Explore careers
+                  {t('footer_explore_careers')}
                 </Link>
               </li>
               <li>
                 <Link href="/career/courses" className="hover:text-white transition-colors">
-                  Courses
+                  {t('footer_courses')}
                 </Link>
               </li>
               <li>
                 <Link href="/career/colleges" className="hover:text-white transition-colors">
-                  Colleges &amp; universities
+                  {t('footer_colleges')}
                 </Link>
               </li>
               <li>
                 <Link href="/career/skills" className="hover:text-white transition-colors">
-                  Skills
+                  {t('footer_skills')}
                 </Link>
               </li>
             </ul>
@@ -141,26 +144,26 @@ export function DarkNavyFooter() {
 
           {/* Column 3: ApplyFields */}
           <div className="space-y-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white">ApplyFields</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white">{t('footer_applyfields')}</p>
             <ul className="space-y-1.5 text-xs text-[#c8d5e6]">
               <li>
                 <Link href="/help" className="hover:text-white transition-colors">
-                  About
+                  {t('footer_about')}
                 </Link>
               </li>
               <li>
                 <Link href="/help" className="hover:text-white transition-colors">
-                  How we verify
+                  {t('footer_how_verify')}
                 </Link>
               </li>
               <li>
                 <Link href="/help" className="hover:text-white transition-colors">
-                  Contact
+                  {t('footer_contact')}
                 </Link>
               </li>
               <li>
                 <Link href="/privacy" className="hover:text-white transition-colors">
-                  Privacy
+                  {t('footer_privacy')}
                 </Link>
               </li>
             </ul>
@@ -169,7 +172,7 @@ export function DarkNavyFooter() {
 
         <div className="border-t border-white/10 py-3.5 text-[11px] text-[#c8d5e6]">
           <p className="leading-relaxed">
-            © 2026 ApplyFields. An independent information platform — not affiliated with any government department.
+            {t('footer_copyright')}
           </p>
         </div>
       </div>

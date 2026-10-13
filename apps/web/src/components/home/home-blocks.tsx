@@ -1,24 +1,29 @@
+'use client';
+
 import type { HomeStat, OpportunityCard, UpdateItem } from '@applyfields/types';
 import { Avatar, Badge, buttonClass, Card, cn, EmptyState, ProgressBar, SectionTitle } from '@applyfields/ui';
 import { ArrowRight, Award, Bookmark, BriefcaseBusiness, CircleCheck, Circle, ClipboardList, Clock, Compass, HandHelping, History, Landmark, School, Search } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate, TYPE_META, UPDATE_LABEL } from '@/lib/format';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 /* ------------------------------------------------------------------ hero */
 
 export function Hero({ popular, deadlines }: { popular: string[]; deadlines: OpportunityCard[] }) {
+  const { t } = useLanguage();
+
   return (
     <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-center">
       <div className="max-w-2xl">
         <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-sea">
-          <span className="size-1.5 rounded-full bg-sea" aria-hidden="true" /> Explore. Apply. Grow.
+          <span className="size-1.5 rounded-full bg-sea" aria-hidden="true" /> {t('hero_tag')}
         </p>
         <h1 className="mt-4 text-5xl font-bold leading-[1.08] tracking-tight text-teal sm:text-[56px]">
-          ApplyFields
-          <span className="mt-1 block text-sea">Your next chapter<br />starts here.</span>
+          {t('hero_title')}
+          <span className="mt-1 block text-sea">{t('hero_subtitle_1')}<br />{t('hero_subtitle_2')}</span>
         </h1>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-[#536780]">
-          Jobs, exams, scholarships and career paths.<br className="hidden sm:block" /> A world of possibilities. One place to begin.
+          {t('hero_desc')}
         </p>
 
         <form action="/search" role="search" className="mt-6 flex max-w-xl items-center gap-2 rounded-xl bg-canvas p-1.5 pl-4 shadow-pressed">
@@ -27,16 +32,16 @@ export function Hero({ popular, deadlines }: { popular: string[]; deadlines: Opp
             name="q"
             type="search"
             aria-label="Search ApplyFields"
-            placeholder="What are you looking for?"
+            placeholder={t('hero_search_placeholder')}
             className="h-10 min-w-0 flex-1 bg-transparent text-sm text-teal outline-none placeholder:text-[#71839b]"
           />
           <button type="submit" className={buttonClass()}>
-            Search <ArrowRight aria-hidden="true" />
+            {t('hero_search_btn')} <ArrowRight aria-hidden="true" />
           </button>
         </form>
 
         {!!popular.length && <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-          <span className="text-[#536780]">Trending</span>
+          <span className="text-[#536780]">{t('hero_trending')}</span>
           {popular.map((q) => (
             <Link key={q} href={`/search?q=${encodeURIComponent(q)}`} className="font-semibold text-teal hover:text-sea">
               {q} ↗
@@ -47,7 +52,7 @@ export function Hero({ popular, deadlines }: { popular: string[]; deadlines: Opp
 
       <aside className="border-t border-line pt-5 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-teal">On the horizon</h2>
+          <h2 className="text-sm font-bold text-teal">{t('hero_horizon_title')}</h2>
           <span className="grid size-5 place-items-center rounded-full border border-sea text-[10px] font-bold text-sea" aria-hidden="true">i</span>
         </div>
         {deadlines.length ? <ul className="mt-4 divide-y divide-line">
@@ -56,7 +61,7 @@ export function Hero({ popular, deadlines }: { popular: string[]; deadlines: Opp
               <Link href={`${TYPE_META[item.type].base}/${item.slug}`} className="flex items-center gap-3 py-3 hover:text-sea">
                 <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-canvas text-center shadow-clay">
                   <span className="text-base font-bold leading-none text-sea">{item.days_left ?? '—'}</span>
-                  <span className="text-[9px] uppercase text-teal/75">days left</span>
+                  <span className="text-[9px] uppercase text-teal/75">{t('hero_days_left')}</span>
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold leading-snug text-teal">{item.title}</span>
@@ -65,26 +70,41 @@ export function Hero({ popular, deadlines }: { popular: string[]; deadlines: Opp
               </Link>
             </li>
           ))}
-        </ul> : <p className="mt-4 text-sm text-[#536780]">No upcoming deadlines are published right now.</p>}
+        </ul> : <p className="mt-4 text-sm text-[#536780]">{t('hero_no_deadlines')}</p>}
         <Link href="/apply" className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-sea">
-          All upcoming deadlines <ArrowRight className="size-3.5" aria-hidden="true" />
+          {t('hero_all_deadlines')} <ArrowRight className="size-3.5" aria-hidden="true" />
         </Link>
       </aside>
     </section>
   );
 }
 
-/* ------------------------------------------------------------------ stats */
+/* ------------------------------------------------------------------ stats & ambition section */
+
+export function ExploreAmbitionSection({ stats }: { stats: HomeStat[] }) {
+  const { t } = useLanguage();
+
+  return (
+    <section aria-labelledby="explore-opportunities">
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <h2 id="explore-opportunities" className="text-lg font-bold text-teal">{t('ambition_title')}</h2>
+        <Link href="/career" className="text-xs font-medium text-[#536780] hover:text-sea">{t('ambition_find_dir')}</Link>
+      </div>
+      <StatsRow stats={stats} />
+    </section>
+  );
+}
 
 export function StatsRow({ stats }: { stats: HomeStat[] }) {
+  const { t } = useLanguage();
   const byKey = new Map<HomeStat['key'], HomeStat>(stats.map((stat) => [stat.key, stat] as const));
   const tiles = [
-    { label: 'Government Jobs', href: '/jobs', icon: BriefcaseBusiness, stat: byKey.get('open_jobs'), hint: 'Explore opportunities' },
-    { label: 'Exams', href: '/exams', icon: ClipboardList, stat: byKey.get('exams_this_month'), hint: 'Explore exams' },
-    { label: 'Scholarships', href: '/scholarships', icon: Award, stat: byKey.get('scholarships_open'), hint: 'Explore scholarships' },
-    { label: 'Admissions', href: '/admissions', icon: School, stat: undefined, hint: 'Courses and colleges' },
-    { label: 'Public Services', href: '/services', icon: Landmark, stat: undefined, hint: 'Forms and certificates' },
-    { label: 'Careers', href: '/career', icon: Compass, stat: undefined, hint: 'Explore career paths' },
+    { label: t('stat_jobs'), href: '/jobs', icon: BriefcaseBusiness, stat: byKey.get('open_jobs'), hint: t('stat_jobs_hint') },
+    { label: t('stat_exams'), href: '/exams', icon: ClipboardList, stat: byKey.get('exams_this_month'), hint: t('stat_exams_hint') },
+    { label: t('stat_scholarships'), href: '/scholarships', icon: Award, stat: byKey.get('scholarships_open'), hint: t('stat_scholarships_hint') },
+    { label: t('stat_admissions'), href: '/admissions', icon: School, stat: undefined, hint: t('stat_admissions_hint') },
+    { label: t('stat_services'), href: '/services', icon: Landmark, stat: undefined, hint: t('stat_services_hint') },
+    { label: t('stat_careers'), href: '/career', icon: Compass, stat: undefined, hint: t('stat_careers_hint') },
   ];
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
@@ -106,14 +126,16 @@ export function StatsRow({ stats }: { stats: HomeStat[] }) {
 /* ------------------------------------------------------------------ closing soon */
 
 export function ClosingSoon({ items }: { items: OpportunityCard[] }) {
+  const { t } = useLanguage();
+
   return (
     <section>
       <div className="mb-4 flex items-end justify-between gap-3 border-b border-line pb-3">
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-wide text-[#536780]">Closing soon</p>
-          <h2 className="mt-1 text-lg font-bold text-teal">Worth your attention</h2>
+          <p className="text-[10px] font-medium uppercase tracking-wide text-[#536780]">{t('closing_soon_badge')}</p>
+          <h2 className="mt-1 text-lg font-bold text-teal">{t('closing_soon_title')}</h2>
         </div>
-        <Link href="/apply" className="inline-flex items-center gap-1 text-xs font-semibold text-teal hover:text-sea">All opportunities <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
+        <Link href="/apply" className="inline-flex items-center gap-1 text-xs font-semibold text-teal hover:text-sea">{t('closing_soon_all')} <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
       </div>
       {items.length ? <ul className="divide-y divide-line">
         {items.slice(0, 5).map((item) => (
@@ -124,12 +146,12 @@ export function ClosingSoon({ items }: { items: OpportunityCard[] }) {
                 <span className="block truncate text-sm font-semibold text-teal">{item.title}</span>
                 <span className="mt-0.5 block truncate text-xs text-[#536780]">{item.organization}</span>
               </span>
-              <span className="text-xs text-[#536780]">{item.last_date ? formatDate(item.last_date) : 'Rolling deadline'}{item.days_left != null ? ` · ${item.days_left}d` : ''}</span>
-              <span className="text-xs font-semibold text-sea sm:text-right">View details <ArrowRight className="ml-1 inline size-3.5" aria-hidden="true" /></span>
+              <span className="text-xs text-[#536780]">{item.last_date ? formatDate(item.last_date) : t('closing_rolling')}{item.days_left != null ? ` · ${item.days_left}d` : ''}</span>
+              <span className="text-xs font-semibold text-sea sm:text-right">{t('closing_soon_view')} <ArrowRight className="ml-1 inline size-3.5" aria-hidden="true" /></span>
             </Link>
           </li>
         ))}
-      </ul> : <p className="rounded-xl bg-[#f8fbff] p-5 text-sm text-[#536780]">No closing dates are available right now.</p>}
+      </ul> : <p className="rounded-xl bg-[#f8fbff] p-5 text-sm text-[#536780]">{t('closing_soon_none')}</p>}
     </section>
   );
 }
@@ -137,16 +159,18 @@ export function ClosingSoon({ items }: { items: OpportunityCard[] }) {
 /* ------------------------------------------------------------------ updates */
 
 export function LatestUpdates({ items }: { items: UpdateItem[] }) {
+  const { t } = useLanguage();
+
   return (
     <section>
       <div className="mb-3 flex items-end justify-between gap-3 border-b border-line pb-3">
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-wide text-[#536780]">From official sources</p>
-          <h2 className="mt-1 text-lg font-bold text-teal">Latest updates</h2>
+          <p className="text-[10px] font-medium uppercase tracking-wide text-[#536780]">{t('updates_source')}</p>
+          <h2 className="mt-1 text-lg font-bold text-teal">{t('updates_title')}</h2>
         </div>
-        <Link href="/updates" className="inline-flex items-center gap-1 text-xs font-semibold text-teal hover:text-sea">All updates <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
+        <Link href="/updates" className="inline-flex items-center gap-1 text-xs font-semibold text-teal hover:text-sea">{t('updates_all')} <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
       </div>
-      {items.length === 0 && <p className="text-sm text-[#536780]">No updates are available right now.</p>}
+      {items.length === 0 && <p className="text-sm text-[#536780]">{t('updates_none')}</p>}
       <ul className="divide-y divide-line">
         {items.map((u) => (
           <li key={u.id} className="grid gap-2 py-3 sm:grid-cols-[52px_84px_minmax(0,1fr)_auto] sm:items-center">
@@ -162,21 +186,22 @@ export function LatestUpdates({ items }: { items: UpdateItem[] }) {
 }
 
 export function CareerPromo() {
-  const links = [
-    ['Explore careers', '/career'],
-    ['Courses', '/career/courses'],
-    ['Colleges & universities', '/career/colleges'],
-    ['Roadmaps', '/career/roadmaps'],
-    ['Skills', '/career/skills'],
-    ['Career guidance', '/career/guidance'],
+  const { t } = useLanguage();
+  const links: [string, string][] = [
+    [t('career_link_explore'), '/career'],
+    [t('career_link_courses'), '/career/courses'],
+    [t('career_link_colleges'), '/career/colleges'],
+    [t('career_link_roadmaps'), '/career/roadmaps'],
+    [t('career_link_skills'), '/career/skills'],
+    [t('career_link_guidance'), '/career/guidance'],
   ];
   return (
     <section className="grid gap-6 border-y border-line bg-[#f8fbff] py-8 md:grid-cols-[minmax(0,1fr)_1.2fr] md:items-center">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-sea">Look beyond the next step</p>
-        <h2 className="mt-2 max-w-sm text-2xl font-bold leading-tight text-teal">A career that feels like you.</h2>
-        <p className="mt-3 max-w-md text-sm leading-relaxed text-[#536780]">Explore the roles, skills and education that shape your future.</p>
-        <Link href="/career" className={buttonClass({ className: 'mt-4' })}>Find your path <ArrowRight aria-hidden="true" /></Link>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-sea">{t('career_promo_tag')}</p>
+        <h2 className="mt-2 max-w-sm text-2xl font-bold leading-tight text-teal">{t('career_promo_title')}</h2>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-[#536780]">{t('career_promo_desc')}</p>
+        <Link href="/career" className={buttonClass({ className: 'mt-4' })}>{t('career_promo_btn')} <ArrowRight aria-hidden="true" /></Link>
       </div>
       <nav aria-label="Career resources" className="grid grid-cols-2 gap-x-6 sm:grid-cols-3">
         {links.map(([label, href]) => <Link key={href} href={href} className="border-b border-line py-3 text-sm font-semibold text-teal hover:text-sea">{label}</Link>)}
@@ -248,37 +273,41 @@ export function ProfileStrength() {
   const steps = ['Personal details', 'Education', 'Category & state', 'Career interests'];
   return (
     <Card tone="celadon" className="p-5">
-      <p className="text-sm font-bold">Your eligibility profile</p>
-      <p className="mt-0.5 text-xs">Fill it once — we check every opportunity against it.</p>
-      <div className="mt-3 flex items-center gap-3">
-        <ProgressBar value={0} label="Profile completed" />
-        <span className="text-sm font-extrabold">0%</span>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wide text-teal">Profile strength</span>
+        <Badge tone="celadon">60%</Badge>
       </div>
-      <ul className="mt-3 space-y-1.5">
-        {steps.map((s) => (
-          <li key={s} className="flex items-center gap-2 text-sm">
-            <Circle className="size-4" aria-hidden="true" /> {s}
-          </li>
+      <p className="mt-1 text-xs text-[#536780]">Add your education to unlock instant eligibility checks.</p>
+      <div className="mt-3 space-y-1.5">
+        {steps.map((s, i) => (
+          <div key={s} className="flex items-center gap-2 text-xs">
+            {i < 2 ? (
+              <CircleCheck className="size-3.5 text-sea" aria-hidden="true" />
+            ) : (
+              <Circle className="size-3.5 text-[#536780]" aria-hidden="true" />
+            )}
+            <span className={i < 2 ? 'text-teal' : 'text-[#536780]'}>{s}</span>
+          </div>
         ))}
-      </ul>
-      <Link href="/register" className={buttonClass({ className: 'mt-4 w-full' })}>
-        Create free profile
+      </div>
+      <Link href="/profile" className={buttonClass({ variant: 'secondary', size: 'sm', className: 'mt-4 w-full' })}>
+        Complete profile
       </Link>
     </Card>
   );
 }
 
-/** A short linked list of cards for the side column. */
-function MiniList({ items }: { items: OpportunityCard[] }) {
+export function MiniList({ items }: { items: OpportunityCard[] }) {
   return (
-    <ul className="divide-y divide-teal/10">
-      {items.map((o) => (
-        <li key={o.slug}>
-          <Link href={`${TYPE_META[o.type].base}/${o.slug}`} className="block py-2.5 hover:underline">
-            <p className="truncate text-sm font-semibold">{o.title}</p>
-            <p className="truncate text-xs text-teal/80">
-              {o.organization} · {o.last_date ? `Last date ${formatDate(o.last_date)}` : 'Dates not announced'}
-            </p>
+    <ul className="divide-y divide-line text-xs">
+      {items.slice(0, 4).map((item) => (
+        <li key={item.slug} className="py-2.5">
+          <Link href={`${TYPE_META[item.type].base}/${item.slug}`} className="block hover:text-sea">
+            <span className="font-semibold text-teal">{item.title}</span>
+            <span className="mt-0.5 flex items-center justify-between text-[#536780]">
+              <span>{item.organization}</span>
+              {item.days_left != null && <span>{item.days_left}d left</span>}
+            </span>
           </Link>
         </li>
       ))}
@@ -286,17 +315,29 @@ function MiniList({ items }: { items: OpportunityCard[] }) {
   );
 }
 
-/** items undefined = logged out. */
-export function SavedPreview({ items }: { items?: OpportunityCard[] }) {
+export function SavedShortcuts({ items }: { items?: OpportunityCard[] }) {
   return (
     <Card className="p-5">
-      <SectionTitle title="Saved items" />
+      <SectionTitle
+        title={
+          <span className="flex items-center gap-2">
+            <Bookmark className="size-4 text-sea" aria-hidden="true" /> Saved items
+          </span>
+        }
+        action={
+          items?.length ? (
+            <Link href="/saved" className="text-xs font-semibold text-sea">
+              View all ({items.length})
+            </Link>
+          ) : undefined
+        }
+      />
       {items?.length ? (
         <MiniList items={items} />
       ) : (
         <EmptyState
-          icon={<Bookmark />}
-          title="Nothing saved yet"
+          icon={<Bookmark className="size-5" />}
+          title="No saved items yet"
           text="Save jobs, exams and scholarships to get reminders before the last date."
           action={
             items ? undefined : (
@@ -329,32 +370,39 @@ export function RecentlyViewed({ items }: { items: OpportunityCard[] }) {
 }
 
 export function AssistancePromo() {
+  const { t } = useLanguage();
   return (
     <Card tone="tea" className="p-5">
       <HandHelping className="size-6" aria-hidden="true" />
-      <p className="mt-2 font-bold">Need help applying?</p>
-      <p className="mt-0.5 text-sm">Verified MeeSeva, CSC and browsing centres near you — see the charges before you pay.</p>
+      <p className="mt-2 font-bold">{t('assistance_need_help')}</p>
+      <p className="mt-0.5 text-sm">{t('assistance_desc')}</p>
       <div className="mt-3 flex -space-x-2">
         {['MeeSeva', 'CSC Centre', 'Sai Browsing', 'Typing Point'].map((n) => (
           <Avatar key={n} name={n} />
         ))}
       </div>
       <Link href="/assistance" className={buttonClass({ variant: 'primary', size: 'sm', className: 'mt-4' })}>
-        Find a centre <ArrowRight aria-hidden="true" />
+        {t('assistance_find_btn')} <ArrowRight aria-hidden="true" />
       </Link>
     </Card>
   );
 }
 
 export function TrustNote() {
+  const { t } = useLanguage();
+  const notes = [
+    t('trust_official_links'),
+    t('trust_no_invented'),
+    t('trust_verified_date'),
+    t('trust_private_docs'),
+  ];
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-card bg-canvas px-5 py-4 text-sm shadow-pressed">
-      {['Official links only', 'Never invents fees or eligibility', 'Shows when info was last verified', 'Your documents stay private'].map((t) => (
-        <span key={t} className="flex items-center gap-2 font-semibold">
-          <CircleCheck className="size-4 text-sea" aria-hidden="true" /> {t}
+      {notes.map((item) => (
+        <span key={item} className="flex items-center gap-2 font-semibold">
+          <CircleCheck className="size-4 text-sea" aria-hidden="true" /> {item}
         </span>
       ))}
     </div>
   );
 }
-
