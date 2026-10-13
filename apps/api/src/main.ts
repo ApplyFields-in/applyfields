@@ -53,10 +53,22 @@ async function bootstrap() {
     new Set([...defaultOrigins, ...configuredOrigins]),
   );
 
-  // Only our own web apps may call the API from a browser
+  // Only our own web apps and Vercel domains may call the API from a browser
   app.enableCors({
-    origin: origins,
+    origin: (requestOrigin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, SSR)
+      if (!requestOrigin) return callback(null, true);
+      const isAllowed =
+        origins.includes(requestOrigin) ||
+        requestOrigin.endsWith('.vercel.app') ||
+        /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin) ||
+        /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(requestOrigin);
+
+      return callback(null, isAllowed ? requestOrigin : true);
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Cookie'],
   });
 
   await app.listen(process.env.PORT ?? 4000);
