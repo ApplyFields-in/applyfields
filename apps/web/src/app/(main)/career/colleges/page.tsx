@@ -1,27 +1,19 @@
-import type { InstitutionSummary } from '@applyfields/types';
-import { Badge, buttonClass, Card, EmptyState, PageHeader } from '@applyfields/ui';
-import {
-  ArrowRight,
-  Award,
-  Building,
-  CheckCircle2,
-  Columns,
-  GraduationCap,
-  MapPin,
-  Search,
-  TrendingUp,
-} from 'lucide-react';
+import type { InstitutionListResponse, InstitutionSummary } from '@applyfields/types';
+import { buttonClass, Card, PageHeader } from '@applyfields/ui';
+import { Building, Columns, Search } from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { apiGet } from '@/lib/api';
+import { CollegesGridClient } from './colleges-grid-client';
 
 export const metadata = {
   title: 'Colleges & Universities Directory',
-  description: 'Explore premier universities and colleges across India with verified NIRF rankings, placement statistics, fees, and programs.',
+  description:
+    'Explore premier universities and colleges across India with verified NIRF rankings, placement statistics, fees, and programs.',
 };
 
 interface CollegesPageProps {
-  searchParams: Promise<{ q?: string; type?: string; state?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; state?: string; page?: string }>;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -37,6 +29,7 @@ export default async function CollegesPage({ searchParams }: CollegesPageProps) 
   const q = sp.q || '';
   const type = sp.type || '';
   const state = sp.state || '';
+  const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
 
   await connection();
 
@@ -44,12 +37,16 @@ export default async function CollegesPage({ searchParams }: CollegesPageProps) 
   if (q) queryParams.set('q', q);
   if (type) queryParams.set('type', type);
   if (state) queryParams.set('state', state);
+  queryParams.set('page', String(page));
+  queryParams.set('limit', '20');
 
-  const colleges = await apiGet<InstitutionSummary[]>(
-    `/career/colleges${queryParams.size ? `?${queryParams}` : ''}`,
+  const res = await apiGet<InstitutionListResponse | InstitutionSummary[]>(
+    `/career/colleges?${queryParams.toString()}`,
   );
 
-  const list = colleges || [];
+  const colleges: InstitutionSummary[] = Array.isArray(res) ? res : res?.items || [];
+  const total = Array.isArray(res) ? res.length : res?.total || 0;
+  const totalPages = Array.isArray(res) ? 1 : res?.total_pages || 1;
 
   return (
     <div className="space-y-6 pb-12">
@@ -57,7 +54,7 @@ export default async function CollegesPage({ searchParams }: CollegesPageProps) 
         <PageHeader
           eyebrow="Admissions & Campus Profiles"
           title="Colleges & Universities"
-          description="Verified profiles of India's premier higher education institutions, fee structures, NIRF rankings, and placement packages."
+          description="Verified directory of 13,000+ higher education institutions, fee structures, NIRF rankings, NBA accreditations, and placement packages."
           icon={<Building />}
         />
         <div className="shrink-0 flex items-center gap-2">
@@ -70,7 +67,7 @@ export default async function CollegesPage({ searchParams }: CollegesPageProps) 
         </div>
       </div>
 
-      {/* Search & Compare Teaser Bar */}
+      {/* Search & Filters Bar */}
       <Card className="p-4 space-y-3">
         <form action="/career/colleges" method="GET" className="flex items-center gap-2">
           <div className="relative flex-1">
@@ -79,14 +76,16 @@ export default async function CollegesPage({ searchParams }: CollegesPageProps) 
               type="search"
               name="q"
               defaultValue={q}
-              placeholder="Search colleges by name, city, or ranking..."
+              placeholder="Search colleges by name, city, district, or ranking..."
               className="h-10 w-full rounded-full border border-line bg-canvas pl-9 pr-4 text-xs font-medium text-teal placeholder:text-teal/40 focus:border-teal focus:outline-none"
             />
           </div>
+          {type && <input type="hidden" name="type" value={type} />}
+          {state && <input type="hidden" name="state" value={state} />}
           <button type="submit" className={buttonClass({ variant: 'primary', size: 'sm' })}>
             Search
           </button>
-          {q && (
+          {(q || type || state) && (
             <Link
               href="/career/colleges"
               className={buttonClass({ variant: 'ghost', size: 'sm' })}
@@ -95,86 +94,66 @@ export default async function CollegesPage({ searchParams }: CollegesPageProps) 
             </Link>
           )}
         </form>
+
+        {/* Quick Filter Badges */}
+        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-line/40 text-xs">
+          <span className="text-[11px] font-semibold text-teal/60">Filter Type:</span>
+          {['', 'institute', 'university', 'college'].map((tKey) => {
+            const isActive = type === tKey;
+            const p = new URLSearchParams();
+            if (q) p.set('q', q);
+            if (tKey) p.set('type', tKey);
+            if (state) p.set('state', state);
+            return (
+              <Link
+                key={tKey || 'all'}
+                href={`/career/colleges${p.size ? `?${p}` : ''}`}
+                className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-all ${
+                  isActive
+                    ? 'bg-teal text-cream shadow-sm'
+                    : 'bg-canvas text-teal/70 hover:bg-tea/30 border border-line/60'
+                }`}
+              >
+                {tKey ? TYPE_LABELS[tKey] || tKey : 'All Types'}
+              </Link>
+            );
+          })}
+
+          <span className="ml-2 text-[11px] font-semibold text-teal/60">Top States:</span>
+          {['AP', 'TS', 'TN', 'KA', 'MH', 'DL', 'UP'].map((stKey) => {
+            const isActive = state === stKey;
+            const p = new URLSearchParams();
+            if (q) p.set('q', q);
+            if (type) p.set('type', type);
+            if (!isActive) p.set('state', stKey);
+            return (
+              <Link
+                key={stKey}
+                href={`/career/colleges${p.size ? `?${p}` : ''}`}
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold transition-all ${
+                  isActive
+                    ? 'bg-tea text-teal border border-teal/40 font-bold'
+                    : 'bg-canvas text-teal/70 hover:bg-tea/20 border border-line/60'
+                }`}
+              >
+                {stKey}
+              </Link>
+            );
+          })}
+        </div>
       </Card>
 
-      {/* Colleges Grid */}
-      {list.length === 0 ? (
-        <EmptyState
-          icon={<Building />}
-          title="No institutions found"
-          text="Try broadening your search term or clear filters."
-        />
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2">
-          {list.map((c) => (
-            <Card
-              key={c.id}
-              className="group flex flex-col justify-between p-6 transition-all hover:border-teal/40 hover:shadow-clay"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <Badge tone="teal" className="text-[11px]">
-                    {TYPE_LABELS[c.type] || c.type}
-                  </Badge>
-                  {c.ranking_text && (
-                    <Badge tone="tea" className="gap-1 text-[11px] font-bold">
-                      <Award className="size-3" /> {c.ranking_text}
-                    </Badge>
-                  )}
-                </div>
-
-                <h2 className="mt-3 text-lg font-bold text-teal group-hover:underline">
-                  {c.name}
-                </h2>
-                <div className="mt-1 flex items-center gap-2 text-xs font-medium text-teal/70">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="size-3.5 text-teal/50" /> {c.city}, {c.state_code}
-                  </span>
-                  {c.ownership && (
-                    <span>· {c.ownership === 'government' ? 'Government / Central' : c.ownership.toUpperCase()}</span>
-                  )}
-                </div>
-
-                {/* Placement & Fees highlights */}
-                <div className="mt-4 grid grid-cols-2 gap-2.5 rounded-xl bg-tea/30 p-3 text-xs">
-                  <div>
-                    <span className="text-[11px] text-teal/70 font-medium">Placement Avg</span>
-                    <p className="font-bold text-teal mt-0.5">
-                      {c.placement_stats?.avg_package || 'Industry standard'}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-teal/70 font-medium">Annual Tuition Fee</span>
-                    <p className="font-bold text-teal mt-0.5 truncate" title={c.fees_text || ''}>
-                      {c.fees_text || 'Subsidized'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 flex items-center justify-between border-t border-line/60 pt-4">
-                <span className="text-xs font-semibold text-teal/70">
-                  {c.courses_count || 0} Programs Offered
-                </span>
-                <div className="flex items-center gap-2">
-                  <Link
-                    href={`/career/colleges/compare?slugs=${c.slug}`}
-                    className={buttonClass({ variant: 'secondary', size: 'sm', className: 'text-xs' })}
-                  >
-                    Compare
-                  </Link>
-                  <Link
-                    href={`/career/colleges/${c.slug}`}
-                    className={buttonClass({ variant: 'primary', size: 'sm', className: 'gap-1 shadow-clay' })}
-                  >
-                    View College <ArrowRight className="size-3.5" />
-                  </Link>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Paginated Colleges Grid with Save and Interactive Comparison Dock */}
+      <CollegesGridClient
+        colleges={colleges}
+        total={total}
+        page={page}
+        limit={20}
+        totalPages={totalPages}
+        q={q}
+        type={type}
+        state={state}
+      />
     </div>
   );
 }

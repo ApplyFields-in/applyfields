@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import type { AdminUserItem, GovServiceInput, ManualAlertInput, ManualAlertResult, OpportunityInput, OpportunityStatus, StatusChange, UpdateInput, WriteResult } from '@applyfields/types';
-import { apiDelete, apiPost, apiPut } from './api';
+import type { AdminInstitutionInput, AdminUserItem, GovServiceInput, InstitutionDetail, ManualAlertInput, ManualAlertResult, OpportunityInput, OpportunityStatus, StatusChange, UpdateInput, WriteResult } from '@applyfields/types';
+import { apiDelete, apiPatch, apiPost, apiPut } from './api';
 
 export interface ActionResponse<T = unknown> {
   ok: boolean;
@@ -205,6 +205,37 @@ export async function deleteServiceAction(id: string): Promise<ActionResponse<{ 
   const res = await apiDelete<{ success: boolean }>(`/admin/services/${encodeURIComponent(id)}`);
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/services');
+  return { ok: true, data: res.data! };
+}
+
+/** Create a new institution / college */
+export async function createCollegeAction(
+  input: AdminInstitutionInput,
+): Promise<ActionResponse<InstitutionDetail>> {
+  const res = await apiPost<InstitutionDetail>('/admin/institutions', input);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/colleges');
+  return { ok: true, data: res.data! };
+}
+
+/** Update / edit / fill missing fields for an institution */
+export async function updateCollegeAction(
+  id: string,
+  input: Partial<AdminInstitutionInput>,
+): Promise<ActionResponse<InstitutionDetail>> {
+  const res = await apiPatch<InstitutionDetail>(`/admin/institutions/${encodeURIComponent(id)}`, input);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/colleges');
+  return { ok: true, data: res.data! };
+}
+
+/** Delete an institution */
+export async function deleteCollegeAction(
+  id: string,
+): Promise<ActionResponse<{ deleted: boolean; id: string }>> {
+  const res = await apiDelete<{ deleted: boolean; id: string }>(`/admin/institutions/${encodeURIComponent(id)}`);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/colleges');
   return { ok: true, data: res.data! };
 }
 

@@ -12,6 +12,7 @@ import type {
   InstitutionEnquiry,
   InstitutionEnquiryListResponse,
   InstitutionEnquiryStatus,
+  InstitutionListResponse,
   InstitutionPartnerProfile,
   InstitutionSummary,
   RespondInstitutionEnquiryInput,
@@ -33,8 +34,52 @@ export const institutionListQuerySchema = z.object({
   q: z.string().trim().optional(),
   type: z.string().trim().optional(),
   state: z.string().trim().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 export type InstitutionListQuery = z.infer<typeof institutionListQuerySchema>;
+
+export const adminInstitutionQuerySchema = z.object({
+  q: z.string().trim().optional(),
+  type: z.string().trim().optional(),
+  state: z.string().trim().optional(),
+  status: z.string().trim().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type AdminInstitutionQuery = z.infer<typeof adminInstitutionQuerySchema>;
+
+export const adminCreateInstitutionSchema = z.object({
+  name: z.string().trim().min(2).max(250),
+  short_name: z.string().trim().max(50).optional().nullable(),
+  slug: z.string().trim().max(100).optional().nullable(),
+  type: z.enum(['college', 'university', 'institute', 'school', 'training_centre']).default('college'),
+  ownership: z.enum(['government', 'private', 'deemed', 'autonomous', 'aided']).default('private'),
+  state_code: z.string().trim().regex(/^[A-Z]{2}$/, 'Must be 2-letter uppercase state code').optional().nullable(),
+  district: z.string().trim().max(100).optional().nullable(),
+  city: z.string().trim().max(100).optional().nullable(),
+  address: z.string().trim().max(500).optional().nullable(),
+  pincode: z.string().trim().regex(/^[1-9][0-9]{5}$/, 'Must be 6-digit postal code').optional().nullable(),
+  website: z.string().trim().optional().nullable(),
+  ranking_text: z.string().trim().max(200).optional().nullable(),
+  fees_text: z.string().trim().max(300).optional().nullable(),
+  description: z.string().trim().max(3000).optional().nullable(),
+  established_year: z.coerce.number().int().min(1800).max(2030).optional().nullable(),
+  accreditation: z.record(z.string(), z.any()).optional().default({}),
+  placement_stats: z.object({
+    highest_package: z.string().optional(),
+    avg_package: z.string().optional(),
+    top_recruiters: z.array(z.string()).optional(),
+  }).optional().default({ highest_package: 'Data not given', avg_package: 'Data not given', top_recruiters: [] }),
+  campus_facilities: z.array(z.string()).optional().default([]),
+  contact_email: z.string().trim().email().optional().or(z.literal('')).nullable(),
+  contact_phone: z.string().trim().optional().or(z.literal('')).nullable(),
+  status: z.enum(['draft', 'published', 'closed', 'archived']).default('published'),
+});
+export type AdminCreateInstitutionInput = z.infer<typeof adminCreateInstitutionSchema>;
+
+export const adminUpdateInstitutionSchema = adminCreateInstitutionSchema.partial();
+export type AdminUpdateInstitutionInput = z.infer<typeof adminUpdateInstitutionSchema>;
 
 export const createInstitutionEnquirySchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -216,11 +261,34 @@ export class InstitutionsService {
   // COLLEGES & UNIVERSITIES
   // =========================================================================
 
-  /** List colleges/universities with filters */
-  async listInstitutions(query: InstitutionListQuery): Promise<InstitutionSummary[]> {
+  /** List colleges/universities with filters & pagination (default 20 per page) */
+  async listInstitutions(query: InstitutionListQuery): Promise<InstitutionListResponse> {
     const q = query.q?.trim().toLowerCase();
     const type = query.type?.trim();
     const state = query.state?.trim().toUpperCase();
+    const page = Math.max(1, query.page || 1);
+    const limit = Math.min(100, Math.max(1, query.limit || 20));
+    const offset = (page - 1) * limit;
+
+    const countRows = await this.prisma.$queryRaw<Array<{ total: number }>>`
+      select count(*)::int as total
+      from institutions i
+      where i.status = 'published'
+        ${type ? Prisma.sql`and i.type = ${type}::institution_type` : Prisma.empty}
+        ${state ? Prisma.sql`and i.state_code = ${state}` : Prisma.empty}
+        ${
+          q
+            ? Prisma.sql`and (
+                i.name ilike ${'%' + q + '%'} or
+                coalesce(i.short_name, '') ilike ${'%' + q + '%'} or
+                coalesce(i.city, '') ilike ${'%' + q + '%'} or
+                coalesce(i.district, '') ilike ${'%' + q + '%'} or
+                coalesce(i.ranking_text, '') ilike ${'%' + q + '%'}
+              )`
+            : Prisma.empty
+        }
+    `;
+    const total = countRows[0]?.total ?? 0;
 
     const rows = await this.prisma.$queryRaw<
       Array<{
@@ -252,21 +320,36 @@ export class InstitutionsService {
       where i.status = 'published'
         ${type ? Prisma.sql`and i.type = ${type}::institution_type` : Prisma.empty}
         ${state ? Prisma.sql`and i.state_code = ${state}` : Prisma.empty}
+        ${
+          q
+            ? Prisma.sql`and (
+                i.name ilike ${'%' + q + '%'} or
+                coalesce(i.short_name, '') ilike ${'%' + q + '%'} or
+                coalesce(i.city, '') ilike ${'%' + q + '%'} or
+                coalesce(i.district, '') ilike ${'%' + q + '%'} or
+                coalesce(i.ranking_text, '') ilike ${'%' + q + '%'}
+              )`
+            : Prisma.empty
+        }
       group by i.id, i.slug, i.name, i.short_name, i.type, i.ownership, i.state_code, i.city, i.district, i.website, i.ranking_text, i.fees_text, i.accreditation, i.placement_stats
-      order by i.created_at asc
+      order by
+        case
+          when i.ranking_text like 'NIRF%' then 1
+          when i.ranking_text like 'NBA%' then 2
+          else 3
+        end asc,
+        i.created_at asc
+      limit ${limit}
+      offset ${offset}
     `;
 
-    if (!q) {
-      return rows as InstitutionSummary[];
-    }
-
-    return rows.filter(
-      (i) =>
-        i.name.toLowerCase().includes(q) ||
-        (i.short_name && i.short_name.toLowerCase().includes(q)) ||
-        (i.city && i.city.toLowerCase().includes(q)) ||
-        (i.ranking_text && i.ranking_text.toLowerCase().includes(q)),
-    ) as InstitutionSummary[];
+    return {
+      items: rows as InstitutionSummary[],
+      total,
+      page,
+      limit,
+      total_pages: Math.ceil(total / limit) || 1,
+    };
   }
 
   /** Get institution details by slug */
@@ -858,6 +941,299 @@ export class InstitutionsService {
         updated_at: new Date(r.updated_at).toISOString(),
       })),
     };
+  }
+
+  // =========================================================================
+  // ADMIN INSTITUTION MANAGEMENT
+  // =========================================================================
+
+  /** Admin list institutions with filters, search, and pagination */
+  async adminListInstitutions(query: AdminInstitutionQuery): Promise<InstitutionListResponse> {
+    const q = query.q?.trim().toLowerCase();
+    const type = query.type?.trim();
+    const state = query.state?.trim().toUpperCase();
+    const status = query.status?.trim();
+    const page = Math.max(1, query.page || 1);
+    const limit = Math.min(100, Math.max(1, query.limit || 20));
+    const offset = (page - 1) * limit;
+
+    const countRows = await this.prisma.$queryRaw<Array<{ total: number }>>`
+      select count(*)::int as total
+      from institutions i
+      where 1=1
+        ${status ? Prisma.sql`and i.status = ${status}::content_status` : Prisma.empty}
+        ${type ? Prisma.sql`and i.type = ${type}::institution_type` : Prisma.empty}
+        ${state ? Prisma.sql`and i.state_code = ${state}` : Prisma.empty}
+        ${
+          q
+            ? Prisma.sql`and (
+                i.name ilike ${'%' + q + '%'} or
+                coalesce(i.short_name, '') ilike ${'%' + q + '%'} or
+                coalesce(i.city, '') ilike ${'%' + q + '%'} or
+                coalesce(i.district, '') ilike ${'%' + q + '%'} or
+                coalesce(i.ranking_text, '') ilike ${'%' + q + '%'}
+              )`
+            : Prisma.empty
+        }
+    `;
+    const total = countRows[0]?.total ?? 0;
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        slug: string;
+        name: string;
+        short_name: string | null;
+        type: string;
+        ownership: string | null;
+        state_code: string | null;
+        city: string | null;
+        district: string | null;
+        website: string | null;
+        ranking_text: string | null;
+        fees_text: string | null;
+        accreditation: any;
+        placement_stats: any;
+        courses_count: number;
+      }>
+    >`
+      select i.id::text, i.slug, i.name, i.short_name,
+             i.type::text as type, i.ownership::text as ownership,
+             i.state_code, i.city, i.district, i.website,
+             i.ranking_text, i.fees_text,
+             i.accreditation, i.placement_stats,
+             count(distinct ic.course_id)::int as courses_count
+      from institutions i
+      left join institution_courses ic on ic.institution_id = i.id
+      where 1=1
+        ${status ? Prisma.sql`and i.status = ${status}::content_status` : Prisma.empty}
+        ${type ? Prisma.sql`and i.type = ${type}::institution_type` : Prisma.empty}
+        ${state ? Prisma.sql`and i.state_code = ${state}` : Prisma.empty}
+        ${
+          q
+            ? Prisma.sql`and (
+                i.name ilike ${'%' + q + '%'} or
+                coalesce(i.short_name, '') ilike ${'%' + q + '%'} or
+                coalesce(i.city, '') ilike ${'%' + q + '%'} or
+                coalesce(i.district, '') ilike ${'%' + q + '%'} or
+                coalesce(i.ranking_text, '') ilike ${'%' + q + '%'}
+              )`
+            : Prisma.empty
+        }
+      group by i.id, i.slug, i.name, i.short_name, i.type, i.ownership, i.state_code, i.city, i.district, i.website, i.ranking_text, i.fees_text, i.accreditation, i.placement_stats
+      order by i.updated_at desc, i.created_at desc
+      limit ${limit}
+      offset ${offset}
+    `;
+
+    return {
+      items: rows as InstitutionSummary[],
+      total,
+      page,
+      limit,
+      total_pages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  /** Get institution by ID or slug for admin editing */
+  async adminGetInstitution(idOrSlug: string): Promise<InstitutionDetail> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+    const iRows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        slug: string;
+        name: string;
+        short_name: string | null;
+        type: string;
+        ownership: string | null;
+        state_code: string | null;
+        city: string | null;
+        district: string | null;
+        website: string | null;
+        ranking_text: string | null;
+        fees_text: string | null;
+        accreditation: any;
+        placement_stats: any;
+        description: string | null;
+        established_year: number | null;
+        campus_facilities: string[];
+      }>
+    >`
+      select id::text, slug, name, short_name, type::text as type, ownership::text as ownership,
+             state_code, city, district, website, ranking_text, fees_text,
+             accreditation, placement_stats, description, established_year,
+             campus_facilities
+      from institutions
+      where ${isUuid ? Prisma.sql`id = ${idOrSlug}::uuid` : Prisma.sql`slug = ${idOrSlug}`}
+      limit 1
+    `;
+
+    if (!iRows || iRows.length === 0) {
+      throw new NotFoundException(`Institution '${idOrSlug}' not found`);
+    }
+
+    const inst = iRows[0];
+    const courses = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        slug: string;
+        name: string;
+        short_name: string | null;
+        level: string;
+        seats: number | null;
+        fee_per_year: number | null;
+        fees_text: string | null;
+        admission_process: string | null;
+      }>
+    >`
+      select c.id::text, c.slug, c.name, c.short_name, c.level::text as level,
+             ic.seats, ic.fee_per_year, ic.fees_text, ic.admission_process
+      from courses c
+      join institution_courses ic on ic.course_id = c.id
+      where ic.institution_id = ${inst.id}::uuid
+      order by c.name asc
+    `;
+
+    return {
+      id: inst.id,
+      slug: inst.slug,
+      name: inst.name,
+      short_name: inst.short_name,
+      type: inst.type,
+      ownership: inst.ownership,
+      state_code: inst.state_code,
+      city: inst.city,
+      district: inst.district,
+      website: inst.website,
+      ranking_text: inst.ranking_text,
+      fees_text: inst.fees_text,
+      accreditation: inst.accreditation || {},
+      placement_stats: inst.placement_stats || {},
+      description: inst.description,
+      established_year: inst.established_year,
+      campus_facilities: inst.campus_facilities || [],
+      courses,
+      courses_count: courses.length,
+    };
+  }
+
+  /** Admin create a new institution */
+  async adminCreateInstitution(input: AdminCreateInstitutionInput): Promise<InstitutionDetail> {
+    const baseSlug = input.slug?.trim() ||
+      input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+    let slug = baseSlug || `college-${Date.now()}`;
+    let counter = 1;
+    while (true) {
+      const exists = await this.prisma.$queryRaw<Array<{ id: string }>>`
+        select id::text from institutions where slug = ${slug} limit 1
+      `;
+      if (!exists || exists.length === 0) break;
+      slug = `${baseSlug}-${counter++}`;
+    }
+
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      insert into institutions (
+        slug, name, short_name, type, ownership, state_code, district, city, address,
+        pincode, website, ranking_text, fees_text, description, established_year,
+        accreditation, placement_stats, campus_facilities, contact_email, contact_phone,
+        status, last_verified_at, created_at, updated_at
+      ) values (
+        ${slug},
+        ${input.name.trim()},
+        ${input.short_name?.trim() || null},
+        ${input.type}::institution_type,
+        ${input.ownership}::institution_ownership,
+        ${input.state_code || null},
+        ${input.district || null},
+        ${input.city || null},
+        ${input.address || null},
+        ${input.pincode || null},
+        ${input.website || null},
+        ${input.ranking_text || null},
+        ${input.fees_text || null},
+        ${input.description || null},
+        ${input.established_year || null},
+        ${JSON.stringify(input.accreditation || {})}::jsonb,
+        ${JSON.stringify(input.placement_stats || {})}::jsonb,
+        ${input.campus_facilities || []}::text[],
+        ${input.contact_email || null},
+        ${input.contact_phone || null},
+        ${input.status || 'published'}::content_status,
+        now(),
+        now(),
+        now()
+      )
+      returning id::text
+    `;
+
+    return this.adminGetInstitution(rows[0].id);
+  }
+
+  /** Admin update/edit institution */
+  async adminUpdateInstitution(id: string, input: AdminUpdateInstitutionInput): Promise<InstitutionDetail> {
+    const existing = await this.adminGetInstitution(id);
+
+    const slug = input.slug?.trim() || existing.slug;
+    if (slug !== existing.slug) {
+      const conflict = await this.prisma.$queryRaw<Array<{ id: string }>>`
+        select id::text from institutions where slug = ${slug} and id != ${existing.id}::uuid limit 1
+      `;
+      if (conflict && conflict.length > 0) {
+        throw new BadRequestException(`Slug '${slug}' already exists`);
+      }
+    }
+
+    await this.prisma.$queryRaw`
+      update institutions set
+        slug = ${slug},
+        name = ${input.name !== undefined ? input.name.trim() : existing.name},
+        short_name = ${input.short_name !== undefined ? input.short_name?.trim() || null : existing.short_name},
+        type = ${input.type ? Prisma.sql`${input.type}::institution_type` : Prisma.sql`type`},
+        ownership = ${input.ownership ? Prisma.sql`${input.ownership}::institution_ownership` : Prisma.sql`ownership`},
+        state_code = ${input.state_code !== undefined ? input.state_code || null : existing.state_code},
+        district = ${input.district !== undefined ? input.district || null : existing.district},
+        city = ${input.city !== undefined ? input.city || null : existing.city},
+        address = ${input.address !== undefined ? input.address || null : Prisma.sql`address`},
+        pincode = ${input.pincode !== undefined ? input.pincode || null : Prisma.sql`pincode`},
+        website = ${input.website !== undefined ? input.website || null : existing.website},
+        ranking_text = ${input.ranking_text !== undefined ? input.ranking_text || null : existing.ranking_text},
+        fees_text = ${input.fees_text !== undefined ? input.fees_text || null : existing.fees_text},
+        description = ${input.description !== undefined ? input.description || null : existing.description},
+        established_year = ${input.established_year !== undefined ? input.established_year || null : existing.established_year},
+        accreditation = ${input.accreditation !== undefined ? Prisma.sql`${JSON.stringify(input.accreditation)}::jsonb` : Prisma.sql`accreditation`},
+        placement_stats = ${input.placement_stats !== undefined ? Prisma.sql`${JSON.stringify(input.placement_stats)}::jsonb` : Prisma.sql`placement_stats`},
+        campus_facilities = ${input.campus_facilities !== undefined ? Prisma.sql`${input.campus_facilities}::text[]` : Prisma.sql`campus_facilities`},
+        contact_email = ${input.contact_email !== undefined ? input.contact_email || null : Prisma.sql`contact_email`},
+        contact_phone = ${input.contact_phone !== undefined ? input.contact_phone || null : Prisma.sql`contact_phone`},
+        status = ${input.status ? Prisma.sql`${input.status}::content_status` : Prisma.sql`status`},
+        last_verified_at = now(),
+        updated_at = now()
+      where id = ${existing.id}::uuid
+    `;
+
+    return this.adminGetInstitution(existing.id);
+  }
+
+  /** Admin delete institution */
+  async adminDeleteInstitution(id: string): Promise<{ deleted: boolean; id: string }> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const existing = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      select id::text from institutions
+      where ${isUuid ? Prisma.sql`id = ${id}::uuid` : Prisma.sql`slug = ${id}`}
+      limit 1
+    `;
+
+    if (!existing || existing.length === 0) {
+      throw new NotFoundException(`Institution '${id}' not found`);
+    }
+
+    const realId = existing[0].id;
+    await this.prisma.$queryRaw`
+      delete from institutions where id = ${realId}::uuid
+    `;
+
+    return { deleted: true, id: realId };
   }
 }
 

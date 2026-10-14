@@ -3,6 +3,7 @@ import {
   Award,
   Bell,
   Briefcase,
+  Building,
   ClipboardList,
   Compass,
   CreditCard,
@@ -49,6 +50,7 @@ export const NAV: NavGroup[] = [
       { href: '/opportunities', label: 'Content', icon: <FileText /> },
       { href: '/updates', label: 'Announcements', icon: <Megaphone /> },
       { href: '/careers', label: 'Career Content', icon: <Compass /> },
+      { href: '/colleges', label: 'Colleges Directory', icon: <Building /> },
     ],
   },
   {
