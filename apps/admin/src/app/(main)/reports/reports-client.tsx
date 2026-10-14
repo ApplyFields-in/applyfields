@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  ExternalLink,
   Eye,
   EyeOff,
   Filter,
@@ -20,6 +21,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
+import Link from 'next/link';
 import { apiPatch } from '@/lib/api';
 
 interface ReportsClientProps {
@@ -250,6 +252,34 @@ export function ReportsClient({
 
                   {/* Actions Bar */}
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {report.item_type === 'opportunity' && (
+                      <Link
+                        href={`/opportunities/${report.item_id}`}
+                        className={buttonClass({
+                          variant: 'ghost',
+                          size: 'sm',
+                          className: 'gap-1.5 text-xs text-teal bg-teal/10 border border-teal/20 hover:bg-teal/20',
+                        })}
+                        title="Open opportunity in editor to review and fix"
+                      >
+                        <ExternalLink className="size-3.5" />
+                        Fix in Editor
+                      </Link>
+                    )}
+                    {report.item_type === 'service' && (
+                      <Link
+                        href={`/services/${report.item_id}`}
+                        className={buttonClass({
+                          variant: 'ghost',
+                          size: 'sm',
+                          className: 'gap-1.5 text-xs text-teal bg-teal/10 border border-teal/20 hover:bg-teal/20',
+                        })}
+                        title="Open service in editor to review and fix"
+                      >
+                        <ExternalLink className="size-3.5" />
+                        Fix in Editor
+                      </Link>
+                    )}
                     {isPending ? (
                       <>
                         <button

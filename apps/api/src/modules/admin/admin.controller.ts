@@ -241,4 +241,59 @@ export class AdminController {
   ): Promise<AdminUserItem> {
     return this.usersService.revokeRole(id, role as StaffRole, actor, staff);
   }
+
+  /** GET /api/v1/admin/audit — team view of recent staff actions, edits, status updates */
+  @Get('audit')
+  @Roles('reviewer')
+  async listAuditLogs(
+    @Query('action') action?: string,
+    @Query('target_type') targetType?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const p = Math.max(1, parseInt(page || '1', 10));
+    const lim = Math.min(100, Math.max(1, parseInt(limit || '50', 10)));
+    const skip = (p - 1) * lim;
+
+    const where: any = {};
+    if (action && action !== 'all') where.action = action;
+    if (targetType && targetType !== 'all') where.target_type = targetType;
+
+    const [total, rows] = await Promise.all([
+      this.prisma.audit_logs.count({ where }),
+      this.prisma.audit_logs.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: lim,
+      }),
+    ]);
+
+    const actorIds = Array.from(new Set(rows.map((r) => r.actor_id).filter(Boolean))) as string[];
+    const staffUsers = actorIds.length > 0
+      ? await this.prisma.users.findMany({
+          where: { id: { in: actorIds } },
+          select: { id: true, email: true, user_profiles: { select: { full_name: true } } },
+        })
+      : [];
+    const staffMap = new Map(staffUsers.map((u) => [u.id, u]));
+
+    const items = rows.map((r) => {
+      const u = r.actor_id ? staffMap.get(r.actor_id) : undefined;
+      return {
+        id: r.id,
+        actor_id: r.actor_id,
+        actor_email: u?.email || (r.actor_id ? 'Staff User' : 'System / Automated'),
+        actor_name: u?.user_profiles?.full_name || null,
+        action: r.action,
+        target_type: r.target_type,
+        target_id: r.target_id,
+        details: (r.details as Record<string, any>) || {},
+        ip_address: r.ip_address,
+        created_at: r.created_at.toISOString(),
+      };
+    });
+
+    return { total, items };
+  }
 }

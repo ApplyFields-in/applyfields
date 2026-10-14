@@ -1,8 +1,19 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import type { AdminUserItem, GovServiceInput, ManualAlertInput, ManualAlertResult, OpportunityInput, OpportunityStatus, StatusChange, UpdateInput, WriteResult } from '@applyfields/types';
-import { apiDelete, apiPost, apiPut } from './api';
+import type {
+  AdminUserItem,
+  GovServiceInput,
+  ManualAlertInput,
+  ManualAlertResult,
+  OpportunityInput,
+  OpportunityStatus,
+  OpportunityVersionListResponse,
+  StatusChange,
+  UpdateInput,
+  WriteResult,
+} from '@applyfields/types';
+import { apiDelete, apiGet, apiPost, apiPut } from './api';
 
 export interface ActionResponse<T = unknown> {
   ok: boolean;
@@ -207,4 +218,32 @@ export async function deleteServiceAction(id: string): Promise<ActionResponse<{ 
   revalidatePath('/services');
   return { ok: true, data: res.data! };
 }
+
+/** Fetch version history for an opportunity. */
+export async function getOpportunityVersionsAction(
+  id: string,
+): Promise<ActionResponse<OpportunityVersionListResponse>> {
+  const res = await apiGet<OpportunityVersionListResponse>(
+    `/admin/opportunities/${encodeURIComponent(id)}/versions`,
+  );
+  if (!res) return { ok: false, error: 'Failed to fetch version history' };
+  return { ok: true, data: res };
+}
+
+/** Restore an approved previous version snapshot. */
+export async function restoreOpportunityVersionAction(
+  id: string,
+  versionNo: number,
+): Promise<ActionResponse<{ ok: boolean; version: number }>> {
+  const res = await apiPost<{ ok: boolean; version: number }>(
+    `/admin/opportunities/${encodeURIComponent(id)}/versions/${versionNo}/restore`,
+  );
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/opportunities');
+  revalidatePath(`/opportunities/${id}`);
+  revalidatePath('/review');
+  revalidatePath(`/review/${id}`);
+  return { ok: true, data: res.data! };
+}
+
 

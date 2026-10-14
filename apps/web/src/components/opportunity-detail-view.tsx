@@ -38,6 +38,7 @@ import {
   ShareButton,
 } from './opportunity-actions';
 import { SaveButton } from './save-button';
+import { ReportWrongInfoButton } from './report-wrong-info-modal';
 import { isSaved } from '@/lib/server-api';
 import {
   DATE_KIND_LABEL,
@@ -199,6 +200,11 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
                 genderRule={generalEligibility.gender}
               />
             )}
+            <ReportWrongInfoButton
+              targetType="opportunity"
+              targetSlug={item.slug}
+              targetTitle={item.title}
+            />
           </div>
         </div>
 
