@@ -520,6 +520,105 @@ export class OpportunitiesAdminService {
     for (let n = 2; ; n++)
       if (!taken.has(`${base}-${n}`)) return `${base}-${n}`;
   }
+
+  async listVersions(opportunityId: string): Promise<any> {
+    const opp = await this.prisma.opportunities.findUnique({
+      where: { id: opportunityId },
+      select: { version: true },
+    });
+    if (!opp) throw new NotFoundException(`Opportunity with id ${opportunityId} not found`);
+
+    const rows = await this.prisma.opportunity_versions.findMany({
+      where: { opportunity_id: opportunityId },
+      include: {
+        users_opportunity_versions_created_byTousers: { select: { email: true } },
+      },
+      orderBy: { version_no: 'desc' },
+    });
+
+    const versions = rows.map((r) => ({
+      id: r.id,
+      opportunity_id: r.opportunity_id,
+      version_no: r.version_no,
+      status: r.status as any,
+      changed_fields: r.changed_fields,
+      change_note: r.change_note,
+      created_by: r.created_by,
+      creator_name: r.users_opportunity_versions_created_byTousers?.email || 'Editorial Staff',
+      reviewed_by: r.reviewed_by,
+      reviewed_at: r.reviewed_at ? r.reviewed_at.toISOString() : null,
+      created_at: r.created_at.toISOString(),
+      snapshot: (r.snapshot as Record<string, any>) || {},
+    }));
+
+    return {
+      opportunity_id: opportunityId,
+      current_version: opp.version,
+      versions,
+    };
+  }
+
+  async restoreVersion(
+    opportunityId: string,
+    versionNo: number,
+    actor: string | null,
+  ): Promise<{ ok: boolean; version: number }> {
+    const targetVer = await this.prisma.opportunity_versions.findUnique({
+      where: {
+        opportunity_id_version_no: {
+          opportunity_id: opportunityId,
+          version_no: versionNo,
+        },
+      },
+    });
+
+    if (!targetVer) {
+      throw new NotFoundException(
+        `Version #${versionNo} for opportunity ${opportunityId} not found`,
+      );
+    }
+
+    const snapshot = targetVer.snapshot as Record<string, any>;
+    if (!snapshot || !snapshot.title) {
+      throw new BadRequestException('Version snapshot data is invalid or missing.');
+    }
+
+    const newVersion = await this.prisma.$transaction(async (tx) => {
+      await tx.opportunities.update({
+        where: { id: opportunityId },
+        data: {
+          title: snapshot.title,
+          summary: snapshot.summary ?? null,
+          notification_number: snapshot.notification_number ?? null,
+          notification_pdf_url: snapshot.notification_pdf_url ?? null,
+          official_page_url: snapshot.official_page_url ?? null,
+          apply_url: snapshot.apply_url ?? null,
+          vacancies_total: snapshot.vacancies_total ?? null,
+          fee_text: snapshot.fee_text ?? null,
+          application_start: snapshot.application_start ? new Date(snapshot.application_start) : null,
+          application_end: snapshot.application_end ? new Date(snapshot.application_end) : null,
+          updated_at: new Date(),
+        },
+      });
+
+      const v = await this.snapshot(
+        tx,
+        opportunityId,
+        actor,
+        `Restored from Version #${versionNo}`,
+        ['all_restored'],
+      );
+
+      await this.audit(tx, actor, 'opportunity.version_restored', opportunityId, {
+        restored_from_version: versionNo,
+        new_version: v,
+      });
+
+      return v;
+    });
+
+    return { ok: true, version: newVersion };
+  }
 }
 
 /** Top-level columns whose value changed (for the audit log and version history). */

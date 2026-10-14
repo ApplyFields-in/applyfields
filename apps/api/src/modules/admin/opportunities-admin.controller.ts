@@ -161,4 +161,30 @@ export class OpportunitiesAdminController {
     this.cache.delete('home:summary');
     return res;
   }
+
+  /** GET /admin/opportunities/:id/versions — view version history drawer */
+  @Get('opportunities/:id/versions')
+  @Roles('reviewer')
+  async listVersions(
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.opportunities.listVersions(id);
+  }
+
+  /** POST /admin/opportunities/:id/versions/:versionNo/restore — restore an earlier snapshot */
+  @Post('opportunities/:id/versions/:versionNo/restore')
+  @Roles('admin')
+  @HttpCode(200)
+  async restoreVersion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('versionNo') versionNo: string,
+    @ActorId() actor: string | null,
+  ) {
+    const vNo = parseInt(versionNo, 10);
+    if (isNaN(vNo) || vNo < 1) throw new BadRequestException('Invalid version number');
+    const res = await this.opportunities.restoreVersion(id, vNo, actor);
+    this.cache.deletePrefix('opportunities');
+    this.cache.delete('home:summary');
+    return res;
+  }
 }

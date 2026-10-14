@@ -17,678 +17,735 @@ import {
   AlertCircle,
   Building2,
   Bookmark,
+  GraduationCap,
+  HandHelping,
+  Star,
+  Trash2,
+  Edit2,
+  ChevronRight,
+  Layers,
+  MapPin,
+  Check,
+  X,
+  Info,
 } from 'lucide-react';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import type {
+  ApplicationTrackerItem,
+  ApplicationTrackerStatus,
   BookingDetail,
   BookingListResponse,
   InstitutionEnquiry,
   InstitutionEnquiryListResponse,
-  OpportunityCard,
-  SavedList,
 } from '@applyfields/types';
+import { Badge, Card, buttonClass } from '@applyfields/ui';
 import { formatDate } from '@/lib/format';
-import { GraduationCap, HandHelping, Star } from 'lucide-react';
 
-interface ApplicationItem {
-  id: string;
-  slug: string;
-  title: string;
-  organization: string;
-  type: string;
-  stage: 'planning' | 'applied' | 'admit_card' | 'exam' | 'result';
-  applicationNumber?: string;
-  examDate?: string;
-  deadline?: string;
-  notes?: string;
-  documentsReady: boolean;
-}
-
-const STATUS_TABS = [
-  { id: 'all', label: 'All Applications' },
-  { id: 'assistance', label: 'Center Assistance' },
-  { id: 'enquiries', label: 'College Inquiries' },
-  { id: 'planning', label: 'Planning to Apply' },
-  { id: 'applied', label: 'Applied' },
-  { id: 'admit_card', label: 'Admit Card & Exam' },
-  { id: 'result', label: 'Results & Selected' },
+const PIPELINE_STAGES: { id: ApplicationTrackerStatus; label: string; step: number; color: string }[] = [
+  { id: 'saved', label: 'Saved', step: 1, color: 'bg-slate-100 text-slate-700 border-slate-300' },
+  { id: 'planning', label: 'Planning', step: 2, color: 'bg-amber-100 text-amber-800 border-amber-300' },
+  { id: 'applied', label: 'Applied', step: 3, color: 'bg-blue-100 text-blue-800 border-blue-300' },
+  { id: 'exam_interview', label: 'Exam / Interview', step: 4, color: 'bg-purple-100 text-purple-800 border-purple-300' },
+  { id: 'selected', label: 'Selected', step: 5, color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  { id: 'rejected', label: 'Rejected', step: 5, color: 'bg-rose-100 text-rose-800 border-rose-300' },
+  { id: 'completed', label: 'Completed', step: 6, color: 'bg-teal-100 text-teal-800 border-teal-300' },
 ];
 
-const STAGE_LABELS: Record<string, { label: string; color: string; step: number }> = {
-  planning: { label: 'Planning', color: 'bg-amber-100 text-amber-800 border-amber-200', step: 1 },
-  applied: { label: 'Applied', color: 'bg-blue-100 text-blue-800 border-blue-200', step: 2 },
-  admit_card: { label: 'Admit Card Out', color: 'bg-purple-100 text-purple-800 border-purple-200', step: 3 },
-  exam: { label: 'Exam Completed', color: 'bg-indigo-100 text-indigo-800 border-indigo-200', step: 4 },
-  result: { label: 'Result Declared', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', step: 5 },
-};
+const MAIN_TABS = [
+  { id: 'tracker', label: 'Application Pipeline' },
+  { id: 'assistance', label: 'Center Assistance' },
+  { id: 'enquiries', label: 'College Inquiries' },
+];
 
 export default function ApplicationsPage() {
-  const [activeTab, setActiveTab] = useState('all');
+  const [mainTab, setMainTab] = useState<'tracker' | 'assistance' | 'enquiries'>('tracker');
+  const [pipelineFilter, setPipelineFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [applications, setApplications] = useState<ApplicationItem[]>([]);
+
+  // Tracker state
+  const [applications, setApplications] = useState<ApplicationTrackerItem[]>([]);
+  const [loadingApps, setLoadingApps] = useState(true);
+  const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; error?: boolean } | null>(null);
+
+  // Modals
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingApp, setEditingApp] = useState<ApplicationTrackerItem | null>(null);
+
+  // Form fields
+  const [formTitle, setFormTitle] = useState('');
+  const [formOrg, setFormOrg] = useState('');
+  const [formStatus, setFormStatus] = useState<ApplicationTrackerStatus>('planning');
+  const [formAppNumber, setFormAppNumber] = useState('');
+  const [formRollNumber, setFormRollNumber] = useState('');
+  const [formExamDate, setFormExamDate] = useState('');
+  const [formExamCenter, setFormExamCenter] = useState('');
+  const [formNotes, setFormNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // Other tabs state
   const [bookings, setBookings] = useState<BookingDetail[]>([]);
   const [enquiries, setEnquiries] = useState<InstitutionEnquiry[]>([]);
-  const [reviewingBooking, setReviewingBooking] = useState<BookingDetail | null>(null);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Fetch applications
+  async function loadApplications() {
+    setLoadingApps(true);
+    try {
+      const res = await apiGet<ApplicationTrackerItem[]>('/applications');
+      if (res && Array.isArray(res)) {
+        setApplications(res);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingApps(false);
+    }
+  }
 
   useEffect(() => {
-    // Check if user is signed in
-    const stored = localStorage.getItem('currentUser');
-    if (stored) {
-      setIsLoggedIn(true);
-    }
+    loadApplications();
 
-    // Load assistance bookings
+    // Load bookings & enquiries in background
     apiGet<BookingListResponse>('/bookings/my')
       .then((res) => {
-        if (res?.items) {
-          setBookings(res.items);
-        }
+        if (res?.items) setBookings(res.items);
       })
       .catch(() => {});
 
-    // Load college admission inquiries
     apiGet<InstitutionEnquiryListResponse>('/career/colleges/my-enquiries')
       .then((res) => {
-        if (res?.items) {
-          setEnquiries(res.items);
-        }
+        if (res?.items) setEnquiries(res.items);
       })
       .catch(() => {});
-
-    // Load saved opportunities as tracked applications starter
-    apiGet<SavedList>('/saved')
-      .then((res) => {
-        if (res?.items && res.items.length > 0) {
-          const mapped: ApplicationItem[] = res.items
-            .filter((item) => item.card)
-            .map((item, idx) => {
-              const opp = item.card as OpportunityCard;
-              // Default to planning or applied depending on index for realistic preview
-              const stages: ('planning' | 'applied' | 'admit_card')[] = ['planning', 'applied', 'admit_card'];
-              const stage = stages[idx % 3];
-              return {
-                id: opp.slug,
-                slug: opp.slug,
-                title: opp.title,
-                organization: opp.organization,
-                type: opp.type,
-                stage,
-                applicationNumber: stage !== 'planning' ? `AF-${2026}${1000 + idx}` : undefined,
-                deadline: opp.last_date ?? undefined,
-                examDate: stage === 'admit_card' ? '2026-11-15' : undefined,
-                documentsReady: true,
-              };
-            });
-          setApplications(mapped);
-        } else {
-          // Provide standard initial guidance demo applications
-          setApplications([
-            {
-              id: 'ssc-cgl-2026',
-              slug: 'ssc-cgl-2026',
-              title: 'SSC Combined Graduate Level Examination (Tier-I)',
-              organization: 'Staff Selection Commission (SSC)',
-              type: 'govt_job',
-              stage: 'applied',
-              applicationNumber: '2401098231',
-              deadline: '2026-10-25',
-              examDate: '2026-11-20',
-              notes: 'Center chosen: Hyderabad. Tier-1 syllabus revision ongoing.',
-              documentsReady: true,
-            },
-            {
-              id: 'upsc-cse-prelims',
-              slug: 'upsc-cse-prelims',
-              title: 'UPSC Civil Services Examination (Preliminary)',
-              organization: 'Union Public Service Commission',
-              type: 'exam',
-              stage: 'planning',
-              deadline: '2026-11-10',
-              notes: 'Need to upload renewed OBC-NCL certificate before deadline.',
-              documentsReady: false,
-            },
-          ]);
-        }
-      })
-      .catch(() => {
-        // Fallback demo state
-        setApplications([]);
-      })
-      .finally(() => setLoading(false));
   }, []);
 
-  const handleCancelBooking = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this assistance request?')) return;
-    const res = await apiPost<BookingDetail>(`/bookings/${id}/cancel`, {
-      reason: 'Cancelled by citizen request',
-    });
-    if (res.data) {
-      setBookings((prev) => prev.map((b) => (b.id === id ? res.data! : b)));
-    }
-  };
+  function openAddModal() {
+    setFormTitle('');
+    setFormOrg('');
+    setFormStatus('planning');
+    setFormAppNumber('');
+    setFormRollNumber('');
+    setFormExamDate('');
+    setFormExamCenter('');
+    setFormNotes('');
+    setIsAddModalOpen(true);
+  }
 
-  const handleReviewSubmit = async (e: React.FormEvent) => {
+  function openEditModal(app: ApplicationTrackerItem) {
+    setEditingApp(app);
+    setFormTitle(app.title);
+    setFormOrg(app.organization);
+    setFormStatus(app.status);
+    setFormAppNumber(app.application_number || '');
+    setFormRollNumber(app.roll_number || '');
+    setFormExamDate(app.exam_date || '');
+    setFormExamCenter(app.exam_center || '');
+    setFormNotes(app.notes || '');
+  }
+
+  async function handleSaveApplication(e: React.FormEvent) {
     e.preventDefault();
-    if (!reviewingBooking) return;
-    setIsSubmittingReview(true);
-    const res = await apiPost(`/bookings/${reviewingBooking.id}/review`, {
-      rating: reviewRating,
-      comment: reviewComment.trim() || undefined,
-    });
-    setIsSubmittingReview(false);
-    if (!res.error && res.data) {
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === reviewingBooking.id ? { ...b, review: res.data as any } : b,
-        ),
-      );
-      setReviewingBooking(null);
-      setReviewComment('');
+    if (!formTitle.trim()) return;
+
+    setSubmitting(true);
+    try {
+      if (editingApp) {
+        const res = await apiPut<ApplicationTrackerItem>(`/applications/${editingApp.id}`, {
+          status: formStatus,
+          application_number: formAppNumber.trim() || undefined,
+          roll_number: formRollNumber.trim() || undefined,
+          exam_date: formExamDate || undefined,
+          exam_center: formExamCenter.trim() || undefined,
+          notes: formNotes.trim() || undefined,
+        });
+
+        if (res.error) throw new Error(res.error);
+        setFeedbackMsg({ text: `Updated "${formTitle}" successfully.` });
+        setEditingApp(null);
+      } else {
+        const res = await apiPost<ApplicationTrackerItem>('/applications', {
+          title: formTitle.trim(),
+          organization: formOrg.trim() || 'Recruitment Commission',
+          status: formStatus,
+          application_number: formAppNumber.trim() || undefined,
+          roll_number: formRollNumber.trim() || undefined,
+          exam_date: formExamDate || undefined,
+          exam_center: formExamCenter.trim() || undefined,
+          notes: formNotes.trim() || undefined,
+        });
+
+        if (res.error) throw new Error(res.error);
+        setFeedbackMsg({ text: `Added "${formTitle}" to your application pipeline.` });
+        setIsAddModalOpen(false);
+      }
+      await loadApplications();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Action failed';
+      setFeedbackMsg({ text: msg, error: true });
+    } finally {
+      setSubmitting(false);
     }
-  };
+  }
+
+  async function handleAdvanceStage(app: ApplicationTrackerItem, nextStatus: ApplicationTrackerStatus) {
+    try {
+      const res = await apiPut<ApplicationTrackerItem>(`/applications/${app.id}`, {
+        status: nextStatus,
+      });
+      if (res.error) throw new Error(res.error);
+      setFeedbackMsg({ text: `Moved to "${nextStatus.replace('_', ' ').toUpperCase()}".` });
+      await loadApplications();
+    } catch (err: unknown) {
+      setFeedbackMsg({ text: 'Failed to update pipeline stage.', error: true });
+    }
+  }
+
+  async function handleDeleteApplication(id: string, title: string) {
+    if (!confirm(`Are you sure you want to remove "${title}" from your tracker?`)) return;
+
+    try {
+      await apiDelete(`/applications/${id}`);
+      setFeedbackMsg({ text: `Removed "${title}" from your tracker.` });
+      await loadApplications();
+    } catch {
+      setFeedbackMsg({ text: 'Failed to remove application.', error: true });
+    }
+  }
 
   const filteredApps = applications.filter((app) => {
-    if (activeTab !== 'all') {
-      if (activeTab === 'admit_card' && (app.stage === 'admit_card' || app.stage === 'exam')) {
-        // match
-      } else if (app.stage !== activeTab) {
-        return false;
-      }
-    }
+    if (pipelineFilter !== 'all' && app.status !== pipelineFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      return app.title.toLowerCase().includes(q) || app.organization.toLowerCase().includes(q);
+      return (
+        app.title.toLowerCase().includes(q) ||
+        app.organization.toLowerCase().includes(q) ||
+        (app.application_number && app.application_number.toLowerCase().includes(q)) ||
+        (app.roll_number && app.roll_number.toLowerCase().includes(q))
+      );
     }
     return true;
   });
 
-  const planningCount = applications.filter((a) => a.stage === 'planning').length;
-  const appliedCount = applications.filter((a) => a.stage === 'applied' || a.stage === 'admit_card' || a.stage === 'exam').length;
-  const completedCount = applications.filter((a) => a.stage === 'result').length;
-
   return (
-    <div className="space-y-6">
-      {/* Header section */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0e7bf4]">
-            <ClipboardList className="size-4" />
-            <span>My Space · Milestone Tracker</span>
-          </div>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[#082046] sm:text-3xl">
-            My Applications
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-[#435775]">
-            Track your recruitment progress from saved to selected — with deadlines, roll numbers, exam centers, and document readiness in one place.
-          </p>
+    <div className="space-y-8">
+      {/* Top Header */}
+      <div>
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0e7bf4]">
+          <ClipboardList className="size-4" />
+          <span>Application Management</span>
         </div>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[#082046] sm:text-3xl">
+          My Applications
+        </h1>
+        <p className="mt-1 max-w-2xl text-sm text-[#435775]">
+          Manage your personal recruitment journey from planning to selection. Track application numbers,
+          exam dates, and roll numbers in one place.
+        </p>
+      </div>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href="/apply"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0c6fdc]"
+      {/* Main Tab Switcher */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#c4d2e3] pb-3">
+        {MAIN_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setMainTab(tab.id as any)}
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+              mainTab === tab.id
+                ? 'bg-[#082046] text-white shadow-sm'
+                : 'text-[#435775] hover:bg-[#F0F4F8] hover:text-[#082046]'
+            }`}
           >
-            <Plus className="size-4" /> Find Opportunities
-          </Link>
-        </div>
+            {tab.label}
+            {tab.id === 'tracker' && applications.length > 0 && (
+              <span className="ml-2 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">
+                {applications.length}
+              </span>
+            )}
+            {tab.id === 'assistance' && bookings.length > 0 && (
+              <span className="ml-2 rounded-full bg-[#0e7bf4] px-1.5 py-0.5 text-[10px] text-white">
+                {bookings.length}
+              </span>
+            )}
+            {tab.id === 'enquiries' && enquiries.length > 0 && (
+              <span className="ml-2 rounded-full bg-[#0e7bf4] px-1.5 py-0.5 text-[10px] text-white">
+                {enquiries.length}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-2xl border border-[#c4d2e3] bg-white p-4 shadow-sm">
-          <span className="text-xs font-semibold text-[#536780]">Total Tracked</span>
-          <p className="mt-1 text-2xl font-extrabold text-[#082046]">{applications.length}</p>
-        </div>
-        <div className="rounded-2xl border border-[#c4d2e3] bg-white p-4 shadow-sm">
-          <span className="text-xs font-semibold text-[#536780]">Planning to Apply</span>
-          <p className="mt-1 text-2xl font-extrabold text-amber-600">{planningCount}</p>
-        </div>
-        <div className="rounded-2xl border border-[#c4d2e3] bg-white p-4 shadow-sm">
-          <span className="text-xs font-semibold text-[#536780]">Submitted &amp; In Progress</span>
-          <p className="mt-1 text-2xl font-extrabold text-[#0e7bf4]">{appliedCount}</p>
-        </div>
-        <div className="rounded-2xl border border-[#c4d2e3] bg-white p-4 shadow-sm">
-          <span className="text-xs font-semibold text-[#536780]">Completed / Results</span>
-          <p className="mt-1 text-2xl font-extrabold text-emerald-600">{completedCount}</p>
-        </div>
-      </div>
-
-      {/* Search & Filter Tabs */}
-      <div className="space-y-3 rounded-2xl border border-[#c4d2e3] bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-1 items-center rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3.5 py-2">
-            <Search className="mr-2 size-4 text-[#536780]" />
-            <input
-              type="text"
-              placeholder="Search by exam, post, or organization..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent text-sm text-[#082046] outline-none placeholder:text-[#71839b]"
-            />
+      {/* Feedback Message */}
+      {feedbackMsg && (
+        <div
+          className={`flex items-center justify-between rounded-2xl border p-4 text-xs font-semibold ${
+            feedbackMsg.error
+              ? 'border-rose-200 bg-rose-50 text-rose-800'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {feedbackMsg.error ? (
+              <AlertCircle className="size-4 shrink-0 text-rose-600" />
+            ) : (
+              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+            )}
+            <span>{feedbackMsg.text}</span>
           </div>
-
-          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
-            {STATUS_TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
-                    isActive
-                      ? 'bg-[#082046] text-white shadow-sm'
-                      : 'bg-[#F0F4F8] text-[#435775] hover:bg-[#e2eaf4] hover:text-[#082046]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+          <button
+            type="button"
+            onClick={() => setFeedbackMsg(null)}
+            className="text-xs hover:underline"
+          >
+            ✕
+          </button>
         </div>
-      </div>
+      )}
 
-      {/* Applications / Bookings List */}
-      <div className="space-y-4">
-        {loading ? (
-          <div className="rounded-2xl border border-[#c4d2e3] bg-white p-8 text-center text-sm text-[#536780]">
-            Loading your applications...
-          </div>
-        ) : activeTab === 'assistance' ? (
-          bookings.length === 0 ? (
-            <div className="rounded-3xl border border-[#c4d2e3] bg-white p-10 text-center shadow-sm">
-              <HandHelping className="mx-auto size-12 text-[#91a8c7]" />
-              <h3 className="mt-3 text-base font-bold text-[#082046]">No partner assistance requests yet</h3>
-              <p className="mt-1 text-sm text-[#536780]">
-                Need help filling competitive exam forms, downloading hall tickets, or applying for caste and income certificates?
+      {/* TAB 1: APPLICATION TRACKER PIPELINE */}
+      {mainTab === 'tracker' && (
+        <div className="space-y-6">
+          {/* Important Self-Tracked Notice Banner */}
+          <div className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-900">
+            <Info className="size-4.5 shrink-0 text-blue-600 mt-0.5" />
+            <div className="space-y-0.5">
+              <strong className="font-bold">User-Entered Self-Tracked Pipeline:</strong>
+              <p className="text-blue-800 leading-relaxed">
+                Statuses and examination details displayed here are recorded by you for tracking and reminder purposes.
+                Official notifications, admit cards, and selection lists are released solely by the respective recruitment commissions.
               </p>
-              <div className="mt-5">
-                <Link
-                  href="/assistance"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0c6fdc]"
-                >
-                  Find a nearby verified center <ArrowRight className="size-3.5" />
-                </Link>
-              </div>
-            </div>
-          ) : (
-            bookings.map((b) => (
-              <div
-                key={b.id}
-                className="rounded-2xl border border-[#c4d2e3] bg-white p-5 shadow-sm transition hover:border-[#91a8c7] space-y-3"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1.5 min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs text-[#536780]">#{b.id.slice(0, 8)}</span>
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
-                          b.status === 'completed'
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                            : b.status === 'in_progress'
-                              ? 'bg-purple-100 text-purple-800 border-purple-200'
-                              : b.status === 'accepted'
-                                ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                : b.status === 'cancelled' || b.status === 'rejected'
-                                  ? 'bg-rose-100 text-rose-800 border-rose-200'
-                                  : 'bg-amber-100 text-amber-800 border-amber-200'
-                        }`}
-                      >
-                        {b.status.replace('_', ' ').toUpperCase()}
-                      </span>
-                      {b.quoted_paise !== null && (
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 font-semibold text-[11px] text-[#082046]">
-                          Fee: ₹{(b.quoted_paise / 100).toFixed(0)}
-                        </span>
-                      )}
-                    </div>
-
-                    <h2 className="text-base font-bold text-[#082046]">
-                      {b.service_name || 'Application & Certificate Assistance'}
-                    </h2>
-
-                    <div className="text-xs text-[#435775] flex flex-wrap items-center gap-3">
-                      <span><strong>Center:</strong> {b.partner_business_name}</span>
-                      {b.partner_phone && <span>· <strong>Phone:</strong> {b.partner_phone}</span>}
-                      {b.partner_address && <span>· {b.partner_address}</span>}
-                    </div>
-
-                    {b.user_note && (
-                      <p className="text-xs text-[#536780] bg-[#F8FBFF] border border-[#dce7f3] rounded-lg p-2 max-w-xl">
-                        &ldquo;{b.user_note}&rdquo;
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {(b.status === 'new' || b.status === 'accepted') && (
-                      <button
-                        type="button"
-                        onClick={() => handleCancelBooking(b.id)}
-                        className="rounded-xl border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
-                      >
-                        Cancel Request
-                      </button>
-                    )}
-
-                    {b.status === 'completed' && !b.review && (
-                      <button
-                        type="button"
-                        onClick={() => setReviewingBooking(b)}
-                        className="rounded-xl bg-[#0e7bf4] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#0c6fdc]"
-                      >
-                        Leave Review
-                      </button>
-                    )}
-
-                    {b.review && (
-                      <span className="flex items-center gap-1 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-bold text-amber-800">
-                        <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                        {b.review.rating}/5 Rated
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )
-        ) : activeTab === 'enquiries' ? (
-          enquiries.length === 0 ? (
-            <div className="rounded-3xl border border-[#c4d2e3] bg-white p-10 text-center shadow-sm">
-              <GraduationCap className="mx-auto size-12 text-[#91a8c7]" />
-              <h3 className="mt-3 text-base font-bold text-[#082046]">No college admission inquiries submitted yet</h3>
-              <p className="mt-1 text-sm text-[#536780] max-w-md mx-auto">
-                Connect directly with admissions counselors at top colleges &amp; universities to inquire about cutoffs, quotas, and tuition fees.
-              </p>
-              <div className="mt-5">
-                <Link
-                  href="/career/colleges"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0c6fdc]"
-                >
-                  Explore Colleges &amp; Universities <ArrowRight className="size-3.5" />
-                </Link>
-              </div>
-            </div>
-          ) : (
-            enquiries.map((e) => (
-              <div
-                key={e.id}
-                className="rounded-2xl border border-[#c4d2e3] bg-white p-5 shadow-sm transition hover:border-[#91a8c7] space-y-3"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1.5 min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs text-[#536780]">#{e.id.slice(0, 8)}</span>
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
-                          e.status === 'responded'
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                            : e.status === 'closed'
-                              ? 'bg-slate-100 text-slate-800 border-slate-200'
-                              : 'bg-amber-100 text-amber-800 border-amber-200'
-                        }`}
-                      >
-                        {e.status === 'responded'
-                          ? 'COLLEGE RESPONDED'
-                          : e.status === 'closed'
-                            ? 'INQUIRY CLOSED'
-                            : 'AWAITING RESPONSE'}
-                      </span>
-                      {e.course_name && (
-                        <span className="rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 font-semibold text-[11px] text-[#0e7bf4]">
-                          Program: {e.course_name}
-                        </span>
-                      )}
-                    </div>
-
-                    <h2 className="text-base font-bold text-[#082046]">
-                      {e.institution_name}
-                    </h2>
-
-                    <div className="text-xs text-[#435775] flex flex-wrap items-center gap-3">
-                      <span>Submitted on {formatDate(e.created_at)}</span>
-                      {e.phone && <span>· Registered Phone: {e.phone}</span>}
-                    </div>
-
-                    <div className="text-xs text-[#536780] bg-[#F8FBFF] border border-[#dce7f3] rounded-lg p-2.5 max-w-xl">
-                      <strong className="text-[#082046]">Your Inquiry:</strong> &ldquo;{e.message}&rdquo;
-                    </div>
-
-                    {e.response && (
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 max-w-xl space-y-1">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
-                          <CheckCircle2 className="size-3.5" /> Official Admission Desk Response:
-                        </div>
-                        <p className="text-xs text-emerald-800 leading-relaxed">&ldquo;{e.response}&rdquo;</p>
-                        {e.responded_at && (
-                          <span className="text-[10px] text-emerald-700/80 block mt-1">
-                            Responded on {formatDate(e.responded_at)}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0">
-                    <Link
-                      href={`/career/colleges/${e.institution_slug}`}
-                      className="inline-flex items-center gap-1 rounded-xl bg-[#F0F4F8] px-3.5 py-2 text-xs font-semibold text-[#082046] hover:bg-[#dce7f3]"
-                    >
-                      View College <ExternalLink className="size-3" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))
-          )
-        ) : filteredApps.length === 0 ? (
-          <div className="rounded-3xl border border-[#c4d2e3] bg-white p-10 text-center shadow-sm">
-            <ClipboardList className="mx-auto size-12 text-[#91a8c7]" />
-            <h3 className="mt-3 text-base font-bold text-[#082046]">No applications in this category</h3>
-            <p className="mt-1 text-sm text-[#536780]">
-              Save opportunities or mark them as &quot;Applied&quot; to keep your roll numbers, centers, and admit cards organized.
-            </p>
-            <div className="mt-5">
-              <Link
-                href="/apply"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0c6fdc]"
-              >
-                Browse open recruitments <ArrowRight className="size-3.5" />
-              </Link>
             </div>
           </div>
-        ) : (
-          filteredApps.map((app) => {
-            const meta = STAGE_LABELS[app.stage] || STAGE_LABELS.planning;
-            return (
-              <div
-                key={app.id}
-                className="rounded-2xl border border-[#c4d2e3] bg-white p-5 shadow-sm transition hover:border-[#91a8c7]"
-              >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  {/* Left Detail */}
-                  <div className="space-y-2 min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-[#536780]">
-                        {app.organization}
-                      </span>
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${meta.color}`}>
-                        {meta.label}
-                      </span>
-                      {app.applicationNumber && (
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] text-[#082046]">
-                          App #{app.applicationNumber}
-                        </span>
-                      )}
-                    </div>
 
-                    <h2 className="text-base font-bold text-[#082046] hover:text-[#0e7bf4]">
-                      <Link href={`/${app.type === 'govt_job' ? 'jobs' : app.type === 'exam' ? 'exams' : 'apply'}/${app.slug}`}>
-                        {app.title}
-                      </Link>
-                    </h2>
-
-                    {app.notes && (
-                      <p className="text-xs text-[#536780] bg-[#F8FBFF] border border-[#dce7f3] rounded-lg p-2.5 max-w-2xl">
-                        📝 {app.notes}
-                      </p>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-4 text-xs text-[#435775] pt-1">
-                      {app.deadline && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="size-3.5 text-amber-600" />
-                          <span>Last Date: {formatDate(app.deadline)}</span>
-                        </span>
-                      )}
-                      {app.examDate && (
-                        <span className="flex items-center gap-1 font-semibold text-purple-700">
-                          <Calendar className="size-3.5" />
-                          <span>Exam Date: {formatDate(app.examDate)}</span>
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        {app.documentsReady ? (
-                          <span className="flex items-center gap-1 text-emerald-700 font-medium">
-                            <CheckCircle2 className="size-3.5" /> Documents Ready
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-amber-700 font-medium">
-                            <AlertCircle className="size-3.5" /> Document check pending
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Right Actions */}
-                  <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0">
-                    <Link
-                      href={`/${app.type === 'govt_job' ? 'jobs' : app.type === 'exam' ? 'exams' : 'apply'}/${app.slug}`}
-                      className="inline-flex items-center gap-1 rounded-xl bg-[#F0F4F8] px-3.5 py-2 text-xs font-semibold text-[#082046] hover:bg-[#dce7f3]"
-                    >
-                      View Notice <ExternalLink className="size-3" />
-                    </Link>
-                    <Link
-                      href="/documents"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-[#0e7bf4] hover:underline"
-                    >
-                      <FileCheck2 className="size-3.5" /> Check Vault
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Progress bar stages */}
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-[#536780] mb-1.5">
-                    <span className={meta.step >= 1 ? 'text-[#082046]' : ''}>1. Planning</span>
-                    <span className={meta.step >= 2 ? 'text-[#082046]' : ''}>2. Form Submitted</span>
-                    <span className={meta.step >= 3 ? 'text-[#082046]' : ''}>3. Admit Card</span>
-                    <span className={meta.step >= 4 ? 'text-[#082046]' : ''}>4. Exam</span>
-                    <span className={meta.step >= 5 ? 'text-emerald-700 font-bold' : ''}>5. Result</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className="h-full bg-[#0e7bf4] rounded-full transition-all duration-500"
-                      style={{ width: `${(meta.step / 5) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* Review Modal Dialog */}
-      {reviewingBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-[#c4d2e3] bg-white p-6 shadow-xl space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-base font-bold text-[#082046]">Rate Assistance Experience</h3>
-                <p className="text-xs text-[#536780]">{reviewingBooking.partner_business_name}</p>
-              </div>
+          {/* Controls: Filter & Add Application */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1">
               <button
                 type="button"
-                onClick={() => setReviewingBooking(null)}
-                className="text-xs font-semibold text-[#536780] hover:text-[#082046]"
+                onClick={() => setPipelineFilter('all')}
+                className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                  pipelineFilter === 'all'
+                    ? 'bg-[#082046] text-white shadow-xs'
+                    : 'bg-[#F0F4F8] text-[#435775] hover:bg-[#e4ebf3]'
+                }`}
+              >
+                All ({applications.length})
+              </button>
+              {PIPELINE_STAGES.map((st) => {
+                const count = applications.filter((a) => a.status === st.id).length;
+                return (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setPipelineFilter(st.id)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                      pipelineFilter === st.id
+                        ? 'bg-[#082046] text-white shadow-xs'
+                        : 'bg-[#F0F4F8] text-[#435775] hover:bg-[#e4ebf3]'
+                    }`}
+                  >
+                    {st.label} {count > 0 && `(${count})`}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={openAddModal}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#0c6cd7] shrink-0"
+            >
+              <Plus className="size-4" />
+              Add Tracked Application
+            </button>
+          </div>
+
+          {/* Applications List */}
+          {loadingApps ? (
+            <div className="py-12 text-center text-xs text-[#536780]">Loading your applications...</div>
+          ) : filteredApps.length === 0 ? (
+            <Card className="rounded-3xl border border-[#c4d2e3] bg-white p-12 text-center shadow-sm">
+              <ClipboardList className="mx-auto size-12 text-[#c4d2e3]" />
+              <h3 className="mt-3 text-base font-bold text-[#082046]">No applications tracked in this stage</h3>
+              <p className="mt-1 text-xs text-[#536780] max-w-md mx-auto">
+                Keep your exam dates, roll numbers, and deadlines organized. Click "Add Tracked Application"
+                or browse jobs to save opportunities directly to your pipeline.
+              </p>
+              <button
+                type="button"
+                onClick={openAddModal}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#082046] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#061835]"
+              >
+                <Plus className="size-4" /> Add Application Now
+              </button>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {filteredApps.map((app) => {
+                const currentStageConfig =
+                  PIPELINE_STAGES.find((s) => s.id === app.status) || PIPELINE_STAGES[0];
+
+                return (
+                  <Card
+                    key={app.id}
+                    className="rounded-3xl border border-[#c4d2e3] bg-white p-5 shadow-sm transition hover:border-[#0e7bf4]/50"
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${currentStageConfig.color}`}
+                          >
+                            {currentStageConfig.label}
+                          </span>
+                          <span className="text-xs font-bold uppercase tracking-wider text-[#0e7bf4]">
+                            {app.organization}
+                          </span>
+                        </div>
+
+                        <h3 className="text-base font-extrabold text-[#082046] leading-snug">
+                          {app.title}
+                        </h3>
+
+                        {/* Pipeline Stages Mini Visualizer */}
+                        <div className="pt-2">
+                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                            {PIPELINE_STAGES.map((s, idx) => {
+                              const isCurrent = app.status === s.id;
+                              const isPast =
+                                PIPELINE_STAGES.findIndex((x) => x.id === app.status) > idx;
+
+                              return (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => handleAdvanceStage(app, s.id)}
+                                  title={`Switch status to ${s.label}`}
+                                  className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition ${
+                                    isCurrent
+                                      ? 'bg-[#082046] text-white'
+                                      : isPast
+                                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                        : 'bg-[#F0F4F8] text-[#536780] hover:bg-[#e4ebf3]'
+                                  }`}
+                                >
+                                  {isPast && <Check className="size-2.5" />}
+                                  {s.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Details Grid */}
+                        <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                          {app.application_number && (
+                            <div className="rounded-xl bg-[#F8FBFF] p-2.5 border border-[#c4d2e3]/60">
+                              <span className="text-[10px] font-bold uppercase text-[#536780]">
+                                App Number
+                              </span>
+                              <p className="font-mono font-bold text-[#082046]">
+                                {app.application_number}
+                              </p>
+                            </div>
+                          )}
+
+                          {app.roll_number && (
+                            <div className="rounded-xl bg-[#F8FBFF] p-2.5 border border-[#c4d2e3]/60">
+                              <span className="text-[10px] font-bold uppercase text-[#536780]">
+                                Roll Number
+                              </span>
+                              <p className="font-mono font-bold text-[#082046]">{app.roll_number}</p>
+                            </div>
+                          )}
+
+                          {app.exam_date && (
+                            <div className="rounded-xl bg-[#F8FBFF] p-2.5 border border-[#c4d2e3]/60">
+                              <span className="text-[10px] font-bold uppercase text-[#536780] flex items-center gap-1">
+                                <Calendar className="size-3 text-[#0e7bf4]" /> Exam Date
+                              </span>
+                              <p className="font-bold text-[#082046]">{app.exam_date}</p>
+                            </div>
+                          )}
+
+                          {app.exam_center && (
+                            <div className="rounded-xl bg-[#F8FBFF] p-2.5 border border-[#c4d2e3]/60">
+                              <span className="text-[10px] font-bold uppercase text-[#536780] flex items-center gap-1">
+                                <MapPin className="size-3 text-[#0e7bf4]" /> Center
+                              </span>
+                              <p className="font-bold text-[#082046] truncate">{app.exam_center}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {app.notes && (
+                          <div className="mt-2 rounded-xl bg-[#FFFDF0] p-2.5 border border-amber-200 text-xs text-amber-900">
+                            <span className="font-bold">Notes: </span>
+                            {app.notes}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Item Actions */}
+                      <div className="flex sm:flex-col items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(app)}
+                          className="inline-flex items-center gap-1 rounded-xl border border-[#c4d2e3] bg-white px-3 py-1.5 text-xs font-bold text-[#082046] shadow-xs hover:bg-[#F0F4F8]"
+                        >
+                          <Edit2 className="size-3.5 text-[#0e7bf4]" />
+                          Edit Details
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteApplication(app.id, app.title)}
+                          className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 shadow-xs hover:bg-rose-50"
+                        >
+                          <Trash2 className="size-3.5" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 2: CENTER ASSISTANCE BOOKINGS */}
+      {mainTab === 'assistance' && (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-[#c4d2e3] bg-[#F8FBFF] p-4 text-xs text-[#536780]">
+            In-person application form submission sessions booked with our network of digital centers.
+          </div>
+
+          {bookings.length === 0 ? (
+            <Card className="rounded-3xl border border-[#c4d2e3] bg-white p-12 text-center">
+              <HandHelping className="mx-auto size-12 text-[#c4d2e3]" />
+              <h3 className="mt-3 text-base font-bold text-[#082046]">No center assistance bookings yet</h3>
+              <p className="mt-1 text-xs text-[#536780]">
+                Need help uploading certificates or filling government forms? Visit our Assisted Apply centers.
+              </p>
+              <Link
+                href="/services"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#082046] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#061835]"
+              >
+                Browse Services &amp; Assistance
+              </Link>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {bookings.map((b) => (
+                <Card key={b.id} className="rounded-2xl border border-[#c4d2e3] bg-white p-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase text-[#0e7bf4]">
+                        Booking Ref: #{b.id.slice(0, 8)}
+                      </span>
+                      <h4 className="text-sm font-bold text-[#082046]">
+                        {b.service_name || 'Government Service Assistance'}
+                      </h4>
+                      <p className="text-xs text-[#536780]">{b.partner_business_name}</p>
+                    </div>
+                    <Badge tone={b.status === 'completed' ? 'teal' : 'tea'}>
+                      {b.status.toUpperCase()}
+                    </Badge>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: COLLEGE ADMISSION INQUIRIES */}
+      {mainTab === 'enquiries' && (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-[#c4d2e3] bg-[#F8FBFF] p-4 text-xs text-[#536780]">
+            Official admission inquiries sent to accredited degree colleges and universities.
+          </div>
+
+          {enquiries.length === 0 ? (
+            <Card className="rounded-3xl border border-[#c4d2e3] bg-white p-12 text-center">
+              <GraduationCap className="mx-auto size-12 text-[#c4d2e3]" />
+              <h3 className="mt-3 text-base font-bold text-[#082046]">No college inquiries yet</h3>
+              <p className="mt-1 text-xs text-[#536780]">
+                Explore verified universities, engineering institutes, and degree colleges on ApplyFields.
+              </p>
+              <Link
+                href="/career"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#082046] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#061835]"
+              >
+                Explore Colleges &amp; Degrees
+              </Link>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {enquiries.map((enq) => (
+                <Card key={enq.id} className="rounded-2xl border border-[#c4d2e3] bg-white p-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-[#082046]">{enq.institution_name}</h4>
+                      <p className="text-xs text-[#536780]">{enq.course_name || 'General Admission'}</p>
+                    </div>
+                    <Badge tone="tea">{enq.status.toUpperCase()}</Badge>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ADD / EDIT APPLICATION MODAL */}
+      {(isAddModalOpen || editingApp) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-3xl border border-[#c4d2e3] bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#c4d2e3]/60 pb-3">
+              <h3 className="text-base font-bold text-[#082046]">
+                {editingApp ? 'Edit Application Details' : 'Track New Application'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setEditingApp(null);
+                }}
+                className="rounded-lg p-1 text-[#536780] hover:bg-[#F0F4F8]"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleReviewSubmit} className="space-y-4">
+            <form onSubmit={handleSaveApplication} className="mt-4 space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-[#082046] mb-1">
-                  Rating (1 to 5 Stars)
+                <label className="block text-xs font-bold text-[#082046]">
+                  Exam / Job Recruitment Title
                 </label>
-                <div className="flex items-center gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setReviewRating(star)}
-                      className="p-1 text-amber-400 hover:scale-110 transition"
-                    >
-                      <Star
-                        className={`size-6 ${
-                          star <= reviewRating ? 'fill-amber-400' : 'text-slate-300'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                  <span className="text-xs font-bold text-[#082046] ml-2">
-                    {reviewRating} of 5 Stars
-                  </span>
+                <input
+                  type="text"
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="e.g. SSC CGL 2026 or UPSC Civil Services"
+                  required
+                  className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-white p-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#082046]">Commission / Org</label>
+                  <input
+                    type="text"
+                    value={formOrg}
+                    onChange={(e) => setFormOrg(e.target.value)}
+                    placeholder="e.g. SSC, UPSC, IBPS"
+                    className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-white p-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#082046]">Pipeline Stage</label>
+                  <select
+                    value={formStatus}
+                    onChange={(e) => setFormStatus(e.target.value as any)}
+                    className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-white p-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  >
+                    {PIPELINE_STAGES.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#082046]">
+                    Application / Registration Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formAppNumber}
+                    onChange={(e) => setFormAppNumber(e.target.value)}
+                    placeholder="e.g. 2401098231"
+                    className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-white p-2.5 text-xs font-mono text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#082046]">Roll Number</label>
+                  <input
+                    type="text"
+                    value={formRollNumber}
+                    onChange={(e) => setFormRollNumber(e.target.value)}
+                    placeholder="e.g. 1002345"
+                    className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-white p-2.5 text-xs font-mono text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#082046]">Exam Date</label>
+                  <input
+                    type="date"
+                    value={formExamDate}
+                    onChange={(e) => setFormExamDate(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-white p-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#082046]">Exam Center City</label>
+                  <input
+                    type="text"
+                    value={formExamCenter}
+                    onChange={(e) => setFormExamCenter(e.target.value)}
+                    placeholder="e.g. Hyderabad / Delhi"
+                    className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-white p-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#082046]">Feedback / Comment</label>
+                <label className="block text-xs font-bold text-[#082046]">Personal Notes</label>
                 <textarea
-                  rows={3}
-                  placeholder="Share details of your experience with form submission, documents, or staff..."
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] p-3 text-xs text-[#082046] outline-none"
+                  rows={2}
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                  placeholder="Notes on syllabus revision, certificate renewals, shift time, etc."
+                  className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-white p-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
                 />
               </div>
 
-              <div className="pt-2 flex justify-end gap-2">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#c4d2e3]/60">
                 <button
                   type="button"
-                  onClick={() => setReviewingBooking(null)}
-                  className="rounded-xl border border-[#c4d2e3] px-4 py-2 text-xs font-semibold text-[#435775]"
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setEditingApp(null);
+                  }}
+                  className="rounded-xl border border-[#c4d2e3] px-4 py-2 text-xs font-semibold text-[#536780] hover:bg-[#F0F4F8]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingReview}
-                  className="rounded-xl bg-[#082046] px-5 py-2 text-xs font-bold text-white hover:bg-[#061835] disabled:opacity-60"
+                  disabled={submitting}
+                  className="rounded-xl bg-[#082046] px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#061835] disabled:opacity-50"
                 >
-                  {isSubmittingReview ? 'Submitting...' : 'Post Review'}
+                  {submitting ? 'Saving...' : editingApp ? 'Update Application' : 'Save to Pipeline'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* Truth in data note */}
-      <div className="flex items-start gap-2.5 rounded-2xl border border-[#c4d2e3] bg-[#F8FBFF] p-4 text-xs text-[#435775]">
-        <ShieldCheck className="size-4 shrink-0 text-[#0e7bf4] mt-0.5" />
-        <p>
-          <strong>Citizen Notice:</strong> Application tracker milestones are user-entered and kept private to your account. Always verify admit card download dates and exam center instructions directly on the official commission portal linked in each opportunity.
-        </p>
-      </div>
     </div>
   );
 }
