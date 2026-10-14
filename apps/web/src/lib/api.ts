@@ -1,21 +1,28 @@
 /**
- * The ONLY place the website talks to the backend (apps/api, NestJS).
- * Rule: the website never calls Supabase or the scraper directly — only this API.
+ * Browser-side API client for the Next.js web application.
+ * Points to the NestJS API at NEXT_PUBLIC_API_URL or defaults to localhost:4000/api/v1.
+ * Sends and receives cookies for session authentication.
  */
 
-export const API_URL = (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1').replace(
-  /\/$/,
-  '',
-);
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ||
+  'http://localhost:4000/api/v1';
 
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
-/**
- * Attempts silent token renewal via /auth/refresh using httpOnly cookies.
- * Prevents multiple simultaneous refresh calls with a single shared promise.
- */
-export async function attemptTokenRefresh(): Promise<boolean> {
+function formatErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    if (err.name === 'TimeoutError' || err.message.toLowerCase().includes('timed out')) {
+      return 'The backend server is waking up (Render free tier). Please wait 10-15 seconds and try again.';
+    }
+    return err.message;
+  }
+  return 'Could not connect to the API server';
+}
+
+/** Attempt to refresh access token using the httpOnly refreshToken cookie */
+async function attemptTokenRefresh(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
 
   if (isRefreshing && refreshPromise) {
@@ -28,15 +35,9 @@ export async function attemptTokenRefresh(): Promise<boolean> {
       const res = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       });
-
-      if (!res.ok) {
-        window.dispatchEvent(new Event('auth-changed'));
-        return false;
-      }
-
-      window.dispatchEvent(new Event('auth-changed'));
-      return true;
+      return res.ok;
     } catch {
       return false;
     } finally {
@@ -54,7 +55,7 @@ export async function apiGet<T>(path: string, _token?: string): Promise<T | null
     let res = await fetch(`${API_URL}${path}`, {
       cache: 'no-store',
       credentials: 'include',
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(20000),
     });
 
     // If unauthorized, try silent refresh once via httpOnly cookie
@@ -64,7 +65,7 @@ export async function apiGet<T>(path: string, _token?: string): Promise<T | null
         res = await fetch(`${API_URL}${path}`, {
           cache: 'no-store',
           credentials: 'include',
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(20000),
         });
       }
     }
@@ -88,7 +89,7 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, _token?: s
       'Content-Type': 'application/json',
     };
 
-    const timeoutMs = path.includes('/resume') ? 45000 : 15000;
+    const timeoutMs = path.includes('/resume') ? 60000 : 35000;
     let res = await fetch(`${API_URL}${path}`, {
       method: 'POST',
       headers,
@@ -122,8 +123,7 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, _token?: s
     }
     return { data: json as T, error: null, status: res.status };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Could not connect to the API server';
-    return { data: null, error: message, status: 500 };
+    return { data: null, error: formatErrorMessage(err), status: 500 };
   }
 }
 
@@ -139,7 +139,7 @@ export async function apiPut<T, B = unknown>(path: string, body?: B, _token?: st
       headers,
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(25000),
     });
 
     if (res.status === 401 && typeof window !== 'undefined') {
@@ -150,7 +150,7 @@ export async function apiPut<T, B = unknown>(path: string, body?: B, _token?: st
           headers,
           body: body ? JSON.stringify(body) : undefined,
           credentials: 'include',
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(25000),
         });
       }
     }
@@ -162,8 +162,7 @@ export async function apiPut<T, B = unknown>(path: string, body?: B, _token?: st
     }
     return { data: json as T, error: null, status: res.status };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Could not connect to the API server';
-    return { data: null, error: message, status: 500 };
+    return { data: null, error: formatErrorMessage(err), status: 500 };
   }
 }
 
@@ -173,7 +172,7 @@ export async function apiDelete<T>(path: string, _token?: string): Promise<ApiRe
     let res = await fetch(`${API_URL}${path}`, {
       method: 'DELETE',
       credentials: 'include',
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(20000),
     });
 
     if (res.status === 401 && typeof window !== 'undefined') {
@@ -182,7 +181,7 @@ export async function apiDelete<T>(path: string, _token?: string): Promise<ApiRe
         res = await fetch(`${API_URL}${path}`, {
           method: 'DELETE',
           credentials: 'include',
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(20000),
         });
       }
     }
@@ -194,7 +193,6 @@ export async function apiDelete<T>(path: string, _token?: string): Promise<ApiRe
     }
     return { data: json as T, error: null, status: res.status };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Could not connect to the API server';
-    return { data: null, error: message, status: 500 };
+    return { data: null, error: formatErrorMessage(err), status: 500 };
   }
 }

@@ -12,7 +12,7 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
   await connection();
   const res = await apiGetWithStatus<AdminMeResponse>('/admin/me');
 
-  if (res.status === 401) {
+  if (!res.data || res.status === 401) {
     redirect('/login');
   }
 

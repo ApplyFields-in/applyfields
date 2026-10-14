@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import type { InstitutionDetail, InstitutionSummary } from '@applyfields/types';
+import type { InstitutionDetail, InstitutionListResponse, InstitutionSummary } from '@applyfields/types';
 import { Badge, buttonClass, Card, cn, PageHeader } from '@applyfields/ui';
 import {
   ArrowLeft,
@@ -37,11 +37,11 @@ export default function CollegeComparePage() {
       try {
         const [compData, allList] = await Promise.all([
           apiGet<InstitutionDetail[]>(`/career/colleges/compare?slugs=${selectedSlugs.join(',')}`),
-          apiGet<InstitutionSummary[]>('/career/colleges'),
+          apiGet<InstitutionListResponse | InstitutionSummary[]>('/career/colleges?limit=100'),
         ]);
 
         if (compData) setColleges(compData);
-        if (allList) setAllColleges(allList);
+        if (allList) setAllColleges(Array.isArray(allList) ? allList : allList.items || []);
       } catch (err) {
         console.error('Failed to load comparison data:', err);
       } finally {
@@ -164,7 +164,7 @@ export default function CollegeComparePage() {
                         {col.name}
                       </Link>
                       <span className="text-xs text-teal/70 flex items-center gap-1 font-semibold">
-                        <MapPin className="size-3 text-teal/50" /> {col.city}, {col.state_code}
+                        <MapPin className="size-3 text-teal/50" /> {col.city || col.district || 'India'}{col.state_code ? `, ${col.state_code}` : ''}
                       </span>
                     </div>
                   </th>

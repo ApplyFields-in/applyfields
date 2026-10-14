@@ -16,6 +16,7 @@ import type {
   InstitutionDetail,
   InstitutionEnquiry,
   InstitutionEnquiryListResponse,
+  InstitutionListResponse,
   InstitutionPartnerProfile,
   InstitutionSummary,
   RespondInstitutionEnquiryInput,
@@ -60,7 +61,7 @@ export class InstitutionsController {
   @Get('colleges')
   async listInstitutions(
     @Query(new ZodPipe(institutionListQuerySchema)) query: InstitutionListQuery,
-  ): Promise<InstitutionSummary[]> {
+  ): Promise<InstitutionListResponse> {
     return this.institutionsService.listInstitutions(query);
   }
 
