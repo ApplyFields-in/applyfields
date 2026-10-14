@@ -5,6 +5,7 @@ import { type ReactNode } from 'react';
 import { FloatingCapsuleNavbar } from '@/components/layout/floating-capsule-navbar';
 import { DarkNavyFooter } from '@/components/layout/dark-navy-footer';
 import { PasskeyEnrollModal } from '@/components/passkey-enroll-modal';
+import { CookieConsentBanner } from '@/components/cookie-banner';
 
 export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -26,6 +27,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
       </main>
       <DarkNavyFooter />
       <PasskeyEnrollModal />
+      <CookieConsentBanner />
     </div>
   );
 }
