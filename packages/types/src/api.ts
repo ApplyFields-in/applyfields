@@ -1457,8 +1457,182 @@ export interface ResolveReportInput {
   action?: 'hide' | 'lock' | 'dismiss';
 }
 
+// =============================================================================
+// SESSION 10: DOCUMENTS, APPLICATION TRACKER, AUDIT & SUPPORT TYPES
+// =============================================================================
 
+export type StandardDocumentTypeCode =
+  | 'marksheet_10th'
+  | 'degree_certificate'
+  | 'caste_certificate'
+  | 'photo'
+  | 'signature'
+  | 'resume'
+  | 'id_proof';
 
+export interface UserDocumentSummary {
+  id: string;
+  user_id: string;
+  document_type_code: string;
+  document_type_name?: string;
+  title: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  issued_on?: string | null;
+  expires_on?: string | null;
+  issuing_authority?: string | null;
+  masked_identifier?: string | null;
+  details: Record<string, any>;
+  source: 'upload' | 'digilocker';
+  created_at: string;
+  updated_at: string;
+}
 
+export interface UserDocumentListResponse {
+  total: number;
+  items: UserDocumentSummary[];
+}
 
+export interface UploadDocumentInput {
+  documentTypeCode: string;
+  title?: string;
+  fileName: string;
+  mimeType: string;
+  fileBase64: string;
+  issuedOn?: string;
+  expiresOn?: string;
+  issuingAuthority?: string;
+  identifierNumber?: string;
+  details?: Record<string, any>;
+}
 
+export interface DocumentReadinessCheck {
+  opportunity_id?: string;
+  opportunity_title?: string;
+  required_count: number;
+  ready_count: number;
+  percentage: number;
+  is_fully_ready: boolean;
+  required_documents: Array<{
+    name: string;
+    mandatory: boolean;
+    spec: string | null;
+    matched: boolean;
+    matched_document?: UserDocumentSummary | null;
+  }>;
+}
+
+export type ApplicationTrackerStatus =
+  | 'saved'
+  | 'planning'
+  | 'applied'
+  | 'exam_interview'
+  | 'selected'
+  | 'rejected'
+  | 'completed';
+
+export interface ApplicationTrackerItem {
+  id: string;
+  user_id: string;
+  opportunity_id?: string | null;
+  service_id?: string | null;
+  title: string;
+  organization: string;
+  type: string;
+  slug: string;
+  mode: 'official' | 'applyfields_assisted' | 'partner_assisted';
+  status: ApplicationTrackerStatus;
+  application_number?: string | null;
+  roll_number?: string | null;
+  exam_date?: string | null;
+  exam_center?: string | null;
+  applied_on?: string | null;
+  deadline?: string | null;
+  notes?: string | null;
+  documents_ready: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApplicationTrackerListResponse {
+  total: number;
+  items: ApplicationTrackerItem[];
+}
+
+export interface CreateApplicationTrackerInput {
+  opportunity_slug?: string;
+  service_slug?: string;
+  status?: ApplicationTrackerStatus;
+  application_number?: string;
+  roll_number?: string;
+  exam_date?: string;
+  exam_center?: string;
+  applied_on?: string;
+  notes?: string;
+}
+
+export interface UpdateApplicationTrackerInput {
+  status?: ApplicationTrackerStatus;
+  application_number?: string | null;
+  roll_number?: string | null;
+  exam_date?: string | null;
+  exam_center?: string | null;
+  applied_on?: string | null;
+  notes?: string | null;
+}
+
+export interface AdminAuditLogItem {
+  id: string;
+  actor_id: string | null;
+  actor_email?: string | null;
+  actor_name?: string | null;
+  actor_role?: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  target_title?: string | null;
+  details: Record<string, any>;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface AdminAuditListResponse {
+  total: number;
+  items: AdminAuditLogItem[];
+}
+
+export interface OpportunityVersionItem {
+  id: string;
+  opportunity_id: string;
+  version_no: number;
+  status: 'draft' | 'pending' | 'published' | 'superseded' | 'rejected';
+  changed_fields: string[];
+  change_note: string | null;
+  created_by?: string | null;
+  creator_name?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at: string;
+  snapshot: Record<string, any>;
+}
+
+export interface OpportunityVersionListResponse {
+  opportunity_id: string;
+  current_version: number;
+  versions: OpportunityVersionItem[];
+}
+
+export interface SupportTicketInput {
+  name: string;
+  email: string;
+  subject: string;
+  category: 'account' | 'application' | 'eligibility' | 'documents' | 'bug' | 'other';
+  message: string;
+}
+
+export interface SupportTicketResponse {
+  success: boolean;
+  ticket_id: string;
+  message: string;
+}

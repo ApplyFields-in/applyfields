@@ -9,6 +9,8 @@ export class StorageService {
   readonly notificationsBucket = process.env.STORAGE_BUCKET ?? 'notifications';
   /** Bucket for user-uploaded resume files. */
   readonly resumesBucket = process.env.RESUMES_BUCKET ?? 'resumes';
+  /** Bucket for user-uploaded applicant documents (10th marksheet, degree, caste, photo, etc.). */
+  readonly documentsBucket = process.env.DOCUMENTS_BUCKET ?? 'documents';
 
   /**
    * Upload a buffer to Supabase Storage. Returns the object path on success, null if Storage

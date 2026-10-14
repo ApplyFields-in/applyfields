@@ -1,6 +1,14 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { SearchResult } from '@applyfields/types';
-import Typesense from 'typesense';
+// Optional external search engine (fallback is Postgres Full-Text Search)
+let TypesenseClass: any = null;
+try {
+  // @ts-ignore
+  const mod = await import('typesense').catch(() => null);
+  TypesenseClass = (mod as any)?.default?.Client || (mod as any)?.Client || (mod as any)?.default || null;
+} catch {
+  TypesenseClass = null;
+}
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { locationLabel, todayIst } from '../opportunities/opportunities.service.js';
@@ -24,7 +32,7 @@ export interface TypesenseDocument {
 @Injectable()
 export class TypesenseService implements OnModuleInit {
   private readonly logger = new Logger(TypesenseService.name);
-  private client: Typesense.Client | null = null;
+  private client: any = null;
   private isConnected = false;
 
   constructor(private readonly prisma: PrismaService) {
@@ -33,9 +41,9 @@ export class TypesenseService implements OnModuleInit {
     const port = Number(process.env.TYPESENSE_PORT || '8108');
     const protocol = (process.env.TYPESENSE_PROTOCOL || 'http') as 'http' | 'https';
 
-    if (apiKey) {
+    if (apiKey && TypesenseClass) {
       try {
-        this.client = new Typesense.Client({
+        this.client = new TypesenseClass({
           nodes: [{ host, port, protocol }],
           apiKey,
           connectionTimeoutSeconds: 2,

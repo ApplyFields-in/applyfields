@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { ShareButton } from '@/components/opportunity-actions';
+import { ReportWrongInfoButton } from '@/components/report-wrong-info-modal';
 import { apiGet } from '@/lib/api';
 import { formatDate, STATE_NAMES } from '@/lib/format';
 
@@ -175,6 +176,11 @@ export default async function ServiceDetailPage({
 
           <div className="flex items-center gap-2 shrink-0">
             <ShareButton title={item.name} />
+            <ReportWrongInfoButton
+              targetType="service"
+              targetSlug={item.slug}
+              targetTitle={item.name}
+            />
           </div>
         </div>
 

@@ -14,6 +14,7 @@ import type {
   ReviewDate,
   ReviewDetail,
   ReviewPost,
+  OpportunityVersionItem,
 } from '@applyfields/types';
 import { Badge, buttonClass, Card, cn } from '@applyfields/ui';
 import {
@@ -26,11 +27,14 @@ import {
   ExternalLink,
   EyeOff,
   FileText,
+  History,
   Plus,
+  RotateCcw,
   RotateCw,
   Save,
   Send,
   Trash2,
+  X,
   XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -40,6 +44,8 @@ import {
   saveOpportunityAction,
   createOpportunityAction,
   setOpportunityStatusAction,
+  getOpportunityVersionsAction,
+  restoreOpportunityVersionAction,
 } from '@/lib/actions';
 import {
   CATEGORY_CODES,
@@ -69,6 +75,12 @@ export function OpportunityForm({ initialData, organizations, mode }: Opportunit
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Version History Drawer State
+  const [showVersions, setShowVersions] = useState(false);
+  const [versions, setVersions] = useState<OpportunityVersionItem[]>([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [restoringVersionNo, setRestoringVersionNo] = useState<number | null>(null);
 
   // Core Form State
   const [title, setTitle] = useState(initialData?.title ?? '');
@@ -308,6 +320,42 @@ export function OpportunityForm({ initialData, organizations, mode }: Opportunit
     });
   };
 
+  const handleOpenVersions = async () => {
+    if (!initialData?.id) return;
+    setShowVersions(true);
+    setLoadingVersions(true);
+    const res = await getOpportunityVersionsAction(initialData.id);
+    if (res.ok && res.data?.versions) {
+      setVersions(res.data.versions);
+    }
+    setLoadingVersions(false);
+  };
+
+  const handleRestoreVersion = (versionNo: number) => {
+    if (!initialData?.id) return;
+    if (
+      !confirm(
+        `Restore Version #${versionNo}? Current fields will be replaced with this approved version snapshot, and a new approved version will be recorded.`,
+      )
+    )
+      return;
+
+    setRestoringVersionNo(versionNo);
+    startTransition(async () => {
+      const res = await restoreOpportunityVersionAction(initialData.id, versionNo);
+      if (res.ok && res.data) {
+        setSuccessMsg(
+          `Successfully restored from Version #${versionNo}! Created active version #${res.data.version}.`,
+        );
+        setShowVersions(false);
+        router.refresh();
+      } else {
+        setErrorMsg(res.error ?? `Failed to restore version #${versionNo}`);
+      }
+      setRestoringVersionNo(null);
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Banner and Navigation */}
@@ -411,6 +459,20 @@ export function OpportunityForm({ initialData, organizations, mode }: Opportunit
                   <Archive className="size-4" aria-hidden="true" /> Archive
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={handleOpenVersions}
+                disabled={isPending}
+                className={buttonClass({
+                  variant: 'ghost',
+                  size: 'sm',
+                  className: 'gap-1.5 text-xs text-teal hover:bg-teal/10 border border-teal/20',
+                })}
+                title="View approved version snapshots and restore"
+              >
+                <History className="size-4" aria-hidden="true" /> Versions (v{initialData.version || 1})
+              </button>
             </>
           )}
         </div>
@@ -891,6 +953,152 @@ export function OpportunityForm({ initialData, organizations, mode }: Opportunit
           </div>
         </FormSection>
       </div>
+
+      {/* Version History Drawer */}
+      {showVersions && (
+        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-xs">
+          <div className="flex h-full w-full max-w-xl flex-col border-l border-teal/20 bg-canvas shadow-2xl">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between border-b border-line p-5">
+              <div className="flex items-center gap-2">
+                <History className="size-5 text-teal" />
+                <div>
+                  <h3 className="text-base font-bold text-teal">Version History</h3>
+                  <p className="text-xs text-teal/70">
+                    Current active version: <strong>v{initialData?.version ?? 1}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVersions(false)}
+                className="rounded-lg p-1.5 text-teal/70 hover:bg-teal/10 hover:text-teal"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Drawer Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {loadingVersions ? (
+                <div className="py-12 text-center text-xs text-teal/70">
+                  Loading snapshot history...
+                </div>
+              ) : versions.length === 0 ? (
+                <div className="rounded-2xl border border-line bg-canvas/60 p-8 text-center text-xs text-teal/70">
+                  No previous approved version snapshots recorded for this opportunity yet.
+                </div>
+              ) : (
+                versions.map((v) => {
+                  const isCurrent = v.version_no === initialData?.version;
+                  const snapshot = v.snapshot || {};
+
+                  return (
+                    <Card
+                      key={v.id}
+                      className={cn(
+                        'p-4 border transition',
+                        isCurrent
+                          ? 'border-teal bg-teal/5 shadow-md'
+                          : 'border-line/70 bg-white shadow-sm',
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-extrabold text-teal">
+                              Version #{v.version_no}
+                            </span>
+                            {isCurrent && (
+                              <Badge tone="teal" className="text-[10px] font-bold">
+                                Current Active
+                              </Badge>
+                            )}
+                            <Badge tone="outline" className="text-[10px] uppercase">
+                              {v.status}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-[11px] text-teal/70">
+                            <Clock className="size-3" />
+                            <span>
+                              {new Date(v.created_at).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            <span>•</span>
+                            <span>{v.creator_name || 'Staff Editor'}</span>
+                          </div>
+                        </div>
+
+                        {!isCurrent && (
+                          <button
+                            type="button"
+                            onClick={() => handleRestoreVersion(v.version_no)}
+                            disabled={isPending || restoringVersionNo !== null}
+                            className={buttonClass({
+                              variant: 'secondary',
+                              size: 'sm',
+                              className:
+                                'gap-1 text-xs text-teal border-teal/20 hover:bg-teal/10 shrink-0',
+                            })}
+                            title="Restore this version as active"
+                          >
+                            <RotateCcw className="size-3.5" />
+                            {restoringVersionNo === v.version_no
+                              ? 'Restoring...'
+                              : 'Restore this version'}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Snapshot details preview */}
+                      <div className="mt-3 rounded-xl bg-canvas/70 p-3 text-xs space-y-1.5 border border-line/60">
+                        <div className="font-semibold text-teal truncate">
+                          Title: {snapshot.title || 'Untitled'}
+                        </div>
+                        {snapshot.vacancies_total != null && (
+                          <div className="text-[11px] text-teal/80">
+                            Total Vacancies: {snapshot.vacancies_total}
+                          </div>
+                        )}
+                        {snapshot.application_end && (
+                          <div className="text-[11px] text-teal/80">
+                            Last Date: {String(snapshot.application_end).split('T')[0]}
+                          </div>
+                        )}
+                        {snapshot.summary && (
+                          <p className="text-[11px] text-teal/70 line-clamp-2 italic">
+                            "{snapshot.summary}"
+                          </p>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="border-t border-line p-4 bg-canvas/80 flex items-center justify-between">
+              <span className="text-xs text-teal/60">
+                Restoring a version updates live data and records a new approved version snapshot.
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowVersions(false)}
+                className={buttonClass({ variant: 'secondary', size: 'sm' })}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
