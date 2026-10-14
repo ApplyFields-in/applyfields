@@ -579,7 +579,7 @@ export interface AdminUserList {
 
 // ---------- Saved items (GET /saved, PUT|DELETE /saved/:item_type/:slug) ----------
 
-export type SavedItemType = 'opportunity' | 'service';
+export type SavedItemType = 'opportunity' | 'service' | 'institution';
 
 export interface SavedItem {
   item_type: SavedItemType;
@@ -590,6 +590,8 @@ export interface SavedItem {
   card: OpportunityCard | null;
   /** set for government services */
   service: { slug: string; name: string } | null;
+  /** set for colleges and universities */
+  institution?: InstitutionSummary | null;
 }
 
 export interface SavedList {
@@ -954,6 +956,36 @@ export interface InstitutionDetail extends InstitutionSummary {
     fees_text: string | null;
     admission_process: string | null;
   }>;
+}
+
+export interface InstitutionListResponse {
+  items: InstitutionSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export interface AdminInstitutionInput {
+  name: string;
+  short_name?: string | null;
+  slug?: string;
+  type?: string;
+  ownership?: string | null;
+  state_code?: string | null;
+  district?: string | null;
+  city?: string | null;
+  address?: string | null;
+  pincode?: string | null;
+  website?: string | null;
+  ranking_text?: string | null;
+  fees_text?: string | null;
+  description?: string | null;
+  established_year?: number | null;
+  accreditation?: Record<string, any>;
+  placement_stats?: PlacementStats;
+  campus_facilities?: string[];
+  status?: string;
 }
 
 export interface GuidanceSource {

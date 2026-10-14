@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useLanguage } from '@/lib/i18n/language-context';
+import { CookiePreferencesTrigger } from '@/components/cookie-banner';
 
 export function DarkNavyFooter() {
   const { t } = useLanguage();
@@ -165,6 +166,14 @@ export function DarkNavyFooter() {
                 <Link href="/privacy" className="hover:text-white transition-colors">
                   {t('footer_privacy')}
                 </Link>
+              </li>
+              <li>
+                <Link href="/cookie-policy" className="hover:text-white transition-colors">
+                  Cookie Policy
+                </Link>
+              </li>
+              <li>
+                <CookiePreferencesTrigger className="hover:text-white transition-colors text-left" />
               </li>
             </ul>
           </div>

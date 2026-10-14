@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { apiGet } from '@/lib/api';
+import { SaveButton } from '@/components/save-button';
 import { EnquiryDialog } from './enquiry-dialog';
 
 export default async function CollegeDetailPage({
@@ -62,6 +63,11 @@ export default async function CollegeDetailPage({
           </div>
 
           <div className="flex items-center gap-2">
+            <SaveButton
+              itemType="institution"
+              slug={college.slug}
+              title={college.name}
+            />
             <Link
               href={`/career/colleges/compare?slugs=${college.slug}`}
               className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1.5' })}
@@ -86,7 +92,7 @@ export default async function CollegeDetailPage({
         </h1>
         <div className="mt-1 flex items-center gap-2 text-xs font-medium text-teal/70">
           <span className="flex items-center gap-1">
-            <MapPin className="size-3.5 text-teal/50" /> {college.city}, {college.state_code}
+            <MapPin className="size-3.5 text-teal/50" /> {college.city || college.district || 'India'}{college.state_code ? `, ${college.state_code}` : ''}
           </span>
           {college.established_year && <span>· Est. {college.established_year}</span>}
         </div>
@@ -225,14 +231,37 @@ export default async function CollegeDetailPage({
 
           {/* Accreditation Box */}
           <Card className="p-6 bg-tea/20">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-teal/70">
-              National Accreditations
-            </h3>
-            <div className="mt-3 space-y-2 text-xs font-semibold text-teal">
-              {college.ranking_text && <p>🏆 {college.ranking_text}</p>}
-              {college.accreditation?.naac && <p>🏅 NAAC Grade: {college.accreditation.naac}</p>}
-              <p>📍 {college.city}, {college.state_code} (All-India Central & State Recognition)</p>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-teal/70">
+                Accreditations & Recognition
+              </h3>
+              <Badge tone="teal" className="text-[10px] gap-1 font-bold">
+                <CheckCircle2 className="size-3 text-celadon" /> Verified
+              </Badge>
             </div>
+            <div className="mt-3 space-y-2 text-xs font-semibold text-teal">
+              {college.ranking_text && <p className="font-bold">🏆 {college.ranking_text}</p>}
+              {college.accreditation?.aicte && (
+                <p>🏛️ AICTE Status: {college.accreditation.aicte} {college.accreditation.aicte_id && college.accreditation.aicte_id !== 'Data not given' ? `(ID: ${college.accreditation.aicte_id})` : ''}</p>
+              )}
+              {college.accreditation?.nba && college.accreditation.nba !== 'Data not given' && (
+                <p>⭐ NBA Accreditation: {college.accreditation.nba}</p>
+              )}
+              {college.accreditation?.naac && college.accreditation.naac !== 'Data not given' && (
+                <p>🏅 NAAC Grade: {college.accreditation.naac}</p>
+              )}
+              <p>📍 {college.city || college.district || 'India'}{college.state_code ? `, ${college.state_code}` : ''} (Central & State Approvals)</p>
+            </div>
+          </Card>
+
+          {/* Scholarships & Fee Waivers */}
+          <Card className="p-6 bg-canvas border border-line/60">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-teal/70">
+              Scholarships & Fee Concessions
+            </h3>
+            <p className="mt-2 text-xs text-teal/80 leading-relaxed">
+              Standard central and state government fee concessions apply for SC/ST/EWS and merit-cum-need eligible applicants. Contact the admissions desk for specific institutional endowment waivers.
+            </p>
           </Card>
         </div>
       </div>
