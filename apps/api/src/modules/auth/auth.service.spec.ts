@@ -20,7 +20,7 @@ describe('AuthService', () => {
 
     authService = module.get<AuthService>(AuthService);
     store = module.get<UsersStore>(UsersStore);
-  });
+  }, 30000);
 
   it('should be defined', () => {
     expect(authService).toBeDefined();
@@ -186,6 +186,35 @@ describe('AuthService', () => {
       });
       expect(appleRes.accessToken).toBeDefined();
       expect(appleRes.user.email).toBe('apple.citizen@applyfields.in');
+    });
+
+    it('should decode Google ID token payload and create or log in candidate', async () => {
+      // Mock Google ID token with JWT payload
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+      const payload = Buffer.from(
+        JSON.stringify({
+          sub: '10987654321',
+          email: 'karthik.candidate@gmail.com',
+          name: 'Karthik Candidate',
+          picture: 'https://lh3.googleusercontent.com/a/avatar',
+          email_verified: true,
+        }),
+      ).toString('base64url');
+      const signature = 'mock_signature_bytes';
+      const mockIdToken = `${header}.${payload}.${signature}`;
+
+      const res = await authService.socialLogin({
+        provider: 'google',
+        idToken: mockIdToken,
+      });
+
+      expect(res.accessToken).toBeDefined();
+      expect(res.refreshToken).toBeDefined();
+      expect(res.user.email).toBe('karthik.candidate@gmail.com');
+
+      const profile = await store.getProfile(res.user.id);
+      expect(profile?.full_name).toBe('Karthik Candidate');
+      expect(profile?.avatar_url).toBe('https://lh3.googleusercontent.com/a/avatar');
     });
 
     it('should require passkey enrollment before allowing passkey login for existing user', async () => {

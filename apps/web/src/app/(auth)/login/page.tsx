@@ -25,6 +25,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const verifiedNotice = searchParams.get('verified') === 'true';
+  const redirectTarget = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next') || '/me';
 
   const [mode, setMode] = useState<'password' | 'otp' | 'forgot'>('password');
 
@@ -93,7 +94,7 @@ function LoginForm() {
 
     setSuccess('Logged in successfully! Redirecting...');
     setTimeout(() => {
-      router.push('/');
+      router.push(redirectTarget);
     }, 1000);
   }
 
@@ -152,7 +153,7 @@ function LoginForm() {
 
     setSuccess('Authenticated successfully! Redirecting...');
     setTimeout(() => {
-      router.push('/');
+      router.push(redirectTarget);
     }, 1000);
   }
 
@@ -465,7 +466,12 @@ function LoginForm() {
       {mode !== 'forgot' && (
         <>
           <AuthDivider label="or" />
-          <SocialAuthButtons mode="login" onError={setError} onSuccess={setSuccess} />
+          <SocialAuthButtons
+            mode="login"
+            redirectUrl={redirectTarget}
+            onError={setError}
+            onSuccess={setSuccess}
+          />
           <PasskeyLoginButton
             defaultEmail={passwordCredType === 'email' ? passwordEmail : undefined}
             onError={setError}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import {
   Settings,
@@ -18,8 +18,9 @@ import {
 } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import type { MeResponse } from '@applyfields/types';
+import { DigiLockerCard } from '@/components/digilocker-card';
 
-export default function AccountPage() {
+function AccountContent() {
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -111,6 +112,9 @@ export default function AccountPage() {
               </Link>
             </div>
           </div>
+
+          {/* Government DigiLocker Integration Card */}
+          <DigiLockerCard />
 
           {/* Plus Tier Card */}
           <div className="rounded-3xl border border-[#b8d7ff] bg-gradient-to-br from-[#EAF3FF] to-white p-7 shadow-sm space-y-5">
@@ -207,5 +211,13 @@ export default function AccountPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading Account...</div>}>
+      <AccountContent />
+    </Suspense>
   );
 }
