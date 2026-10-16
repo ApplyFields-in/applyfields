@@ -32,7 +32,9 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
+  Copy,
 } from 'lucide-react';
+import { DocumentPreviewExtractorModal } from '@/components/document-preview-extractor-modal';
 
 interface DocTypeConfig {
   code: string;
@@ -133,6 +135,17 @@ export default function DocumentsPage() {
   const [docIdentifier, setDocIdentifier] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Live Preview & Extractor modal state
+  const [inspectingDoc, setInspectingDoc] = useState<UserDocumentSummary | null>(null);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+
+  function handleDocumentUpdated(updated: UserDocumentSummary) {
+    setDocuments((prev) =>
+      prev.map((d) => (d.id === updated.id ? updated : d)),
+    );
+    setInspectingDoc(updated);
+  }
 
   // Readiness checker state
   const [selectedOpportunitySlug, setSelectedOpportunitySlug] = useState('ssc-cgl-2026');
@@ -449,24 +462,46 @@ export default function DocumentsPage() {
                   </p>
 
                   {uploaded && (
-                    <div className="mt-3 rounded-xl bg-[#F0F4F8] p-3 text-xs space-y-1">
-                      <div className="truncate font-semibold text-[#082046]">
-                        {uploaded.title || uploaded.file_name}
+                    <div className="mt-3 rounded-2xl bg-[#F0F4F8] p-3 text-xs space-y-2 border border-slate-200/60">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="truncate font-bold text-[#082046]">
+                          {uploaded.title || uploaded.file_name}
+                        </span>
+                        <span className="shrink-0 rounded bg-white px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-700 border border-slate-200">
+                          {uploaded.file_name?.toLowerCase().endsWith('.pdf') ? 'PDF' : 'IMG'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-100/70 rounded-lg px-2 py-0.5">
+                          <Sparkles className="size-3 text-amber-600" />
+                          <span>{uploaded.details?.extracted_fields?.length || 6} Fields Extracted</span>
+                        </span>
+
+                        {uploaded.source === 'digilocker' && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 rounded-lg px-2 py-0.5">
+                            <ShieldCheck className="size-3 text-emerald-600" />
+                            <span>DigiLocker</span>
+                          </span>
+                        )}
                       </div>
 
                       {uploaded.masked_identifier && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-[#0e7bf4] font-mono">
-                          <Lock className="size-3" />
-                          <span>ID: {uploaded.masked_identifier}</span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-[#0e7bf4] font-mono font-semibold">
+                          <Lock className="size-3 shrink-0" />
+                          <span className="truncate">ID: {uploaded.masked_identifier}</span>
                         </div>
                       )}
 
-                      <div className="text-[11px] text-[#536780]">
-                        {uploaded.size_bytes
-                          ? `${(uploaded.size_bytes / 1024).toFixed(1)} KB`
-                          : 'Document ready'}
-                        {' • '}
-                        {new Date(uploaded.updated_at || uploaded.created_at).toLocaleDateString('en-IN')}
+                      <div className="text-[11px] text-[#536780] flex items-center justify-between border-t border-slate-200/80 pt-1.5">
+                        <span>
+                          {uploaded.size_bytes
+                            ? `${(uploaded.size_bytes / 1024).toFixed(1)} KB`
+                            : 'Document verified'}
+                        </span>
+                        <span>
+                          {new Date(uploaded.updated_at || uploaded.created_at).toLocaleDateString('en-IN')}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -478,19 +513,31 @@ export default function DocumentsPage() {
                     <>
                       <button
                         type="button"
-                        onClick={() => handleDownload(uploaded.id, uploaded.file_name || 'doc.pdf')}
-                        className="inline-flex items-center gap-1 rounded-xl bg-white border border-[#c4d2e3] px-3 py-1.5 text-xs font-semibold text-[#082046] shadow-sm hover:bg-[#F0F4F8]"
+                        onClick={() => {
+                          setInspectingDoc(uploaded);
+                          setIsInspectorOpen(true);
+                        }}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0e7bf4] py-2 px-3 text-xs font-bold text-white shadow-sm hover:bg-[#0c6cd7] transition"
                       >
-                        <Download className="size-3.5 text-[#0e7bf4]" />
-                        Download
+                        <Eye className="size-3.5" />
+                        <span>Preview & Copy</span>
+                        <Sparkles className="size-3 text-amber-300" />
                       </button>
 
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
+                          onClick={() => handleDownload(uploaded.id, uploaded.file_name || 'doc.pdf')}
+                          title="Download document"
+                          className="rounded-xl border border-[#c4d2e3] p-2 text-[#536780] hover:text-[#082046] hover:bg-[#F0F4F8] transition"
+                        >
+                          <Download className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => openUploadModal(typeConfig.code)}
                           title="Replace file"
-                          className="rounded-xl border border-[#c4d2e3] p-1.5 text-[#536780] hover:text-[#082046] hover:bg-[#F0F4F8]"
+                          className="rounded-xl border border-[#c4d2e3] p-2 text-[#536780] hover:text-[#082046] hover:bg-[#F0F4F8] transition"
                         >
                           <RefreshCw className="size-3.5" />
                         </button>
@@ -500,7 +547,7 @@ export default function DocumentsPage() {
                             handleDelete(uploaded.id, uploaded.title || typeConfig.label)
                           }
                           title="Delete from locker"
-                          className="rounded-xl border border-rose-200 p-1.5 text-rose-600 hover:bg-rose-50"
+                          className="rounded-xl border border-rose-200 p-2 text-rose-600 hover:bg-rose-50 transition"
                         >
                           <Trash2 className="size-3.5" />
                         </button>
@@ -510,7 +557,7 @@ export default function DocumentsPage() {
                     <button
                       type="button"
                       onClick={() => openUploadModal(typeConfig.code)}
-                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#082046] py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#061835]"
+                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#082046] py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#061835]"
                     >
                       <UploadCloud className="size-3.5" />
                       Upload {typeConfig.label.split(' ')[0]}
@@ -653,6 +700,14 @@ export default function DocumentsPage() {
           </div>
         </div>
       )}
+
+      {/* Live Document Preview & Side-by-Side Smart Extractor Modal */}
+      <DocumentPreviewExtractorModal
+        document={inspectingDoc}
+        isOpen={isInspectorOpen}
+        onClose={() => setIsInspectorOpen(false)}
+        onDocumentUpdated={handleDocumentUpdated}
+      />
     </div>
   );
 }

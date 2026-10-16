@@ -166,6 +166,45 @@ export async function apiPut<T, B = unknown>(path: string, body?: B, _token?: st
   }
 }
 
+/** PATCH a JSON endpoint with automatic silent refresh on 401. */
+export async function apiPatch<T, B = unknown>(path: string, body?: B, _token?: string): Promise<ApiResponse<T>> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    let res = await fetch(`${API_URL}${path}`, {
+      method: 'PATCH',
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: 'include',
+      signal: AbortSignal.timeout(25000),
+    });
+
+    if (res.status === 401 && typeof window !== 'undefined') {
+      const refreshed = await attemptTokenRefresh();
+      if (refreshed) {
+        res = await fetch(`${API_URL}${path}`, {
+          method: 'PATCH',
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          credentials: 'include',
+          signal: AbortSignal.timeout(25000),
+        });
+      }
+    }
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg = json?.message || (Array.isArray(json?.message) ? json.message.join(', ') : 'Request failed');
+      return { data: null, error: msg, status: res.status };
+    }
+    return { data: json as T, error: null, status: res.status };
+  } catch (err: unknown) {
+    return { data: null, error: formatErrorMessage(err), status: 500 };
+  }
+}
+
 /** DELETE a resource from a JSON endpoint with automatic silent refresh on 401. */
 export async function apiDelete<T>(path: string, _token?: string): Promise<ApiResponse<T>> {
   try {

@@ -5,6 +5,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -28,6 +29,12 @@ const uploadDocumentSchema = z.object({
   issuingAuthority: z.string().trim().max(200).optional(),
   identifierNumber: z.string().trim().max(100).optional(),
   details: z.record(z.string(), z.any()).optional(),
+});
+
+const updateDocumentDetailsSchema = z.object({
+  details: z.record(z.string(), z.any()),
+  identifierNumber: z.string().trim().max(100).optional(),
+  title: z.string().trim().max(200).optional(),
 });
 
 @Controller('documents')
@@ -87,6 +94,39 @@ export class DocumentsController {
       `attachment; filename="${info.fileName || 'document.pdf'}"`,
     );
     return res.sendFile(info.storagePath);
+  }
+
+  @Get(':id/preview')
+  async previewDocument(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const info = await this.documentsService.getPreviewInfo(req.user.userId, id);
+
+    if (info.signedUrl) {
+      return res.redirect(302, info.signedUrl);
+    }
+
+    if (!info.storagePath || !existsSync(info.storagePath)) {
+      throw new NotFoundException('Document file not found on disk.');
+    }
+
+    res.setHeader('Content-Type', info.mimeType || 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${info.fileName || 'document.pdf'}"`,
+    );
+    return res.sendFile(info.storagePath);
+  }
+
+  @Patch(':id/details')
+  async updateDocumentDetails(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body(new ZodPipe(updateDocumentDetailsSchema)) body: z.infer<typeof updateDocumentDetailsSchema>,
+  ) {
+    return this.documentsService.updateDocumentDetails(req.user.userId, id, body);
   }
 
   @Delete(':id')
