@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { apiPost } from '@/lib/api';
 import { ArrowLeft, ArrowRight, Check, Mail, User } from 'lucide-react';
 import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
@@ -36,8 +36,10 @@ function Steps({ step }: { step: 'form' | 'verify' }) {
   );
 }
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTarget = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next') || '/me';
 
   const [step, setStep] = useState<'form' | 'verify'>('form');
   const [fullName, setFullName] = useState('');
@@ -333,7 +335,12 @@ export default function RegisterPage() {
       </form>
 
       <AuthDivider label="or" />
-      <SocialAuthButtons mode="register" onError={setError} onSuccess={setSuccessMsg} />
+      <SocialAuthButtons
+        mode="register"
+        redirectUrl={redirectTarget}
+        onError={setError}
+        onSuccess={setSuccessMsg}
+      />
 
       <p className="mt-6 text-center text-sm text-teal/60">
         Already have an account?{' '}
@@ -342,5 +349,13 @@ export default function RegisterPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-teal/60">Loading registration...</p>}>
+      <RegisterForm />
+    </Suspense>
   );
 }

@@ -40,6 +40,14 @@ export class SocialLoginDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsString()
+  idToken?: string;
+
+  @IsOptional()
+  @IsString()
+  credential?: string;
 }
 
 export class PasskeyLoginDto {

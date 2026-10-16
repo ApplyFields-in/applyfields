@@ -103,7 +103,7 @@ export class AuthController {
     return { user: result.user };
   }
 
-  @Post('social/login')
+  @Post(['social/login', 'social-login'])
   @HttpCode(HttpStatus.OK)
   async socialLogin(
     @Body() dto: SocialLoginDto,
@@ -120,7 +120,11 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
-    return { user: result.user };
+    return {
+      user: result.user,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    };
   }
 
   @Post('passkey/login')
