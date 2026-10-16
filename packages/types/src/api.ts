@@ -1513,6 +1513,14 @@ export type StandardDocumentTypeCode =
   | 'resume'
   | 'id_proof';
 
+export interface ExtractedFieldItem {
+  key: string;
+  label: string;
+  value: string;
+  isSensitive?: boolean;
+  category?: 'identity' | 'academic' | 'reservation' | 'personal' | 'general';
+}
+
 export interface UserDocumentSummary {
   id: string;
   user_id: string;
@@ -1526,7 +1534,12 @@ export interface UserDocumentSummary {
   expires_on?: string | null;
   issuing_authority?: string | null;
   masked_identifier?: string | null;
-  details: Record<string, any>;
+  details: Record<string, any> & {
+    extracted_fields?: ExtractedFieldItem[];
+    raw_text?: string;
+    verified_by_digilocker?: boolean;
+    verification_source?: string;
+  };
   source: 'upload' | 'digilocker';
   created_at: string;
   updated_at: string;
@@ -1548,6 +1561,14 @@ export interface UploadDocumentInput {
   issuingAuthority?: string;
   identifierNumber?: string;
   details?: Record<string, any>;
+}
+
+export interface UpdateDocumentDetailsInput {
+  details: Record<string, any> & {
+    extracted_fields?: ExtractedFieldItem[];
+  };
+  identifierNumber?: string;
+  title?: string;
 }
 
 export interface DocumentReadinessCheck {

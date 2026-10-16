@@ -61,6 +61,38 @@ describe('DocumentsService & Sensitive ID Masking', () => {
       expect(doc.document_type_code).toBe('marksheet_10th');
       expect(doc.file_name).toBe('Class_10_Memo.pdf');
       expect(doc.masked_identifier).toBe('**** **** 9900');
+      expect(doc.details.extracted_fields).toBeDefined();
+      expect(doc.details.extracted_fields?.length).toBeGreaterThan(0);
+      expect(doc.details.extracted_fields?.some((f) => f.key === 'roll_number')).toBe(true);
+    });
+
+    it('returns preview info for uploaded document', async () => {
+      const list = await service.listDocuments(userId);
+      const docId = list.items[0].id;
+      const preview = await service.getPreviewInfo(userId, docId);
+      expect(preview).toBeDefined();
+      expect(preview.fileName).toBe('Class_10_Memo.pdf');
+      expect(preview.mimeType).toBe('application/pdf');
+    });
+
+    it('updates document details and extracted fields', async () => {
+      const list = await service.listDocuments(userId);
+      const docId = list.items[0].id;
+
+      const updated = await service.updateDocumentDetails(userId, docId, {
+        identifierNumber: '998877665544',
+        title: 'Updated 10th Certificate',
+        details: {
+          extracted_fields: [
+            { key: 'candidate_name', label: 'Candidate Name', value: 'Likhith Kumar K' },
+            { key: 'roll_number', label: 'Roll Number', value: '998877665544' },
+          ],
+        },
+      });
+
+      expect(updated.title).toBe('Updated 10th Certificate');
+      expect(updated.masked_identifier).toBe('**** **** 5544');
+      expect(updated.details.extracted_fields?.[0].value).toBe('Likhith Kumar K');
     });
 
     it('lists user documents accurately', async () => {

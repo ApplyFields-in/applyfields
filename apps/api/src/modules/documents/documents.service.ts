@@ -9,12 +9,14 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type {
   DocumentReadinessCheck,
+  UpdateDocumentDetailsInput,
   UploadDocumentInput,
   UserDocumentListResponse,
   UserDocumentSummary,
 } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../common/storage.service.js';
+import { extractDocumentFields } from './document-extractor.js';
 
 export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   marksheet_10th: '10th Marksheet / Matriculation Certificate',
@@ -170,9 +172,19 @@ export class DocumentsService {
     }
 
     const maskedId = maskSensitiveIdentifier(dto.identifierNumber);
+    const extractedFields =
+      dto.details?.extracted_fields ||
+      extractDocumentFields(
+        dto.documentTypeCode,
+        dto.fileName,
+        dto.identifierNumber,
+        buffer,
+      );
+
     const details = {
       ...(dto.details || {}),
       masked_identifier: maskedId,
+      extracted_fields: extractedFields,
       uploaded_at: new Date().toISOString(),
     };
 
@@ -217,7 +229,7 @@ export class DocumentsService {
             issued_on: dto.issuedOn ? new Date(dto.issuedOn) : null,
             expires_on: dto.expiresOn ? new Date(dto.expiresOn) : null,
             issuing_authority: dto.issuingAuthority || null,
-            details,
+            details: details as any,
             source: 'upload',
           },
         });
@@ -387,6 +399,108 @@ export class DocumentsService {
       fileName,
       mimeType,
     };
+  }
+
+  async getPreviewInfo(
+    userId: string,
+    docId: string,
+  ): Promise<{
+    signedUrl?: string;
+    storagePath?: string;
+    fileName?: string;
+    mimeType?: string;
+  }> {
+    return this.getDownloadInfo(userId, docId);
+  }
+
+  async updateDocumentDetails(
+    userId: string,
+    docId: string,
+    input: UpdateDocumentDetailsInput,
+  ): Promise<UserDocumentSummary> {
+    const maskedId = input.identifierNumber
+      ? maskSensitiveIdentifier(input.identifierNumber)
+      : undefined;
+
+    if (this.isPrismaUsable()) {
+      try {
+        const existing = await this.prisma.user_documents.findFirst({
+          where: { id: docId, user_id: userId, deleted_at: null },
+        });
+
+        if (!existing) {
+          throw new NotFoundException('Document not found or access denied.');
+        }
+
+        const mergedDetails = {
+          ...((existing.details as Record<string, any>) || {}),
+          ...input.details,
+          ...(maskedId !== undefined ? { masked_identifier: maskedId } : {}),
+          updated_at: new Date().toISOString(),
+        };
+
+        const updated = await this.prisma.user_documents.update({
+          where: { id: docId },
+          data: {
+            title: input.title ? input.title.trim() : existing.title,
+            details: mergedDetails as any,
+            updated_at: new Date(),
+          },
+        });
+
+        const typeLabel =
+          DOCUMENT_TYPE_LABELS[updated.document_type_code] ||
+          updated.document_type_code;
+
+        return {
+          id: updated.id,
+          user_id: updated.user_id,
+          document_type_code: updated.document_type_code,
+          document_type_name: typeLabel,
+          title: updated.title,
+          file_name: updated.file_name,
+          mime_type: updated.mime_type,
+          size_bytes: updated.size_bytes,
+          issued_on: updated.issued_on
+            ? updated.issued_on.toISOString().split('T')[0]
+            : null,
+          expires_on: updated.expires_on
+            ? updated.expires_on.toISOString().split('T')[0]
+            : null,
+          issuing_authority: updated.issuing_authority,
+          masked_identifier:
+            (updated.details as Record<string, any>)?.masked_identifier || null,
+          details: (updated.details as Record<string, any>) || {},
+          source: (updated.source as any) || 'upload',
+          created_at: updated.created_at.toISOString(),
+          updated_at: updated.updated_at.toISOString(),
+        };
+      } catch (err) {
+        if (err instanceof NotFoundException) throw err;
+        this.logger.warn(`Failed to update document details in DB: ${(err as Error).message}`);
+      }
+    }
+
+    const doc = this.inMemoryDocs.get(docId);
+    if (!doc || doc.user_id !== userId) {
+      throw new NotFoundException('Document not found or access denied.');
+    }
+
+    const updatedDetails = {
+      ...(doc.details || {}),
+      ...input.details,
+      ...(maskedId !== undefined ? { masked_identifier: maskedId } : {}),
+      updated_at: new Date().toISOString(),
+    };
+
+    doc.details = updatedDetails;
+    if (input.title) doc.title = input.title.trim();
+    if (maskedId !== undefined) doc.masked_identifier = maskedId;
+    doc.updated_at = new Date().toISOString();
+
+    this.inMemoryDocs.set(docId, doc);
+    const { storage_path: _, ...resSummary } = doc;
+    return resSummary;
   }
 
   async deleteDocument(
