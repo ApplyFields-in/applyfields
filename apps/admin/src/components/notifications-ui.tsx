@@ -1,11 +1,11 @@
 'use client';
 
-import type { ManualAlertInput } from '@applyfields/types';
+import type { AdminBroadcastInput, ManualAlertInput } from '@applyfields/types';
 import { buttonClass } from '@applyfields/ui';
-import { RotateCw, Send } from 'lucide-react';
+import { RotateCw, Send, Radio } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { retryDeliveryAction, sendManualAlertAction } from '@/lib/actions';
+import { retryDeliveryAction, sendBroadcastAction, sendManualAlertAction } from '@/lib/actions';
 import { Field, FormSection, TextArea, TextInput } from './review-ui';
 
 export function RetryDeliveryButton({ id }: { id: string }) {
@@ -29,11 +29,11 @@ export function RetryDeliveryButton({ id }: { id: string }) {
   );
 }
 
-/** Admins only: a manual alert to everyone who saved a job, or to one user. */
+/** Admins only: broadcast or manual alert (In-app + Web Push + Email). */
 export function ManualAlertForm() {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [kind, setKind] = useState<'savers' | 'user'>('savers');
+  const [kind, setKind] = useState<'all' | 'subscribers' | 'savers' | 'user'>('subscribers');
   const [target, setTarget] = useState('');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -42,64 +42,135 @@ export function ManualAlertForm() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const input: ManualAlertInput = {
-      title,
-      body: body || null,
-      link: link || null,
-      audience: kind === 'savers' ? { kind, opportunity_slug: target.trim() } : { kind, email: target.trim() },
-    };
-    const who = kind === 'savers' ? `everyone who saved “${target}”` : target;
-    if (!confirm(`Send this alert to ${who}? It goes in-app and by email and can't be undone.`)) return;
+    const who =
+      kind === 'all'
+        ? 'ALL registered candidates'
+        : kind === 'subscribers'
+          ? 'SUBSCRIBED candidates only (Instant Push)'
+          : kind === 'savers'
+            ? `everyone who saved “${target}”`
+            : target;
+
+    if (!confirm(`Send this notification to ${who}? It will dispatch Web Push and In-App alerts.`)) return;
+
     start(async () => {
-      const res = await sendManualAlertAction(input);
-      if (res.ok) {
-        setMessage(`Sent to ${res.data!.notified} ${res.data!.notified === 1 ? 'person' : 'people'}.`);
-        setTitle('');
-        setBody('');
-        setLink('');
-        router.refresh();
-      } else setMessage(res.error ?? 'Could not send');
+      if (kind === 'all' || kind === 'subscribers') {
+        const input: AdminBroadcastInput = {
+          title,
+          body: body || null,
+          link: link || null,
+          audience: { kind },
+        };
+        const res = await sendBroadcastAction(input);
+        if (res.ok) {
+          setMessage(`Broadcast sent to ${res.data!.notified} candidates (${res.data!.push_sent} push notifications).`);
+          setTitle('');
+          setBody('');
+          setLink('');
+          router.refresh();
+        } else {
+          setMessage(res.error ?? 'Could not broadcast');
+        }
+      } else {
+        const input: ManualAlertInput = {
+          title,
+          body: body || null,
+          link: link || null,
+          audience: kind === 'savers' ? { kind, opportunity_slug: target.trim() } : { kind, email: target.trim() },
+        };
+        const res = await sendManualAlertAction(input);
+        if (res.ok) {
+          setMessage(`Sent to ${res.data!.notified} ${res.data!.notified === 1 ? 'person' : 'people'}.`);
+          setTitle('');
+          setBody('');
+          setLink('');
+          router.refresh();
+        } else {
+          setMessage(res.error ?? 'Could not send');
+        }
+      }
     });
   }
 
   return (
     <form onSubmit={submit}>
-      <FormSection title="Send a manual alert" note={<span className="text-xs text-teal/80">Admins only · in-app, plus email where allowed</span>}>
+      <FormSection
+        title="Broadcast & Notification Desk"
+        note={<span className="text-xs text-teal/80">Staff Admin · Dispatches Web Push & In-App Alerts</span>}
+      >
         <div className="grid gap-3">
-          <Field label="Send to">
+          <Field label="Target Audience">
             <select
               value={kind}
-              onChange={(e) => setKind(e.target.value as 'savers' | 'user')}
+              onChange={(e) => setKind(e.target.value as 'all' | 'subscribers' | 'savers' | 'user')}
               className="h-10 w-full rounded-xl bg-cream px-3 text-sm shadow-pressed outline-none"
             >
-              <option value="savers">Everyone who saved a job/exam</option>
-              <option value="user">One user (by email)</option>
+              <option value="subscribers">⚡ Premium Subscribers Only (Instant Alert)</option>
+              <option value="all">📢 All Registered Candidates</option>
+              <option value="savers">⭐ Candidates who saved an Opportunity</option>
+              <option value="user">👤 Individual Candidate (by email)</option>
             </select>
           </Field>
-          <Field label={kind === 'savers' ? 'Job or exam slug' : 'User email'}>
+
+          {kind === 'savers' && (
+            <Field label="Job or Exam Slug">
+              <TextInput
+                required
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                placeholder="ssc-cgl-2026"
+              />
+            </Field>
+          )}
+
+          {kind === 'user' && (
+            <Field label="Candidate Email">
+              <TextInput
+                required
+                type="email"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                placeholder="candidate@example.com"
+              />
+            </Field>
+          )}
+
+          <Field label="Notification Title">
             <TextInput
               required
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              placeholder={kind === 'savers' ? 'ssc-cgl-2026' : 'name@example.com'}
+              minLength={3}
+              maxLength={150}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. 🚨 SSC CGL 2026 Notification Released!"
             />
           </Field>
-          <Field label="Title">
-            <TextInput required minLength={3} maxLength={150} value={title} onChange={(e) => setTitle(e.target.value)} />
+
+          <Field label="Message Body (optional)">
+            <TextArea
+              maxLength={1000}
+              rows={3}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Brief summary or instructions..."
+            />
           </Field>
-          <Field label="Message (optional)">
-            <TextArea maxLength={1000} rows={3} value={body} onChange={(e) => setBody(e.target.value)} />
-          </Field>
-          <Field label="Link on the website (optional)">
-            <TextInput value={link} onChange={(e) => setLink(e.target.value)} placeholder="/jobs/ssc-cgl-2026" />
+
+          <Field label="Deep Link URL (optional)">
+            <TextInput
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder="/jobs/ssc-cgl-2026"
+            />
           </Field>
         </div>
+
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button type="submit" disabled={pending} className={buttonClass()}>
-            <Send className="size-4" aria-hidden="true" /> {pending ? 'Sending…' : 'Send alert'}
+            <Send className="size-4" aria-hidden="true" /> {pending ? 'Broadcasting…' : 'Send Notification'}
           </button>
           {message && (
-            <p role="status" className="text-sm">
+            <p role="status" className="text-sm font-semibold text-teal">
               {message}
             </p>
           )}

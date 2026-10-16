@@ -4,10 +4,11 @@ import { NotificationsAdminController } from './notifications-admin.controller.j
 import { NotificationsController } from './notifications.controller.js';
 import { NotificationsScheduler } from './notifications.scheduler.js';
 import { NotificationsService } from './notifications.service.js';
+import { SseService } from './sse.service.js';
 
 @Module({
   controllers: [NotificationsController, NotificationsAdminController],
-  providers: [NotificationsService, NotificationsScheduler, StaffGuard],
-  exports: [NotificationsService],
+  providers: [NotificationsService, NotificationsScheduler, SseService, StaffGuard],
+  exports: [NotificationsService, SseService],
 })
 export class NotificationsModule {}

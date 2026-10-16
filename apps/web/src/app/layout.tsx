@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import '@fontsource-variable/plus-jakarta-sans';
 import './globals.css';
 import { LanguageProvider } from '@/lib/i18n/language-context';
+import { RealtimeNotificationToast } from '@/components/realtime-notification-toast';
 
 export const metadata: Metadata = {
   title: {
@@ -25,7 +26,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full font-sans">
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider>
+          {children}
+          <RealtimeNotificationToast />
+        </LanguageProvider>
       </body>
     </html>
   );

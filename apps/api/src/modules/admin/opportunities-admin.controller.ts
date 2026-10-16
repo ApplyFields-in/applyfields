@@ -57,6 +57,8 @@ function oneOf<T extends string>(
   return value as T;
 }
 
+import { NotificationsService } from '../notifications/notifications.service.js';
+
 /** Internal Portal → Opportunities: every job in any status. Reviewer and above. */
 @Controller('admin')
 @UseGuards(StaffGuard)
@@ -66,6 +68,7 @@ export class OpportunitiesAdminController {
     private readonly opportunities: OpportunitiesAdminService,
     private readonly review: ReviewService,
     private readonly cache: CacheService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** GET /admin/opportunities?q=&status=&type=&page= — most recently changed first, 50 per page */
@@ -144,6 +147,8 @@ export class OpportunitiesAdminController {
     const res = await this.opportunities.publish(id, actor);
     this.cache.deletePrefix('opportunities');
     this.cache.delete('home:summary');
+    // Instant Web Push & In-app alerts to subscribed/premium candidates (free users get 12h digest)
+    void this.notifications.notifySubscribersNewOpportunity(id).catch(() => null);
     return res;
   }
 

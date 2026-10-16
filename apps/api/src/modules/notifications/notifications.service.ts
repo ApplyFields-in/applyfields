@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import type { Response } from 'express';
 import type {
+  AdminBroadcastInput,
+  AdminBroadcastResult,
   AdminNotificationOverview,
   DeliveryStatus,
   ManualAlertInput,
@@ -11,12 +14,16 @@ import type {
   NotificationPreferences,
   NotificationPreferencesInput,
   NotificationType,
+  PushPublicKeyResponse,
+  PushSubscriptionInput,
 } from '@applyfields/types';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { jwtAccessSecret } from '../../common/jwt-secret.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { addDays, todayIst } from '../opportunities/opportunities.service.js';
 import { renderEmail, sendWithResend } from './email.js';
+import { getVapidKeys, sendWebPush } from './web-push.js';
+import { SseService } from './sse.service.js';
 import {
   DEFAULT_REMINDER_DAYS,
   emailAllowed,
@@ -61,11 +68,13 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly sse: SseService,
   ) {}
 
   /**
-   * One in-app notification per user, plus a queued email where allowed. Users who muted the type
-   * are skipped; anyone already notified under the same dedupe key is skipped by the database.
+   * One in-app notification per user, plus real-time SSE toast, web push (where allowed),
+   * and a queued email where allowed. Users who muted the type are skipped; anyone already
+   * notified under the same dedupe key is skipped by the database.
    * Returns how many notifications were created.
    */
   async notify(userIds: string[], n: NewNotification, key: (userId: string) => string | null): Promise<number> {
@@ -78,7 +87,7 @@ export class NotificationsService {
       }),
       this.prisma.notification_preferences.findMany({
         where: { user_id: { in: ids } },
-        select: { user_id: true, email_enabled: true, muted_types: true },
+        select: { user_id: true, email_enabled: true, push_enabled: true, muted_types: true },
       }),
       this.emailConsentWithdrawn(ids),
     ]);
@@ -101,6 +110,20 @@ export class NotificationsService {
       select: { id: true, user_id: true },
     });
 
+    // 1. Emit instant in-app Server-Sent Event (SSE) toasts to any active browser tabs
+    for (const c of created) {
+      this.sse.sendToUser(c.user_id, 'notification', {
+        id: c.id,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        link: n.link,
+        read: false,
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    // 2. Queue emails where allowed
     const userBy = new Map(targets.map((u) => [u.id, u]));
     const emails = created.filter((c) => {
       const u = userBy.get(c.user_id)!;
@@ -117,7 +140,62 @@ export class NotificationsService {
       });
       this.kick();
     }
+
+    // 3. Dispatch native W3C Web Push notifications
+    const pushTargets = created.filter((c) => prefBy.get(c.user_id)?.push_enabled ?? true);
+    if (pushTargets.length) {
+      void this.dispatchWebPush(pushTargets, n);
+    }
+
     return created.length;
+  }
+
+  /** Background dispatcher for W3C Web Push using VAPID keys */
+  private async dispatchWebPush(
+    items: { id: string; user_id: string }[],
+    n: NewNotification,
+  ): Promise<void> {
+    try {
+      const userIds = items.map((i) => i.user_id);
+      const subs = await this.prisma.push_subscriptions.findMany({
+        where: { user_id: { in: userIds } },
+      });
+      if (subs.length === 0) return;
+
+      const itemByUser = new Map(items.map((i) => [i.user_id, i.id]));
+
+      for (const sub of subs) {
+        const notifId = itemByUser.get(sub.user_id);
+        const res = await sendWebPush(
+          { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+          {
+            title: n.title,
+            body: n.body,
+            link: n.link,
+            tag: n.type,
+          },
+        );
+
+        if (res.expired) {
+          await this.prisma.push_subscriptions.delete({ where: { id: sub.id } }).catch(() => null);
+        }
+
+        if (notifId) {
+          await this.prisma.notification_deliveries.create({
+            data: {
+              notification_id: notifId,
+              channel: 'push',
+              status: res.success ? 'sent' : 'failed',
+              provider: 'web-push',
+              sent_at: res.success ? new Date() : null,
+              last_error: res.error ?? null,
+            },
+          }).catch(() => null);
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`Web push batch dispatch error: ${(err as Error).message}`);
+    }
   }
 
   /** Users whose latest email_updates consent says no. */
@@ -175,6 +253,51 @@ export class NotificationsService {
         ...parent,
       },
       () => updateKey(u.id),
+    );
+  }
+
+  /**
+   * Premium / Subscribed instant dispatch:
+   * When an opportunity is published, active subscribers receive an instant alert.
+   * Free candidates receive the consolidated notice in the next 12-hour digest.
+   */
+  async notifySubscribersNewOpportunity(opportunityId: string): Promise<number> {
+    const opp = await this.prisma.opportunities.findUnique({
+      where: { id: opportunityId },
+      select: { id: true, title: true, type: true, slug: true, status: true },
+    });
+    if (!opp || opp.status !== 'published') return 0;
+
+    const subs = await this.prisma.subscriptions.findMany({
+      where: {
+        status: 'active',
+        OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+      },
+      select: { user_id: true },
+    });
+    const subscriberIds = [...new Set(subs.map((s) => s.user_id).filter((id): id is string => Boolean(id)))];
+    if (subscriberIds.length === 0) return 0;
+
+    const notifType: NotificationType =
+      opp.type === 'govt_job'
+        ? 'new_job'
+        : opp.type === 'exam'
+          ? 'new_exam'
+          : opp.type === 'scholarship'
+            ? 'new_scholarship'
+            : 'new_admission';
+
+    return this.notify(
+      subscriberIds,
+      {
+        type: notifType,
+        title: `⚡ Instant Alert: ${opp.title}`,
+        body: `New ${opp.type.replace('_', ' ')} published. Tap to check requirements and eligibility.`,
+        link: opportunityPath(opp.type, opp.slug),
+        item_type: 'opportunity',
+        item_id: opp.id,
+      },
+      () => `instant_opp:${opp.id}`,
     );
   }
 
@@ -407,13 +530,16 @@ export class NotificationsService {
   }
 
   async preferences(userId: string): Promise<NotificationPreferences> {
-    const [p, u] = await Promise.all([
+    const [p, u, isSubscribed] = await Promise.all([
       this.prisma.notification_preferences.findUnique({ where: { user_id: userId } }),
       this.prisma.users.findUnique({ where: { id: userId }, select: { email: true, email_verified_at: true } }),
+      this.isUserSubscribed(userId),
     ]);
     return {
       email_enabled: p?.email_enabled ?? true,
       email_available: Boolean(u?.email && u.email_verified_at),
+      push_enabled: p?.push_enabled ?? true,
+      is_subscribed: isSubscribed,
       muted_types: (p?.muted_types ?? []).filter((t): t is MutableNotificationType =>
         (MUTABLE_TYPES as string[]).includes(t),
       ),
@@ -422,26 +548,159 @@ export class NotificationsService {
   }
 
   async savePreferences(userId: string, input: NotificationPreferencesInput): Promise<NotificationPreferences> {
-    const data = {
-      email_enabled: input.email_enabled,
-      muted_types: input.muted_types,
-      reminder_days_before: [...new Set(input.reminder_days_before)].sort((a, b) => b - a),
+    const data: {
+      email_enabled?: boolean;
+      push_enabled?: boolean;
+      muted_types?: string[];
+      reminder_days_before?: number[];
+      updated_at: Date;
+    } = {
+      updated_at: new Date(),
     };
+    if (typeof input.email_enabled === 'boolean') data.email_enabled = input.email_enabled;
+    if (typeof input.push_enabled === 'boolean') data.push_enabled = input.push_enabled;
+    if (input.muted_types) data.muted_types = input.muted_types;
+    if (input.reminder_days_before) {
+      data.reminder_days_before = [...new Set(input.reminder_days_before)].sort((a, b) => b - a);
+    }
+
     await this.prisma.notification_preferences.upsert({
       where: { user_id: userId },
-      create: { user_id: userId, ...data },
-      update: { ...data, updated_at: new Date() },
+      create: {
+        user_id: userId,
+        email_enabled: input.email_enabled ?? true,
+        push_enabled: input.push_enabled ?? true,
+        muted_types: input.muted_types ?? [],
+        reminder_days_before: input.reminder_days_before ?? DEFAULT_REMINDER_DAYS,
+      },
+      update: data,
     });
     return this.preferences(userId);
+  }
+
+  /* ------------------------------------------------------------------ Web Push & SSE */
+
+  getPushPublicKey(): PushPublicKeyResponse {
+    return { publicKey: getVapidKeys().publicKey };
+  }
+
+  async subscribePush(userId: string, input: PushSubscriptionInput): Promise<void> {
+    await this.prisma.push_subscriptions.upsert({
+      where: { endpoint: input.endpoint },
+      create: {
+        user_id: userId,
+        endpoint: input.endpoint,
+        p256dh: input.keys.p256dh,
+        auth: input.keys.auth,
+        user_agent: input.user_agent ?? null,
+      },
+      update: {
+        user_id: userId,
+        p256dh: input.keys.p256dh,
+        auth: input.keys.auth,
+        user_agent: input.user_agent ?? null,
+        updated_at: new Date(),
+      },
+    });
+
+    await this.prisma.notification_preferences.upsert({
+      where: { user_id: userId },
+      create: { user_id: userId, push_enabled: true },
+      update: { push_enabled: true, updated_at: new Date() },
+    });
+  }
+
+  async unsubscribePush(userId: string, endpoint?: string): Promise<void> {
+    if (endpoint) {
+      await this.prisma.push_subscriptions.deleteMany({
+        where: { user_id: userId, endpoint },
+      });
+    } else {
+      await this.prisma.push_subscriptions.deleteMany({
+        where: { user_id: userId },
+      });
+      await this.prisma.notification_preferences.updateMany({
+        where: { user_id: userId },
+        data: { push_enabled: false, updated_at: new Date() },
+      });
+    }
+  }
+
+  registerSseClient(userId: string, res: Response): void {
+    this.sse.addClient(userId, res);
+  }
+
+  async isUserSubscribed(userId: string): Promise<boolean> {
+    const sub = await this.prisma.subscriptions.findFirst({
+      where: {
+        user_id: userId,
+        status: 'active',
+        OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+      },
+      select: { id: true },
+    });
+    return Boolean(sub);
+  }
+
+  /**
+   * Twice-daily digest (09:00 AM & 09:00 PM IST) for regular candidates:
+   * Compiles new opportunities and updates published in the last 12 hours.
+   */
+  async runTwiceDailyDigest(): Promise<number> {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 3600 * 1000);
+    const [recentOpps, recentUpdates, allActiveUsers] = await Promise.all([
+      this.prisma.opportunities.findMany({
+        where: { status: 'published', published_at: { gte: twelveHoursAgo } },
+        select: { id: true, title: true, type: true, slug: true },
+        take: 10,
+      }),
+      this.prisma.updates.findMany({
+        where: { status: 'published', published_at: { gte: twelveHoursAgo } },
+        select: { id: true, title: true, kind: true },
+        take: 5,
+      }),
+      this.prisma.users.findMany({
+        where: { status: 'active', deleted_at: null },
+        select: { id: true },
+      }),
+    ]);
+
+    if (recentOpps.length === 0 && recentUpdates.length === 0) return 0;
+
+    const summaryParts: string[] = [];
+    if (recentOpps.length > 0) {
+      summaryParts.push(`${recentOpps.length} new ${recentOpps.length === 1 ? 'opportunity' : 'opportunities'}`);
+    }
+    if (recentUpdates.length > 0) {
+      summaryParts.push(`${recentUpdates.length} new ${recentUpdates.length === 1 ? 'admit card/result update' : 'updates'}`);
+    }
+
+    const title = `ApplyFields 12-Hour Digest: ${summaryParts.join(' & ')}`;
+    const topItem = recentOpps[0];
+    const link = topItem ? opportunityPath(topItem.type, topItem.slug) : '/notifications';
+    const body = `New releases today: ${recentOpps.slice(0, 3).map((o) => o.title).join(', ')}. Check eligibility and save before closing dates.`;
+
+    const digestBucket = new Date().toISOString().slice(0, 13);
+    return this.notify(
+      allActiveUsers.map((u) => u.id),
+      {
+        type: 'system',
+        title,
+        body,
+        link,
+      },
+      (userId) => `digest:${digestBucket}:${userId}`,
+    );
   }
 
   /* ------------------------------------------------------------------ Internal Portal */
 
   async overview(status?: DeliveryStatus): Promise<AdminNotificationOverview> {
-    const [grouped, inAppTotal, inAppUnread, rows] = await Promise.all([
+    const [grouped, inAppTotal, inAppUnread, pushTotal, rows] = await Promise.all([
       this.prisma.notification_deliveries.groupBy({ by: ['status'], _count: { _all: true } }),
       this.prisma.notifications.count(),
       this.prisma.notifications.count({ where: { read_at: null } }),
+      this.prisma.push_subscriptions.count(),
       this.prisma.notification_deliveries.findMany({
         where: status ? { status } : {},
         orderBy: { created_at: 'desc' },
@@ -458,7 +717,15 @@ export class NotificationsService {
         },
       }),
     ]);
-    const counts = { pending: 0, sent: 0, delivered: 0, failed: 0, in_app_total: inAppTotal, in_app_unread: inAppUnread };
+    const counts = {
+      pending: 0,
+      sent: 0,
+      delivered: 0,
+      failed: 0,
+      in_app_total: inAppTotal,
+      in_app_unread: inAppUnread,
+      push_subscriptions_total: pushTotal,
+    };
     for (const g of grouped) counts[g.status] = g._count._all;
     return {
       counts,
@@ -517,6 +784,85 @@ export class NotificationsService {
       },
     });
     return { notified };
+  }
+
+  /**
+   * Broadcast alert from Staff/Admin Portal:
+   * Supports audience 'all', 'subscribers', 'savers', or specific 'user' by email.
+   * Delivers in-app notification, Web Push, and optionally queues email.
+   */
+  async broadcast(input: AdminBroadcastInput, actor: string | null): Promise<AdminBroadcastResult> {
+    let userIds: string[];
+    let item: Pick<NewNotification, 'item_type' | 'item_id'> = {};
+
+    if (input.audience.kind === 'all') {
+      const users = await this.prisma.users.findMany({
+        where: { status: 'active', deleted_at: null },
+        select: { id: true },
+      });
+      userIds = users.map((u) => u.id);
+    } else if (input.audience.kind === 'subscribers') {
+      const subs = await this.prisma.subscriptions.findMany({
+        where: {
+          status: 'active',
+          OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+        },
+        select: { user_id: true },
+      });
+      userIds = subs.map((s) => s.user_id).filter((id): id is string => Boolean(id));
+    } else if (input.audience.kind === 'savers') {
+      const o = await this.prisma.opportunities.findUnique({
+        where: { slug: input.audience.opportunity_slug },
+        select: { id: true },
+      });
+      if (!o) throw new NotFoundException(`No job or exam with slug ${input.audience.opportunity_slug}`);
+      const savers = await this.prisma.saved_items.findMany({
+        where: { item_type: 'opportunity', item_id: o.id },
+        select: { user_id: true },
+      });
+      userIds = savers.map((s) => s.user_id);
+      item = { item_type: 'opportunity', item_id: o.id };
+    } else {
+      const u = await this.prisma.users.findFirst({
+        where: { email: { equals: input.audience.email, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (!u) throw new BadRequestException({ message: 'No user with this email' });
+      userIds = [u.id];
+    }
+
+    const broadcastId = randomUUID();
+    const notified = await this.notify(
+      userIds,
+      {
+        type: 'system',
+        title: input.title,
+        body: input.body,
+        link: input.link,
+        ...item,
+      },
+      (userId) => `broadcast:${broadcastId}:${userId}`,
+    );
+
+    const pushCount = await this.prisma.push_subscriptions.count({
+      where: { user_id: { in: userIds } },
+    });
+
+    await this.prisma.audit_logs.create({
+      data: {
+        actor_id: actor,
+        action: 'notification.broadcast',
+        target_type: 'notification',
+        target_id: broadcastId,
+        details: JSON.parse(JSON.stringify({ ...input, notified, push_subscriptions_targeted: pushCount })) as Prisma.InputJsonValue,
+      },
+    });
+
+    return {
+      notified,
+      push_sent: pushCount,
+      email_queued: notified,
+    };
   }
 
   /** Failed email → back in the queue with fresh attempts. */

@@ -122,3 +122,38 @@ describe('renderEmail', () => {
     expect(e.text).toContain('Unsubscribe: https://api/unsub?token=t');
   });
 });
+
+describe('Web Push VAPID and SSE Engine', () => {
+  it('generates or retrieves valid VAPID keys', async () => {
+    const { getVapidKeys } = await import('./web-push.js');
+    const keys = getVapidKeys();
+    expect(keys.publicKey).toBeDefined();
+    expect(keys.publicKey.length).toBeGreaterThan(20);
+    expect(keys.privateKey).toBeDefined();
+    expect(keys.privateKey.length).toBeGreaterThan(20);
+  });
+
+  it('manages client connections and broadcasts in SseService', async () => {
+    const { SseService } = await import('./sse.service.js');
+    const sse = new SseService();
+    expect(sse.getActiveConnectionsCount()).toBe(0);
+
+    const written: string[] = [];
+    const mockRes = {
+      write: (chunk: string) => {
+        written.push(chunk);
+        return true;
+      },
+      on: () => {},
+    } as unknown as import('express').Response;
+
+    sse.addClient('user-test-1', mockRes);
+    expect(sse.getActiveConnectionsCount()).toBe(1);
+    expect(written[0]).toContain('event: connected');
+
+    sse.sendToUser('user-test-1', 'notification', { title: 'Test Alert' });
+    expect(written[1]).toContain('event: notification');
+    expect(written[1]).toContain('Test Alert');
+  });
+});
+

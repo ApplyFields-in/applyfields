@@ -12,6 +12,7 @@ import { Bell, CheckCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { API_URL, apiPost, apiPut } from '@/lib/api';
+import { useWebPush } from '@/lib/push/use-web-push';
 
 const TYPE_LABEL: Partial<Record<NotificationItem['type'], string>> = {
   closing_reminder: 'Reminder',
@@ -121,12 +122,14 @@ export function NotificationInbox({ initial }: { initial: NotificationList }) {
 export function NotificationSettings({ initial }: { initial: NotificationPreferences }) {
   const [prefs, setPrefs] = useState(initial);
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const push = useWebPush();
 
   async function save(next: NotificationPreferences) {
     setPrefs(next);
     setState('saving');
     const body: NotificationPreferencesInput = {
       email_enabled: next.email_enabled,
+      push_enabled: next.push_enabled,
       muted_types: next.muted_types,
       reminder_days_before: next.reminder_days_before,
     };
@@ -162,23 +165,62 @@ export function NotificationSettings({ initial }: { initial: NotificationPrefere
         }
       />
 
-      <label className="flex items-start gap-3 rounded-2xl bg-canvas p-3">
-        <input
-          type="checkbox"
-          className="mt-0.5 size-4 accent-teal"
-          checked={prefs.email_enabled && prefs.email_available}
-          disabled={!prefs.email_available}
-          onChange={(e) => save({ ...prefs, email_enabled: e.target.checked })}
-        />
-        <span className="text-sm">
-          <span className="font-semibold">Also send these by email</span>
-          <span className="block text-teal/80">
-            {prefs.email_available
-              ? 'Every email has an unsubscribe link.'
-              : 'Add and verify an email address in your account to get emails.'}
+      <div className="space-y-3">
+        {/* Web Push Notification Toggle */}
+        <label className="flex items-start gap-3 rounded-2xl bg-canvas p-3 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 accent-teal"
+            checked={push.isSubscribed && (prefs.push_enabled ?? true)}
+            disabled={push.isLoading || !push.isSupported}
+            onChange={async (e) => {
+              if (e.target.checked) {
+                const res = await push.subscribe();
+                if (res.ok) save({ ...prefs, push_enabled: true });
+              } else {
+                await push.unsubscribe();
+                save({ ...prefs, push_enabled: false });
+              }
+            }}
+          />
+          <span className="text-sm">
+            <span className="font-semibold flex items-center gap-2">
+              Browser & Device Push Alerts
+              <Badge tone={prefs.is_subscribed ? 'teal' : 'outline'}>
+                {prefs.is_subscribed ? '⚡ Instant' : '12h Digest'}
+              </Badge>
+            </span>
+            <span className="block text-teal/80 mt-0.5 text-xs">
+              {!push.isSupported
+                ? 'Web Push is not supported in this browser window.'
+                : push.permission === 'denied'
+                  ? 'Notifications are blocked in your browser settings. Unblock to receive alerts.'
+                  : prefs.is_subscribed
+                    ? 'Subscribed account: You receive instant notifications as soon as jobs, admit cards, or results are published.'
+                    : 'Standard account: Free 12-hour consolidated digests at 9 AM & 9 PM IST.'}
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+
+        {/* Email Notification Toggle */}
+        <label className="flex items-start gap-3 rounded-2xl bg-canvas p-3 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 accent-teal"
+            checked={prefs.email_enabled && prefs.email_available}
+            disabled={!prefs.email_available}
+            onChange={(e) => save({ ...prefs, email_enabled: e.target.checked })}
+          />
+          <span className="text-sm">
+            <span className="font-semibold">Also send these by email</span>
+            <span className="block text-teal/80 mt-0.5 text-xs">
+              {prefs.email_available
+                ? 'Every email has an unsubscribe link.'
+                : 'Add and verify an email address in your account to get emails.'}
+            </span>
+          </span>
+        </label>
+      </div>
 
       <fieldset className="mt-4">
         <legend className="mb-2 text-sm font-semibold">Notify me about</legend>
