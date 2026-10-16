@@ -47,8 +47,9 @@ export default async function NotificationsPage({ searchParams }: { searchParams
       ) : (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               {[
+                { label: 'Push Devices', value: data.counts.push_subscriptions_total ?? 0 },
                 { label: 'Emails sent', value: data.counts.sent + data.counts.delivered },
                 { label: 'Pending', value: data.counts.pending },
                 { label: 'Failed', value: data.counts.failed },

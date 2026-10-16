@@ -21,7 +21,11 @@ export interface AuthenticatedRequest extends Request {
 function tokenFrom(request: Request): string | undefined {
   const authHeader = request.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) return authHeader.split(' ')[1];
-  return request.cookies?.accessToken ?? request.cookies?.access_token;
+  return (
+    request.cookies?.accessToken ??
+    request.cookies?.access_token ??
+    (typeof request.query?.token === 'string' ? request.query.token : undefined)
+  );
 }
 
 @Injectable()

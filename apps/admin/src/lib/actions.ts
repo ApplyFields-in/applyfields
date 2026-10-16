@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import type {
+  AdminBroadcastInput,
+  AdminBroadcastResult,
   AdminInstitutionInput,
   AdminUserItem,
   GovServiceInput,
@@ -164,6 +166,14 @@ export async function revokeRoleAction(id: string, role: string): Promise<Action
 /** Send a manual alert (in-app + email) to everyone who saved a job, or to one user. */
 export async function sendManualAlertAction(input: ManualAlertInput): Promise<ActionResponse<ManualAlertResult>> {
   const res = await apiPost<ManualAlertResult>('/admin/notifications/alert', input);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/notifications');
+  return { ok: true, data: res.data! };
+}
+
+/** Broadcast an alert across In-App and Web Push channels to All, Subscribers, or Savers. */
+export async function sendBroadcastAction(input: AdminBroadcastInput): Promise<ActionResponse<AdminBroadcastResult>> {
+  const res = await apiPost<AdminBroadcastResult>('/admin/notifications/broadcast', input);
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/notifications');
   return { ok: true, data: res.data! };

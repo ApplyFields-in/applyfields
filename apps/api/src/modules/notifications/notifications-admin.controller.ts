@@ -1,10 +1,28 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
-import type { AdminNotificationOverview, DeliveryStatus, ManualAlertInput, ManualAlertResult } from '@applyfields/types';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import type {
+  AdminBroadcastInput,
+  AdminBroadcastResult,
+  AdminNotificationOverview,
+  DeliveryStatus,
+  ManualAlertInput,
+  ManualAlertResult,
+} from '@applyfields/types';
 import { ActorId } from '../../common/actor.js';
 import { Roles } from '../../common/roles.decorator.js';
 import { StaffGuard } from '../../common/staff.guard.js';
 import { ZodPipe } from '../../common/zod.pipe.js';
-import { manualAlertSchema } from './notifications.schemas.js';
+import { adminBroadcastSchema, manualAlertSchema } from './notifications.schemas.js';
 import { NotificationsService } from './notifications.service.js';
 
 const STATUSES: DeliveryStatus[] = ['pending', 'sent', 'delivered', 'failed'];
@@ -23,6 +41,17 @@ export class NotificationsAdminController {
       throw new BadRequestException(`status must be one of: ${STATUSES.join(', ')}`);
     }
     return this.notifications.overview((status as DeliveryStatus) || undefined);
+  }
+
+  /** POST /admin/notifications/broadcast — multi-channel broadcast to All, Subscribers, or Savers */
+  @Post('notifications/broadcast')
+  @Roles('admin')
+  @HttpCode(200)
+  broadcast(
+    @Body(new ZodPipe(adminBroadcastSchema)) input: AdminBroadcastInput,
+    @ActorId() actor: string | null,
+  ): Promise<AdminBroadcastResult> {
+    return this.notifications.broadcast(input, actor);
   }
 
   /** POST /admin/notifications/alert — to everyone who saved a job, or to one user */

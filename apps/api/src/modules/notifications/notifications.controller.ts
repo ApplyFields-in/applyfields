@@ -1,9 +1,29 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
-import type { NotificationList, NotificationPreferences, NotificationPreferencesInput } from '@applyfields/types';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type {
+  NotificationList,
+  NotificationPreferences,
+  NotificationPreferencesInput,
+  PushPublicKeyResponse,
+  PushSubscriptionInput,
+} from '@applyfields/types';
 import type { Response } from 'express';
 import { ZodPipe } from '../../common/zod.pipe.js';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard.js';
-import { preferencesSchema } from './notifications.schemas.js';
+import { preferencesSchema, pushSubscriptionSchema } from './notifications.schemas.js';
 import { NotificationsService } from './notifications.service.js';
 
 const page = (title: string, body: string) =>
@@ -15,6 +35,60 @@ const page = (title: string, body: string) =>
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
+
+  /** GET /notifications/push-public-key — returns the VAPID public key */
+  @Get('push-public-key')
+  getPushPublicKey(): PushPublicKeyResponse {
+    return this.notifications.getPushPublicKey();
+  }
+
+  /** POST /notifications/push-subscribe — registers a browser push subscription */
+  @Post('push-subscribe')
+  @HttpCode(200)
+  @UseGuards(AuthGuard)
+  async pushSubscribe(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodPipe(pushSubscriptionSchema)) input: PushSubscriptionInput,
+  ): Promise<{ subscribed: true }> {
+    await this.notifications.subscribePush(req.user.userId, input);
+    return { subscribed: true };
+  }
+
+  /** DELETE /notifications/push-unsubscribe — unregisters push subscription */
+  @Delete('push-unsubscribe')
+  @HttpCode(200)
+  @UseGuards(AuthGuard)
+  async pushUnsubscribe(
+    @Req() req: AuthenticatedRequest,
+    @Body('endpoint') endpoint?: string,
+  ): Promise<{ unsubscribed: true }> {
+    await this.notifications.unsubscribePush(req.user.userId, endpoint);
+    return { unsubscribed: true };
+  }
+
+  /** POST /notifications/push-unsubscribe — alternative POST route */
+  @Post('push-unsubscribe')
+  @HttpCode(200)
+  @UseGuards(AuthGuard)
+  async pushUnsubscribePost(
+    @Req() req: AuthenticatedRequest,
+    @Body('endpoint') endpoint?: string,
+  ): Promise<{ unsubscribed: true }> {
+    await this.notifications.unsubscribePush(req.user.userId, endpoint);
+    return { unsubscribed: true };
+  }
+
+  /** GET /notifications/stream — Server-Sent Events stream for instant in-app toasts */
+  @Get('stream')
+  @UseGuards(AuthGuard)
+  stream(@Req() req: AuthenticatedRequest, @Res() res: Response): void {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+    this.notifications.registerSseClient(req.user.userId, res);
+  }
 
   /** GET /notifications — the latest 50, newest first, with the unread count */
   @Get()

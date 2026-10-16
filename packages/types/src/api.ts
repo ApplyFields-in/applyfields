@@ -655,12 +655,55 @@ export interface NotificationPreferences {
   email_enabled: boolean;
   /** false when the account has no verified email, so email can't be sent */
   email_available: boolean;
+  push_enabled: boolean;
+  /** true when user has active premium/instant alert subscription */
+  is_subscribed: boolean;
   muted_types: MutableNotificationType[];
   /** reminders go out this many days before a last date or exam date */
   reminder_days_before: number[];
 }
 
-export type NotificationPreferencesInput = Omit<NotificationPreferences, 'email_available'>;
+export type NotificationPreferencesInput = {
+  email_enabled?: boolean;
+  push_enabled?: boolean;
+  muted_types?: MutableNotificationType[];
+  reminder_days_before?: number[];
+};
+
+export interface PushSubscriptionKeys {
+  p256dh: string;
+  auth: string;
+}
+
+export interface PushSubscriptionInput {
+  endpoint: string;
+  keys: PushSubscriptionKeys;
+  user_agent?: string | null;
+}
+
+export interface PushPublicKeyResponse {
+  publicKey: string;
+}
+
+export type BroadcastAudience =
+  | { kind: 'all' }
+  | { kind: 'subscribers' }
+  | { kind: 'savers'; opportunity_slug: string }
+  | { kind: 'user'; email: string };
+
+export interface AdminBroadcastInput {
+  title: string;
+  body: string | null;
+  link: string | null;
+  audience: BroadcastAudience;
+  channels?: ('in_app' | 'push' | 'email')[];
+}
+
+export interface AdminBroadcastResult {
+  notified: number;
+  push_sent: number;
+  email_queued: number;
+}
 
 // ---------- Internal Portal → Notifications ----------
 
@@ -680,7 +723,7 @@ export interface AdminDeliveryItem {
 }
 
 export interface AdminNotificationOverview {
-  counts: Record<DeliveryStatus, number> & { in_app_total: number; in_app_unread: number };
+  counts: Record<DeliveryStatus, number> & { in_app_total: number; in_app_unread: number; push_subscriptions_total: number };
   items: AdminDeliveryItem[];
 }
 

@@ -18,6 +18,7 @@ export const isDaytimeIst = (now = new Date()) => {
 export class NotificationsScheduler implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(NotificationsScheduler.name);
   private timers: NodeJS.Timeout[] = [];
+  private lastDigestCycle: string | null = null;
 
   constructor(private readonly notifications: NotificationsService) {}
 
@@ -40,8 +41,24 @@ export class NotificationsScheduler implements OnApplicationBootstrap, OnApplica
         if (created) this.logger.log(`Created ${created} reminder${created === 1 ? '' : 's'}`);
       }
       this.notifications.kick();
+
+      // Check for 12-hour digest cycle (09:00 AM & 09:00 PM IST)
+      const now = new Date();
+      const istHours = new Date(now.getTime() + IST_OFFSET_MS).getUTCHours();
+      const istDate = new Date(now.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+      const currentCycle = `${istDate}-${istHours < 15 ? 'morning' : 'evening'}`;
+
+      if (this.lastDigestCycle !== currentCycle) {
+        if ((istHours >= 9 && istHours < 12) || (istHours >= 20 && istHours < 23)) {
+          this.lastDigestCycle = currentCycle;
+          const digestCount = await this.notifications.runTwiceDailyDigest();
+          if (digestCount) {
+            this.logger.log(`Dispatched 12-hour digest to ${digestCount} active candidates`);
+          }
+        }
+      }
     } catch (err) {
-      this.logger.warn(`Reminders failed: ${(err as Error).message}`);
+      this.logger.warn(`Scheduler run failed: ${(err as Error).message}`);
     }
   }
 }
