@@ -42,8 +42,14 @@ async function bootstrap() {
   const defaultOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:3001',
+    'http://127.0.0.1:3002',
+    'http://127.0.0.1:3003',
+    'https://partners.applyfields.com',
+    'https://service.applyfields.in',
   ];
   const configuredOrigins = (process.env.CORS_ORIGINS ?? '')
     .split(',')
@@ -61,6 +67,8 @@ async function bootstrap() {
       const isAllowed =
         origins.includes(requestOrigin) ||
         requestOrigin.endsWith('.vercel.app') ||
+        requestOrigin.endsWith('.applyfields.com') ||
+        requestOrigin.endsWith('.applyfields.in') ||
         /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin) ||
         /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(requestOrigin);
 

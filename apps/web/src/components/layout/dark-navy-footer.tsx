@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { CookiePreferencesTrigger } from '@/components/cookie-banner';
+import { PARTNER_PORTAL_URL } from '@/lib/urls';
 
 export function DarkNavyFooter() {
   const { t } = useLanguage();
@@ -79,6 +80,14 @@ export function DarkNavyFooter() {
                   className="hover:text-white"
                 >
                   {t('footer_internal_workspace')}
+                </a>
+                <a
+                  href={PARTNER_PORTAL_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-emerald-400 hover:text-emerald-300"
+                >
+                  Partner Portal
                 </a>
               </div>
             </div>
@@ -166,6 +175,17 @@ export function DarkNavyFooter() {
                 <Link href="/privacy" className="hover:text-white transition-colors">
                   {t('footer_privacy')}
                 </Link>
+              </li>
+              <li>
+                <a
+                  href={`${PARTNER_PORTAL_URL}/onboard`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-emerald-300 transition-colors flex items-center gap-1.5 text-emerald-400 font-semibold"
+                >
+                  <span>Become a Partner</span>
+                  <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1 py-0.2 rounded font-bold uppercase tracking-wider">MeeSeva/CSC</span>
+                </a>
               </li>
               <li>
                 <Link href="/cookie-policy" className="hover:text-white transition-colors">

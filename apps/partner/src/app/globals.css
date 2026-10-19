@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* ApplyFields palette + tokens */
+@import "../../../../packages/ui/src/theme.css";
+
+/* Let Tailwind see class names inside shared components */
+@source "../../../../packages/ui/src";
+
+@layer base {
+  body {
+    background-color: var(--color-bg, #f8fafc);
+    color: var(--color-ink, #0f172a);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}

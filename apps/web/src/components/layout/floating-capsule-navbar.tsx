@@ -18,11 +18,14 @@ import {
   Settings,
   ChevronDown,
   MessageSquare,
+  Building2,
+  Printer,
 } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
 import type { MeResponse, UserSummary } from '@applyfields/types';
 import { LanguageSwitcher } from '../language-switcher';
 import { useLanguage } from '@/lib/i18n/language-context';
+import { PARTNER_PORTAL_URL, SERVICE_PORTAL_URL } from '@/lib/urls';
 
 export function FloatingCapsuleNavbar() {
   const pathname = usePathname();
@@ -186,6 +189,20 @@ export function FloatingCapsuleNavbar() {
               <Send className="size-4 text-[#0e7bf4]" />
               <span>{t('nav_apply', 'Apply')}</span>
             </Link>
+            <a
+              href={SERVICE_PORTAL_URL}
+              className="flex min-w-[82px] flex-col items-center gap-0.5 rounded-full px-3.5 py-4 text-xs font-semibold transition-all text-[#082046] hover:text-[#06b6d4] relative group"
+              title="Citizen Services: MeeSeva, CSC, PAN, Aadhaar & Xerox"
+            >
+              <div className="relative">
+                <Printer className="size-4 text-[#06b6d4]" />
+                <span className="absolute -top-1 -right-2 size-2 bg-cyan-400 rounded-full animate-pulse" />
+              </div>
+              <span className="flex items-center gap-0.5">
+                <span>Services</span>
+                <span className="text-[9px] font-bold text-cyan-700 bg-cyan-100 px-1 py-0.2 rounded-full">New</span>
+              </span>
+            </a>
           </div>
         </div>
 
@@ -264,6 +281,15 @@ export function FloatingCapsuleNavbar() {
                   <Link href="/account" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-3.5 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
                     <Settings className="size-3.5 text-[#536780]" /> Settings &amp; Security
                   </Link>
+                  <a
+                    href={PARTNER_PORTAL_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3.5 py-2 text-emerald-600 hover:bg-[#ecfdf5] font-semibold"
+                  >
+                    <Building2 className="size-3.5 text-emerald-600" /> Partner Portal (MeeSeva/CSC)
+                  </a>
                   <div className="my-1 border-t border-[#e3eaf3]" />
                   <button onClick={handleLogout} className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-[#be123c] hover:bg-[#fff1f2]">
                     <LogOut className="size-3.5" /> Sign out
