@@ -9,6 +9,7 @@ import {
   LatestUpdates,
   TrustNote,
 } from '@/components/home/home-blocks';
+import { ServicesQuickBridge } from '@/components/home/services-quick-bridge';
 import { ApiOffline } from '@/components/opportunity';
 import { apiGetAsUser } from '@/lib/server-api';
 import { ClientAuthDashboardSwitch } from '@/components/dashboard/client-auth-dashboard-switch';
@@ -23,6 +24,8 @@ export default async function HomePage() {
   const publicDashboard = (
     <div className="space-y-12 pb-12 pt-16">
       <Hero popular={liveHome?.popular_searches ?? []} deadlines={liveHome?.closing_soon ?? []} />
+
+      <ServicesQuickBridge />
 
       <ExploreAmbitionSection stats={liveHome?.stats ?? []} />
 

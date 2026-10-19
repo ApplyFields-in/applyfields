@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { PartnerDirectoryResponse, PartnerSummary } from '@applyfields/types';
 import { apiGet } from '@/lib/api';
+import { PARTNER_PORTAL_URL } from '@/lib/urls';
 
 const SERVICE_FILTERS = [
   { id: 'all', label: 'All Centers', type: undefined },
@@ -130,12 +131,14 @@ export default function AssistancePage() {
         </div>
 
         <div>
-          <Link
-            href="/partner"
+          <a
+            href={`${PARTNER_PORTAL_URL}/onboard`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-xl border border-[#c4d2e3] bg-white px-4 py-2.5 text-xs font-semibold text-[#082046] shadow-sm transition hover:bg-[#F0F4F8]"
           >
-            <Store className="size-4 text-[#0e7bf4]" /> Register as a Center
-          </Link>
+            <Store className="size-4 text-[#0e7bf4]" /> Register as a Center (Partner Portal)
+          </a>
         </div>
       </div>
 
@@ -233,12 +236,14 @@ export default function AssistancePage() {
                   Clear search
                 </button>
               )}
-              <Link
-                href="/partner"
+              <a
+                href={`${PARTNER_PORTAL_URL}/onboard`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-xl bg-[#082046] px-4 py-2 text-xs font-bold text-white hover:bg-[#061835]"
               >
-                <Store className="size-3.5" /> Register your center
-              </Link>
+                <Store className="size-3.5" /> Register your center (Partner Portal)
+              </a>
             </div>
           </div>
         ) : (
