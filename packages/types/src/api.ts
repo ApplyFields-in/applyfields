@@ -1183,6 +1183,8 @@ export interface PartnerRegistrationInput {
   district: string;
   city: string;
   pincode: string;
+  latitude?: number;
+  longitude?: number;
   service_areas?: string[];
   working_hours?: Record<string, string[]>;
   description?: string;
@@ -1199,6 +1201,8 @@ export interface PartnerUpdateInput {
   district?: string;
   city?: string;
   pincode?: string;
+  latitude?: number;
+  longitude?: number;
   working_hours?: Record<string, string[]>;
   is_available?: boolean;
 }
