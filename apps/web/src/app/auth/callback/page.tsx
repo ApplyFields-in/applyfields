@@ -93,6 +93,21 @@ function OAuthCallbackContent() {
           }
         }
 
+        // If email is still unresolved, decode ID token payload (standard for Apple & Microsoft)
+        if (!userEmail && idToken) {
+          try {
+            const parts = idToken.split('.');
+            if (parts.length === 3) {
+              const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+              const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
+              userEmail = payload.email || payload.preferred_username || payload.upn;
+              userName = payload.name || payload.displayName;
+            }
+          } catch {
+            // Non-fatal, backend will decode with Buffer
+          }
+        }
+
         const payload = {
           type: 'AF_OAUTH_SUCCESS',
           provider,
