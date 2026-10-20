@@ -104,6 +104,7 @@ export class DocumentsService {
             (r.details as Record<string, any>)?.masked_identifier || null,
           details: (r.details as Record<string, any>) || {},
           source: (r.source as any) || 'upload',
+          digilocker_uri: r.digilocker_uri || null,
           created_at: r.created_at.toISOString(),
           updated_at: r.updated_at.toISOString(),
         }));
@@ -143,16 +144,48 @@ export class DocumentsService {
       throw new BadRequestException('Document file exceeds the 10 MB maximum limit.');
     }
 
-    const safeName = (dto.fileName || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
+    return this.saveDocumentRecord(userId, {
+      documentTypeCode: dto.documentTypeCode,
+      title: dto.title,
+      fileName: dto.fileName,
+      mimeType: dto.mimeType,
+      buffer,
+      issuedOn: dto.issuedOn,
+      expiresOn: dto.expiresOn,
+      issuingAuthority: dto.issuingAuthority,
+      identifierNumber: dto.identifierNumber,
+      details: dto.details,
+      source: 'upload',
+    });
+  }
+
+  async saveDocumentRecord(
+    userId: string,
+    params: {
+      documentTypeCode: string;
+      title?: string;
+      fileName: string;
+      mimeType: string;
+      buffer: Buffer;
+      issuedOn?: string;
+      expiresOn?: string;
+      issuingAuthority?: string;
+      identifierNumber?: string;
+      details?: Record<string, any>;
+      source?: 'upload' | 'digilocker';
+      digilocker_uri?: string;
+    },
+  ): Promise<UserDocumentSummary> {
+    const safeName = (params.fileName || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
     const objectName = `${Date.now()}_${safeName}`;
-    const remotePath = `documents/${userId}/${dto.documentTypeCode}/${objectName}`;
+    const remotePath = `documents/${userId}/${params.documentTypeCode}/${objectName}`;
 
     // Upload to Supabase Storage; fallback to local disk for dev
     const uploadedPath = await this.storageService.upload(
       this.storageService.documentsBucket,
       remotePath,
-      buffer,
-      dto.mimeType,
+      params.buffer,
+      params.mimeType,
     );
 
     let storagePath: string;
@@ -164,34 +197,44 @@ export class DocumentsService {
         'uploads',
         'documents',
         userId,
-        dto.documentTypeCode,
+        params.documentTypeCode,
       );
       if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
       storagePath = join(uploadDir, objectName);
-      writeFileSync(storagePath, buffer);
+      writeFileSync(storagePath, params.buffer);
     }
 
-    const maskedId = maskSensitiveIdentifier(dto.identifierNumber);
+    const maskedId = maskSensitiveIdentifier(params.identifierNumber);
     const extractedFields =
-      dto.details?.extracted_fields ||
+      params.details?.extracted_fields ||
       extractDocumentFields(
-        dto.documentTypeCode,
-        dto.fileName,
-        dto.identifierNumber,
-        buffer,
+        params.documentTypeCode,
+        params.fileName,
+        params.identifierNumber,
+        params.buffer,
       );
 
+    const docSource = params.source || 'upload';
+    const digilockerUri = params.digilocker_uri || null;
+
     const details = {
-      ...(dto.details || {}),
+      ...(params.details || {}),
       masked_identifier: maskedId,
       extracted_fields: extractedFields,
       uploaded_at: new Date().toISOString(),
+      ...(docSource === 'digilocker'
+        ? {
+            verified_by_digilocker: true,
+            verification_source: 'digilocker',
+            digilocker_uri: digilockerUri,
+          }
+        : {}),
     };
 
     const docId = randomUUID();
     const typeLabel =
-      DOCUMENT_TYPE_LABELS[dto.documentTypeCode] || dto.documentTypeCode;
-    const title = dto.title?.trim() || `${typeLabel} - ${dto.fileName}`;
+      DOCUMENT_TYPE_LABELS[params.documentTypeCode] || params.documentTypeCode;
+    const title = params.title?.trim() || `${typeLabel} - ${params.fileName}`;
 
     if (this.isPrismaUsable()) {
       try {
@@ -199,7 +242,7 @@ export class DocumentsService {
         await this.prisma.user_documents.updateMany({
           where: {
             user_id: userId,
-            document_type_code: dto.documentTypeCode,
+            document_type_code: params.documentTypeCode,
             deleted_at: null,
           },
           data: { deleted_at: new Date() },
@@ -207,9 +250,9 @@ export class DocumentsService {
 
         // Ensure document_types entry exists
         await this.prisma.document_types.upsert({
-          where: { code: dto.documentTypeCode },
+          where: { code: params.documentTypeCode },
           create: {
-            code: dto.documentTypeCode,
+            code: params.documentTypeCode,
             name: typeLabel,
             category: 'citizen_identity',
           },
@@ -220,17 +263,18 @@ export class DocumentsService {
           data: {
             id: docId,
             user_id: userId,
-            document_type_code: dto.documentTypeCode,
+            document_type_code: params.documentTypeCode,
             title,
             storage_path: storagePath,
-            file_name: dto.fileName,
-            mime_type: dto.mimeType,
-            size_bytes: buffer.length,
-            issued_on: dto.issuedOn ? new Date(dto.issuedOn) : null,
-            expires_on: dto.expiresOn ? new Date(dto.expiresOn) : null,
-            issuing_authority: dto.issuingAuthority || null,
+            file_name: params.fileName,
+            mime_type: params.mimeType,
+            size_bytes: params.buffer.length,
+            issued_on: params.issuedOn ? new Date(params.issuedOn) : null,
+            expires_on: params.expiresOn ? new Date(params.expiresOn) : null,
+            issuing_authority: params.issuingAuthority || null,
             details: details as any,
-            source: 'upload',
+            source: docSource as any,
+            digilocker_uri: digilockerUri,
           },
         });
 
@@ -252,7 +296,8 @@ export class DocumentsService {
           issuing_authority: created.issuing_authority,
           masked_identifier: maskedId,
           details,
-          source: 'upload',
+          source: (created.source as any) || docSource,
+          digilocker_uri: created.digilocker_uri || digilockerUri,
           created_at: created.created_at.toISOString(),
           updated_at: created.updated_at.toISOString(),
         };
@@ -266,18 +311,19 @@ export class DocumentsService {
     const docSummary: UserDocumentSummary & { storage_path: string } = {
       id: docId,
       user_id: userId,
-      document_type_code: dto.documentTypeCode,
+      document_type_code: params.documentTypeCode,
       document_type_name: typeLabel,
       title,
-      file_name: dto.fileName,
-      mime_type: dto.mimeType,
-      size_bytes: buffer.length,
-      issued_on: dto.issuedOn || null,
-      expires_on: dto.expiresOn || null,
-      issuing_authority: dto.issuingAuthority || null,
+      file_name: params.fileName,
+      mime_type: params.mimeType,
+      size_bytes: params.buffer.length,
+      issued_on: params.issuedOn || null,
+      expires_on: params.expiresOn || null,
+      issuing_authority: params.issuingAuthority || null,
       masked_identifier: maskedId,
       details,
-      source: 'upload',
+      source: docSource,
+      digilocker_uri: digilockerUri,
       created_at: now,
       updated_at: now,
       storage_path: storagePath,
@@ -285,7 +331,7 @@ export class DocumentsService {
 
     // Remove any previous of same type
     for (const [key, val] of this.inMemoryDocs.entries()) {
-      if (val.user_id === userId && val.document_type_code === dto.documentTypeCode) {
+      if (val.user_id === userId && val.document_type_code === params.documentTypeCode) {
         this.inMemoryDocs.delete(key);
       }
     }
@@ -327,6 +373,7 @@ export class DocumentsService {
               (doc.details as Record<string, any>)?.masked_identifier || null,
             details: (doc.details as Record<string, any>) || {},
             source: (doc.source as any) || 'upload',
+            digilocker_uri: doc.digilocker_uri || null,
             created_at: doc.created_at.toISOString(),
             updated_at: doc.updated_at.toISOString(),
           };
