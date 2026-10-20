@@ -302,7 +302,7 @@ export function SocialAuthButtons({
     onError?.(null);
     setActiveProvider('microsoft');
 
-    const callbackUrl = `${window.location.origin}/auth/callback?provider=microsoft`;
+    const callbackUrl = `${window.location.origin}/auth/callback`;
     const msAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
       clientId,
     )}&response_type=token&redirect_uri=${encodeURIComponent(
@@ -317,7 +317,7 @@ export function SocialAuthButtons({
     onError?.(null);
     setActiveProvider('apple');
 
-    const callbackUrl = `${window.location.origin}/auth/callback?provider=apple`;
+    const callbackUrl = `${window.location.origin}/auth/callback`;
     const appleAuthUrl = `https://appleid.apple.com/auth/authorize?client_id=${encodeURIComponent(
       clientId,
     )}&redirect_uri=${encodeURIComponent(
