@@ -39,7 +39,8 @@ function Steps({ step }: { step: 'form' | 'verify' }) {
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTarget = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next') || '/me';
+  const rawRedirect = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next');
+  const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/account';
 
   const [step, setStep] = useState<'form' | 'verify'>('form');
   const [fullName, setFullName] = useState('');

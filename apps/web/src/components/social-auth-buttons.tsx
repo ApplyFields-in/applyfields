@@ -92,7 +92,7 @@ export function SocialAuthButtons({
   const [customEmail, setCustomEmail] = useState('');
   const [customName, setCustomName] = useState('');
 
-  const targetPath = redirectUrl || '/me';
+  const targetPath = redirectUrl && redirectUrl !== '/me' ? redirectUrl : '/account';
 
   // Get configured Client IDs (from env vars or local storage override)
   function getClientId(provider: 'google' | 'microsoft' | 'apple'): string {

@@ -25,7 +25,8 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const verifiedNotice = searchParams.get('verified') === 'true';
-  const redirectTarget = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next') || '/me';
+  const rawRedirect = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next');
+  const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/account';
 
   const [mode, setMode] = useState<'password' | 'otp' | 'forgot'>('password');
 
