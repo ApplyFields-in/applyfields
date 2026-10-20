@@ -101,7 +101,7 @@ export function SocialAuthButtons({
       return (
         process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
         localStorage.getItem('af_google_client_id') ||
-        ''
+        '1050658504646-ld2jm8qgkv8aiq68nu7o6fbjpgq5o7to.apps.googleusercontent.com'
       );
     }
     if (provider === 'microsoft') {
