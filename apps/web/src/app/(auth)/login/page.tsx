@@ -237,19 +237,7 @@ function LoginForm() {
       </p>
 
       {mode !== 'forgot' && (
-        <div className="mt-6">
-          <SocialAuthButtons
-            mode="login"
-            redirectUrl={redirectTarget}
-            onError={setError}
-            onSuccess={setSuccess}
-          />
-          <AuthDivider label="or sign in with password / mobile" />
-        </div>
-      )}
-
-      {mode !== 'forgot' && (
-        <div role="tablist" aria-label="How to log in" className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-paper p-1">
+        <div role="tablist" aria-label="How to log in" className="mt-6 grid grid-cols-2 gap-1 rounded-xl bg-paper p-1">
           {(['password', 'otp'] as const).map((m) => (
             <button
               key={m}
@@ -326,6 +314,17 @@ function LoginForm() {
             </button>
           </div>
 
+          {/* Social login buttons: positioned below Remember me and above Sign in */}
+          <div className="space-y-3 pt-1">
+            <AuthDivider label="or continue with" />
+            <SocialAuthButtons
+              mode="login"
+              redirectUrl={redirectTarget}
+              onError={setError}
+              onSuccess={setSuccess}
+            />
+          </div>
+
           <button type="submit" disabled={loading} className={PRIMARY}>
             {loading ? 'Signing in...' : 'Sign in'}
             {!loading && <ArrowRight className="size-4" aria-hidden="true" />}
@@ -374,11 +373,25 @@ function LoginForm() {
               <Checkbox checked={rememberMe} onChange={setRememberMe}>
                 Remember me
               </Checkbox>
-              <button type="submit" disabled={loading || otpCode.length !== 6} className={PRIMARY}>
-                {loading ? 'Checking code...' : 'Sign in'}
-                {!loading && <ArrowRight className="size-4" aria-hidden="true" />}
-              </button>
             </>
+          )}
+
+          {/* Social login buttons: positioned below Remember me and above Sign in */}
+          <div className="space-y-3 pt-1">
+            <AuthDivider label="or continue with" />
+            <SocialAuthButtons
+              mode="login"
+              redirectUrl={redirectTarget}
+              onError={setError}
+              onSuccess={setSuccess}
+            />
+          </div>
+
+          {otpSent && (
+            <button type="submit" disabled={loading || otpCode.length !== 6} className={PRIMARY}>
+              {loading ? 'Checking code...' : 'Sign in'}
+              {!loading && <ArrowRight className="size-4" aria-hidden="true" />}
+            </button>
           )}
         </form>
       )}
