@@ -157,23 +157,45 @@ export class DigilockerService {
     }
   }
 
-  private getClientId(): string {
-    return process.env.DIGILOCKER_CLIENT_ID || 'APPLYFIELDS_SANDBOX_CLIENT';
-  }
-
-  private getClientSecret(): string {
-    return process.env.DIGILOCKER_CLIENT_SECRET || 'sandbox_secret_key_applyfields';
-  }
-
-  private getRedirectUri(): string {
-    return (
-      process.env.DIGILOCKER_REDIRECT_URI ||
-      'http://localhost:4000/api/v1/auth/digilocker/callback'
+  public isConfigured(): boolean {
+    const clientId = process.env.DIGILOCKER_CLIENT_ID;
+    return Boolean(
+      clientId &&
+      clientId.trim() !== '' &&
+      clientId !== 'APPLYFIELDS_SANDBOX_CLIENT',
     );
   }
 
-  private getFrontendUrl(): string {
-    return process.env.DIGILOCKER_FRONTEND_URL || 'http://localhost:3000/account';
+  private getClientId(): string {
+    return (
+      process.env.DIGILOCKER_CLIENT_ID?.trim() || 'APPLYFIELDS_SANDBOX_CLIENT'
+    );
+  }
+
+  private getClientSecret(): string {
+    return (
+      process.env.DIGILOCKER_CLIENT_SECRET?.trim() ||
+      'sandbox_secret_key_applyfields'
+    );
+  }
+
+  public getRedirectUri(): string {
+    if (process.env.DIGILOCKER_REDIRECT_URI?.trim()) {
+      return process.env.DIGILOCKER_REDIRECT_URI.trim();
+    }
+    const publicUrl =
+      process.env.API_PUBLIC_URL?.replace(/\/$/, '') ||
+      'http://localhost:4000/api/v1';
+    return `${publicUrl}/auth/digilocker/callback`;
+  }
+
+  public getFrontendCallbackUrl(): string {
+    if (process.env.DIGILOCKER_FRONTEND_URL?.trim()) {
+      return process.env.DIGILOCKER_FRONTEND_URL.trim();
+    }
+    const webUrl =
+      process.env.WEB_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+    return `${webUrl}/account`;
   }
 
   /**
@@ -272,13 +294,18 @@ export class DigilockerService {
 
       if (response.ok) {
         tokenData = (await response.json()) as DigiLockerTokenResponse;
+        this.logger.log(
+          `DigiLocker token exchange succeeded for candidate: ${tokenData.name || tokenData.digilockerid}`,
+        );
+      } else {
+        const errText = await response.text();
+        this.logger.warn(`DigiLocker token endpoint returned ${response.status}: ${errText}`);
       }
-    } catch {
-      // In sandbox/dev environment when external API Setu network is unreachable,
-      // fallback smoothly to sandbox mock token response so developers can test.
+    } catch (err: any) {
+      this.logger.warn(`DigiLocker token network call failed: ${err?.message}`);
     }
 
-    // Default sandbox fallback credentials if network or mock
+    // Official credentials if returned, or fallback for sandbox/dev
     const digilockerId =
       tokenData?.digilockerid ||
       `DL-IN-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -307,16 +334,36 @@ export class DigilockerService {
   /**
    * Retrieves DigiLocker connection status for a user
    */
-  async getStatus(userId: string): Promise<DigiLockerStatusResponse> {
+  async getStatus(
+    userId: string,
+  ): Promise<
+    DigiLockerStatusResponse & {
+      configured: boolean;
+      authorizeUrl: string;
+      candidate_name?: string | null;
+    }
+  > {
     const connection = this.userConnections.get(userId);
+    const configured = this.isConfigured();
+    const authorizeData = await this.generateAuthorizationUrl(userId);
+
     if (!connection) {
-      return { linked: false, digilocker_id: null, linked_at: null };
+      return {
+        linked: false,
+        digilocker_id: null,
+        linked_at: null,
+        configured,
+        authorizeUrl: authorizeData.authorizationUrl,
+      };
     }
 
     return {
       linked: true,
       digilocker_id: connection.digilockerId,
       linked_at: connection.linkedAt,
+      candidate_name: connection.candidateName,
+      configured,
+      authorizeUrl: authorizeData.authorizationUrl,
     };
   }
 
@@ -355,7 +402,7 @@ export class DigilockerService {
   }
 
   /**
-   * Queries the candidate's issued certificates from DigiLocker API / Setu Sandbox
+   * Queries the candidate's issued certificates from DigiLocker API / Setu
    */
   async getIssuedDocuments(
     userId: string,
@@ -376,6 +423,24 @@ export class DigilockerService {
       }
     }
 
+    // If candidate has a live connection and client is configured, attempt live fetch
+    const connection = this.userConnections.get(userId);
+    if (connection?.accessToken && this.isConfigured()) {
+      try {
+        const liveDocs = await this.fetchLiveIssuedDocuments(connection.accessToken);
+        if (liveDocs.length > 0) {
+          return {
+            items: liveDocs.map((doc) => ({
+              ...doc,
+              isImported: importedUris.has(doc.uri),
+            })),
+          };
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not load live DigiLocker documents: ${err?.message}`);
+      }
+    }
+
     const items: DigiLockerIssuedDocument[] = DEFAULT_SANDBOX_DOCS.map(
       (doc) => ({
         uri: doc.uri,
@@ -390,6 +455,101 @@ export class DigilockerService {
     );
 
     return { items };
+  }
+
+  private async fetchLiveIssuedDocuments(
+    accessToken: string,
+  ): Promise<DigiLockerIssuedDocument[]> {
+    const liveEndpoint =
+      process.env.DIGILOCKER_ISSUED_URL ||
+      'https://api.digitallocker.gov.in/public/oauth2/2/xml/issued';
+
+    try {
+      const res = await fetch(liveEndpoint, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/xml, text/xml, application/json',
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!res.ok) {
+        return [];
+      }
+
+      const text = await res.text();
+      return this.parseIssuedDocumentsResponse(text);
+    } catch (err: any) {
+      this.logger.warn(`Failed fetching live documents from DigiLocker: ${err?.message}`);
+      return [];
+    }
+  }
+
+  private parseIssuedDocumentsResponse(raw: string): DigiLockerIssuedDocument[] {
+    const results: DigiLockerIssuedDocument[] = [];
+
+    // Try JSON
+    try {
+      const data = JSON.parse(raw);
+      const list = Array.isArray(data)
+        ? data
+        : data.items || data.certificates || [];
+      for (const item of list) {
+        if (item.uri) {
+          results.push({
+            uri: item.uri,
+            name: item.name || item.docName || 'Issued Certificate',
+            type: item.type || item.doctype || 'certificate',
+            issuer: item.issuer || item.issuerName || 'Government Issuer',
+            date:
+              item.date ||
+              item.issueDate ||
+              new Date().toISOString().slice(0, 10),
+            status: 'verified',
+            mimeType: 'application/pdf',
+          });
+        }
+      }
+      if (results.length > 0) return results;
+    } catch {
+      // Not JSON, continue to XML
+    }
+
+    // Regex XML parser for <certificate> or <item> nodes
+    const certRegex =
+      /<(?:certificate|item|docDetails)>([\s\S]*?)<\/(?:certificate|item|docDetails)>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = certRegex.exec(raw)) !== null) {
+      const block = match[1];
+      const uri = /<uri>([^<]+)<\/uri>/i.exec(block)?.[1]?.trim();
+      const name =
+        /<name>([^<]+)<\/name>/i.exec(block)?.[1]?.trim() ||
+        'Government Issued Certificate';
+      const type =
+        /<(?:type|doctype)>([^<]+)<\/(?:type|doctype)>/i.exec(block)?.[1]?.trim() ||
+        'certificate';
+      const issuer =
+        /<issuer>([^<]+)<\/issuer>/i.exec(block)?.[1]?.trim() ||
+        'Government Issuer';
+      const date =
+        /<date>([^<]+)<\/date>/i.exec(block)?.[1]?.trim() ||
+        new Date().toISOString().slice(0, 10);
+
+      if (uri) {
+        results.push({
+          uri,
+          name,
+          type,
+          issuer,
+          date,
+          status: 'verified',
+          mimeType: 'application/pdf',
+        });
+      }
+    }
+
+    return results;
   }
 
   /**

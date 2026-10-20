@@ -11,12 +11,13 @@ import {
   ExternalLink,
   FileCheck2,
   FolderLock,
+  Info,
+  Key,
   Landmark,
   Loader2,
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
   Unlink,
   X,
 } from 'lucide-react';
@@ -36,11 +37,17 @@ export function DigiLockerEmblem({ className = 'size-5' }: { className?: string 
   );
 }
 
+interface ExtendedDigiLockerStatus extends DigiLockerStatusResponse {
+  configured?: boolean;
+  authorizeUrl?: string;
+  candidate_name?: string | null;
+}
+
 export function DigiLockerCard() {
   const searchParams = useSearchParams();
 
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<DigiLockerStatusResponse>({
+  const [status, setStatus] = useState<ExtendedDigiLockerStatus>({
     linked: false,
     digilocker_id: null,
   });
@@ -49,15 +56,11 @@ export function DigiLockerCard() {
   const [importingUri, setImportingUri] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  // Modal for Connect DigiLocker
-  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
-  const [sandboxMobile, setSandboxMobile] = useState('+91 98765 43210');
-  const [sandboxAadhaar, setSandboxAadhaar] = useState('5824 9102 3841');
   const [connecting, setConnecting] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
 
   useEffect(() => {
-    // Check if redirected from OAuth callback with query params
+    // Check if redirected from DigiLocker OAuth callback with query params
     const digiParam = searchParams.get('digilocker');
     const digiId = searchParams.get('digilocker_id');
     const digiErr = searchParams.get('digilocker_error');
@@ -83,7 +86,7 @@ export function DigiLockerCard() {
   async function loadStatus() {
     setLoading(true);
     try {
-      const res = await apiGet<DigiLockerStatusResponse>('/digilocker/status');
+      const res = await apiGet<ExtendedDigiLockerStatus>('/digilocker/status');
       if (res) {
         setStatus(res);
         if (res.linked) {
@@ -139,30 +142,14 @@ export function DigiLockerCard() {
     }
   }
 
-  async function handleConnectSandbox() {
+  function handleConnectOfficial() {
     setConnecting(true);
     setErrorMsg(null);
-    setSuccessMsg(null);
-
-    try {
-      const randomDigiId = `DL-IN-${Math.floor(100000 + Math.random() * 900000)}`;
-      const res = await apiPost<DigiLockerStatusResponse>('/digilocker/connect-sandbox', {
-        digilockerId: randomDigiId,
-      });
-
-      if (res.data?.linked) {
-        setStatus(res.data);
-        setSuccessMsg(`Government DigiLocker linked successfully (ID: ${res.data.digilocker_id})!`);
-        setIsConnectModalOpen(false);
-        loadIssuedDocuments();
-      } else {
-        setErrorMsg(res.error || 'Failed to connect DigiLocker.');
-      }
-    } catch {
-      setErrorMsg('Could not connect to DigiLocker sandbox.');
-    } finally {
-      setConnecting(false);
-    }
+    // Direct redirection to official Government DigiLocker OAuth gateway via API
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ||
+      'http://localhost:4000/api/v1';
+    window.location.href = `${apiBase}/auth/digilocker/authorize?redirect=true`;
   }
 
   async function handleDisconnect() {
@@ -197,11 +184,11 @@ export function DigiLockerCard() {
                 Government DigiLocker
               </h3>
               <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-[#0e7bf4] uppercase tracking-wider border border-blue-200">
-                MeitY / API Setu
+                Official Gateway / API Setu
               </span>
             </div>
             <p className="text-xs text-[#536780]">
-              Official National Gateway for digitally signed education &amp; identity certificates
+              National e-Governance Division (NeGD) • Ministry of Electronics &amp; IT (MeitY)
             </p>
           </div>
         </div>
@@ -216,7 +203,7 @@ export function DigiLockerCard() {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200 shadow-xs">
                 <CheckCircle2 className="size-3.5 text-emerald-600" />
-                Verified by DigiLocker (ID: {status.digilocker_id || 'DL-IN-XXXXXX'})
+                Verified by DigiLocker ({status.digilocker_id || 'Linked'})
               </span>
               <button
                 type="button"
@@ -238,7 +225,7 @@ export function DigiLockerCard() {
 
       {/* Notifications / Alerts */}
       {errorMsg && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800 flex items-center justify-between gap-2">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-semibold text-red-800 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <AlertCircle className="size-4 text-red-600 shrink-0" />
             <span>{errorMsg}</span>
@@ -250,7 +237,7 @@ export function DigiLockerCard() {
       )}
 
       {successMsg && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800 flex items-center justify-between gap-2">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs font-semibold text-emerald-800 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
             <span>{successMsg}</span>
@@ -268,17 +255,20 @@ export function DigiLockerCard() {
           <div className="rounded-xl bg-[#F8FBFF] border border-[#d6e4f5] p-4 text-xs text-[#334a69] space-y-2">
             <div className="font-bold text-[#082046] flex items-center gap-1.5 text-sm">
               <ShieldCheck className="size-4 text-[#0e7bf4]" />
-              Why connect your DigiLocker account?
+              Official Government Document Verification
             </div>
             <ul className="list-disc pl-4 space-y-1 text-[#435775]">
               <li>
-                <strong>1-Click Document Import:</strong> Instantly fetch your 10th CBSE/State marksheet, Aadhaar, and Caste certificate directly from government issuers.
+                <strong>Official Single Sign-On:</strong> Authenticate securely on <code>api.digitallocker.gov.in</code> (MeriPehchaan) using your official mobile OTP / Aadhaar credentials.
+              </li>
+              <li>
+                <strong>1-Click Document Import:</strong> Instantly fetch your 10th CBSE/State marksheet, Aadhaar, and Caste certificate directly from government issuing authorities.
               </li>
               <li>
                 <strong>100% Legally Valid:</strong> Digital documents from DigiLocker carry legal parity with physical documents under Rule 9A of the IT Rules, 2016.
               </li>
               <li>
-                <strong>Auto-Fill Applications:</strong> Never type your marks or registration numbers manually; smart copy buttons extract verified data into your job forms.
+                <strong>DPDP Act 2023 Compliant:</strong> You provide explicit consent on the official government portal before any certificate is retrieved.
               </li>
             </ul>
           </div>
@@ -286,12 +276,33 @@ export function DigiLockerCard() {
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <button
               type="button"
-              onClick={() => setIsConnectModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#0e7bf4] to-[#082046] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg transition-all active:translate-y-px"
+              onClick={handleConnectOfficial}
+              disabled={connecting}
+              className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#0e7bf4] to-[#082046] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg transition-all active:translate-y-px disabled:opacity-60"
             >
-              <DigiLockerEmblem className="size-4 text-white" />
-              Connect DigiLocker (1-Click OTP)
+              {connecting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin text-white" />
+                  <span>Redirecting to DigiLocker Gateway...</span>
+                </>
+              ) : (
+                <>
+                  <Landmark className="size-4 text-white" />
+                  <span>Connect Official DigiLocker</span>
+                  <ExternalLink className="size-3 text-white/80" />
+                </>
+              )}
             </button>
+
+            <button
+              type="button"
+              onClick={() => setShowConfigModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-[#082046] hover:bg-slate-100 transition"
+            >
+              <Key className="size-3.5 text-[#0e7bf4]" />
+              <span>Gateway Credentials &amp; Guide</span>
+            </button>
+
             <a
               href="https://www.digilocker.gov.in/"
               target="_blank"
@@ -301,6 +312,18 @@ export function DigiLockerCard() {
               Learn about DigiLocker <ExternalLink className="size-3" />
             </a>
           </div>
+
+          {!status.configured && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-amber-900 flex items-start gap-2.5">
+              <Info className="size-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Production API Setu Credentials Notice</p>
+                <p className="text-amber-800/90 mt-0.5">
+                  To authenticate live citizen accounts on the official <code>api.digitallocker.gov.in</code> gateway without <code>400 invalid_client_id</code>, register your organization on <strong>API Setu (apisetu.gov.in)</strong> and set <code>DIGILOCKER_CLIENT_ID</code> in <code>apps/api/.env</code>.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Linked State with Issued Documents */
@@ -421,14 +444,14 @@ export function DigiLockerCard() {
         </div>
       )}
 
-      {/* Connect DigiLocker Modal */}
-      {isConnectModalOpen && (
+      {/* Gateway Credentials & Setup Guide Modal */}
+      {showConfigModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#082046]/60 backdrop-blur-xs p-4 animate-in fade-in"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-3xl border-2 border-[#c4d2e3] bg-white p-6 shadow-2xl space-y-5">
+          <div className="w-full max-w-lg rounded-3xl border-2 border-[#c4d2e3] bg-white p-6 shadow-2xl space-y-5">
             <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-3">
                 <div className="flex size-10 items-center justify-center rounded-2xl bg-blue-50 text-[#0e7bf4] border border-blue-200">
@@ -436,16 +459,16 @@ export function DigiLockerCard() {
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-[#082046]">
-                    Connect Government DigiLocker
+                    Official DigiLocker Integration Guide
                   </h3>
                   <p className="text-xs text-[#536780]">
-                    API Setu Sandbox Authentication Gateway
+                    National e-Governance Division (NeGD) • API Setu
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setIsConnectModalOpen(false)}
+                onClick={() => setShowConfigModal(false)}
                 className="rounded-lg p-1 text-slate-400 hover:text-slate-700"
               >
                 <X className="size-4" />
@@ -453,65 +476,75 @@ export function DigiLockerCard() {
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="rounded-xl bg-blue-50/60 border border-blue-100 p-3.5 text-[#334a69] space-y-1">
-                <p className="font-bold text-[#082046]">
-                  Candidate Consent &amp; Verification (DPDP Act 2023)
+              <div className="rounded-xl bg-blue-50/70 border border-blue-100 p-3.5 text-[#334a69] space-y-1.5">
+                <p className="font-bold text-[#082046] flex items-center gap-1.5">
+                  <ShieldCheck className="size-4 text-[#0e7bf4]" />
+                  How Official DigiLocker Gateway Works
                 </p>
-                <p className="text-[11px] text-[#536780]">
-                  By connecting, you authorize ApplyFields to query and retrieve your issued certificates from UIDAI, CBSE, and State Departments for job eligibility verification.
+                <p className="text-[11px] text-[#536780] leading-relaxed">
+                  DigiLocker NEVER permits third-party applications to collect Aadhaar or mobile OTPs in custom dialogs. Instead, clicking Connect redirects to the official Government of India portal (<code>api.digitallocker.gov.in</code>), where the citizen authenticates directly with government 2-factor OTP and provides explicit consent.
                 </p>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Aadhaar / Mobile Number linked to DigiLocker
-                </label>
-                <input
-                  type="text"
-                  value={sandboxMobile}
-                  onChange={(e) => setSandboxMobile(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
-                />
+              <div className="space-y-2">
+                <p className="font-bold text-[#082046] uppercase text-[11px] tracking-wider">
+                  How to get your Official API Setu Credentials:
+                </p>
+                <ol className="list-decimal pl-4 space-y-1.5 text-[#435775]">
+                  <li>
+                    Log in to the government developer portal at{' '}
+                    <a
+                      href="https://apisetu.gov.in/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#0e7bf4] font-bold underline inline-flex items-center gap-0.5"
+                    >
+                      apisetu.gov.in <ExternalLink className="size-2.5" />
+                    </a>{' '}
+                    or DigiLocker Partner Portal.
+                  </li>
+                  <li>
+                    Register your application under <strong>Consumer Services</strong>.
+                  </li>
+                  <li>
+                    Set the OAuth Redirect URI to:{' '}
+                    <code className="rounded bg-slate-100 px-1 py-0.5 text-slate-800 font-mono text-[10px]">
+                      {typeof window !== 'undefined'
+                        ? `${window.location.origin.replace(':3000', ':4000')}/api/v1/auth/digilocker/callback`
+                        : 'http://localhost:4000/api/v1/auth/digilocker/callback'}
+                    </code>
+                  </li>
+                  <li>
+                    Copy your issued <strong>Client ID</strong> and <strong>Client Secret</strong> into <code>apps/api/.env</code>:
+                    <div className="mt-1.5 rounded-lg bg-slate-900 p-2 text-slate-200 font-mono text-[10px] space-y-0.5">
+                      <div>DIGILOCKER_CLIENT_ID=your_apisetu_client_id</div>
+                      <div>DIGILOCKER_CLIENT_SECRET=your_apisetu_client_secret</div>
+                    </div>
+                  </li>
+                </ol>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Aadhaar Number (Last 4 digits: 3841)
-                </label>
-                <input
-                  type="text"
-                  value={sandboxAadhaar}
-                  onChange={(e) => setSandboxAadhaar(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
-                />
-              </div>
-
-              <div className="pt-2 space-y-2">
+              <div className="pt-2 flex flex-col gap-2">
                 <button
                   type="button"
-                  onClick={handleConnectSandbox}
-                  disabled={connecting}
-                  className="w-full h-11 rounded-xl bg-gradient-to-r from-[#0e7bf4] to-[#082046] text-white font-bold text-xs shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-60"
+                  onClick={() => {
+                    setShowConfigModal(false);
+                    handleConnectOfficial();
+                  }}
+                  className="w-full h-10 rounded-xl bg-gradient-to-r from-[#0e7bf4] to-[#082046] text-white font-bold text-xs shadow-md hover:shadow-lg transition flex items-center justify-center gap-2"
                 >
-                  {connecting ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin text-white" />
-                      <span>Verifying OTP with DigiLocker Gateway...</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="size-4 text-white" />
-                      <span>Verify &amp; Link DigiLocker (Sandbox 1-Click)</span>
-                    </>
-                  )}
+                  <Landmark className="size-4 text-white" />
+                  <span>Launch Official Government DigiLocker Portal</span>
+                  <ExternalLink className="size-3 text-white/80" />
                 </button>
-
                 <a
-                  href="/api/v1/auth/digilocker/authorize?redirect=true"
+                  href="https://apisetu.gov.in/"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold text-[11px] hover:bg-slate-100 transition flex items-center justify-center gap-1.5"
                 >
                   <ExternalLink className="size-3 text-slate-500" />
-                  Launch Official Government DigiLocker Portal (Live OAuth)
+                  Open API Setu Portal (apisetu.gov.in)
                 </a>
               </div>
             </div>
