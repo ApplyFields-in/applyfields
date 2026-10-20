@@ -37,15 +37,15 @@ export class DigilockerController {
 
   /**
    * Imports a verified document from DigiLocker directly into user_documents
-   * POST /digilocker/import/:uri(*)
+   * POST /digilocker/import/:uri
    */
-  @Post('import/:uri(*)')
+  @Post('import/:uri')
   @HttpCode(HttpStatus.OK)
   async importDocumentByParam(
     @Req() req: AuthenticatedRequest,
     @Param('uri') uri: string,
   ) {
-    return this.digilockerService.importDocument(req.user.userId, uri);
+    return this.digilockerService.importDocument(req.user.userId, decodeURIComponent(uri));
   }
 
   /**
