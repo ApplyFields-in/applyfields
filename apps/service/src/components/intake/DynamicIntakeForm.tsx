@@ -105,8 +105,8 @@ export function DynamicIntakeForm({
       )}
 
       {/* General Instructions & Candidate specific Notes */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 space-y-2">
-        <label className="block text-xs font-semibold text-slate-300">
+      <div className="cut-corner-card rounded-[24px] border border-white bg-white p-5 space-y-2 shadow-clay-card">
+        <label className="block text-xs font-black text-[#082046]">
           Special Instructions for the Operator (Optional)
         </label>
         <textarea
@@ -117,9 +117,9 @@ export function DynamicIntakeForm({
             setGeneralNotes(e.target.value);
             updatePayload({ generalNotes: e.target.value });
           }}
-          className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none"
+          className="w-full rounded-xl bg-[#edf2f8] border border-[#d5deea] p-3 text-xs text-[#082046] placeholder-[#7896bc] focus:border-[#0e7bf4] focus:outline-none font-medium shadow-[inset_1px_1px_3px_#d5deea,inset_-1px_-1px_3px_#ffffff]"
         />
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-[#526987]">
           This note is securely transmitted to the partner desk alongside your slot reservation.
         </p>
       </div>

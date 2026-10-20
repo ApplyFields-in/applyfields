@@ -116,47 +116,47 @@ export function XeroxIntakeForm({
   }
 
   return (
-    <div className="space-y-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+    <div className="space-y-5 cut-corner-card rounded-[28px] border border-white bg-white p-6 shadow-clay-card text-[#082046]">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800/80 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-md bg-purple-400/10 px-2 py-0.5 text-[11px] font-semibold text-purple-300">
+            <span className="cut-corner-badge bg-[#E0EDFB] px-2.5 py-1 text-[11px] font-bold text-[#0E7BF4]">
               High-Speed Xerox &amp; Print Desk
             </span>
-            <span className="text-xs text-slate-400">Zero-Wait Counter Token</span>
+            <span className="text-xs text-slate-500 font-medium">Zero-Wait Counter Token</span>
           </div>
-          <h3 className="text-sm font-bold text-white mt-1">Printing &amp; Finishing Specifications</h3>
+          <h3 className="text-base font-black text-[#082046] mt-1.5 tracking-tight">Printing &amp; Finishing Specifications</h3>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 rounded-xl bg-purple-950/40 border border-purple-800/40 px-3 py-1.5 text-xs font-semibold text-purple-300">
-          <Calculator className="h-3.5 w-3.5 text-purple-400" />
+        <div className="inline-flex items-center gap-1.5 cut-corner-badge bg-[#082046] text-[#38BDF8] px-3.5 py-1.5 text-xs font-bold shadow-sm">
+          <Calculator className="h-3.5 w-3.5 text-[#38BDF8]" />
           <span>Estimated: ₹{estimatedCost} ({totalOriginalPages * copies} pages)</span>
         </div>
       </div>
 
       {/* Drag & Drop File Upload Area */}
       <div>
-        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-          Upload PDF / Document Files for Printing <span className="text-rose-400">*</span>
+        <label className="block text-xs font-bold text-[#082046] mb-1.5">
+          Upload PDF / Document Files for Printing <span className="text-rose-500">*</span>
         </label>
-        <div className="relative border-2 border-dashed border-slate-700/80 hover:border-purple-400/60 transition-colors rounded-2xl p-6 text-center bg-slate-950/40">
+        <div className="relative border-2 border-dashed border-[#0E7BF4]/30 hover:border-[#0E7BF4] transition-all rounded-2xl p-6 text-center bg-[#F0F4F8] shadow-clay-inset group">
           <input
             type="file"
             multiple
             accept=".pdf,.docx,.doc,.jpg,.jpeg,.png"
             onChange={handleSimulatedUpload}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           />
           <div className="flex flex-col items-center justify-center space-y-2">
-            <div className="h-10 w-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center">
+            <div className="h-11 w-11 rounded-2xl bg-white text-[#0E7BF4] shadow-sm flex items-center justify-center group-hover:scale-105 transition-transform">
               <UploadCloud className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-200">
+              <p className="text-xs font-bold text-[#082046]">
                 Click or drag &amp; drop PDF documents here
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
+              <p className="text-[11px] text-slate-500 mt-0.5 font-medium">
                 Supports PDF, DOCX, JPG up to 50MB per file with automatic page detection
               </p>
             </div>
@@ -169,19 +169,19 @@ export function XeroxIntakeForm({
             {files.map((file) => (
               <div
                 key={file.id}
-                className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-xs"
+                className="flex items-center justify-between rounded-xl border border-slate-200 bg-[#F0F4F8] px-3.5 py-2 text-xs shadow-sm"
               >
                 <div className="flex items-center gap-2.5 overflow-hidden">
-                  <FileText className="h-4 w-4 text-purple-400 shrink-0" />
-                  <span className="font-medium text-white truncate max-w-xs">{file.name}</span>
-                  <span className="rounded-md bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400 font-mono">
+                  <FileText className="h-4 w-4 text-[#0E7BF4] shrink-0" />
+                  <span className="font-semibold text-[#082046] truncate max-w-xs">{file.name}</span>
+                  <span className="rounded-md bg-white border border-slate-200 px-1.5 py-0.5 text-[10px] text-slate-600 font-mono font-medium">
                     {file.pageCount} pages · {file.sizeMb} MB
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => removeFile(file.id)}
-                  className="text-slate-500 hover:text-rose-400 p-1"
+                  className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -194,10 +194,10 @@ export function XeroxIntakeForm({
       {/* Print Mode & Paper Size */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+          <label className="block text-xs font-bold text-[#082046] mb-1.5">
             Colour Mode
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             {[
               { id: 'black_and_white', label: 'Black & White', price: '₹2 / page' },
               { id: 'color', label: 'Vibrant Colour', price: '₹10 / page' },
@@ -209,21 +209,23 @@ export function XeroxIntakeForm({
                   setPrintMode(mode.id as XeroxIntakeData['printMode']);
                   broadcast({ printMode: mode.id as XeroxIntakeData['printMode'] });
                 }}
-                className={`flex flex-col text-left p-3 rounded-xl border text-xs transition-colors ${
+                className={`flex flex-col text-left p-3 rounded-xl cut-corner-btn text-xs transition-all ${
                   printMode === mode.id
-                    ? 'border-purple-500/50 bg-purple-950/20 text-white'
-                    : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                    ? 'bg-gradient-to-r from-[#0E7BF4] to-[#082046] text-white shadow-clay-btn-azure'
+                    : 'bg-[#F0F4F8] text-[#082046] border border-slate-200 hover:border-[#0E7BF4]/40'
                 }`}
               >
-                <span className="font-semibold text-slate-200">{mode.label}</span>
-                <span className="text-[11px] text-purple-300/80">{mode.price}</span>
+                <span className="font-bold">{mode.label}</span>
+                <span className={`text-[11px] font-semibold mt-0.5 ${printMode === mode.id ? 'text-[#38BDF8]' : 'text-[#0E7BF4]'}`}>
+                  {mode.price}
+                </span>
               </button>
             ))}
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+          <label className="block text-xs font-bold text-[#082046] mb-1.5">
             Paper Size &amp; Format
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -239,14 +241,16 @@ export function XeroxIntakeForm({
                   setPaperSize(size.id as XeroxIntakeData['paperSize']);
                   broadcast({ paperSize: size.id as XeroxIntakeData['paperSize'] });
                 }}
-                className={`flex flex-col text-left p-3 rounded-xl border text-xs transition-colors ${
+                className={`flex flex-col text-left p-2.5 rounded-xl cut-corner-btn text-xs transition-all ${
                   paperSize === size.id
-                    ? 'border-purple-500/50 bg-purple-950/20 text-white'
-                    : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                    ? 'bg-gradient-to-r from-[#0E7BF4] to-[#082046] text-white shadow-clay-btn-azure'
+                    : 'bg-[#F0F4F8] text-[#082046] border border-slate-200 hover:border-[#0E7BF4]/40'
                 }`}
               >
-                <span className="font-semibold text-slate-200">{size.label}</span>
-                <span className="text-[10px] text-slate-500">{size.desc}</span>
+                <span className="font-bold">{size.label}</span>
+                <span className={`text-[10px] mt-0.5 ${paperSize === size.id ? 'text-[#E0EDFB]' : 'text-slate-500 font-medium'}`}>
+                  {size.desc}
+                </span>
               </button>
             ))}
           </div>
@@ -256,7 +260,7 @@ export function XeroxIntakeForm({
       {/* Sides, Copies, Finishing */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-[#082046] mb-1">
             Print Sides
           </label>
           <select
@@ -266,7 +270,7 @@ export function XeroxIntakeForm({
               setSides(val);
               broadcast({ sides: val });
             }}
-            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white focus:border-purple-400 focus:outline-none"
+            className="w-full rounded-xl border border-slate-200 bg-[#F0F4F8] px-3 py-2 text-xs text-[#082046] font-medium shadow-clay-inset focus:border-[#0E7BF4] focus:outline-none focus:ring-2 focus:ring-[#0E7BF4]/20"
           >
             <option value="single_sided">Single-Sided (One page per sheet)</option>
             <option value="double_sided">Double-Sided / Duplex (Paper saver)</option>
@@ -274,7 +278,7 @@ export function XeroxIntakeForm({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-[#082046] mb-1">
             Number of Complete Copies
           </label>
           <input
@@ -287,12 +291,12 @@ export function XeroxIntakeForm({
               setCopies(val);
               broadcast({ copies: val });
             }}
-            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-xs text-white focus:border-purple-400 focus:outline-none"
+            className="w-full rounded-xl border border-slate-200 bg-[#F0F4F8] px-3.5 py-2 text-xs text-[#082046] font-medium shadow-clay-inset focus:border-[#0E7BF4] focus:outline-none focus:ring-2 focus:ring-[#0E7BF4]/20"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-[#082046] mb-1">
             Finishing &amp; Binding
           </label>
           <select
@@ -302,7 +306,7 @@ export function XeroxIntakeForm({
               setFinishing(val);
               broadcast({ finishing: val });
             }}
-            className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white focus:border-purple-400 focus:outline-none"
+            className="w-full rounded-xl border border-slate-200 bg-[#F0F4F8] px-3 py-2 text-xs text-[#082046] font-medium shadow-clay-inset focus:border-[#0E7BF4] focus:outline-none focus:ring-2 focus:ring-[#0E7BF4]/20"
           >
             <option value="none">No Binding (Loose sheets)</option>
             <option value="corner_staple">Corner Staple (Free)</option>

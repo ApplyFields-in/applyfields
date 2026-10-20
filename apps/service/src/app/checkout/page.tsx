@@ -55,17 +55,17 @@ export default function CheckoutPage() {
   if (items.length === 0) {
     return (
       <div className="max-w-xl mx-auto px-4 py-20 text-center space-y-4">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 text-slate-400">
-          <ShoppingBag className="h-7 w-7" />
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white shadow-clay-card text-[#7896bc]">
+          <ShoppingBag className="h-8 w-8 text-[#0e7bf4]" />
         </div>
-        <h2 className="text-xl font-bold text-white">Your visit cart is empty</h2>
-        <p className="text-xs text-slate-400">
+        <h2 className="text-xl font-black text-[#082046]">Your visit cart is empty</h2>
+        <p className="text-xs text-[#526987] font-medium">
           Please select services from a verified partner center before booking a slot.
         </p>
         <div className="pt-2">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-5 py-2.5 text-xs font-bold text-slate-950 hover:bg-cyan-300"
+            className="cut-corner-btn inline-flex items-center gap-2 rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#0c6fdc] shadow-clay-btn-azure"
           >
             ← Explore Centers &amp; Services
           </Link>
@@ -131,20 +131,20 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 pb-24">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-28">
       {/* Header */}
       <div>
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#526987] hover:text-[#082046] transition"
         >
           ← Return to Services
         </Link>
-        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-2">
+        <h1 className="text-2xl sm:text-3xl font-black text-[#082046] tracking-tight mt-2">
           Reserve Appointment Window
         </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Lock in your reserved time slot at <strong className="text-cyan-400">{partner?.name}</strong>.
+        <p className="text-xs text-[#526987] mt-1 font-medium">
+          Lock in your reserved time slot at <strong className="text-[#0e7bf4]">{partner?.name}</strong>.
         </p>
       </div>
 
@@ -152,30 +152,30 @@ export default function CheckoutPage() {
         {/* Left Column: Intake & Slot Reservation */}
         <div className="lg:col-span-2 space-y-6">
           {/* Step 1: Candidate Contact Info */}
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 space-y-4">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <User className="h-4 w-4 text-cyan-400" />
+          <div className="cut-corner-card rounded-[28px] border border-white bg-white p-6 space-y-4 shadow-clay-card">
+            <h2 className="text-sm font-black text-[#082046] flex items-center gap-2">
+              <User className="h-4 w-4 text-[#0e7bf4]" />
               1. Candidate &amp; Contact Details
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div>
-                <label className="block text-slate-400 font-semibold mb-1">Full Name *</label>
+                <label className="block text-[#526987] font-bold mb-1">Full Name *</label>
                 <input
                   type="text"
                   value={candidateName}
                   onChange={(e) => setCandidateName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyan-400 font-medium"
+                  className="w-full rounded-xl bg-[#edf2f8] border border-[#d5deea] px-3.5 py-2.5 text-[#082046] outline-none focus:border-[#0e7bf4] font-semibold shadow-[inset_1px_1px_3px_#d5deea,inset_-1px_-1px_3px_#ffffff]"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 font-semibold mb-1">Mobile Number (+91) *</label>
+                <label className="block text-[#526987] font-bold mb-1">Mobile Number (+91) *</label>
                 <input
                   type="text"
                   value={candidatePhone}
                   onChange={(e) => setCandidatePhone(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyan-400 font-mono"
+                  className="w-full rounded-xl bg-[#edf2f8] border border-[#d5deea] px-3.5 py-2.5 text-[#082046] outline-none focus:border-[#0e7bf4] font-mono font-bold shadow-[inset_1px_1px_3px_#d5deea,inset_-1px_-1px_3px_#ffffff]"
                 />
               </div>
             </div>
@@ -184,11 +184,11 @@ export default function CheckoutPage() {
           {/* Step 2: Dynamic Service Requirement Intake */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <FileCheck2 className="h-4 w-4 text-cyan-400" />
+              <h2 className="text-sm font-black text-[#082046] flex items-center gap-2">
+                <FileCheck2 className="h-4 w-4 text-[#0e7bf4]" />
                 2. Dynamic Service Requirements Intake
               </h2>
-              <span className="text-[11px] text-cyan-400 font-semibold flex items-center gap-1">
+              <span className="cut-corner-badge rounded-md bg-[#e0edfb] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#0e7bf4] border border-[#38bdf8]/30 flex items-center gap-1">
                 <Sparkles className="h-3 w-3" /> Auto-Configured for Cart
               </span>
             </div>
@@ -201,8 +201,8 @@ export default function CheckoutPage() {
 
           {/* Step 3: Slot Reservation Engine */}
           <div className="space-y-3">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-cyan-400" />
+            <h2 className="text-sm font-black text-[#082046] flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-[#0e7bf4]" />
               3. Partner Reserved Time Slot
             </h2>
 
@@ -218,83 +218,83 @@ export default function CheckoutPage() {
 
         {/* Right Column: Order Summary & Confirmation Box */}
         <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 space-y-5 sticky top-24 backdrop-blur-md">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-              <ShoppingBag className="h-4 w-4 text-cyan-400" />
+          <div className="cut-corner-card rounded-[28px] border border-white bg-white p-6 space-y-5 sticky top-24 shadow-clay-card">
+            <h2 className="text-sm font-black text-[#082046] flex items-center gap-2 border-b border-[#d5deea] pb-3">
+              <ShoppingBag className="h-4 w-4 text-[#0e7bf4]" />
               Order &amp; Slot Summary
             </h2>
 
             {/* Partner Details */}
             {partner && (
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3.5 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <div className="rounded-2xl bg-[#edf2f8] p-3.5 space-y-1 shadow-[inset_1px_1px_3px_#d5deea,inset_-1px_-1px_3px_#ffffff]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#526987]">
                   Selected Center
                 </span>
-                <div className="text-xs font-bold text-white">{partner.name}</div>
-                <div className="flex items-start gap-1.5 text-[11px] text-slate-400 pt-0.5">
-                  <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0 mt-0.5" />
+                <div className="text-xs font-black text-[#082046]">{partner.name}</div>
+                <div className="flex items-start gap-1.5 text-[11px] text-[#526987] pt-0.5 font-medium">
+                  <MapPin className="h-3.5 w-3.5 text-[#0e7bf4] shrink-0 mt-0.5" />
                   <span>{partner.address}, {partner.city}</span>
                 </div>
               </div>
             )}
 
             {/* Reserved Slot Pill */}
-            <div className="rounded-2xl border border-cyan-500/30 bg-cyan-950/20 p-3.5 space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+            <div className="rounded-2xl border border-[#38bdf8]/40 bg-[#e0edfb] p-3.5 space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#0e7bf4]">
                 Reserved Appointment Window
               </span>
-              <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-cyan-400" /> {selectedDate}
+              <div className="text-xs font-bold text-[#082046] flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-[#0e7bf4]" /> {selectedDate}
               </div>
-              <div className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-emerald-400" /> {selectedSlot?.time}
+              <div className="text-xs font-mono font-black text-emerald-700 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-emerald-600" /> {selectedSlot?.time}
               </div>
             </div>
 
             {/* Services List */}
-            <div className="space-y-2 border-t border-slate-800/80 pt-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <div className="space-y-2 border-t border-[#d5deea] pt-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#526987]">
                 Selected Services ({totalQuantity})
               </span>
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {items.map((it) => (
                   <div key={it.id} className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300 truncate max-w-[170px]">{it.quantity}x {it.title}</span>
-                    <span className="font-mono text-white font-medium">₹{it.price * it.quantity}</span>
+                    <span className="text-[#082046] truncate max-w-[170px] font-semibold">{it.quantity}x {it.title}</span>
+                    <span className="font-mono text-[#0e7bf4] font-black">₹{it.price * it.quantity}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Pricing Breakdown */}
-            <div className="space-y-2 border-t border-slate-800/80 pt-3 text-xs">
-              <div className="flex justify-between text-slate-400">
+            <div className="space-y-2 border-t border-[#d5deea] pt-3 text-xs">
+              <div className="flex justify-between text-[#526987] font-medium">
                 <span>Services Subtotal:</span>
-                <span className="font-mono text-white">₹{subtotal}</span>
+                <span className="font-mono font-black text-[#082046]">₹{subtotal}</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-[#526987] font-medium">
                 <span>Counter Priority Reservation:</span>
-                <span className="text-emerald-400 font-bold uppercase text-[10px]">Free</span>
+                <span className="text-emerald-700 font-bold uppercase text-[10px]">Free</span>
               </div>
-              <div className="flex justify-between border-t border-slate-800 pt-2 text-sm font-extrabold text-white">
+              <div className="flex justify-between border-t border-[#d5deea] pt-2 text-sm font-black text-[#082046]">
                 <span>Estimated Total:</span>
-                <span className="font-mono text-cyan-300">₹{subtotal}</span>
+                <span className="font-mono text-[#0e7bf4] text-base">₹{subtotal}</span>
               </div>
             </div>
 
             {/* Payment Choice */}
-            <div className="space-y-2 border-t border-slate-800/80 pt-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <div className="space-y-2 border-t border-[#d5deea] pt-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#526987]">
                 Payment Option
               </span>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <button
                   type="button"
                   onClick={() => setPaymentMode('counter')}
-                  className={`p-2.5 rounded-xl border text-center transition ${
+                  className={`p-2.5 rounded-xl border text-center transition font-bold ${
                     paymentMode === 'counter'
-                      ? 'border-cyan-400 bg-cyan-950/40 text-cyan-300 font-bold'
-                      : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                      ? 'border-[#0e7bf4] bg-[#e0edfb] text-[#0e7bf4] shadow-sm'
+                      : 'border-[#d5deea] bg-white text-[#526987] hover:border-[#0e7bf4]'
                   }`}
                 >
                   Pay at Counter
@@ -302,10 +302,10 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setPaymentMode('online')}
-                  className={`p-2.5 rounded-xl border text-center transition ${
+                  className={`p-2.5 rounded-xl border text-center transition font-bold ${
                     paymentMode === 'online'
-                      ? 'border-cyan-400 bg-cyan-950/40 text-cyan-300 font-bold'
-                      : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                      ? 'border-[#0e7bf4] bg-[#e0edfb] text-[#0e7bf4] shadow-sm'
+                      : 'border-[#d5deea] bg-white text-[#526987] hover:border-[#0e7bf4]'
                   }`}
                 >
                   Pay Online (UPI)
@@ -318,7 +318,7 @@ export default function CheckoutPage() {
               type="button"
               disabled={isSubmitting}
               onClick={handleConfirmBooking}
-              className="w-full rounded-2xl bg-gradient-to-r from-cyan-400 to-teal-400 py-3.5 text-xs font-black uppercase tracking-wider text-slate-950 hover:opacity-90 active:scale-[0.99] transition shadow-lg shadow-cyan-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="cut-corner-btn w-full rounded-2xl bg-[#0e7bf4] py-3.5 text-xs font-black uppercase tracking-wider text-white hover:bg-[#0c6fdc] active:scale-[0.99] transition shadow-clay-btn-azure disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 'Reserving Slot...'
@@ -329,8 +329,8 @@ export default function CheckoutPage() {
               )}
             </button>
 
-            <div className="flex items-center gap-2 text-[10px] text-slate-500 justify-center">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+            <div className="flex items-center gap-2 text-[10px] text-[#526987] justify-center font-medium">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
               <span>Official pricing verified · Guaranteed zero-wait counter token</span>
             </div>
           </div>

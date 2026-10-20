@@ -77,15 +77,15 @@ export function SlotPicker({
   const eveningSlots = SAMPLE_SLOTS.filter((s) => s.period === 'evening');
 
   return (
-    <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+    <div className="space-y-6 cut-corner-card rounded-[28px] border border-white bg-white p-6 shadow-clay-card">
       {/* Date Header */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-cyan-400" />
-            <h3 className="text-sm font-bold text-white">Select Appointment Date</h3>
+            <Calendar className="h-4 w-4 text-[#0e7bf4]" />
+            <h3 className="text-sm font-black text-[#082046]">Select Appointment Date</h3>
           </div>
-          <span className="text-[11px] text-slate-400">Operating: Mon – Sat (09:00 – 19:30)</span>
+          <span className="text-[11px] text-[#526987] font-semibold">Operating: Mon – Sat (09:00 – 19:30)</span>
         </div>
 
         {/* 7-Day Horizontal Scroller */}
@@ -97,15 +97,21 @@ export function SlotPicker({
                 key={day.dateStr}
                 type="button"
                 onClick={() => onSelectDate(day.dateStr)}
-                className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
+                className={`cut-corner-tab flex flex-col items-center justify-center p-2.5 rounded-xl transition-all ${
                   isSelected
-                    ? 'border-cyan-400 bg-cyan-950/40 text-cyan-300 shadow-md ring-1 ring-cyan-400/30'
-                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    ? 'bg-[#0e7bf4] text-white shadow-clay-btn-azure font-bold'
+                    : 'bg-[#edf2f8] text-[#526987] hover:text-[#082046] shadow-[inset_1px_1px_3px_#d5deea,inset_-1px_-1px_3px_#ffffff]'
                 }`}
               >
-                <span className="text-[10px] font-semibold uppercase">{day.dayName}</span>
-                <span className="text-base font-extrabold text-white my-0.5">{day.dayNumber}</span>
-                <span className="text-[10px] text-slate-500">{day.monthName}</span>
+                <span className={`text-[10px] font-bold uppercase ${isSelected ? 'text-white' : 'text-[#526987]'}`}>
+                  {day.dayName}
+                </span>
+                <span className={`text-base font-black my-0.5 ${isSelected ? 'text-white' : 'text-[#082046]'}`}>
+                  {day.dayNumber}
+                </span>
+                <span className={`text-[10px] font-semibold ${isSelected ? 'text-white/80' : 'text-[#7896bc]'}`}>
+                  {day.monthName}
+                </span>
               </button>
             );
           })}
@@ -113,30 +119,30 @@ export function SlotPicker({
       </div>
 
       {/* Slots Section */}
-      <div className="space-y-5 border-t border-slate-800/80 pt-4">
+      <div className="space-y-5 border-t border-[#d5deea] pt-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-cyan-400" />
-            <h3 className="text-sm font-bold text-white">Reserved 30-Min Time Windows</h3>
+            <Clock className="h-4 w-4 text-[#0e7bf4]" />
+            <h3 className="text-sm font-black text-[#082046]">Reserved 30-Min Time Windows</h3>
           </div>
 
           {/* Legend */}
-          <div className="flex items-center gap-3 text-[10px] text-slate-400">
+          <div className="flex items-center gap-3 text-[10px] text-[#526987] font-semibold">
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" /> Available
+              <span className="h-2 w-2 rounded-full bg-emerald-500" /> Available
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-amber-400" /> Fast Filling
+              <span className="h-2 w-2 rounded-full bg-amber-500" /> Fast Filling
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-slate-600" /> Booked Out
+              <span className="h-2 w-2 rounded-full bg-slate-300" /> Booked Out
             </span>
           </div>
         </div>
 
         {/* Morning Slots */}
         <div className="space-y-2">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-[#526987]">
             Morning (09:00 AM – 12:00 PM)
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -153,7 +159,7 @@ export function SlotPicker({
 
         {/* Afternoon Slots */}
         <div className="space-y-2">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-[#526987]">
             Afternoon (12:00 PM – 04:00 PM)
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -170,7 +176,7 @@ export function SlotPicker({
 
         {/* Evening Slots */}
         <div className="space-y-2">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-[#526987]">
             Evening (04:00 PM – 07:30 PM)
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -198,13 +204,11 @@ function SlotCard({
   isSelected: boolean;
   onSelect: () => void;
 }) {
-  const isFastFilling = slot.remainingCapacity === 1;
-
   if (!slot.isAvailable) {
     return (
-      <div className="flex items-center justify-between p-3 rounded-xl border border-slate-800/60 bg-slate-950/20 text-slate-600 cursor-not-allowed">
-        <span className="text-xs font-medium line-through">{slot.time}</span>
-        <span className="text-[10px] text-slate-600 font-semibold">Booked</span>
+      <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 bg-[#edf2f8] opacity-50 cursor-not-allowed text-xs">
+        <span className="font-mono text-slate-400 font-semibold">{slot.time.split('–')[0].trim()}</span>
+        <span className="text-[10px] text-slate-400 font-bold uppercase">Booked</span>
       </div>
     );
   }
@@ -213,28 +217,29 @@ function SlotCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
+      className={`cut-corner-btn flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all active:scale-95 ${
         isSelected
-          ? 'border-cyan-400 bg-cyan-950/40 text-cyan-300 ring-1 ring-cyan-400/40 shadow-sm'
-          : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900/60'
+          ? 'border-[#0e7bf4] bg-[#e0edfb] text-[#0e7bf4] shadow-sm font-black ring-2 ring-[#0e7bf4]/20'
+          : 'border-[#d5deea] bg-white text-[#082046] hover:border-[#0e7bf4] shadow-sm font-semibold'
       }`}
     >
-      <div className="flex flex-col">
-        <span className="text-xs font-semibold text-white">{slot.time}</span>
-        <span
-          className={`text-[10px] font-medium ${
-            isFastFilling ? 'text-amber-400' : 'text-emerald-400'
-          }`}
-        >
-          {isFastFilling ? '1 slot remaining!' : `${slot.remainingCapacity} slots open`}
-        </span>
+      <div className="flex items-center gap-1.5 font-mono">
+        <Clock className="h-3 w-3 text-[#0e7bf4]" />
+        <span>{slot.time.split('–')[0].trim()}</span>
       </div>
 
-      {isSelected && (
-        <span className="h-5 w-5 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center shrink-0">
-          <Check className="h-3 w-3 stroke-[3]" />
-        </span>
-      )}
+      <div className="flex items-center gap-1 text-[10px]">
+        {slot.remainingCapacity === 1 ? (
+          <span className="font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded-md">
+            1 slot left
+          </span>
+        ) : (
+          <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-md">
+            {slot.remainingCapacity} slots
+          </span>
+        )}
+        {isSelected && <Check className="h-3.5 w-3.5 text-[#0e7bf4]" />}
+      </div>
     </button>
   );
 }
