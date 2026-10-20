@@ -136,7 +136,7 @@ function OAuthCallbackContent() {
         setStatus('success');
         setMessage('Signed in successfully! Redirecting...');
         setTimeout(() => {
-          router.push('/me');
+          router.push('/account');
         }, 800);
       } catch (err: any) {
         setStatus('error');
