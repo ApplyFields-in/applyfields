@@ -190,14 +190,19 @@ export function SocialAuthButtons({
             });
           }
         },
+        use_fedcm_for_prompt: false,
         auto_select: false,
         cancel_on_tap_outside: true,
       });
 
-      // Prompt native Google One-Tap card on device
-      google.accounts.id.prompt();
+      // Silently handle Google One-Tap notifications without throwing FedCM AbortErrors
+      google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          // Normal passive dismissal, no-op
+        }
+      });
     } catch {
-      // Ignored if GSI is blocked by browser extensions
+      // Ignored if GSI is blocked by browser extensions or FedCM is unsupported
     }
   }
 
@@ -246,47 +251,7 @@ export function SocialAuthButtons({
     onError?.(null);
     setActiveProvider('google');
 
-    const google = typeof window !== 'undefined' ? (window as any).google : null;
-
-    if (google?.accounts?.oauth2?.initTokenClient) {
-      try {
-        const client = google.accounts.oauth2.initTokenClient({
-          client_id: clientId,
-          scope: 'openid email profile',
-          prompt: 'select_account',
-          callback: async (tokenResp: any) => {
-            if (tokenResp.error) {
-              onError?.(tokenResp.error_description || tokenResp.error);
-              setActiveProvider(null);
-              return;
-            }
-            try {
-              const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                headers: { Authorization: `Bearer ${tokenResp.access_token}` },
-              });
-              const profile = await res.json();
-              await handleCompleteSocialLogin({
-                provider: 'google',
-                email: profile.email,
-                name: profile.name,
-                avatarUrl: profile.picture,
-                accessToken: tokenResp.access_token,
-              });
-            } catch {
-              await handleCompleteSocialLogin({
-                provider: 'google',
-                accessToken: tokenResp.access_token,
-              });
-            }
-          },
-        });
-        client.requestAccessToken({ prompt: 'select_account' });
-        return;
-      } catch {
-        // Fallback to direct popup
-      }
-    }
-
+    // Direct Google OAuth 2.0 Account Picker Popup Window (matches GitHub/Google standard)
     const callbackUrl = `${window.location.origin}/auth/callback`;
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
       clientId,
@@ -294,7 +259,48 @@ export function SocialAuthButtons({
       callbackUrl,
     )}&response_type=token%20id_token&scope=openid%20profile%20email&prompt=select_account&nonce=${Math.random().toString(36).substring(2)}`;
 
-    openCenteredPopup(googleAuthUrl, 'Sign in with Google');
+    const popup = openCenteredPopup(googleAuthUrl, 'Sign in with Google');
+    if (!popup || popup.closed) {
+      // In case popup blocker intercepted it, fall back to GIS token client
+      const google = typeof window !== 'undefined' ? (window as any).google : null;
+      if (google?.accounts?.oauth2?.initTokenClient) {
+        try {
+          const client = google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: 'openid email profile',
+            prompt: 'select_account',
+            callback: async (tokenResp: any) => {
+              if (tokenResp.error) {
+                onError?.(tokenResp.error_description || tokenResp.error);
+                setActiveProvider(null);
+                return;
+              }
+              try {
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${tokenResp.access_token}` },
+                });
+                const profile = await res.json();
+                await handleCompleteSocialLogin({
+                  provider: 'google',
+                  email: profile.email,
+                  name: profile.name,
+                  avatarUrl: profile.picture,
+                  accessToken: tokenResp.access_token,
+                });
+              } catch {
+                await handleCompleteSocialLogin({
+                  provider: 'google',
+                  accessToken: tokenResp.access_token,
+                });
+              }
+            },
+          });
+          client.requestAccessToken({ prompt: 'select_account' });
+        } catch {
+          setActiveProvider(null);
+        }
+      }
+    }
   }
 
   // Launch Real Microsoft Account Chooser Popup (when Client ID is configured)
