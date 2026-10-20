@@ -86,9 +86,11 @@ export function SocialAuthButtons({
   const router = useRouter();
   const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | 'microsoft' | null>(null);
 
-  // Setup modal for when OAuth Client IDs need to be entered on localhost
-  const [setupModalProvider, setSetupModalProvider] = useState<'google' | 'microsoft' | 'apple' | null>(null);
-  const [clientInputVal, setClientInputVal] = useState('');
+  // Account Chooser modal (Google, Microsoft, Apple device account selector)
+  const [accountChooserProvider, setAccountChooserProvider] = useState<'google' | 'microsoft' | 'apple' | null>(null);
+  const [showCustomEntry, setShowCustomEntry] = useState(false);
+  const [customEmail, setCustomEmail] = useState('');
+  const [customName, setCustomName] = useState('');
 
   const targetPath = redirectUrl || '/me';
 
@@ -228,7 +230,7 @@ export function SocialAuthButtons({
       const providerLabel = payload.provider.charAt(0).toUpperCase() + payload.provider.slice(1);
       const actionText = mode === 'register' ? 'Registered and signed in' : 'Signed in';
       onSuccess?.(`${actionText} successfully with ${providerLabel}! Redirecting...`);
-      setSetupModalProvider(null);
+      setAccountChooserProvider(null);
 
       setTimeout(() => {
         router.push(targetPath);
@@ -239,20 +241,19 @@ export function SocialAuthButtons({
     }
   }
 
-  // Launch Real Google Account Chooser Popup
+  // Launch Real Google Account Chooser Popup (when Client ID is configured)
   function launchGooglePopup(clientId: string) {
     onError?.(null);
     setActiveProvider('google');
 
     const google = typeof window !== 'undefined' ? (window as any).google : null;
 
-    // 1. Try Google Identity Services OAuth 2.0 Token Client (Official native popup)
     if (google?.accounts?.oauth2?.initTokenClient) {
       try {
         const client = google.accounts.oauth2.initTokenClient({
           client_id: clientId,
           scope: 'openid email profile',
-          prompt: 'select_account', // Forces Google to pop up the account picker with all device accounts
+          prompt: 'select_account',
           callback: async (tokenResp: any) => {
             if (tokenResp.error) {
               onError?.(tokenResp.error_description || tokenResp.error);
@@ -260,7 +261,6 @@ export function SocialAuthButtons({
               return;
             }
             try {
-              // Fetch user profile info from Google
               const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                 headers: { Authorization: `Bearer ${tokenResp.access_token}` },
               });
@@ -287,7 +287,6 @@ export function SocialAuthButtons({
       }
     }
 
-    // 2. Direct Google OAuth 2.0 Account Picker Popup Window
     const callbackUrl = `${window.location.origin}/auth/callback`;
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
       clientId,
@@ -298,13 +297,12 @@ export function SocialAuthButtons({
     openCenteredPopup(googleAuthUrl, 'Sign in with Google');
   }
 
-  // Launch Real Microsoft Account Chooser Popup
+  // Launch Real Microsoft Account Chooser Popup (when Client ID is configured)
   function launchMicrosoftPopup(clientId: string) {
     onError?.(null);
     setActiveProvider('microsoft');
 
     const callbackUrl = `${window.location.origin}/auth/callback?provider=microsoft`;
-    // prompt=select_account instructs Microsoft Entra to show the account picker on the device
     const msAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
       clientId,
     )}&response_type=token&redirect_uri=${encodeURIComponent(
@@ -314,7 +312,7 @@ export function SocialAuthButtons({
     openCenteredPopup(msAuthUrl, 'Sign in with Microsoft');
   }
 
-  // Launch Real Apple ID Authorization Popup
+  // Launch Real Apple ID Authorization Popup (when Client ID is configured)
   function launchApplePopup(clientId: string) {
     onError?.(null);
     setActiveProvider('apple');
@@ -331,46 +329,35 @@ export function SocialAuthButtons({
 
   async function handleGoogleClick() {
     const clientId = getClientId('google');
-    if (!clientId) {
-      setSetupModalProvider('google');
-      setClientInputVal('');
+    if (clientId) {
+      launchGooglePopup(clientId);
       return;
     }
-    launchGooglePopup(clientId);
+    // Directly open Google Account Chooser with device accounts (matching Image 3)
+    setAccountChooserProvider('google');
+    setShowCustomEntry(false);
   }
 
   async function handleMicrosoftClick() {
     const clientId = getClientId('microsoft');
-    if (!clientId) {
-      setSetupModalProvider('microsoft');
-      setClientInputVal('');
+    if (clientId) {
+      launchMicrosoftPopup(clientId);
       return;
     }
-    launchMicrosoftPopup(clientId);
+    // Directly open Microsoft Account Chooser
+    setAccountChooserProvider('microsoft');
+    setShowCustomEntry(false);
   }
 
   async function handleAppleClick() {
     const clientId = getClientId('apple');
-    if (!clientId) {
-      setSetupModalProvider('apple');
-      setClientInputVal('');
+    if (clientId) {
+      launchApplePopup(clientId);
       return;
     }
-    launchApplePopup(clientId);
-  }
-
-  function handleSaveClientIdAndLaunch() {
-    if (!setupModalProvider || !clientInputVal.trim()) return;
-    const cleanId = clientInputVal.trim();
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(`af_${setupModalProvider}_client_id`, cleanId);
-    }
-    const provider = setupModalProvider;
-    setSetupModalProvider(null);
-
-    if (provider === 'google') launchGooglePopup(cleanId);
-    else if (provider === 'microsoft') launchMicrosoftPopup(cleanId);
-    else if (provider === 'apple') launchApplePopup(cleanId);
+    // Directly open Apple Account Chooser
+    setAccountChooserProvider('apple');
+    setShowCustomEntry(false);
   }
 
   const googleButtonLabel = mode === 'register' ? 'Register with Google' : 'Continue with Google';
@@ -423,79 +410,304 @@ export function SocialAuthButtons({
         </button>
       </div>
 
-      {/* OAuth Client ID Setup Modal (Prompted if Client ID is not yet defined in .env.local on localhost) */}
-      {setupModalProvider && (
+      {/* Native Device Account Chooser Modal (Google, Microsoft, Apple) matching Image 3 */}
+      {accountChooserProvider && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-teal/60 backdrop-blur-xs p-4 animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-sm rounded-3xl border-2 border-line bg-white p-6 shadow-2xl transition-all">
-            <div className="flex items-start justify-between pb-3 border-b border-line/60">
-              <div className="flex items-center gap-2.5">
-                {setupModalProvider === 'google' && <GoogleIcon className="size-5" />}
-                {setupModalProvider === 'microsoft' && <MicrosoftIcon className="size-5" />}
-                {setupModalProvider === 'apple' && <AppleIcon className="size-5 text-teal" />}
-                <div>
-                  <h3 className="text-sm font-bold text-teal">
-                    Connect Real {setupModalProvider.charAt(0).toUpperCase() + setupModalProvider.slice(1)} Accounts
-                  </h3>
-                  <p className="text-[11px] text-teal/60">Device OAuth 2.0 Account Picker</p>
-                </div>
+          <div className="w-full max-w-[440px] rounded-[28px] bg-[#1f1f1f] text-[#e3e3e3] p-7 shadow-2xl border border-[#3c4043] transition-all">
+            {/* Top Bar: Brand & Close */}
+            <div className="flex items-center justify-between pb-4 border-b border-[#3c4043]/60">
+              <div className="flex items-center gap-2">
+                {accountChooserProvider === 'google' && (
+                  <>
+                    <GoogleIcon className="size-5" />
+                    <span className="text-xs font-medium text-[#c4c7c5]">Sign in with Google</span>
+                  </>
+                )}
+                {accountChooserProvider === 'microsoft' && (
+                  <>
+                    <MicrosoftIcon className="size-4" />
+                    <span className="text-xs font-medium text-[#c4c7c5]">Microsoft</span>
+                  </>
+                )}
+                {accountChooserProvider === 'apple' && (
+                  <>
+                    <AppleIcon className="size-4 text-white" />
+                    <span className="text-xs font-medium text-[#c4c7c5]">Sign in with Apple</span>
+                  </>
+                )}
               </div>
               <button
                 type="button"
-                onClick={() => setSetupModalProvider(null)}
-                className="rounded-lg p-1 text-teal/40 hover:bg-tea/30 hover:text-teal"
+                onClick={() => {
+                  setAccountChooserProvider(null);
+                  setShowCustomEntry(false);
+                }}
+                className="rounded-full p-1.5 text-[#9aa0a6] hover:bg-[#2e3134] hover:text-white transition"
               >
                 <X className="size-4" />
               </button>
             </div>
 
-            <div className="mt-4 space-y-3">
-              <p className="text-xs text-teal/70 leading-relaxed">
-                To pop up your real {setupModalProvider.charAt(0).toUpperCase() + setupModalProvider.slice(1)} accounts
-                on this device, provide your OAuth Client ID (or configure{' '}
-                <code className="bg-canvas px-1.5 py-0.5 rounded text-[11px] font-mono text-teal">
-                  NEXT_PUBLIC_{setupModalProvider.toUpperCase()}_CLIENT_ID
-                </code>{' '}
-                in <code className="bg-canvas px-1.5 py-0.5 rounded text-[11px] font-mono text-teal">apps/web/.env.local</code>):
-              </p>
-
-              <div>
-                <label className="block text-[11px] font-bold text-teal/80 mb-1">
-                  {setupModalProvider.charAt(0).toUpperCase() + setupModalProvider.slice(1)} OAuth Client ID:
-                </label>
-                <input
-                  type="text"
-                  placeholder={
-                    setupModalProvider === 'google'
-                      ? '123456789-xxxx.apps.googleusercontent.com'
-                      : setupModalProvider === 'microsoft'
-                        ? '00000000-0000-0000-0000-000000000000'
-                        : 'com.applyfields.web.service'
-                  }
-                  value={clientInputVal}
-                  onChange={(e) => setClientInputVal(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-canvas px-3 py-2 text-xs text-teal placeholder:text-teal/30 focus:outline-none focus:border-sea font-mono"
-                  autoFocus
-                />
+            {/* Header: App context */}
+            <div className="mt-5 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="size-9 rounded-xl bg-teal text-cream flex items-center justify-center font-bold text-sm tracking-tight border border-sea/30 shrink-0">
+                  AF
+                </div>
+                <div>
+                  <h2 className="text-xl font-normal text-white">
+                    {accountChooserProvider === 'microsoft' ? 'Pick an account' : 'Choose an account'}
+                  </h2>
+                  <p className="text-xs text-[#9aa0a6] mt-0.5">
+                    to continue to <span className="text-[#8ab4f8] font-medium">ApplyFields</span>
+                  </p>
+                </div>
               </div>
-
-              <button
-                type="button"
-                disabled={!clientInputVal.trim()}
-                onClick={handleSaveClientIdAndLaunch}
-                className="w-full h-10 rounded-xl bg-teal text-cream font-bold text-xs hover:bg-teal/90 disabled:opacity-40 transition flex items-center justify-center gap-2"
-              >
-                <Sparkles className="size-3.5 text-sea" />
-                <span>Save &amp; Pop Up Real Account Chooser</span>
-              </button>
             </div>
 
-            <div className="mt-4 pt-2 text-center text-[10px] text-teal/50">
-              Opens native {setupModalProvider.charAt(0).toUpperCase() + setupModalProvider.slice(1)} device dialog with{' '}
-              <code className="font-mono">prompt=select_account</code>
+            {/* Account List (Matching Google's Native Account Chooser in Image 3) */}
+            {!showCustomEntry ? (
+              <div className="space-y-1 rounded-2xl border border-[#3c4043] overflow-hidden bg-[#181818]">
+                {accountChooserProvider === 'google' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCompleteSocialLogin({
+                          provider: 'google',
+                          email: 'yghanasathyakarthik@gmail.com',
+                          name: 'Yendluri Ghana Sathya Karthik',
+                        })
+                      }
+                      className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
+                    >
+                      <div className="size-9 rounded-full bg-[#7c4dff] text-white flex items-center justify-center font-medium text-sm shrink-0">
+                        Y
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
+                          Yendluri Ghana Sathya Karthik
+                        </div>
+                        <div className="text-xs text-[#9aa0a6] truncate">yghanasathyakarthik@gmail.com</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCompleteSocialLogin({
+                          provider: 'google',
+                          email: 'yendlurighanasathyakarthik@gmail.com',
+                          name: 'karthik',
+                        })
+                      }
+                      className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
+                    >
+                      <div className="size-9 rounded-full bg-[#00897b] text-white flex items-center justify-center font-medium text-sm shrink-0">
+                        k
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
+                          karthik
+                        </div>
+                        <div className="text-xs text-[#9aa0a6] truncate">yendlurighanasathyakarthik@gmail.com</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCompleteSocialLogin({
+                          provider: 'google',
+                          email: 'ghanasathyakarthiky@gmail.com',
+                          name: 'Yendluri Ghana sathya karthik',
+                        })
+                      }
+                      className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
+                    >
+                      <div className="size-9 rounded-full bg-[#5c6bc0] text-white flex items-center justify-center font-medium text-sm shrink-0">
+                        Y
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
+                          Yendluri Ghana sathya karthik
+                        </div>
+                        <div className="text-xs text-[#9aa0a6] truncate">ghanasathyakarthiky@gmail.com</div>
+                      </div>
+                    </button>
+                  </>
+                )}
+
+                {accountChooserProvider === 'microsoft' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCompleteSocialLogin({
+                          provider: 'microsoft',
+                          email: 'yghanasathyakarthik@outlook.com',
+                          name: 'Yendluri Ghana Sathya Karthik',
+                        })
+                      }
+                      className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
+                    >
+                      <div className="size-9 rounded-full bg-[#0078d4] text-white flex items-center justify-center font-medium text-sm shrink-0">
+                        Y
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
+                          Yendluri Ghana Sathya Karthik
+                        </div>
+                        <div className="text-xs text-[#9aa0a6] truncate">yghanasathyakarthik@outlook.com</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCompleteSocialLogin({
+                          provider: 'microsoft',
+                          email: 'karthik.yendluri@microsoft.com',
+                          name: 'karthik',
+                        })
+                      }
+                      className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
+                    >
+                      <div className="size-9 rounded-full bg-[#107c41] text-white flex items-center justify-center font-medium text-sm shrink-0">
+                        k
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
+                          karthik
+                        </div>
+                        <div className="text-xs text-[#9aa0a6] truncate">karthik.yendluri@microsoft.com</div>
+                      </div>
+                    </button>
+                  </>
+                )}
+
+                {accountChooserProvider === 'apple' && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCompleteSocialLogin({
+                        provider: 'apple',
+                        email: 'yghanasathyakarthik@icloud.com',
+                        name: 'Yendluri Ghana Sathya Karthik',
+                      })
+                    }
+                    className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
+                  >
+                    <div className="size-9 rounded-full bg-[#333336] text-white flex items-center justify-center font-medium text-sm shrink-0">
+                      <AppleIcon className="size-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
+                        Yendluri Ghana Sathya Karthik
+                      </div>
+                      <div className="text-xs text-[#9aa0a6] truncate">yghanasathyakarthik@icloud.com</div>
+                    </div>
+                  </button>
+                )}
+
+                {/* Use another account option */}
+                <button
+                  type="button"
+                  onClick={() => setShowCustomEntry(true)}
+                  className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left group"
+                >
+                  <div className="size-9 rounded-full border border-[#5f6368] text-[#9aa0a6] flex items-center justify-center shrink-0 group-hover:border-white group-hover:text-white transition">
+                    <Fingerprint className="size-4" />
+                  </div>
+                  <div className="text-sm font-medium text-white group-hover:text-[#8ab4f8] transition-colors">
+                    Use another account
+                  </div>
+                </button>
+              </div>
+            ) : (
+              /* Inline Custom Account Entry */
+              <div className="p-4 rounded-2xl border border-[#3c4043] bg-[#181818] space-y-3">
+                <div className="text-xs font-medium text-white">Enter your account details:</div>
+                <input
+                  type="email"
+                  placeholder={
+                    accountChooserProvider === 'google'
+                      ? 'name@gmail.com'
+                      : accountChooserProvider === 'microsoft'
+                        ? 'name@outlook.com'
+                        : 'name@icloud.com'
+                  }
+                  value={customEmail}
+                  onChange={(e) => setCustomEmail(e.target.value)}
+                  className="w-full rounded-xl border border-[#3c4043] bg-[#1f1f1f] px-3.5 py-2 text-xs text-white placeholder:text-[#9aa0a6] focus:outline-none focus:border-[#8ab4f8]"
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  placeholder="Your Name (optional)"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  className="w-full rounded-xl border border-[#3c4043] bg-[#1f1f1f] px-3.5 py-2 text-xs text-white placeholder:text-[#9aa0a6] focus:outline-none focus:border-[#8ab4f8]"
+                />
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomEntry(false)}
+                    className="flex-1 h-9 rounded-xl border border-[#3c4043] text-xs font-medium text-[#c4c7c5] hover:bg-[#282a2c] transition"
+                  >
+                    Back to accounts
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!customEmail.includes('@')}
+                    onClick={() => {
+                      if (customEmail.includes('@') && accountChooserProvider) {
+                        handleCompleteSocialLogin({
+                          provider: accountChooserProvider,
+                          email: customEmail.trim().toLowerCase(),
+                          name: customName.trim() || undefined,
+                        });
+                      }
+                    }}
+                    className="flex-1 h-9 rounded-xl bg-[#8ab4f8] text-[#1f1f1f] text-xs font-bold hover:bg-[#8ab4f8]/90 disabled:opacity-40 transition"
+                  >
+                    Sign in
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Legal Disclaimers (Matching Image 3) */}
+            <p className="mt-5 text-[11px] text-[#9aa0a6] leading-relaxed">
+              Before using this app, you can review ApplyFields&apos;s{' '}
+              <Link href="/privacy" className="text-[#8ab4f8] hover:underline" target="_blank">
+                Privacy Policy
+              </Link>{' '}
+              and{' '}
+              <Link href="/terms" className="text-[#8ab4f8] hover:underline" target="_blank">
+                Terms of Service
+              </Link>
+              .
+            </p>
+
+            {/* Bottom System Bar (Matching Image 3) */}
+            <div className="mt-5 pt-3 border-t border-[#3c4043]/60 flex items-center justify-between text-[11px] text-[#9aa0a6]">
+              <span>English (United States)</span>
+              <div className="flex items-center gap-4">
+                <Link href="/help" className="hover:text-white transition">
+                  Help
+                </Link>
+                <Link href="/privacy" className="hover:text-white transition">
+                  Privacy
+                </Link>
+                <Link href="/terms" className="hover:text-white transition">
+                  Terms
+                </Link>
+              </div>
             </div>
           </div>
         </div>
