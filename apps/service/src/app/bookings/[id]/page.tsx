@@ -53,6 +53,42 @@ export default function BookingDetailsPage() {
 
   const [booking, setBooking] = useState<StoredBooking | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [newMsgText, setNewMsgText] = useState('');
+  const [messages, setMessages] = useState<Array<{ id: string; sender: 'citizen' | 'partner'; text: string; time: string }>>([
+    {
+      id: 'm1',
+      sender: 'partner',
+      text: 'Hello! Your appointment slot is confirmed. Please let us know if you have any questions before arriving.',
+      time: '11:00 AM',
+    },
+  ]);
+
+  function handleSendCitizenMsg() {
+    if (!newMsgText.trim()) return;
+    const userMsg = {
+      id: `c-${Date.now()}`,
+      sender: 'citizen' as const,
+      text: newMsgText.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setNewMsgText('');
+
+    // Simulate instant operator reply after 1 second
+    setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `p-${Date.now()}`,
+          sender: 'partner' as const,
+          text: 'Operator received: "Noted! We have updated your counter instructions and your documents are ready."',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    }, 1200);
+  }
 
   useEffect(() => {
     if (typeof window !== 'undefined' && bookingId) {
@@ -322,20 +358,110 @@ export default function BookingDetailsPage() {
               <Sparkles className="h-3.5 w-3.5 text-cyan-400" /> Direct Communication Desk
             </span>
             <p className="text-[11px] text-slate-400">
-              Need to ask about parking, exact shop landmarks, or update appointment slot?
+              Need to ask about parking, exact shop landmarks, custom paper, or update your arrival time?
             </p>
           </div>
 
-          <a
-            href={`https://wa.me/919848022334?text=Hello%20Operator%2C%20I%20hold%20appointment%20token%20%23${booking.token}%20for%20${booking.slotDate}%20at%20${booking.slotTime}.`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 px-4 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 transition shrink-0"
-          >
-            <MessageSquare className="h-4 w-4" /> Message Partner Desk
-          </a>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsChatOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition shrink-0 shadow-md shadow-cyan-500/20"
+            >
+              <MessageSquare className="h-4 w-4" /> Open Live Chat Desk
+            </button>
+            <a
+              href={`https://wa.me/919848022334?text=Hello%20Operator%2C%20I%20hold%20appointment%20token%20%23${booking.token}%20for%20${booking.slotDate}%20at%20${booking.slotTime}.`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 transition shrink-0"
+              title="Chat on WhatsApp"
+            >
+              WhatsApp
+            </a>
+          </div>
         </div>
       </div>
+
+      {/* Citizen <-> Partner Live Chat Modal */}
+      {isChatOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl flex flex-col h-[520px] overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-sm text-white">{booking.partner.name}</h3>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                    Operator Online
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Appointment Token: <strong className="text-cyan-400 font-mono">#{booking.token}</strong>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsChatOpen(false)}
+                className="text-slate-400 hover:text-white text-xs font-bold p-1 rounded-lg hover:bg-slate-800"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {/* Chat Messages Stream */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-950/40">
+              {messages.map((msg) => {
+                const isCitizen = msg.sender === 'citizen';
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${isCitizen ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className="text-[10px] text-slate-500 mb-0.5 px-1">
+                      {isCitizen ? 'You' : booking.partner.name} · {msg.time}
+                    </div>
+                    <div
+                      className={`rounded-2xl px-4 py-2.5 text-xs max-w-xs leading-relaxed shadow-sm ${
+                        isCitizen
+                          ? 'bg-cyan-500 text-slate-950 font-medium rounded-tr-sm'
+                          : 'bg-slate-800 text-slate-200 border border-slate-700/60 rounded-tl-sm'
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Input Bar */}
+            <div className="p-3 border-t border-slate-800 bg-slate-950 flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Ask operator (e.g. Please print on glossy 100 GSM paper)..."
+                value={newMsgText}
+                onChange={(e) => setNewMsgText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSendCitizenMsg();
+                  }
+                }}
+                className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-400 outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleSendCitizenMsg}
+                className="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
