@@ -320,9 +320,74 @@ export class AuthService {
     dto: SocialLoginDto,
     meta: { userAgent?: string; ipAddress?: string } = {},
   ): Promise<LoginResult> {
-    const providerEmail = dto.email
-      ? dto.email.toLowerCase().trim()
-      : `${dto.provider}.citizen@applyfields.in`;
+    let resolvedEmail = dto.email ? dto.email.toLowerCase().trim() : undefined;
+    let resolvedName = dto.name?.trim();
+    let avatarUrl: string | undefined = dto.avatarUrl?.trim();
+
+    // Decode Google / Microsoft / Apple ID Token / Credential payload if present
+    const rawToken = dto.idToken || dto.credential;
+    if (rawToken && typeof rawToken === 'string') {
+      try {
+        const parts = rawToken.split('.');
+        if (parts.length === 3) {
+          const payloadBuf = Buffer.from(parts[1], 'base64url');
+          const payload = JSON.parse(payloadBuf.toString('utf8'));
+          if (!resolvedEmail) {
+            if (payload.email) {
+              resolvedEmail = String(payload.email).toLowerCase().trim();
+            } else if (payload.preferred_username) {
+              resolvedEmail = String(payload.preferred_username).toLowerCase().trim();
+            } else if (payload.upn) {
+              resolvedEmail = String(payload.upn).toLowerCase().trim();
+            }
+          }
+          if (!resolvedName) {
+            if (payload.name) {
+              resolvedName = String(payload.name).trim();
+            } else if (payload.given_name || payload.family_name) {
+              resolvedName = `${payload.given_name || ''} ${payload.family_name || ''}`.trim();
+            }
+          }
+          if (!avatarUrl && payload.picture && typeof payload.picture === 'string') {
+            avatarUrl = payload.picture;
+          }
+        }
+      } catch {
+        // Fall back to provided parameters if token parsing fails
+      }
+    }
+
+    // If an OAuth access token was provided and email is still unresolved, query user info
+    if (!resolvedEmail && dto.accessToken) {
+      try {
+        if (dto.provider === 'google') {
+          const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${dto.accessToken}` },
+          });
+          if (resp.ok) {
+            const info = (await resp.json()) as { email?: string; name?: string; picture?: string };
+            if (info.email) resolvedEmail = String(info.email).toLowerCase().trim();
+            if (info.name && !resolvedName) resolvedName = String(info.name).trim();
+            if (info.picture && !avatarUrl) avatarUrl = String(info.picture);
+          }
+        } else if (dto.provider === 'microsoft') {
+          const resp = await fetch('https://graph.microsoft.com/v1.0/me', {
+            headers: { Authorization: `Bearer ${dto.accessToken}` },
+          });
+          if (resp.ok) {
+            const info = (await resp.json()) as { mail?: string; userPrincipalName?: string; displayName?: string };
+            const msEmail = info.mail || info.userPrincipalName;
+            if (msEmail) resolvedEmail = String(msEmail).toLowerCase().trim();
+            if (info.displayName && !resolvedName) resolvedName = String(info.displayName).trim();
+          }
+        }
+      } catch {
+        // Non-fatal network fallback
+      }
+    }
+
+    const providerEmail =
+      resolvedEmail || `${dto.provider}.citizen@applyfields.in`;
 
     let user = await this.store.findUserByEmail(providerEmail);
     if (!user) {
@@ -333,14 +398,32 @@ export class AuthService {
         password_hash,
       });
       const fullName =
-        dto.name ||
+        resolvedName ||
         `${dto.provider.charAt(0).toUpperCase() + dto.provider.slice(1)} Citizen`;
       await Promise.all([
         this.store.updateUser(user.id, {
           email_verified_at: new Date().toISOString(),
         }),
-        this.store.updateProfile(user.id, { full_name: fullName }),
+        this.store.updateProfile(user.id, {
+          full_name: fullName,
+          avatar_url: avatarUrl,
+        }),
       ]);
+    } else {
+      // Ensure existing social user email is marked verified and profile name updated if available
+      const updateData: { email_verified_at?: string } = {};
+      if (!user.email_verified_at) {
+        updateData.email_verified_at = new Date().toISOString();
+      }
+      if (Object.keys(updateData).length > 0) {
+        await this.store.updateUser(user.id, updateData);
+      }
+      if (resolvedName || avatarUrl) {
+        await this.store.updateProfile(user.id, {
+          ...(resolvedName ? { full_name: resolvedName } : {}),
+          ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+        });
+      }
     }
 
     const [, tokens] = await Promise.all([
