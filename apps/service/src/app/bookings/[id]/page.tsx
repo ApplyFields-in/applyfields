@@ -104,21 +104,21 @@ export default function BookingDetailsPage() {
         } catch {}
       }
 
-      // Fallback default demo booking if accessed directly
+      // Default fallback booking for testing
       setBooking({
         id: bookingId,
-        token: bookingId.startsWith('AF-') ? bookingId : `AF-HYD-${bookingId.slice(0, 5).toUpperCase()}`,
+        token: bookingId.startsWith('AF-') ? bookingId : 'AF-HYD-50001',
         candidateName: 'Arvind V. Kumar',
         candidatePhone: '+91 98765 43210',
-        slotDate: '2026-10-22',
-        slotTime: '11:00 AM – 11:30 AM',
+        slotDate: 'Tomorrow, 10:00 AM',
+        slotTime: '10:00 AM – 10:30 AM',
         partner: {
-          id: 'partner-1',
-          name: 'Sri Sai MeeSeva & Digital Kiosk',
-          address: 'Shop #4, Opp. Municipal Corporation, Gachibowli Main Rd',
-          city: 'Hyderabad',
-          district: 'Rangareddy',
-          phone: '+91 98480 22334',
+          id: 'pt-1',
+          name: 'Sri Balaji MeeSeva & Xerox Centre',
+          address: 'Shop #12, Ground Floor, Opp Metro Pillar 1042',
+          city: 'Ameerpet',
+          district: 'Hyderabad',
+          phone: '+91 98480 12345',
         },
         items: [
           { title: 'PAN Card New Application (Form 49A)', price: 107, quantity: 1, category: 'PAN Services' },
@@ -138,7 +138,7 @@ export default function BookingDetailsPage() {
 
   if (!booking) {
     return (
-      <div className="max-w-xl mx-auto px-4 py-24 text-center text-slate-400">
+      <div className="max-w-xl mx-auto px-4 py-24 text-center text-[#526987]">
         <p className="text-sm">Loading appointment slip...</p>
       </div>
     );
@@ -168,30 +168,30 @@ export default function BookingDetailsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-6 pb-28">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6 pb-28">
       {/* Back button */}
       <div>
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#526987] hover:text-[#082046] transition"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to Citizen Services
         </Link>
       </div>
 
       {/* Main Digital Appointment Token Slip */}
-      <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 p-6 sm:p-8 space-y-6 shadow-2xl backdrop-blur-md">
+      <div className="cut-corner-card rounded-[32px] border border-white bg-white p-6 sm:p-8 space-y-6 shadow-clay-card">
         {/* Banner */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#d5deea] pb-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200">
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <div>
-              <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-emerald-300">
+              <span className="cut-corner-badge rounded-md bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black uppercase text-emerald-800">
                 Confirmed &amp; Slot Locked
               </span>
-              <h1 className="text-xl sm:text-2xl font-black text-white mt-0.5">
+              <h1 className="text-xl sm:text-2xl font-black text-[#082046] mt-0.5">
                 Digital Appointment Token
               </h1>
             </div>
@@ -201,14 +201,14 @@ export default function BookingDetailsPage() {
             <button
               type="button"
               onClick={handleShare}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 hover:border-slate-700"
+              className="cut-corner-btn inline-flex items-center gap-1.5 rounded-xl border border-[#d5deea] bg-white px-3 py-2 text-xs font-bold text-[#082046] hover:border-[#0e7bf4] shadow-sm"
             >
               <Share2 className="h-3.5 w-3.5" /> {copied ? 'Link Copied!' : 'Share'}
             </button>
             <button
               type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-400 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-300"
+              className="cut-corner-btn inline-flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white hover:bg-[#0c6fdc] shadow-clay-btn-azure"
             >
               <Printer className="h-3.5 w-3.5" /> Print Slip
             </button>
@@ -216,46 +216,45 @@ export default function BookingDetailsPage() {
         </div>
 
         {/* Big Token Number & QR Code */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center rounded-2xl border border-cyan-500/20 bg-cyan-950/20 p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center rounded-2xl border border-[#38bdf8]/40 bg-[#e0edfb] p-5">
           <div className="sm:col-span-2 space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
+            <span className="text-[11px] font-black uppercase tracking-wider text-[#0e7bf4]">
               Fast-Track Token Reference
             </span>
-            <div className="font-mono text-3xl sm:text-4xl font-black text-white tracking-tight">
+            <div className="font-mono text-3xl sm:text-4xl font-black text-[#082046] tracking-tight">
               #{booking.token}
             </div>
-            <p className="text-xs text-slate-300">
+            <p className="text-xs text-[#526987] font-medium">
               Present this token or QR code at the center counter for zero-wait priority processing.
             </p>
           </div>
 
-          {/* Simulated High-Res SVG QR Code */}
-          <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-white text-slate-950 shadow-md">
-            <div className="h-28 w-28 flex items-center justify-center border border-slate-300 p-1">
+          {/* High-Res SVG QR Code */}
+          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white text-slate-950 shadow-sm border border-[#d5deea]">
+            <div className="h-28 w-28 flex items-center justify-center p-1">
               <svg viewBox="0 0 100 100" className="h-full w-full">
                 <rect width="100" height="100" fill="#ffffff" />
-                {/* QR corner patterns */}
-                <rect x="5" y="5" width="30" height="30" fill="#020617" />
+                <rect x="5" y="5" width="30" height="30" fill="#082046" />
                 <rect x="10" y="10" width="20" height="20" fill="#ffffff" />
-                <rect x="15" y="15" width="10" height="10" fill="#020617" />
+                <rect x="15" y="15" width="10" height="10" fill="#082046" />
                 
-                <rect x="65" y="5" width="30" height="30" fill="#020617" />
+                <rect x="65" y="5" width="30" height="30" fill="#082046" />
                 <rect x="70" y="10" width="20" height="20" fill="#ffffff" />
-                <rect x="75" y="15" width="10" height="10" fill="#020617" />
+                <rect x="75" y="15" width="10" height="10" fill="#082046" />
 
-                <rect x="5" y="65" width="30" height="30" fill="#020617" />
+                <rect x="5" y="65" width="30" height="30" fill="#082046" />
                 <rect x="10" y="70" width="20" height="20" fill="#ffffff" />
-                <rect x="15" y="75" width="10" height="10" fill="#020617" />
-                {/* Random bit matrix decoration */}
-                <rect x="40" y="10" width="5" height="15" fill="#020617" />
-                <rect x="50" y="25" width="10" height="5" fill="#020617" />
-                <rect x="42" y="42" width="16" height="16" fill="#020617" />
-                <rect x="65" y="45" width="8" height="8" fill="#020617" />
-                <rect x="45" y="70" width="10" height="20" fill="#020617" />
-                <rect x="70" y="70" width="20" height="10" fill="#020617" />
+                <rect x="15" y="75" width="10" height="10" fill="#082046" />
+                
+                <rect x="40" y="10" width="5" height="15" fill="#082046" />
+                <rect x="50" y="25" width="10" height="5" fill="#082046" />
+                <rect x="42" y="42" width="16" height="16" fill="#082046" />
+                <rect x="65" y="45" width="8" height="8" fill="#082046" />
+                <rect x="45" y="70" width="10" height="20" fill="#082046" />
+                <rect x="70" y="70" width="20" height="10" fill="#082046" />
               </svg>
             </div>
-            <span className="text-[9px] font-mono font-bold text-slate-600 mt-1 uppercase">
+            <span className="text-[9px] font-mono font-bold text-[#526987] mt-1 uppercase">
               Scan to Verify
             </span>
           </div>
@@ -263,18 +262,18 @@ export default function BookingDetailsPage() {
 
         {/* Appointment Grid Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-            <span className="text-slate-400 font-semibold uppercase text-[10px]">
+          <div className="rounded-2xl bg-[#edf2f8] p-4 space-y-2 shadow-[inset_1px_1px_3px_#d5deea,inset_-1px_-1px_3px_#ffffff]">
+            <span className="text-[#526987] font-bold uppercase text-[10px]">
               Appointment Schedule
             </span>
-            <div className="space-y-1 text-slate-200">
+            <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-cyan-400" />
-                <span className="font-bold text-white text-sm">{booking.slotDate}</span>
+                <Calendar className="h-4 w-4 text-[#0e7bf4]" />
+                <span className="font-black text-[#082046] text-sm">{booking.slotDate}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-emerald-400" />
-                <span className="font-mono font-bold text-emerald-300">{booking.slotTime}</span>
+                <Clock className="h-4 w-4 text-emerald-600" />
+                <span className="font-mono font-black text-emerald-700">{booking.slotTime}</span>
               </div>
             </div>
             <div className="pt-2">
@@ -282,21 +281,21 @@ export default function BookingDetailsPage() {
                 href={createCalendarUrl()}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300"
+                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#0e7bf4] hover:underline"
               >
                 + Add to Google Calendar <ExternalLink className="h-3 w-3" />
               </a>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-            <span className="text-slate-400 font-semibold uppercase text-[10px]">
+          <div className="rounded-2xl bg-[#edf2f8] p-4 space-y-2 shadow-[inset_1px_1px_3px_#d5deea,inset_-1px_-1px_3px_#ffffff]">
+            <span className="text-[#526987] font-bold uppercase text-[10px]">
               Verified Partner Center
             </span>
             <div className="space-y-1">
-              <div className="font-bold text-white text-sm">{booking.partner.name}</div>
-              <div className="flex items-start gap-1.5 text-slate-300">
-                <MapPin className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+              <div className="font-black text-[#082046] text-sm">{booking.partner.name}</div>
+              <div className="flex items-start gap-1.5 text-[#526987] font-medium">
+                <MapPin className="h-4 w-4 text-[#0e7bf4] shrink-0 mt-0.5" />
                 <span>{booking.partner.address}, {booking.partner.city}</span>
               </div>
             </div>
@@ -304,16 +303,16 @@ export default function BookingDetailsPage() {
               {booking.partner.phone && (
                 <a
                   href={`tel:${booking.partner.phone}`}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-white"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#082046] hover:text-[#0e7bf4]"
                 >
-                  <Phone className="h-3 w-3 text-emerald-400" /> Call Center
+                  <Phone className="h-3 w-3 text-emerald-600" /> Call Center
                 </a>
               )}
               <a
-                href={`https://wa.me/919848022334?text=Hello%2C%20I%20have%20an%20appointment%20token%20%23${booking.token}%20at%20your%20center`}
+                href={`https://wa.me/919848012345?text=Hello%2C%20I%20have%20an%20appointment%20token%20%23${booking.token}%20at%20your%20center`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
               >
                 <MessageSquare className="h-3 w-3" /> WhatsApp
               </a>
@@ -322,28 +321,28 @@ export default function BookingDetailsPage() {
         </div>
 
         {/* Booked Services Summary */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-            <span className="text-xs font-bold text-white">Booked Services &amp; Estimated Total</span>
-            <span className="font-mono text-sm font-black text-cyan-300">₹{booking.total}</span>
+        <div className="rounded-2xl bg-white border border-[#d5deea] p-4 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[#d5deea] pb-2">
+            <span className="text-xs font-black text-[#082046]">Booked Services &amp; Estimated Total</span>
+            <span className="font-mono text-sm font-black text-[#0e7bf4]">₹{booking.total}</span>
           </div>
           <div className="space-y-1.5">
             {booking.items.map((it, idx) => (
-              <div key={idx} className="flex items-center justify-between text-xs text-slate-300">
+              <div key={idx} className="flex items-center justify-between text-xs text-[#526987] font-medium">
                 <span>{it.quantity}x {it.title}</span>
-                <span className="font-mono text-slate-400">₹{it.price * it.quantity}</span>
+                <span className="font-mono text-[#082046] font-bold">₹{it.price * it.quantity}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Dynamic Intake Checklist of Original Physical Documents to Bring */}
-        <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 space-y-2">
-          <h3 className="text-xs font-bold text-white flex items-center gap-2">
-            <FileText className="h-4 w-4 text-cyan-400" />
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 space-y-2">
+          <h3 className="text-xs font-black text-amber-900 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-amber-700" />
             Checklist of Physical Documents to Bring:
           </h3>
-          <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300">
+          <ul className="list-disc pl-5 space-y-1 text-xs text-amber-900 font-medium">
             <li>Original physical Aadhaar Card (mandatory for identity verification or biometric token)</li>
             <li>2 passport-sized photographs (if your booking includes new PAN application)</li>
             <li>Original educational or transfer certificates (if applying for community/income certificates)</li>
@@ -352,12 +351,12 @@ export default function BookingDetailsPage() {
         </div>
 
         {/* Operator Chat Desk 1-Click Action */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-cyan-800/40 bg-cyan-950/20 p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-[#38bdf8]/40 bg-[#e0edfb] p-4">
           <div className="space-y-0.5">
-            <span className="text-xs font-bold text-white flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-cyan-400" /> Direct Communication Desk
+            <span className="text-xs font-black text-[#082046] flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-[#0e7bf4]" /> Direct Communication Desk
             </span>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-[#526987] font-medium">
               Need to ask about parking, exact shop landmarks, custom paper, or update your arrival time?
             </p>
           </div>
@@ -366,15 +365,15 @@ export default function BookingDetailsPage() {
             <button
               type="button"
               onClick={() => setIsChatOpen(true)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition shrink-0 shadow-md shadow-cyan-500/20"
+              className="cut-corner-btn inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white hover:bg-[#0c6fdc] transition shrink-0 shadow-clay-btn-azure"
             >
               <MessageSquare className="h-4 w-4" /> Open Live Chat Desk
             </button>
             <a
-              href={`https://wa.me/919848022334?text=Hello%20Operator%2C%20I%20hold%20appointment%20token%20%23${booking.token}%20for%20${booking.slotDate}%20at%20${booking.slotTime}.`}
+              href={`https://wa.me/919848012345?text=Hello%20Operator%2C%20I%20hold%20appointment%20token%20%23${booking.token}%20for%20${booking.slotDate}%20at%20${booking.slotTime}.`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 transition shrink-0"
+              className="cut-corner-btn inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-500 transition shrink-0 shadow-sm"
               title="Chat on WhatsApp"
             >
               WhatsApp
@@ -385,33 +384,33 @@ export default function BookingDetailsPage() {
 
       {/* Citizen <-> Partner Live Chat Modal */}
       {isChatOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl flex flex-col h-[520px] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#082046]/50 p-4 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-lg rounded-3xl border border-white bg-white shadow-2xl flex flex-col h-[520px] overflow-hidden">
             {/* Modal Header */}
-            <div className="p-4 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+            <div className="p-4 border-b border-[#d5deea] bg-[#F8FAFC] flex items-center justify-between">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-sm text-white">{booking.partner.name}</h3>
-                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                  <h3 className="font-black text-sm text-[#082046]">{booking.partner.name}</h3>
+                  <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
                     Operator Online
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400">
-                  Appointment Token: <strong className="text-cyan-400 font-mono">#{booking.token}</strong>
+                <p className="text-[11px] text-[#526987]">
+                  Appointment Token: <strong className="text-[#0e7bf4] font-mono">#{booking.token}</strong>
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setIsChatOpen(false)}
-                className="text-slate-400 hover:text-white text-xs font-bold p-1 rounded-lg hover:bg-slate-800"
+                className="text-[#526987] hover:text-[#082046] text-xs font-bold p-1 rounded-lg hover:bg-[#edf2f8]"
               >
                 ✕ Close
               </button>
             </div>
 
             {/* Chat Messages Stream */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-950/40">
+            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#F0F4F8]">
               {messages.map((msg) => {
                 const isCitizen = msg.sender === 'citizen';
                 return (
@@ -419,14 +418,14 @@ export default function BookingDetailsPage() {
                     key={msg.id}
                     className={`flex flex-col ${isCitizen ? 'items-end' : 'items-start'}`}
                   >
-                    <div className="text-[10px] text-slate-500 mb-0.5 px-1">
+                    <div className="text-[10px] text-[#7896bc] mb-0.5 px-1 font-semibold">
                       {isCitizen ? 'You' : booking.partner.name} · {msg.time}
                     </div>
                     <div
                       className={`rounded-2xl px-4 py-2.5 text-xs max-w-xs leading-relaxed shadow-sm ${
                         isCitizen
-                          ? 'bg-cyan-500 text-slate-950 font-medium rounded-tr-sm'
-                          : 'bg-slate-800 text-slate-200 border border-slate-700/60 rounded-tl-sm'
+                          ? 'bg-[#0e7bf4] text-white font-medium rounded-tr-sm shadow-clay-btn-azure'
+                          : 'bg-white text-[#082046] border border-[#d5deea] rounded-tl-sm'
                       }`}
                     >
                       {msg.text}
@@ -437,7 +436,7 @@ export default function BookingDetailsPage() {
             </div>
 
             {/* Input Bar */}
-            <div className="p-3 border-t border-slate-800 bg-slate-950 flex items-center gap-2">
+            <div className="p-3 border-t border-[#d5deea] bg-white flex items-center gap-2">
               <input
                 type="text"
                 placeholder="Ask operator (e.g. Please print on glossy 100 GSM paper)..."
@@ -449,12 +448,12 @@ export default function BookingDetailsPage() {
                     handleSendCitizenMsg();
                   }
                 }}
-                className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-400 outline-none"
+                className="flex-1 rounded-xl bg-[#edf2f8] border border-[#d5deea] px-3.5 py-2 text-xs text-[#082046] placeholder-[#7896bc] focus:border-[#0e7bf4] outline-none font-medium shadow-[inset_1px_1px_3px_#d5deea,inset_-1px_-1px_3px_#ffffff]"
               />
               <button
                 type="button"
                 onClick={handleSendCitizenMsg}
-                className="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition"
+                className="cut-corner-btn rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white hover:bg-[#0c6fdc] transition shadow-clay-btn-azure"
               >
                 Send
               </button>
