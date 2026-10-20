@@ -194,13 +194,7 @@ export function SocialAuthButtons({
         auto_select: false,
         cancel_on_tap_outside: true,
       });
-
-      // Silently handle Google One-Tap notifications without throwing FedCM AbortErrors
-      google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          // Normal passive dismissal, no-op
-        }
-      });
+      // Note: We deliberately do NOT call google.accounts.id.prompt() on mount to avoid Chrome FedCM AbortErrors on localhost
     } catch {
       // Ignored if GSI is blocked by browser extensions or FedCM is unsupported
     }

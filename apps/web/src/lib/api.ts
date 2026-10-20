@@ -14,7 +14,10 @@ let refreshPromise: Promise<boolean> | null = null;
 function formatErrorMessage(err: unknown): string {
   if (err instanceof Error) {
     if (err.name === 'TimeoutError' || err.message.toLowerCase().includes('timed out')) {
-      return 'The backend server is waking up (Render free tier). Please wait 10-15 seconds and try again.';
+      return 'The backend server is waking up. Please wait a few seconds and try again.';
+    }
+    if (err.message.toLowerCase().includes('failed to fetch')) {
+      return 'Could not connect to the backend API server. Please ensure the backend is running on port 4000 (run "pnpm dev" or "pnpm dev:api").';
     }
     return err.message;
   }
