@@ -31,6 +31,8 @@ pnpm install
 |---|---|---|
 | `apps/web/.env.example` | `apps/web/.env.local` | Optional — defaults to `http://localhost:4000/api/v1` |
 | `apps/admin/.env.example` | `apps/admin/.env.local` | Optional — same default |
+| `apps/partner/.env.example` | `apps/partner/.env.local` | Optional — defaults to `http://localhost:4000/api/v1` |
+| `apps/service/.env.example` | `apps/service/.env.local` | Optional — defaults to `http://localhost:4000/api/v1` |
 | `apps/api/.env.example` | `apps/api/.env` | **Yes** — the API reads jobs and exams from the database |
 | `apps/ingestion/.env.example` | `apps/ingestion/.env` | For the scraper |
 
@@ -44,12 +46,14 @@ From the `applyfields` folder:
 
 | Command | What starts |
 |---|---|
-| `pnpm dev` | **Everything**: website + Internal Portal + API |
-| `pnpm dev:web` | Website only |
-| `pnpm dev:admin` | Internal Portal only |
-| `pnpm dev:api` | API only |
+| `pnpm dev` | **Everything**: website + Internal Portal + Partner Portal + Services Portal + API |
+| `pnpm dev:web` | Website only (Port 3000) |
+| `pnpm dev:admin` | Internal Portal only (Port 3001) |
+| `pnpm dev:partner` | Dedicated Partner Portal only (Port 3002) |
+| `pnpm dev:service` | Citizen Services & Booking Portal only (Port 3003) |
+| `pnpm dev:api` | API only (Port 4000) |
 
-The website and the portal read their data from the API, so when you run one of them on its own, also
+The website, internal portal, partner portal, and services portal read their data from the API, so when you run one of them on its own, also
 run `pnpm dev:api` in a second terminal.
 
 **Python scraper** (separate terminal):
@@ -69,6 +73,8 @@ Stop anything with **Ctrl + C**.
 |---|---|---|
 | Website | http://localhost:3000 | Citizen & student portal |
 | Internal Portal | http://localhost:3001 | Team dashboard, review queue, scrapers |
+| Partner Portal | http://localhost:3002 | Dedicated Partner Portal (`partners.applyfields.com` preview), onboarding, store workspace |
+| Citizen Services | http://localhost:3003 | Dedicated Citizen Services & Booking Portal (`service.applyfields.in` preview), kiosk discovery, rate cards, appointment checkout |
 | API | http://localhost:4000/api/v1/health | `{"status":"ok"}` = API is running |
 | Scraper (Python) | http://localhost:8000/docs | Internal endpoints (try `/health`) |
 
@@ -94,6 +100,27 @@ The website footer shows **API connected** when everything is linked up.
 | `/users` · `/partners` · `/assistance` | People |
 | `/notifications` · `/reports` · `/payments` · `/audit` · `/settings` | Operations |
 
+### Partner Portal pages (`apps/partner` · Port 3002)
+| Address | Page |
+|---|---|
+| `/` | Partner landing page (Operator & Merchant Network overview) |
+| `/login` | Operator login |
+| `/onboard` | Swiggy-style multi-step partner registration wizard (Shop details, categories, GPS location, KYC docs) |
+| `/under-review` | KYC status holding screen ("Application under review by ApplyFields Staff") |
+| `/dashboard` | Operator Command Workspace & KPI overview (active status, revenue, today's bookings) |
+| `/schedule` | Operating hours & slot scheduling engine (30-min windows, shifts) |
+| `/services` | Service catalog & rate card manager (Xerox, PAN, Aadhaar, MeeSeva pricing) |
+| `/bookings` | Citizen bookings execution desk |
+| `/messages` | Citizen ↔ partner communication desk |
+| `/settings` | Partner shop profile, KYC documents & GPS coordinates |
+
+### Citizen Services Portal pages (`apps/service` · Port 3003)
+| Address | Page |
+|---|---|
+| `/` | Center Discovery Directory (GPS detection, distance calculator, category filters, verified partner badges) |
+| `/partner/[slug]` | Partner Public Storefront & Interactive Rate Card (+ Add to Cart, pricing, documents required) |
+| `/checkout` | 2-Step Appointment & Slot Checkout (time window selection, candidate form, digital token receipt) |
+
 ### API endpoints (data from the database — empty until jobs are published)
 | Endpoint | Returns |
 |---|---|
@@ -111,13 +138,17 @@ The website footer shows **API connected** when everything is linked up.
 ```
 applyfields/
 ├── apps/
-│   ├── web/                 Citizen website (Next.js)
+│   ├── web/                 Citizen website (Next.js - Port 3000)
 │   │   └── src/app/(main)/  one folder per page — e.g. jobs/page.tsx, profile/page.tsx
-│   ├── admin/               Internal Portal (Next.js)
+│   ├── admin/               Internal Portal (Next.js - Port 3001)
 │   │   └── src/app/(main)/  one folder per page
-│   ├── api/                 Core API (NestJS)
+│   ├── partner/             Dedicated Partner Portal (Next.js - Port 3002)
+│   │   └── src/app/         onboard/, under-review/, (dashboard)/ [schedule, services, bookings, messages]
+│   ├── service/             Citizen Services & Booking Portal (Next.js - Port 3003)
+│   │   └── src/app/         partner/[slug]/, checkout/, globals.css, layout.tsx
+│   ├── api/                 Core API (NestJS - Port 4000)
 │   │   └── src/modules/     one folder per feature — home, opportunities, admin…
-│   └── ingestion/           Scrapers (Python FastAPI)
+│   └── ingestion/           Scrapers (Python FastAPI - Port 8000)
 │       └── app/scrapers/    one file per website
 ├── packages/
 │   ├── ui/                  Shared design system — colours (theme.css) and components
@@ -150,7 +181,7 @@ Production build (optional): `pnpm build`
 | Problem | Fix |
 |---|---|
 | **Footer says "API offline"** / “Can’t reach the API” | Start the API: `pnpm dev:api` (or `pnpm dev` for everything) |
-| **`EADDRINUSE` / port already in use** | The app is already running in another terminal — close it, or in PowerShell: `Stop-Process -Id (Get-NetTCPConnection -LocalPort 3000).OwningProcess` (change 3000 to the busy port) |
+| **`EADDRINUSE` / port already in use** | The app is already running in another terminal — close it, or in PowerShell: `Stop-Process -Id (Get-NetTCPConnection -LocalPort 3000).OwningProcess` (change 3000 to the busy port, e.g. 3001 or 3002) |
 | **`pnpm` is not recognised** | `npm install -g pnpm`, then open a new terminal |
 | **Errors after pulling new code** | Run `pnpm install` again |
 | **Page shows “This page isn’t built yet”** | Normal — that page is planned but not built yet |

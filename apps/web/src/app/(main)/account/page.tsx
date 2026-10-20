@@ -19,6 +19,7 @@ import {
 import { apiGet } from '@/lib/api';
 import type { MeResponse } from '@applyfields/types';
 import { DigiLockerCard } from '@/components/digilocker-card';
+import { PARTNER_PORTAL_URL } from '@/lib/urls';
 
 function AccountContent() {
   const [userEmail, setUserEmail] = useState('');
@@ -189,12 +190,14 @@ function AccountContent() {
             <p className="text-xs text-[#536780]">
               Are you a MeeSeva, CSC, Cyber Cafe, or educational institution helping students apply?
             </p>
-            <Link
-              href="/partner"
+            <a
+              href={PARTNER_PORTAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#082046] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#061835] w-full justify-center"
             >
-              <Store className="size-4" /> Partner Network Portal
-            </Link>
+              <Store className="size-4 text-emerald-400" /> Partner Network Portal
+            </a>
           </div>
 
           <div className="rounded-2xl border border-[#c4d2e3] bg-[#F8FBFF] p-5 text-xs text-[#435775] space-y-3">
