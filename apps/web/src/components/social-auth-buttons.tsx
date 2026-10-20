@@ -56,6 +56,27 @@ interface SocialAuthButtonsProps {
   onSuccess?: (msg: string | null) => void;
 }
 
+function openCenteredPopup(url: string, title: string, w = 520, h = 660) {
+  if (typeof window === 'undefined') return null;
+  const dualScreenLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
+  const dualScreenTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
+
+  const width = window.innerWidth || document.documentElement.clientWidth || screen.width;
+  const height = window.innerHeight || document.documentElement.clientHeight || screen.height;
+
+  const left = Math.max(0, width / 2 - w / 2 + dualScreenLeft);
+  const top = Math.max(0, height / 2 - h / 2 + dualScreenTop);
+
+  const popup = window.open(
+    url,
+    title,
+    `scrollbars=yes,width=${w},height=${h},top=${top},left=${left},status=no,resizable=yes`,
+  );
+
+  if (popup) popup.focus();
+  return popup;
+}
+
 export function SocialAuthButtons({
   mode,
   redirectUrl,
@@ -64,17 +85,75 @@ export function SocialAuthButtons({
 }: SocialAuthButtonsProps) {
   const router = useRouter();
   const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | 'microsoft' | null>(null);
-  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
-  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
-  const [customGoogleName, setCustomGoogleName] = useState('');
+
+  // Setup modal for when OAuth Client IDs need to be entered on localhost
+  const [setupModalProvider, setSetupModalProvider] = useState<'google' | 'microsoft' | 'apple' | null>(null);
+  const [clientInputVal, setClientInputVal] = useState('');
 
   const targetPath = redirectUrl || '/me';
 
-  // Load Google Identity Services script on mount
+  // Get configured Client IDs (from env vars or local storage override)
+  function getClientId(provider: 'google' | 'microsoft' | 'apple'): string {
+    if (typeof window === 'undefined') return '';
+    if (provider === 'google') {
+      return (
+        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+        localStorage.getItem('af_google_client_id') ||
+        ''
+      );
+    }
+    if (provider === 'microsoft') {
+      return (
+        process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID ||
+        localStorage.getItem('af_microsoft_client_id') ||
+        ''
+      );
+    }
+    if (provider === 'apple') {
+      return (
+        process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ||
+        localStorage.getItem('af_apple_client_id') ||
+        ''
+      );
+    }
+    return '';
+  }
+
+  // Handle postMessage response from popup callback
+  useEffect(() => {
+    function handleOAuthMessage(event: MessageEvent) {
+      if (typeof window === 'undefined') return;
+      if (event.origin !== window.location.origin) return;
+
+      const data = event.data;
+      if (!data || typeof data !== 'object') return;
+
+      if (data.type === 'AF_OAUTH_SUCCESS') {
+        handleCompleteSocialLogin({
+          provider: data.provider || 'google',
+          email: data.email,
+          name: data.name,
+          avatarUrl: data.avatarUrl,
+          idToken: data.idToken,
+          accessToken: data.accessToken,
+        });
+      } else if (data.type === 'AF_OAUTH_ERROR') {
+        onError?.(data.error || 'Authentication was cancelled or failed.');
+        setActiveProvider(null);
+      }
+    }
+
+    window.addEventListener('message', handleOAuthMessage);
+    return () => {
+      window.removeEventListener('message', handleOAuthMessage);
+    };
+  }, [targetPath]);
+
+  // Load Google Identity Services script on mount for real One-Tap & OAuth token client
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const clientId = getClientId('google');
     if (!clientId) return;
 
     const existingScript = document.getElementById('google-gsi-script');
@@ -102,7 +181,7 @@ export function SocialAuthButtons({
         client_id: clientId,
         callback: (response: { credential?: string }) => {
           if (response?.credential) {
-            handleCompleteGoogleLogin({
+            handleCompleteSocialLogin({
               provider: 'google',
               idToken: response.credential,
               credential: response.credential,
@@ -113,28 +192,30 @@ export function SocialAuthButtons({
         cancel_on_tap_outside: true,
       });
 
-      // Optionally show Google One-Tap prompt
+      // Prompt native Google One-Tap card on device
       google.accounts.id.prompt();
     } catch {
-      // Ignored if GSI blocked by browser extensions
+      // Ignored if GSI is blocked by browser extensions
     }
   }
 
-  async function handleCompleteGoogleLogin(payload: {
-    provider: 'google';
+  async function handleCompleteSocialLogin(payload: {
+    provider: 'google' | 'microsoft' | 'apple';
     email?: string;
     name?: string;
+    avatarUrl?: string;
     idToken?: string;
     credential?: string;
+    accessToken?: string;
   }) {
     onError?.(null);
-    setActiveProvider('google');
+    setActiveProvider(payload.provider);
 
     try {
       const res = await apiPost<AuthResponse>('/auth/social-login', payload);
 
       if (res.error || !res.data) {
-        onError?.(res.error || 'Failed to authenticate with Google. Please try again.');
+        onError?.(res.error || `Failed to authenticate with ${payload.provider}. Please try again.`);
         setActiveProvider(null);
         return;
       }
@@ -144,70 +225,155 @@ export function SocialAuthButtons({
         window.dispatchEvent(new Event('auth-changed'));
       }
 
-      onSuccess?.('Signed in successfully with Google! Redirecting...');
-      setIsGoogleModalOpen(false);
+      const providerLabel = payload.provider.charAt(0).toUpperCase() + payload.provider.slice(1);
+      const actionText = mode === 'register' ? 'Registered and signed in' : 'Signed in';
+      onSuccess?.(`${actionText} successfully with ${providerLabel}! Redirecting...`);
+      setSetupModalProvider(null);
 
       setTimeout(() => {
         router.push(targetPath);
       }, 700);
     } catch {
-      onError?.('An error occurred during Google 1-Click authentication.');
+      onError?.(`An error occurred during ${payload.provider} authentication.`);
       setActiveProvider(null);
     }
+  }
+
+  // Launch Real Google Account Chooser Popup
+  function launchGooglePopup(clientId: string) {
+    onError?.(null);
+    setActiveProvider('google');
+
+    const google = typeof window !== 'undefined' ? (window as any).google : null;
+
+    // 1. Try Google Identity Services OAuth 2.0 Token Client (Official native popup)
+    if (google?.accounts?.oauth2?.initTokenClient) {
+      try {
+        const client = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'openid email profile',
+          prompt: 'select_account', // Forces Google to pop up the account picker with all device accounts
+          callback: async (tokenResp: any) => {
+            if (tokenResp.error) {
+              onError?.(tokenResp.error_description || tokenResp.error);
+              setActiveProvider(null);
+              return;
+            }
+            try {
+              // Fetch user profile info from Google
+              const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${tokenResp.access_token}` },
+              });
+              const profile = await res.json();
+              await handleCompleteSocialLogin({
+                provider: 'google',
+                email: profile.email,
+                name: profile.name,
+                avatarUrl: profile.picture,
+                accessToken: tokenResp.access_token,
+              });
+            } catch {
+              await handleCompleteSocialLogin({
+                provider: 'google',
+                accessToken: tokenResp.access_token,
+              });
+            }
+          },
+        });
+        client.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch {
+        // Fallback to direct popup
+      }
+    }
+
+    // 2. Direct Google OAuth 2.0 Account Picker Popup Window
+    const callbackUrl = `${window.location.origin}/auth/callback`;
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+      clientId,
+    )}&redirect_uri=${encodeURIComponent(
+      callbackUrl,
+    )}&response_type=token%20id_token&scope=openid%20profile%20email&prompt=select_account&nonce=${Math.random().toString(36).substring(2)}`;
+
+    openCenteredPopup(googleAuthUrl, 'Sign in with Google');
+  }
+
+  // Launch Real Microsoft Account Chooser Popup
+  function launchMicrosoftPopup(clientId: string) {
+    onError?.(null);
+    setActiveProvider('microsoft');
+
+    const callbackUrl = `${window.location.origin}/auth/callback?provider=microsoft`;
+    // prompt=select_account instructs Microsoft Entra to show the account picker on the device
+    const msAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
+      clientId,
+    )}&response_type=token&redirect_uri=${encodeURIComponent(
+      callbackUrl,
+    )}&scope=${encodeURIComponent('openid profile email User.Read')}&response_mode=fragment&prompt=select_account&state=microsoft_${Math.random().toString(36).substring(2)}`;
+
+    openCenteredPopup(msAuthUrl, 'Sign in with Microsoft');
+  }
+
+  // Launch Real Apple ID Authorization Popup
+  function launchApplePopup(clientId: string) {
+    onError?.(null);
+    setActiveProvider('apple');
+
+    const callbackUrl = `${window.location.origin}/auth/callback?provider=apple`;
+    const appleAuthUrl = `https://appleid.apple.com/auth/authorize?client_id=${encodeURIComponent(
+      clientId,
+    )}&redirect_uri=${encodeURIComponent(
+      callbackUrl,
+    )}&response_type=code%20id_token&scope=name%20email&response_mode=fragment&state=apple_${Math.random().toString(36).substring(2)}`;
+
+    openCenteredPopup(appleAuthUrl, 'Sign in with Apple ID');
   }
 
   async function handleGoogleClick() {
-    onError?.(null);
-
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const google = typeof window !== 'undefined' ? (window as any).google : null;
-
-    // If official Google GIS is available, trigger One-Tap prompt or flow
-    if (clientId && google?.accounts?.id) {
-      google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          // Fallback to direct modal if prompt is suppressed
-          setIsGoogleModalOpen(true);
-        }
-      });
+    const clientId = getClientId('google');
+    if (!clientId) {
+      setSetupModalProvider('google');
+      setClientInputVal('');
       return;
     }
-
-    // Otherwise open 1-click Google account picker modal (instant in dev & test environments)
-    setIsGoogleModalOpen(true);
+    launchGooglePopup(clientId);
   }
 
-  async function handleOtherSocialAuth(provider: 'apple' | 'microsoft') {
-    onError?.(null);
-    setActiveProvider(provider);
-
-    try {
-      const res = await apiPost<AuthResponse>('/auth/social-login', {
-        provider,
-      });
-
-      if (res.error || !res.data) {
-        onError?.(res.error || `Could not sign in with ${provider}.`);
-        setActiveProvider(null);
-        return;
-      }
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('currentUser', JSON.stringify(res.data.user));
-        window.dispatchEvent(new Event('auth-changed'));
-      }
-
-      const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
-      onSuccess?.(`Signed in successfully with ${providerLabel}! Redirecting...`);
-
-      setTimeout(() => {
-        router.push(targetPath);
-      }, 700);
-    } catch {
-      onError?.(`An error occurred during ${provider} authentication.`);
-      setActiveProvider(null);
+  async function handleMicrosoftClick() {
+    const clientId = getClientId('microsoft');
+    if (!clientId) {
+      setSetupModalProvider('microsoft');
+      setClientInputVal('');
+      return;
     }
+    launchMicrosoftPopup(clientId);
   }
+
+  async function handleAppleClick() {
+    const clientId = getClientId('apple');
+    if (!clientId) {
+      setSetupModalProvider('apple');
+      setClientInputVal('');
+      return;
+    }
+    launchApplePopup(clientId);
+  }
+
+  function handleSaveClientIdAndLaunch() {
+    if (!setupModalProvider || !clientInputVal.trim()) return;
+    const cleanId = clientInputVal.trim();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`af_${setupModalProvider}_client_id`, cleanId);
+    }
+    const provider = setupModalProvider;
+    setSetupModalProvider(null);
+
+    if (provider === 'google') launchGooglePopup(cleanId);
+    else if (provider === 'microsoft') launchMicrosoftPopup(cleanId);
+    else if (provider === 'apple') launchApplePopup(cleanId);
+  }
+
+  const googleButtonLabel = mode === 'register' ? 'Register with Google' : 'Continue with Google';
 
   return (
     <div className="space-y-2.5">
@@ -223,14 +389,14 @@ export function SocialAuthButtons({
         ) : (
           <GoogleIcon className="size-[18px] shrink-0" />
         )}
-        <span>Continue with Google</span>
+        <span>{googleButtonLabel}</span>
       </button>
 
-      {/* Secondary Providers */}
+      {/* Secondary Providers: Real Microsoft & Apple Native OAuth */}
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
-          onClick={() => handleOtherSocialAuth('microsoft')}
+          onClick={handleMicrosoftClick}
           disabled={activeProvider !== null}
           className="flex h-10 items-center justify-center gap-2 rounded-xl border border-line bg-cream text-xs font-semibold text-teal hover:bg-paper transition disabled:opacity-60"
         >
@@ -244,7 +410,7 @@ export function SocialAuthButtons({
 
         <button
           type="button"
-          onClick={() => handleOtherSocialAuth('apple')}
+          onClick={handleAppleClick}
           disabled={activeProvider !== null}
           className="flex h-10 items-center justify-center gap-2 rounded-xl bg-teal text-xs font-semibold text-cream hover:bg-teal/90 transition disabled:opacity-60"
         >
@@ -257,8 +423,8 @@ export function SocialAuthButtons({
         </button>
       </div>
 
-      {/* Google 1-Click Fast Account Picker Modal (Interactive & Dev/Demo friendly) */}
-      {isGoogleModalOpen && (
+      {/* OAuth Client ID Setup Modal (Prompted if Client ID is not yet defined in .env.local on localhost) */}
+      {setupModalProvider && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-teal/60 backdrop-blur-xs p-4 animate-in fade-in"
           role="dialog"
@@ -267,105 +433,69 @@ export function SocialAuthButtons({
           <div className="w-full max-w-sm rounded-3xl border-2 border-line bg-white p-6 shadow-2xl transition-all">
             <div className="flex items-start justify-between pb-3 border-b border-line/60">
               <div className="flex items-center gap-2.5">
-                <GoogleIcon className="size-5" />
+                {setupModalProvider === 'google' && <GoogleIcon className="size-5" />}
+                {setupModalProvider === 'microsoft' && <MicrosoftIcon className="size-5" />}
+                {setupModalProvider === 'apple' && <AppleIcon className="size-5 text-teal" />}
                 <div>
-                  <h3 className="text-sm font-bold text-teal">Sign in with Google</h3>
-                  <p className="text-[11px] text-teal/60">Choose an account for ApplyFields</p>
+                  <h3 className="text-sm font-bold text-teal">
+                    Connect Real {setupModalProvider.charAt(0).toUpperCase() + setupModalProvider.slice(1)} Accounts
+                  </h3>
+                  <p className="text-[11px] text-teal/60">Device OAuth 2.0 Account Picker</p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setIsGoogleModalOpen(false)}
+                onClick={() => setSetupModalProvider(null)}
                 className="rounded-lg p-1 text-teal/40 hover:bg-tea/30 hover:text-teal"
               >
                 <X className="size-4" />
               </button>
             </div>
 
-            {/* Quick Candidate Accounts */}
-            <div className="mt-4 space-y-2">
-              <button
-                type="button"
-                onClick={() =>
-                  handleCompleteGoogleLogin({
-                    provider: 'google',
-                    email: 'karthik.candidate@applyfields.in',
-                    name: 'Karthik Yendluri',
-                  })
-                }
-                disabled={activeProvider !== null}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl border border-line/70 hover:border-sea/50 hover:bg-tea/20 transition text-left group"
-              >
-                <div className="size-8 rounded-full bg-[#4285F4] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                  K
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-teal truncate">Karthik Yendluri</div>
-                  <div className="text-[11px] text-teal/60 truncate">karthik.candidate@applyfields.in</div>
-                </div>
-                <Sparkles className="size-3.5 text-sea opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
+            <div className="mt-4 space-y-3">
+              <p className="text-xs text-teal/70 leading-relaxed">
+                To pop up your real {setupModalProvider.charAt(0).toUpperCase() + setupModalProvider.slice(1)} accounts
+                on this device, provide your OAuth Client ID (or configure{' '}
+                <code className="bg-canvas px-1.5 py-0.5 rounded text-[11px] font-mono text-teal">
+                  NEXT_PUBLIC_{setupModalProvider.toUpperCase()}_CLIENT_ID
+                </code>{' '}
+                in <code className="bg-canvas px-1.5 py-0.5 rounded text-[11px] font-mono text-teal">apps/web/.env.local</code>):
+              </p>
 
-              <button
-                type="button"
-                onClick={() =>
-                  handleCompleteGoogleLogin({
-                    provider: 'google',
-                    email: 'citizen.aspirant@gmail.com',
-                    name: 'Citizen Aspirant',
-                  })
-                }
-                disabled={activeProvider !== null}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl border border-line/70 hover:border-sea/50 hover:bg-tea/20 transition text-left group"
-              >
-                <div className="size-8 rounded-full bg-[#34A853] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                  C
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-teal truncate">Citizen Aspirant</div>
-                  <div className="text-[11px] text-teal/60 truncate">citizen.aspirant@gmail.com</div>
-                </div>
-                <Sparkles className="size-3.5 text-sea opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            </div>
-
-            {/* Custom Google Account Entry */}
-            <div className="mt-4 pt-3 border-t border-line/60 space-y-2">
-              <div className="text-[11px] font-bold text-teal/70 uppercase tracking-wider">
-                Or enter your Google account:
+              <div>
+                <label className="block text-[11px] font-bold text-teal/80 mb-1">
+                  {setupModalProvider.charAt(0).toUpperCase() + setupModalProvider.slice(1)} OAuth Client ID:
+                </label>
+                <input
+                  type="text"
+                  placeholder={
+                    setupModalProvider === 'google'
+                      ? '123456789-xxxx.apps.googleusercontent.com'
+                      : setupModalProvider === 'microsoft'
+                        ? '00000000-0000-0000-0000-000000000000'
+                        : 'com.applyfields.web.service'
+                  }
+                  value={clientInputVal}
+                  onChange={(e) => setClientInputVal(e.target.value)}
+                  className="w-full rounded-xl border border-line bg-canvas px-3 py-2 text-xs text-teal placeholder:text-teal/30 focus:outline-none focus:border-sea font-mono"
+                  autoFocus
+                />
               </div>
-              <input
-                type="email"
-                placeholder="you@gmail.com"
-                value={customGoogleEmail}
-                onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                className="w-full rounded-xl border border-line bg-canvas px-3 py-1.5 text-xs text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea"
-              />
-              <input
-                type="text"
-                placeholder="Full Name (optional)"
-                value={customGoogleName}
-                onChange={(e) => setCustomGoogleName(e.target.value)}
-                className="w-full rounded-xl border border-line bg-canvas px-3 py-1.5 text-xs text-teal placeholder:text-teal/40 focus:outline-none focus:border-sea"
-              />
+
               <button
                 type="button"
-                disabled={!customGoogleEmail.includes('@') || activeProvider !== null}
-                onClick={() =>
-                  handleCompleteGoogleLogin({
-                    provider: 'google',
-                    email: customGoogleEmail.trim(),
-                    name: customGoogleName.trim() || undefined,
-                  })
-                }
-                className="w-full h-8 rounded-xl bg-teal text-cream font-bold text-xs hover:bg-teal/90 disabled:opacity-40 transition"
+                disabled={!clientInputVal.trim()}
+                onClick={handleSaveClientIdAndLaunch}
+                className="w-full h-10 rounded-xl bg-teal text-cream font-bold text-xs hover:bg-teal/90 disabled:opacity-40 transition flex items-center justify-center gap-2"
               >
-                Continue with this email
+                <Sparkles className="size-3.5 text-sea" />
+                <span>Save &amp; Pop Up Real Account Chooser</span>
               </button>
             </div>
 
             <div className="mt-4 pt-2 text-center text-[10px] text-teal/50">
-              Secured with Google Identity Services &amp; ApplyFields OAuth 2.0 Bridge
+              Opens native {setupModalProvider.charAt(0).toUpperCase() + setupModalProvider.slice(1)} device dialog with{' '}
+              <code className="font-mono">prompt=select_account</code>
             </div>
           </div>
         </div>
