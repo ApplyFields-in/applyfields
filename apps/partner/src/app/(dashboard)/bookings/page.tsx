@@ -21,6 +21,8 @@ import {
   ShieldCheck,
   ChevronRight,
   ExternalLink,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 export type BookingStatus = 'scheduled' | 'arrived' | 'completed' | 'cancelled';
@@ -164,6 +166,18 @@ export default function BookingsPage() {
   // Complete Receipt Modal
   const [completingBooking, setCompletingBooking] = useState<CitizenBooking | null>(null);
   const [completionAckNumber, setCompletionAckNumber] = useState('');
+
+  // Split-Screen Form-Filling Assistant Modal
+  const [fillingBooking, setFillingBooking] = useState<CitizenBooking | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  function copyField(fieldKey: string, val: string) {
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(val);
+      setCopiedField(fieldKey);
+      setTimeout(() => setCopiedField(null), 1800);
+    }
+  }
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -531,6 +545,15 @@ export default function BookingsPage() {
 
                       <button
                         type="button"
+                        onClick={() => setFillingBooking(booking)}
+                        className="rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-3 py-2.5 text-xs font-bold text-cyan-300 hover:bg-cyan-900/40 transition text-center shadow-sm"
+                        title="Open Split-Screen Form Assistant"
+                      >
+                        Form Assistant
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setCompletingBooking(booking)}
                         className="flex-1 rounded-xl bg-cyan-400 py-2.5 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition text-center shadow-md shadow-cyan-500/20"
                       >
@@ -661,6 +684,232 @@ export default function BookingsPage() {
               >
                 Mark Completed
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Split-Screen Form-Filling Assistant Modal */}
+      {fillingBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-3 sm:p-6 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-5xl rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl flex flex-col h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950 flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md bg-cyan-400/10 px-2.5 py-0.5 text-xs font-bold text-cyan-300 font-mono">
+                    #{fillingBooking.token}
+                  </span>
+                  <h3 className="text-base font-bold text-white">
+                    Split-Screen Form-Filling Assistant
+                  </h3>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                    Vault 1-Click Copy Ready
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Citizen: <strong className="text-white">{fillingBooking.citizenName}</strong> · Service: {fillingBooking.serviceTitle}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const b = fillingBooking;
+                    setFillingBooking(null);
+                    setCompletingBooking(b);
+                  }}
+                  className="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition shadow-sm"
+                >
+                  Proceed to Complete &amp; Receipt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFillingBooking(null)}
+                  className="text-slate-400 hover:text-white text-xs font-bold p-1 rounded-lg hover:bg-slate-800"
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+
+            {/* Split Screen Body */}
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-800 overflow-hidden">
+              {/* Left Column: Verified Profile & Document Vault (1-Click Copy) */}
+              <div className="p-5 overflow-y-auto space-y-4 bg-slate-950/40">
+                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                    Verified Candidate Vault &amp; Intake Data
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">Click card to copy</span>
+                </div>
+
+                {/* 1-Click Copy Cards */}
+                <div className="space-y-2">
+                  {[
+                    { label: 'Candidate Full Name', value: fillingBooking.citizenName, key: 'name' },
+                    { label: 'Primary Contact Mobile', value: fillingBooking.citizenPhone, key: 'phone' },
+                    { label: "Father's Full Name", value: 'Venkata Raman Kumar', key: 'father' },
+                    { label: 'Date of Birth (DOB)', value: '1998-05-14', key: 'dob' },
+                    { label: 'Gender', value: 'Male', key: 'gender' },
+                    { label: 'Masked Aadhaar (UID)', value: 'XXXX-XXXX-8492', key: 'uid' },
+                    { label: 'Domicile / Mandal', value: 'Serilingampally, Hyderabad, Telangana', key: 'domicile' },
+                    { label: 'Special Instructions', value: fillingBooking.notes || 'None mentioned', key: 'notes' },
+                  ].map((field) => {
+                    const isCopied = copiedField === field.key;
+                    return (
+                      <div
+                        key={field.key}
+                        onClick={() => copyField(field.key, field.value)}
+                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                          isCopied
+                            ? 'border-emerald-500 bg-emerald-950/30 text-emerald-300'
+                            : 'border-slate-800 bg-slate-900/60 hover:border-cyan-400/60 hover:bg-slate-900'
+                        }`}
+                      >
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                            {field.label}
+                          </span>
+                          <span className="text-xs font-bold text-white font-mono block">
+                            {field.value}
+                          </span>
+                        </div>
+
+                        <span
+                          className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg ${
+                            isCopied
+                              ? 'bg-emerald-500/20 text-emerald-300'
+                              : 'bg-slate-800 text-slate-400 group-hover:text-white'
+                          }`}
+                        >
+                          {isCopied ? (
+                            <>
+                              <Check className="h-3 w-3" /> Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" /> Copy
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Uploaded Documents List */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                    <FileCheck2 className="h-3.5 w-3.5 text-cyan-400" /> Uploaded Document Scans ({fillingBooking.documents.length})
+                  </span>
+                  <div className="space-y-1.5">
+                    {fillingBooking.documents.map((doc, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 p-2.5 text-xs"
+                      >
+                        <span className="text-slate-200 truncate max-w-[200px]">{doc.name}</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setViewingDoc(doc);
+                              setViewingCitizen(fillingBooking.citizenName);
+                            }}
+                            className="rounded-lg bg-slate-800 px-2 py-1 text-[11px] text-cyan-400 hover:bg-slate-700"
+                          >
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => alert(`Sending ${doc.name} to connected printer...`)}
+                            className="rounded-lg bg-slate-800 px-2 py-1 text-[11px] text-slate-300 hover:text-white hover:bg-slate-700"
+                          >
+                            Print
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Official Government Portal Quick Launch */}
+              <div className="p-5 overflow-y-auto space-y-4 bg-slate-900/30">
+                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                    <ExternalLink className="h-4 w-4 text-cyan-400" />
+                    Official Government Application Gateways
+                  </div>
+                  <span className="text-[10px] text-emerald-400 font-semibold">Authorized Channels</span>
+                </div>
+
+                <div className="rounded-xl border border-cyan-800/40 bg-cyan-950/20 p-3 text-[11px] text-slate-300 leading-relaxed">
+                  <strong>Operator Directive:</strong> Use the 1-click copy cards on the left to paste student data into the official government portal. Complete application, pay government fee if needed, and paste the generated acknowledgment number to conclude the booking.
+                </div>
+
+                {/* Gateway Cards */}
+                <div className="space-y-2.5">
+                  {[
+                    {
+                      title: 'Staff Selection Commission (SSC)',
+                      portalUrl: 'https://ssc.gov.in',
+                      desc: 'Official candidate login & online application portal',
+                      badge: 'Exam Applications',
+                    },
+                    {
+                      title: 'MeeSeva Citizen Portal (Telangana / AP)',
+                      portalUrl: 'https://meeseva.telangana.gov.in',
+                      desc: 'Integrated Caste, Income, Residence & Revenue certificates',
+                      badge: 'State Certificates',
+                    },
+                    {
+                      title: 'UTIITSL PAN Card Services',
+                      portalUrl: 'https://www.pan.utiitsl.com',
+                      desc: 'Form 49A, e-PAN generation, and reprint lost card',
+                      badge: 'Income Tax Dept',
+                    },
+                    {
+                      title: 'UIDAI myAadhaar Portal',
+                      portalUrl: 'https://myaadhaar.uidai.gov.in',
+                      desc: 'Address update facilitation & PVC card order',
+                      badge: 'UIDAI Official',
+                    },
+                    {
+                      title: 'National Scholarship Portal (NSP)',
+                      portalUrl: 'https://scholarships.gov.in',
+                      desc: 'Pre-Matric, Post-Matric & Central Sector schemes',
+                      badge: 'Scholarships',
+                    },
+                  ].map((gw, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3.5 space-y-2 hover:border-slate-700 transition"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">{gw.title}</span>
+                        <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+                          {gw.badge}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">{gw.desc}</p>
+                      <div className="pt-1">
+                        <a
+                          href={gw.portalUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-slate-700 hover:text-white transition"
+                        >
+                          Launch Official Portal <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
