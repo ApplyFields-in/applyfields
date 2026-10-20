@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { PartnerDetail, PartnerRegistrationInput, PartnerType } from '@applyfields/types';
 import { apiPost } from '@/lib/api';
+import { PARTNER_PORTAL_URL } from '@/lib/urls';
 
 const PARTNER_CATEGORIES: { id: PartnerType; label: string; desc: string }[] = [
   { id: 'csc', label: 'CSC (Common Service Center)', desc: 'Official digital seva center with government certificate services' },
@@ -108,6 +109,27 @@ export default function PartnerPage() {
         <p className="mt-1 max-w-2xl text-sm text-[#435775]">
           Empower citizens in your locality. Register your facilitation center, cyber cafe, college desk, or service kiosk on ApplyFields to receive walk-ins, offer transparent form assistance, and build verified community trust.
         </p>
+      </div>
+
+      {/* Dedicated Standalone App Banner */}
+      <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 p-6 text-white shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-400">
+            ⚡ Dedicated Operator Portal Now Live
+          </span>
+          <h2 className="text-xl font-bold mt-2">ApplyFields Partner Portal (partners.applyfields.com)</h2>
+          <p className="text-xs text-slate-300 mt-1 max-w-xl">
+            For MeeSeva kiosk operators, CSC digital seva centers, Xerox shops, and Cyber Cafes. Access your dedicated workspace, weekly shift schedule, custom rate card, and citizen booking queue.
+          </p>
+        </div>
+        <a
+          href={PARTNER_PORTAL_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 font-bold text-slate-950 hover:bg-emerald-400 transition text-sm shrink-0 shadow-lg shadow-emerald-500/25"
+        >
+          Open Partner Portal <ArrowRight className="size-4" />
+        </a>
       </div>
 
       {/* Feature Cards */}
