@@ -314,17 +314,6 @@ function LoginForm() {
             </button>
           </div>
 
-          {/* Social login buttons: positioned below Remember me and above Sign in */}
-          <div className="space-y-3 pt-1">
-            <AuthDivider label="or continue with" />
-            <SocialAuthButtons
-              mode="login"
-              redirectUrl={redirectTarget}
-              onError={setError}
-              onSuccess={setSuccess}
-            />
-          </div>
-
           <button type="submit" disabled={loading} className={PRIMARY}>
             {loading ? 'Signing in...' : 'Sign in'}
             {!loading && <ArrowRight className="size-4" aria-hidden="true" />}
@@ -373,25 +362,11 @@ function LoginForm() {
               <Checkbox checked={rememberMe} onChange={setRememberMe}>
                 Remember me
               </Checkbox>
+              <button type="submit" disabled={loading || otpCode.length !== 6} className={PRIMARY}>
+                {loading ? 'Checking code...' : 'Sign in'}
+                {!loading && <ArrowRight className="size-4" aria-hidden="true" />}
+              </button>
             </>
-          )}
-
-          {/* Social login buttons: positioned below Remember me and above Sign in */}
-          <div className="space-y-3 pt-1">
-            <AuthDivider label="or continue with" />
-            <SocialAuthButtons
-              mode="login"
-              redirectUrl={redirectTarget}
-              onError={setError}
-              onSuccess={setSuccess}
-            />
-          </div>
-
-          {otpSent && (
-            <button type="submit" disabled={loading || otpCode.length !== 6} className={PRIMARY}>
-              {loading ? 'Checking code...' : 'Sign in'}
-              {!loading && <ArrowRight className="size-4" aria-hidden="true" />}
-            </button>
           )}
         </form>
       )}
@@ -490,12 +465,21 @@ function LoginForm() {
       )}
 
       {mode !== 'forgot' && (
-        <div className="mt-5">
-          <PasskeyLoginButton
-            defaultEmail={passwordCredType === 'email' ? passwordEmail : undefined}
+        <div className="mt-6 space-y-3">
+          <AuthDivider label="or sign in with" />
+          <SocialAuthButtons
+            mode="login"
+            redirectUrl={redirectTarget}
             onError={setError}
             onSuccess={setSuccess}
           />
+          <div className="pt-2">
+            <PasskeyLoginButton
+              defaultEmail={passwordCredType === 'email' ? passwordEmail : undefined}
+              onError={setError}
+              onSuccess={setSuccess}
+            />
+          </div>
         </div>
       )}
 
