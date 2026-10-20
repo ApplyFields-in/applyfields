@@ -217,6 +217,54 @@ describe('AuthService', () => {
       expect(profile?.avatar_url).toBe('https://lh3.googleusercontent.com/a/avatar');
     });
 
+    it('should decode Microsoft ID token with preferred_username and register candidate', async () => {
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+      const payload = Buffer.from(
+        JSON.stringify({
+          sub: 'ms-unique-sub-12345',
+          preferred_username: 'karthik.ms@outlook.com',
+          name: 'Karthik Microsoft',
+        }),
+      ).toString('base64url');
+      const mockIdToken = `${header}.${payload}.sig`;
+
+      const res = await authService.socialLogin({
+        provider: 'microsoft',
+        idToken: mockIdToken,
+      });
+
+      expect(res.accessToken).toBeDefined();
+      expect(res.refreshToken).toBeDefined();
+      expect(res.user.email).toBe('karthik.ms@outlook.com');
+
+      const profile = await store.getProfile(res.user.id);
+      expect(profile?.full_name).toBe('Karthik Microsoft');
+    });
+
+    it('should decode Apple ID token and register candidate', async () => {
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+      const payload = Buffer.from(
+        JSON.stringify({
+          sub: 'apple-sub-998877',
+          email: 'karthik.apple@icloud.com',
+          email_verified: true,
+        }),
+      ).toString('base64url');
+      const mockIdToken = `${header}.${payload}.sig`;
+
+      const res = await authService.socialLogin({
+        provider: 'apple',
+        idToken: mockIdToken,
+        name: 'Karthik Apple',
+      });
+
+      expect(res.accessToken).toBeDefined();
+      expect(res.user.email).toBe('karthik.apple@icloud.com');
+
+      const profile = await store.getProfile(res.user.id);
+      expect(profile?.full_name).toBe('Karthik Apple');
+    });
+
     it('should require passkey enrollment before allowing passkey login for existing user', async () => {
       // 1. Register user
       const reg = await authService.register({
