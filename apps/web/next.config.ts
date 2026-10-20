@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const RAW_API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+// Strip trailing /api/v1 and trailing slashes so rewrite destination doesn't double-prefix /api/v1
+const BACKEND_BASE = RAW_API_URL.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@applyfields/ui'],
@@ -8,7 +10,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/v1/:path*',
-        destination: `${API_URL}/api/v1/:path*`,
+        destination: `${BACKEND_BASE}/api/v1/:path*`,
       },
     ];
   },
