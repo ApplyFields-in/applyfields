@@ -19,7 +19,12 @@ import {
   Sparkles,
   ExternalLink,
 } from 'lucide-react';
-import { getBookingById } from '@/lib/api';
+import {
+  getBookingById,
+  getBookingMessages,
+  markBookingMessagesRead,
+  sendBookingMessage,
+} from '@/lib/api';
 
 interface StoredBooking {
   id: string;
@@ -66,30 +71,61 @@ export default function BookingDetailsPage() {
     },
   ]);
 
-  function handleSendCitizenMsg() {
-    if (!newMsgText.trim()) return;
+  // Live polling for booking messages when chat drawer is opened
+  useEffect(() => {
+    if (!isChatOpen || !booking?.id) return;
+    let isMounted = true;
+
+    async function fetchMessages() {
+      try {
+        const res = await getBookingMessages(booking!.id);
+        if (res.data && res.data.length > 0 && isMounted) {
+          const mapped = res.data.map((m) => ({
+            id: m.id,
+            sender: (m.sender_type === 'citizen' ? 'citizen' : 'partner') as 'citizen' | 'partner',
+            text: m.message,
+            time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          }));
+          setMessages(mapped);
+          markBookingMessagesRead(booking!.id, 'citizen').catch(() => {});
+        }
+      } catch (err) {
+        console.warn('Could not load live messages:', err);
+      }
+    }
+
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [isChatOpen, booking?.id]);
+
+  async function handleSendCitizenMsg() {
+    const text = newMsgText.trim();
+    if (!text || !booking) return;
+
     const userMsg = {
       id: `c-${Date.now()}`,
       sender: 'citizen' as const,
-      text: newMsgText.trim(),
+      text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setNewMsgText('');
 
-    // Simulate instant operator reply after 1 second
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `p-${Date.now()}`,
-          sender: 'partner' as const,
-          text: 'Operator received: "Noted! We have updated your counter instructions and your documents are ready."',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-    }, 1200);
+    // Send to live Core API
+    try {
+      await sendBookingMessage(booking.id, {
+        message: text,
+        sender_type: 'citizen',
+        sender_name: booking.candidateName || 'Citizen Applicant',
+      });
+    } catch (err) {
+      console.warn('Could not send message to live API:', err);
+    }
   }
 
   useEffect(() => {
