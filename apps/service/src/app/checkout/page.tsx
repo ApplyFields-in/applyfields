@@ -23,6 +23,7 @@ import { useCart } from '@/lib/cart-context';
 import { useAuth } from '@/lib/auth-context';
 import { DynamicIntakeForm, type CombinedIntakePayload } from '@/components/intake/DynamicIntakeForm';
 import { SlotPicker, type TimeSlot } from '@/components/slot-picker';
+import { createBooking } from '@/lib/api';
 
 export default function CheckoutPage() {
   const { items, partner, subtotal, totalQuantity, clearCart } = useCart();
@@ -74,7 +75,7 @@ export default function CheckoutPage() {
     );
   }
 
-  function handleConfirmBooking() {
+  async function handleConfirmBooking() {
     if (!candidateName.trim() || !candidatePhone.trim()) {
       alert('Please provide your name and contact mobile number.');
       return;
@@ -86,13 +87,50 @@ export default function CheckoutPage() {
 
     setIsSubmitting(true);
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
-    const token = `AF-HYD-${randomSuffix}`;
+    let token = `AF-HYD-${randomSuffix}`;
+    let bookingRecordId = token;
+
+    // Check if partner has a valid database UUID
+    const isUuid = !!partner?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(partner.id);
+    const cleanPhone = candidatePhone.replace(/\s+/g, '');
+
+    // Formulate ISO appointment timestamp
+    let appointmentAt: string | undefined = undefined;
+    try {
+      if (selectedDate && selectedSlot.startTime) {
+        appointmentAt = new Date(`${selectedDate}T${selectedSlot.startTime}:00`).toISOString();
+      }
+    } catch {}
+
+    if (isUuid && partner) {
+      try {
+        const firstService = items[0];
+        const serviceUuid = firstService?.serviceId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(firstService.serviceId)
+          ? firstService.serviceId
+          : undefined;
+
+        const bookingRes = await createBooking({
+          partner_id: partner.id,
+          partner_service_id: serviceUuid,
+          appointment_at: appointmentAt,
+          contact_phone: cleanPhone,
+          user_note: `Applicant: ${candidateName.trim()}; Contact: ${cleanPhone}; Services: ${items.map((it) => `${it.quantity}x ${it.title}`).join(', ')}; Intake: ${JSON.stringify(intakePayload)}`,
+        });
+
+        if (bookingRes.data?.id) {
+          bookingRecordId = bookingRes.data.id;
+          token = `AF-${bookingRes.data.id.slice(0, 8).toUpperCase()}`;
+        }
+      } catch (err) {
+        console.warn('Backend booking submission error, continuing with resilient token:', err);
+      }
+    }
 
     const newBooking = {
-      id: token,
+      id: bookingRecordId,
       token,
-      candidateName,
-      candidatePhone,
+      candidateName: candidateName.trim(),
+      candidatePhone: cleanPhone,
       slotDate: selectedDate,
       slotTime: selectedSlot.time,
       partner: partner || {
@@ -123,11 +161,9 @@ export default function CheckoutPage() {
       } catch {}
     }
 
-    setTimeout(() => {
-      clearCart();
-      setIsSubmitting(false);
-      router.push(`/bookings/${token}`);
-    }, 600);
+    clearCart();
+    setIsSubmitting(false);
+    router.push(`/bookings/${bookingRecordId}`);
   }
 
   return (

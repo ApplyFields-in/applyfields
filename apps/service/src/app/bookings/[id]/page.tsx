@@ -19,6 +19,7 @@ import {
   Sparkles,
   ExternalLink,
 } from 'lucide-react';
+import { getBookingById } from '@/lib/api';
 
 interface StoredBooking {
   id: string;
@@ -27,6 +28,7 @@ interface StoredBooking {
   candidatePhone: string;
   slotDate: string;
   slotTime: string;
+  status?: string;
   partner: {
     id: string;
     name: string;
@@ -91,49 +93,118 @@ export default function BookingDetailsPage() {
   }
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && bookingId) {
-      const raw = localStorage.getItem('applyfields_bookings_v1');
-      if (raw) {
-        try {
+    let mounted = true;
+
+    async function loadBooking() {
+      if (typeof window === 'undefined' || !bookingId) return;
+
+      // 1. First check localStorage for immediate cache
+      let cached: StoredBooking | null = null;
+      try {
+        const raw = localStorage.getItem('applyfields_bookings_v1');
+        if (raw) {
           const list: StoredBooking[] = JSON.parse(raw);
           const found = list.find((b) => b.id === bookingId || b.token === bookingId);
           if (found) {
-            setBooking(found);
+            cached = found;
+            if (mounted) setBooking(found);
+          }
+        }
+      } catch {}
+
+      // 2. If bookingId looks like a database UUID, fetch fresh details from API
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(bookingId);
+      if (isUuid) {
+        try {
+          const res = await getBookingById(bookingId);
+          if (mounted && res.data) {
+            const apiBooking: StoredBooking = {
+              id: res.data.id,
+              token: `AF-${res.data.id.slice(0, 8).toUpperCase()}`,
+              candidateName: cached?.candidateName || res.data.user_note?.match(/Applicant:\s*([^;]+)/)?.[1] || 'Citizen Applicant',
+              candidatePhone: cached?.candidatePhone || res.data.partner_phone || '+91 98765 43210',
+              slotDate: res.data.appointment_at
+                ? new Date(res.data.appointment_at).toLocaleDateString('en-IN', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : cached?.slotDate || 'Tomorrow, 10:00 AM',
+              slotTime: res.data.appointment_at
+                ? new Date(res.data.appointment_at).toLocaleTimeString('en-IN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : cached?.slotTime || '10:00 AM – 10:30 AM',
+              status: res.data.status,
+              partner: {
+                id: res.data.partner_id,
+                name: res.data.partner_business_name,
+                address: res.data.partner_address || 'Partner Center Location',
+                city: 'Hyderabad',
+                district: 'Hyderabad',
+                phone: res.data.partner_phone || undefined,
+              },
+              items: cached?.items || [
+                {
+                  title: res.data.service_name || 'Government / MeeSeva Facilitation Service',
+                  price: (res.data.quoted_paise || res.data.final_paise || 10700) / 100,
+                  quantity: 1,
+                  category: 'MeeSeva',
+                },
+              ],
+              total: cached?.total || (res.data.quoted_paise || res.data.final_paise || 10700) / 100,
+              intakeSummary: cached?.intakeSummary,
+              createdAt: res.data.created_at,
+            };
+
+            setBooking(apiBooking);
             return;
           }
-        } catch {}
+        } catch (err) {
+          console.warn('Could not fetch booking from API, using cached/sample:', err);
+        }
       }
 
-      // Default fallback booking for testing
-      setBooking({
-        id: bookingId,
-        token: bookingId.startsWith('AF-') ? bookingId : 'AF-HYD-50001',
-        candidateName: 'Arvind V. Kumar',
-        candidatePhone: '+91 98765 43210',
-        slotDate: 'Tomorrow, 10:00 AM',
-        slotTime: '10:00 AM – 10:30 AM',
-        partner: {
-          id: 'pt-1',
-          name: 'Sri Balaji MeeSeva & Xerox Centre',
-          address: 'Shop #12, Ground Floor, Opp Metro Pillar 1042',
-          city: 'Ameerpet',
-          district: 'Hyderabad',
-          phone: '+91 98480 12345',
-        },
-        items: [
-          { title: 'PAN Card New Application (Form 49A)', price: 107, quantity: 1, category: 'PAN Services' },
-          { title: 'Aadhaar Biometric Facilitation Slot', price: 50, quantity: 1, category: 'Aadhaar Services' },
-        ],
-        total: 157,
-        intakeSummary: [
-          'Applicant: Arvind V. Kumar (Aadhaar Verified)',
-          'Father: Venkata Raman Kumar',
-          'DOB: 1998-05-14 · Gender: Male',
-          'Document Vault: 1-Click Linked',
-        ],
-        createdAt: new Date().toISOString(),
-      });
+      // 3. Fallback sample if neither cached nor API succeeded
+      if (!cached && mounted) {
+        setBooking({
+          id: bookingId,
+          token: bookingId.startsWith('AF-') ? bookingId : 'AF-HYD-50001',
+          candidateName: 'Arvind V. Kumar',
+          candidatePhone: '+91 98765 43210',
+          slotDate: 'Tomorrow, 10:00 AM',
+          slotTime: '10:00 AM – 10:30 AM',
+          status: 'new',
+          partner: {
+            id: 'pt-1',
+            name: 'Sri Balaji MeeSeva & Xerox Centre',
+            address: 'Shop #12, Ground Floor, Opp Metro Pillar 1042',
+            city: 'Ameerpet',
+            district: 'Hyderabad',
+            phone: '+91 98480 12345',
+          },
+          items: [
+            { title: 'PAN Card New Application (Form 49A)', price: 107, quantity: 1, category: 'PAN Services' },
+            { title: 'Aadhaar Biometric Facilitation Slot', price: 50, quantity: 1, category: 'Aadhaar Services' },
+          ],
+          total: 157,
+          intakeSummary: [
+            'Applicant: Arvind V. Kumar (Aadhaar Verified)',
+            'Father: Venkata Raman Kumar',
+            'DOB: 1998-05-14 · Gender: Male',
+            'Document Vault: 1-Click Linked',
+          ],
+          createdAt: new Date().toISOString(),
+        });
+      }
     }
+
+    loadBooking();
+    return () => {
+      mounted = false;
+    };
   }, [bookingId]);
 
   if (!booking) {
@@ -188,8 +259,24 @@ export default function BookingDetailsPage() {
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <div>
-              <span className="cut-corner-badge rounded-md bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black uppercase text-emerald-800">
-                Confirmed &amp; Slot Locked
+              <span className={`cut-corner-badge rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase ${
+                booking.status === 'completed'
+                  ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
+                  : booking.status === 'in_progress'
+                  ? 'bg-blue-100 text-[#0e7bf4] ring-1 ring-blue-300'
+                  : booking.status === 'cancelled' || booking.status === 'rejected'
+                  ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300'
+                  : 'bg-emerald-100 text-emerald-800'
+              }`}>
+                {booking.status === 'completed'
+                  ? 'Service Completed & Delivered'
+                  : booking.status === 'in_progress'
+                  ? 'In Progress at Counter'
+                  : booking.status === 'cancelled'
+                  ? 'Booking Cancelled'
+                  : booking.status === 'rejected'
+                  ? 'Booking Declined'
+                  : 'Confirmed & Slot Locked'}
               </span>
               <h1 className="text-xl sm:text-2xl font-black text-[#082046] mt-0.5">
                 Digital Appointment Token
