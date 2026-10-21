@@ -39,6 +39,7 @@ import {
 } from './opportunity-actions';
 import { SaveButton } from './save-button';
 import { ReportWrongInfoButton } from './report-wrong-info-modal';
+import { OpportunityAnalyticsTracker, ExternalApplyLink } from './analytics-tracker';
 import { isSaved } from '@/lib/server-api';
 import {
   DATE_KIND_LABEL,
@@ -125,6 +126,9 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
+      {/* Privacy-First Anonymous View Telemetry */}
+      <OpportunityAnalyticsTracker id={item.id} slug={item.slug} type={item.type} />
 
       {/* Breadcrumb Navigation */}
       <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-xs text-teal/70">
@@ -670,10 +674,10 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
               )}
 
               {item.links.apply_url && (
-                <a
+                <ExternalApplyLink
+                  opportunityId={item.id}
+                  opportunitySlug={item.slug}
                   href={item.links.apply_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="clay-press flex items-center justify-between rounded-xl border border-line bg-cream p-3 text-xs font-bold text-teal shadow-clay hover:bg-tea"
                 >
                   <span className="flex items-center gap-2">
@@ -681,7 +685,7 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
                     Official Online Application Portal
                   </span>
                   <ChevronRight className="size-3.5" />
-                </a>
+                </ExternalApplyLink>
               )}
 
               {item.links.official_website && (

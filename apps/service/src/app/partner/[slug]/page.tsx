@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { getPartnerBySlug } from '@/lib/api';
+import { trackServiceEvent } from '@/lib/analytics/tracker';
 import {
   MapPin,
   ShieldCheck,
@@ -343,6 +344,11 @@ export default function PartnerStorefrontPage() {
             setPartnerServices(mappedServices);
           }
         }
+        trackServiceEvent('service_browse', {
+          entity_type: 'partner',
+          entity_id: rawSlug,
+          metadata: { partner_slug: rawSlug },
+        });
       } catch (err) {
         console.warn('Could not fetch live partner details, using preset:', err);
       }

@@ -4,6 +4,7 @@ import { CalendarDays, MapPin, Search, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline, FilterBar, type ListSearchParams } from '@/components/opportunity';
+import { SearchAnalyticsTracker } from '@/components/analytics-tracker';
 import { apiGet } from '@/lib/api';
 import { daysLeftLabel, formatDate, Highlight, RESULT_META, urgencyTone } from '@/lib/format';
 
@@ -44,6 +45,7 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
 
   return (
     <>
+      <SearchAnalyticsTracker query={query} totalResults={data?.total ?? 0} />
       <PageHeader
         eyebrow="Universal search"
         title={query ? `Results for “${query}”` : 'Search ApplyFields'}

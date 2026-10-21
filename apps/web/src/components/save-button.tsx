@@ -6,6 +6,7 @@ import { Bell, BellOff, Bookmark, BookmarkCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { apiDelete, apiPut } from '@/lib/api';
+import { trackEvent } from '@/lib/analytics/tracker';
 
 /** Bookmark toggle on every card. Logged out → login page. */
 export function SaveButton({
@@ -31,6 +32,13 @@ export function SaveButton({
     if (res.status === 401) return router.push('/login');
     if (res.data) {
       setSaved(res.data.saved);
+      if (res.data.saved) {
+        trackEvent('opportunity_save', {
+          entity_type: 'opportunity',
+          entity_id: slug,
+          metadata: { title, item_type: itemType },
+        });
+      }
       router.refresh();
     }
   }
