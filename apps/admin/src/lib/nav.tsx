@@ -19,6 +19,7 @@ import {
   ScrollText,
   Settings,
   Store,
+  TrendingUp,
   Users,
 } from 'lucide-react';
 
@@ -56,6 +57,7 @@ export const NAV: NavGroup[] = [
   {
     label: 'Insights & Ops',
     items: [
+      { href: '/analytics', label: 'Funnel Analytics', icon: <TrendingUp /> },
       { href: '/reports', label: 'Reports', icon: <Flag /> },
       { href: '/payments', label: 'Payments', icon: <CreditCard /> },
       { href: '/scrapers', label: 'Scrapers', icon: <Radar /> },

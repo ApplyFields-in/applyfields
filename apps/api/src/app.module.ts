@@ -23,6 +23,7 @@ import { DocumentsModule } from './modules/documents/documents.module.js';
 import { ApplicationsModule } from './modules/applications/applications.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { DigilockerModule } from './modules/digilocker/digilocker.module.js';
+import { AnalyticsModule } from './modules/analytics/analytics.module.js';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { DigilockerModule } from './modules/digilocker/digilocker.module.js';
     ApplicationsModule,
     ReportsModule,
     DigilockerModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

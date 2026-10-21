@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -24,6 +24,7 @@ import { useAuth } from '@/lib/auth-context';
 import { DynamicIntakeForm, type CombinedIntakePayload } from '@/components/intake/DynamicIntakeForm';
 import { SlotPicker, type TimeSlot } from '@/components/slot-picker';
 import { createBooking } from '@/lib/api';
+import { trackServiceEvent } from '@/lib/analytics/tracker';
 
 export default function CheckoutPage() {
   const { items, partner, subtotal, totalQuantity, clearCart } = useCart();
@@ -52,6 +53,16 @@ export default function CheckoutPage() {
   const [intakePayload, setIntakePayload] = useState<CombinedIntakePayload>({});
   const [paymentMode, setPaymentMode] = useState<'counter' | 'online'>('counter');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (partner?.id) {
+      trackServiceEvent('booking_slot_start', {
+        entity_type: 'partner',
+        entity_id: partner.id,
+        metadata: { partner_name: partner.name, total_items: items.length, subtotal },
+      });
+    }
+  }, [partner?.id, partner?.name, items.length, subtotal]);
 
   if (items.length === 0) {
     return (
@@ -160,6 +171,12 @@ export default function CheckoutPage() {
         localStorage.setItem('applyfields_bookings_v1', JSON.stringify(list));
       } catch {}
     }
+
+    trackServiceEvent('booking_slot_completed', {
+      entity_type: 'service',
+      entity_id: bookingRecordId,
+      metadata: { token, partner_id: partner?.id, total: subtotal },
+    });
 
     clearCart();
     setIsSubmitting(false);

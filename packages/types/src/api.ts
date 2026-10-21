@@ -1830,3 +1830,60 @@ export interface LinkHealthReport {
   broken_links: LinkHealthCheckItem[];
 }
 
+// ============================================================================
+// PRIVACY-FIRST ANALYTICS & CITIZEN FUNNEL (DPDP Act 2023 Compliant)
+// ============================================================================
+
+export type AnalyticsEventName =
+  | 'search'
+  | 'opportunity_view'
+  | 'eligibility_check'
+  | 'opportunity_save'
+  | 'external_apply_click'
+  | 'service_browse'
+  | 'booking_slot_start'
+  | 'booking_slot_completed';
+
+export interface AnalyticsEventInput {
+  event_name: AnalyticsEventName;
+  session_id?: string;
+  entity_type?: 'opportunity' | 'service' | 'partner' | 'career' | 'search';
+  entity_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AnalyticsBatchInput {
+  events: AnalyticsEventInput[];
+}
+
+export interface FunnelStepMetric {
+  step: string;
+  label: string;
+  count: number;
+  dropoff_percent: number;
+}
+
+export interface AnalyticsFunnelSummary {
+  period_days: number;
+  total_events: number;
+  total_sessions: number;
+  funnel: {
+    searches: number;
+    views: number;
+    eligibility_checks: number;
+    saves: number;
+    external_applies: number;
+    service_browses: number;
+    bookings_started: number;
+    bookings_completed: number;
+  };
+  conversion_rates: {
+    search_to_view: number;
+    view_to_eligibility: number;
+    eligibility_to_apply: number;
+    browse_to_booking: number;
+  };
+  top_search_queries: Array<{ query: string; count: number }>;
+  top_viewed_opportunities: Array<{ id: string; count: number }>;
+}
+
