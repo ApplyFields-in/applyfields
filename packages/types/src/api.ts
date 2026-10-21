@@ -1741,3 +1741,92 @@ export interface DigiLockerImportResponse {
   document: UserDocumentSummary;
   message?: string;
 }
+
+// ---------- Session 04: Scrapers, Sources & Link Health ----------
+
+export type ScrapeRunStatus = 'running' | 'success' | 'partial' | 'failed';
+
+export interface ScrapeRunItem {
+  id: string;
+  source_id: string;
+  status: ScrapeRunStatus;
+  started_at: string;
+  finished_at: string | null;
+  items_found: number;
+  new_items: number;
+  error: string | null;
+}
+
+export interface ScrapeSourceItem {
+  id: string;
+  key: string;
+  name: string;
+  organization_id: string | null;
+  organization_name?: string | null;
+  list_url: string;
+  kind: string;
+  is_active: boolean;
+  interval_hours: number;
+  last_run_at: string | null;
+  last_success_at: string | null;
+  consecutive_failures: number;
+  health: 'healthy' | 'failing' | 'stale' | 'idle' | 'disabled';
+  latest_run?: ScrapeRunItem | null;
+  total_runs: number;
+  total_documents: number;
+}
+
+export interface ScrapeSourcesListResponse {
+  sources: ScrapeSourceItem[];
+  summary: {
+    total: number;
+    active: number;
+    healthy: number;
+    failing: number;
+    stale: number;
+  };
+}
+
+export interface ScrapeSourceRunsResponse {
+  source_id: string;
+  key: string;
+  name: string;
+  runs: ScrapeRunItem[];
+  total: number;
+}
+
+export interface ScrapeTriggerResponse {
+  success: boolean;
+  message: string;
+  source_key: string;
+  run_id?: string;
+  status?: string;
+  items_found?: number;
+  new_items?: number;
+  duplicates?: number;
+  failed_items?: number;
+}
+
+export interface LinkHealthCheckItem {
+  opportunity_id: string;
+  title: string;
+  slug: string;
+  status: string;
+  apply_url: string | null;
+  apply_url_status: number | null;
+  apply_url_ok: boolean;
+  pdf_url: string | null;
+  pdf_url_status: number | null;
+  pdf_url_ok: boolean;
+  last_checked_at: string;
+  error?: string | null;
+}
+
+export interface LinkHealthReport {
+  checked_count: number;
+  broken_count: number;
+  healthy_count: number;
+  checked_at: string;
+  broken_links: LinkHealthCheckItem[];
+}
+

@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.4",
     "sqlalchemy>=2.0",
     "psycopg[binary]>=3.2",
+    "requests>=2.34.2",
 ]
 
 [dependency-groups]
