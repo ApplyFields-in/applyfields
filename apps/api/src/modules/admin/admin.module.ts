@@ -9,6 +9,10 @@ import { ReviewService } from './review.service.js';
 import { UpdatesAdminController } from './updates-admin.controller.js';
 import { UpdatesAdminService } from './updates-admin.service.js';
 import { UsersAdminService } from './users.service.js';
+import { ScrapersAdminController } from './scrapers-admin.controller.js';
+import { ScrapersAdminService } from './scrapers-admin.service.js';
+import { ScraperSchedulerService } from './scraper-scheduler.service.js';
+import { LinkHealthService } from './link-health.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
@@ -17,6 +21,7 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
     AdminController,
     OpportunitiesAdminController,
     UpdatesAdminController,
+    ScrapersAdminController,
   ],
   providers: [
     ReviewService,
@@ -25,7 +30,11 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
     UpdatesAdminService,
     ExpiryService,
     UsersAdminService,
+    ScrapersAdminService,
+    ScraperSchedulerService,
+    LinkHealthService,
     StaffGuard,
   ],
 })
 export class AdminModule {}
+
