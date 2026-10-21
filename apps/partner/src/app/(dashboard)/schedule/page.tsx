@@ -21,7 +21,7 @@ import {
   ShieldCheck,
   ChevronRight,
 } from 'lucide-react';
-import { apiGet, apiPut, apiPost } from '@/lib/api';
+import { apiGet, apiPut, apiPost, getMyPartner, updatePartner } from '@/lib/api';
 
 interface DaySchedule {
   dayOfWeek: number; // 0 = Sun, 1 = Mon ... 6 = Sat
@@ -71,21 +71,48 @@ export default function SchedulePage() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Load from localStorage or API on mount
+  // Load from API or localStorage on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('applyfields_partner_schedule_v1');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (parsed.schedule) setSchedule(parsed.schedule);
-          if (parsed.slotDuration) setSlotDuration(parsed.slotDuration);
-          if (parsed.maxConcurrent) setMaxConcurrent(parsed.maxConcurrent);
-          if (parsed.isEmergencyPaused !== undefined) setIsEmergencyPaused(parsed.isEmergencyPaused);
-          if (parsed.holidayOverrides) setHolidayOverrides(parsed.holidayOverrides);
-        } catch {}
+    async function loadSchedule() {
+      try {
+        const partnerRes = await getMyPartner();
+        if (partnerRes.data?.working_hours && Object.keys(partnerRes.data.working_hours).length > 0) {
+          const wh = partnerRes.data.working_hours;
+          setSchedule((prev) =>
+            prev.map((d) => {
+              const times = wh[d.dayName.toLowerCase()];
+              if (times && times.length >= 2) {
+                return {
+                  ...d,
+                  isOpen: true,
+                  openTime: times[0] ?? d.openTime,
+                  closeTime: times[1] ?? d.closeTime,
+                };
+              } else if (times === undefined && wh.hasOwnProperty(d.dayName.toLowerCase())) {
+                return { ...d, isOpen: false };
+              }
+              return d;
+            })
+          );
+        }
+      } catch {}
+
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('applyfields_partner_schedule_v1');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed.schedule) setSchedule(parsed.schedule);
+            if (parsed.slotDuration) setSlotDuration(parsed.slotDuration);
+            if (parsed.maxConcurrent) setMaxConcurrent(parsed.maxConcurrent);
+            if (parsed.isEmergencyPaused !== undefined) setIsEmergencyPaused(parsed.isEmergencyPaused);
+            if (parsed.holidayOverrides) setHolidayOverrides(parsed.holidayOverrides);
+          } catch {}
+        }
       }
     }
+
+    loadSchedule();
   }, []);
 
   function showToast(msg: string) {
@@ -184,17 +211,22 @@ export default function SchedulePage() {
       localStorage.setItem('applyfields_partner_schedule_v1', JSON.stringify(payload));
     }
 
-    // Attempt backend sync
+    // Backend sync: map schedule to working_hours and update partner profile
     try {
-      await apiPut('/partners/me/schedule', payload);
+      const working_hours: Record<string, string[]> = {};
+      for (const day of schedule) {
+        if (day.isOpen) {
+          working_hours[day.dayName.toLowerCase()] = [day.openTime, day.closeTime];
+        }
+      }
+      await updatePartner({ working_hours });
+      await apiPut('/partners/me/schedule', payload).catch(() => {});
     } catch {
-      // Backend may still be in development by Karthik; local persistence ensures zero data loss
-    }
-
-    setTimeout(() => {
+      // Local persistence ensures zero data loss
+    } finally {
       setIsSaving(false);
       showToast('Weekly schedule & slot configuration saved successfully!');
-    }, 400);
+    }
   }
 
   // Calculate Daily Estimated Slots

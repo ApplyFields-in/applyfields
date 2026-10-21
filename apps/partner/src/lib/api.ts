@@ -1,10 +1,13 @@
 import type {
+  BookingDetail,
+  BookingListResponse,
   PartnerDetail,
   PartnerDocumentSummary,
   PartnerRegistrationInput,
   PartnerServiceDetail,
   PartnerServiceInput,
   PartnerUpdateInput,
+  UpdateBookingStatusInput,
 } from '@applyfields/types';
 
 export const API_URL =
@@ -321,3 +324,16 @@ export async function updatePartnerService(
 export async function deletePartnerService(id: string): Promise<ApiResponse<{ success: boolean }>> {
   return apiDelete<{ success: boolean }>(`/partners/me/services/${id}`);
 }
+
+export async function listPartnerBookings(status?: string): Promise<ApiResponse<BookingListResponse>> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiGet<BookingListResponse>(`/bookings/partner/inbox${query}`);
+}
+
+export async function updatePartnerBookingStatus(
+  bookingId: string,
+  input: UpdateBookingStatusInput,
+): Promise<ApiResponse<BookingDetail>> {
+  return apiPatch<BookingDetail, UpdateBookingStatusInput>(`/bookings/partner/${bookingId}`, input);
+}
+
