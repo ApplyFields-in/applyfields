@@ -29,3 +29,20 @@ export async function isSaved(itemType: SavedItemType, slug: string): Promise<bo
   const list = await apiGetAsUser<SavedList>('/saved');
   return Boolean(list?.items.some((i) => i.item_type === itemType && i.slug === slug));
 }
+
+/**
+ * Server components: GET public content with ISR (Incremental Static Regeneration) caching.
+ * Responses are cached at Next.js server layer for `revalidateSeconds` (default: 60s).
+ */
+export async function apiGetPublic<T>(path: string, revalidateSeconds = 60): Promise<T | null> {
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      next: { revalidate: revalidateSeconds },
+      signal: AbortSignal.timeout(6000),
+    });
+    return res.ok ? ((await res.json()) as T) : null;
+  } catch {
+    return null;
+  }
+}
+

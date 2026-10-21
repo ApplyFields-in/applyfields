@@ -52,13 +52,18 @@ async function attemptTokenRefresh(): Promise<boolean> {
   return refreshPromise;
 }
 
-/** GET a JSON endpoint. Automatically attempts refresh if access token expired. */
-export async function apiGet<T>(path: string, _token?: string): Promise<T | null> {
+/** GET a JSON endpoint. Supports browser & HTTP caching policies. */
+export async function apiGet<T>(
+  path: string,
+  _token?: string,
+  options?: RequestInit,
+): Promise<T | null> {
   try {
     let res = await fetch(`${API_URL}${path}`, {
-      cache: 'no-store',
+      cache: options?.cache ?? 'default',
+      ...options,
       credentials: 'include',
-      signal: AbortSignal.timeout(20000),
+      signal: options?.signal ?? AbortSignal.timeout(20000),
     });
 
     // If unauthorized, try silent refresh once via httpOnly cookie
@@ -66,9 +71,10 @@ export async function apiGet<T>(path: string, _token?: string): Promise<T | null
       const refreshed = await attemptTokenRefresh();
       if (refreshed) {
         res = await fetch(`${API_URL}${path}`, {
-          cache: 'no-store',
+          cache: options?.cache ?? 'default',
+          ...options,
           credentials: 'include',
-          signal: AbortSignal.timeout(20000),
+          signal: options?.signal ?? AbortSignal.timeout(20000),
         });
       }
     }

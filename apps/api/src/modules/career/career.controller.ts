@@ -14,6 +14,7 @@ import { ZodPipe } from '../../common/zod.pipe.js';
 import { Roles } from '../../common/roles.decorator.js';
 import { StaffGuard } from '../../common/staff.guard.js';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard.js';
+import { CacheService } from '../../common/cache.service.js';
 import {
   adminCareerDtoSchema,
   careerListQuerySchema,
@@ -26,18 +27,26 @@ import {
 
 @Controller('career')
 export class CareerController {
-  constructor(private readonly careerService: CareerService) {}
+  constructor(
+    private readonly careerService: CareerService,
+    private readonly cache: CacheService,
+  ) {}
 
   /** List all published career categories */
   @Get('categories')
   async getCategories(): Promise<CareerCategory[]> {
-    return this.careerService.getCategories();
+    return this.cache.wrap('career:categories', 300, async () => {
+      return this.careerService.getCategories();
+    });
   }
 
   /** List / Explore careers with category, search and stream filters */
   @Get()
   async listCareers(@Query(new ZodPipe(careerListQuerySchema)) query: CareerListQuery): Promise<CareerSummary[]> {
-    return this.careerService.listCareers(query);
+    const key = `career:list:${JSON.stringify(query)}`;
+    return this.cache.wrap(key, 60, async () => {
+      return this.careerService.listCareers(query);
+    });
   }
 
   /** Recommendations based on student profile */
@@ -67,7 +76,10 @@ export class CareerController {
   /** Get individual career details by slug */
   @Get(':slug')
   async getCareerBySlug(@Param('slug') slug: string): Promise<CareerDetail> {
-    return this.careerService.getCareerBySlug(slug);
+    const key = `career:slug:${slug}`;
+    return this.cache.wrap(key, 120, async () => {
+      return this.careerService.getCareerBySlug(slug);
+    });
   }
 }
 
@@ -75,7 +87,10 @@ export class CareerController {
 @UseGuards(StaffGuard)
 @Roles('reviewer')
 export class AdminCareerController {
-  constructor(private readonly careerService: CareerService) {}
+  constructor(
+    private readonly careerService: CareerService,
+    private readonly cache: CacheService,
+  ) {}
 
   @Get()
   async listAll(@Query('q') q?: string, @Query('status') status?: string) {
@@ -84,11 +99,15 @@ export class AdminCareerController {
 
   @Post()
   async createCareer(@Body(new ZodPipe(adminCareerDtoSchema)) body: AdminCareerDto) {
-    return this.careerService.adminCreateCareer(body);
+    const result = await this.careerService.adminCreateCareer(body);
+    this.cache.deletePrefix('career:');
+    return result;
   }
 
   @Put(':id')
   async updateCareer(@Param('id') id: string, @Body() body: Partial<AdminCareerDto>) {
-    return this.careerService.adminUpdateCareer(id, body);
+    const result = await this.careerService.adminUpdateCareer(id, body);
+    this.cache.deletePrefix('career:');
+    return result;
   }
 }

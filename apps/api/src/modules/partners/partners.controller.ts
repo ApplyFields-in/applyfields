@@ -27,6 +27,7 @@ import {
   type AuthenticatedRequest,
   type MaybeUserRequest,
 } from '../auth/auth.guard.js';
+import { CacheService } from '../../common/cache.service.js';
 import {
   partnerDirectoryQuerySchema,
   partnerRegisterSchema,
@@ -37,7 +38,10 @@ import {
 
 @Controller('partners')
 export class PartnersController {
-  constructor(private readonly partnersService: PartnersService) {}
+  constructor(
+    private readonly partnersService: PartnersService,
+    private readonly cache: CacheService,
+  ) {}
 
   // =========================================================================
   // PUBLIC DIRECTORY & SEARCH
@@ -47,7 +51,10 @@ export class PartnersController {
   async listDirectory(
     @Query(new ZodPipe(partnerDirectoryQuerySchema)) query: PartnerDirectoryQuery,
   ): Promise<PartnerDirectoryResponse> {
-    return this.partnersService.listDirectory(query);
+    const key = `partners:dir:${JSON.stringify(query)}`;
+    return this.cache.wrap(key, 30, async () => {
+      return this.partnersService.listDirectory(query);
+    });
   }
 
   // =========================================================================
@@ -128,6 +135,9 @@ export class PartnersController {
 
   @Get(':slug')
   async getBySlug(@Param('slug') slug: string): Promise<PartnerDetail> {
-    return this.partnersService.getBySlug(slug);
+    const key = `partners:slug:${slug}`;
+    return this.cache.wrap(key, 60, async () => {
+      return this.partnersService.getBySlug(slug);
+    });
   }
 }
