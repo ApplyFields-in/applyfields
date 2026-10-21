@@ -22,6 +22,12 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import {
+  getBookingMessages,
+  getPartnerConversations,
+  markBookingMessagesRead,
+  sendBookingMessage,
+} from '@/lib/api';
 
 export interface ChatMessage {
   id: string;
@@ -186,17 +192,113 @@ export default function PartnerMessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [inputText, setInputText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isLoadingThreads, setIsLoadingThreads] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeThread = threads.find((t) => t.token === activeToken) || threads[0];
+
+  // Fetch live partner conversations
+  useEffect(() => {
+    let isMounted = true;
+    async function loadThreads() {
+      try {
+        const res = await getPartnerConversations();
+        if (res.data && res.data.threads && res.data.threads.length > 0 && isMounted) {
+          const liveThreads: ConversationThread[] = res.data.threads.map((t) => ({
+            bookingId: t.booking_id,
+            token: t.token,
+            citizenName: t.citizen_name,
+            citizenPhone: t.citizen_phone,
+            serviceTitle: t.service_title,
+            slotDate: t.slot_date || 'Today',
+            slotTime: t.slot_time || '10:00 AM',
+            unreadCount: t.unread_count,
+            lastMessage: t.last_message,
+            lastTimestamp: t.last_timestamp ? new Date(t.last_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today',
+            messages: [],
+          }));
+
+          setThreads((prev) => {
+            // Preserve any loaded messages for existing threads
+            return liveThreads.map((lt) => {
+              const existing = prev.find((p) => p.bookingId === lt.bookingId);
+              return existing && existing.messages.length > 0
+                ? { ...lt, messages: existing.messages }
+                : lt;
+            });
+          });
+
+          if (!activeToken || activeToken === 'AF-8821') {
+            setActiveToken(liveThreads[0].token);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load live threads, fallback to demo mode:', err);
+      }
+    }
+
+    loadThreads();
+    const interval = setInterval(loadThreads, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Fetch messages for active booking
+  useEffect(() => {
+    if (!activeThread?.bookingId) return;
+    let isMounted = true;
+
+    async function fetchThreadMessages() {
+      try {
+        const res = await getBookingMessages(activeThread.bookingId);
+        if (res.data && res.data.length > 0 && isMounted) {
+          const mappedMsgs: ChatMessage[] = res.data.map((m) => ({
+            id: m.id,
+            senderType: m.sender_type,
+            senderName: m.sender_name,
+            text: m.message,
+            timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isRead: m.is_read,
+            attachments: m.attachments?.map((a) => ({
+              name: a.name,
+              size: a.file_size || '150 KB',
+              kind: (a.kind as any) || (a.name.endsWith('.pdf') ? 'pdf' : 'image'),
+            })),
+          }));
+
+          setThreads((prev) =>
+            prev.map((t) =>
+              t.bookingId === activeThread.bookingId
+                ? { ...t, messages: mappedMsgs, unreadCount: 0 }
+                : t,
+            ),
+          );
+
+          // Mark read on server
+          markBookingMessagesRead(activeThread.bookingId, 'partner').catch(() => {});
+        }
+      } catch (err) {
+        console.warn('Failed to fetch messages for thread:', err);
+      }
+    }
+
+    fetchThreadMessages();
+    const interval = setInterval(fetchThreadMessages, 6000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [activeToken, activeThread?.bookingId]);
 
   // Auto-scroll on new message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeThread?.messages]);
 
-  // Mark active thread as read
+  // Mark active thread as read locally
   useEffect(() => {
     if (activeThread && activeThread.unreadCount > 0) {
       setThreads((prev) =>
@@ -210,14 +312,17 @@ export default function PartnerMessagesPage() {
             : t,
         ),
       );
+      if (activeThread.bookingId) {
+        markBookingMessagesRead(activeThread.bookingId, 'partner').catch(() => {});
+      }
     }
   }, [activeToken]);
 
-  function handleSendMessage(textToSend?: string) {
+  async function handleSendMessage(textToSend?: string) {
     const text = (textToSend || inputText).trim();
     if (!text || !activeThread) return;
 
-    const newMsg: ChatMessage = {
+    const optimisticMsg: ChatMessage = {
       id: `m-${Date.now()}`,
       senderType: 'partner',
       senderName: 'Partner Desk',
@@ -233,7 +338,7 @@ export default function PartnerMessagesPage() {
               ...t,
               lastMessage: text,
               lastTimestamp: 'Just now',
-              messages: [...t.messages, newMsg],
+              messages: [...t.messages, optimisticMsg],
             }
           : t,
       ),
@@ -241,6 +346,19 @@ export default function PartnerMessagesPage() {
 
     if (!textToSend) {
       setInputText('');
+    }
+
+    // Dispatch to server if booking ID exists
+    if (activeThread.bookingId && !activeThread.bookingId.startsWith('bk-')) {
+      try {
+        await sendBookingMessage(activeThread.bookingId, {
+          message: text,
+          sender_type: 'partner',
+          sender_name: 'Partner Desk',
+        });
+      } catch (err) {
+        console.error('Failed to send live message to server:', err);
+      }
     }
   }
 

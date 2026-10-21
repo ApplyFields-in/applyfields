@@ -1,10 +1,13 @@
 import type {
+  ChatMessageItem,
+  ConversationListResponse,
   PartnerDetail,
   PartnerDocumentSummary,
   PartnerRegistrationInput,
   PartnerServiceDetail,
   PartnerServiceInput,
   PartnerUpdateInput,
+  SendChatMessageInput,
 } from '@applyfields/types';
 
 export const API_URL =
@@ -320,4 +323,33 @@ export async function updatePartnerService(
 
 export async function deletePartnerService(id: string): Promise<ApiResponse<{ success: boolean }>> {
   return apiDelete<{ success: boolean }>(`/partners/me/services/${id}`);
+}
+
+// ============================================================================
+// PARTNER CHAT & LIVE MESSAGING HELPERS
+// ============================================================================
+
+export async function getPartnerConversations(): Promise<ApiResponse<ConversationListResponse>> {
+  return apiGet<ConversationListResponse>('/partners/me/conversations');
+}
+
+export async function getBookingMessages(bookingId: string): Promise<ApiResponse<ChatMessageItem[]>> {
+  return apiGet<ChatMessageItem[]>(`/bookings/${bookingId}/messages`);
+}
+
+export async function sendBookingMessage(
+  bookingId: string,
+  input: SendChatMessageInput,
+): Promise<ApiResponse<ChatMessageItem>> {
+  return apiPost<ChatMessageItem, SendChatMessageInput>(`/bookings/${bookingId}/messages`, input);
+}
+
+export async function markBookingMessagesRead(
+  bookingId: string,
+  reader_type: 'citizen' | 'partner' = 'partner',
+): Promise<ApiResponse<{ count: number }>> {
+  return apiPatch<{ count: number }, { reader_type: 'citizen' | 'partner' }>(
+    `/bookings/${bookingId}/messages/read`,
+    { reader_type },
+  );
 }
