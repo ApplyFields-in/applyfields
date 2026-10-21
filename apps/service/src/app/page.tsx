@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { listDirectoryPartners } from '@/lib/api';
 import {
   MapPin,
   Clock,
@@ -241,6 +242,77 @@ export default function ServicesHomePage() {
   const [focusedCenter, setFocusedCenter] = useState<VerifiedCenter | null>(null);
 
   const { addItem } = useCart();
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadDirectory() {
+      try {
+        const res = await listDirectoryPartners();
+        if (mounted && res.data?.items && res.data.items.length > 0) {
+          const liveCenters: VerifiedCenter[] = res.data.items.map((p) => {
+            const typeMapping: Record<string, VerifiedCenter['type']> = {
+              meeseva: 'meeseva',
+              csc: 'csc',
+              xerox_printing: 'xerox_printing',
+              browsing_centre: 'browsing_centre',
+            };
+            const partnerType = typeMapping[p.type] || 'meeseva';
+            return {
+              id: p.id,
+              name: p.business_name,
+              slug: p.slug,
+              type: partnerType,
+              typeLabel:
+                p.type === 'meeseva'
+                  ? 'MeeSeva Hub'
+                  : p.type === 'csc'
+                  ? 'CSC Digital Seva'
+                  : p.type === 'xerox_printing'
+                  ? 'Xerox & Print Desk'
+                  : 'Cyber & Application Hub',
+              rating: p.rating_avg || 4.9,
+              reviewCount: p.rating_count || 12,
+              distanceKm: 1.5,
+              address: p.address || 'Opposite Municipal Complex',
+              city: p.city || 'Hyderabad',
+              district: p.district || 'Hyderabad',
+              pincode: p.pincode || '500001',
+              phone: p.phone || '+91 98480 12345',
+              isOpenToday: p.is_available,
+              openHours: '09:00 AM – 08:00 PM',
+              slotDurationMinutes: 30,
+              lat: p.latitude || 17.4374,
+              lng: p.longitude || 78.4482,
+              landmark: p.district || undefined,
+              sampleServices: p.services?.length
+                ? p.services.map((s) => ({
+                    title: s.name,
+                    price: (s.charge_paise ?? 5000) / 100,
+                    turnaround: s.estimated_time_text || 'Same Day',
+                  }))
+                : [
+                    { title: 'Aadhaar PVC Smart Card (UIDAI Official)', price: 50, turnaround: '15m' },
+                    { title: 'New PAN Card Application (Form 49A)', price: 150, turnaround: 'Same Day' },
+                  ],
+            };
+          });
+
+          setCenters((prev) => {
+            const liveSlugs = new Set(liveCenters.map((c) => c.slug));
+            const filteredSamples = SAMPLE_CENTERS.filter((s) => !liveSlugs.has(s.slug));
+            return [...liveCenters, ...filteredSamples];
+          });
+        }
+      } catch (err) {
+        console.warn('Could not load live directory, using verified directory sample list:', err);
+      }
+    }
+
+    loadDirectory();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   function handleEnableLocation() {
     setIsLocating(true);

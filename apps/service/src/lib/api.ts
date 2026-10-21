@@ -76,3 +76,53 @@ export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<A
     };
   }
 }
+
+// ============================================================================
+// CITIZEN SERVICES & BOOKINGS API HELPERS
+// ============================================================================
+
+import type {
+  BookingDetail,
+  BookingListResponse,
+  CreateBookingInput,
+  PartnerDirectoryResponse,
+  PartnerDetail,
+} from '@applyfields/types';
+
+export async function listDirectoryPartners(
+  query?: Record<string, string>,
+): Promise<ApiResponse<PartnerDirectoryResponse>> {
+  const q = query ? `?${new URLSearchParams(query).toString()}` : '';
+  return apiGet<PartnerDirectoryResponse>(`/partners/directory${q}`);
+}
+
+export async function getPartnerBySlug(slug: string): Promise<ApiResponse<PartnerDetail>> {
+  return apiGet<PartnerDetail>(`/partners/${encodeURIComponent(slug)}`);
+}
+
+export async function createBooking(
+  input: CreateBookingInput,
+): Promise<ApiResponse<BookingDetail>> {
+  return apiPost<BookingDetail, CreateBookingInput>('/bookings', input);
+}
+
+export async function getBookingById(
+  id: string,
+): Promise<ApiResponse<BookingDetail>> {
+  return apiGet<BookingDetail>(`/bookings/${encodeURIComponent(id)}`);
+}
+
+export async function getMyBookings(): Promise<ApiResponse<BookingListResponse>> {
+  return apiGet<BookingListResponse>('/bookings/my');
+}
+
+export async function cancelBooking(
+  id: string,
+  reason?: string,
+): Promise<ApiResponse<BookingDetail>> {
+  return apiPost<BookingDetail, { reason?: string }>(
+    `/bookings/${encodeURIComponent(id)}/cancel`,
+    { reason },
+  );
+}
+

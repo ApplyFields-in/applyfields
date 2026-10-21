@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { getPartnerBySlug } from '@/lib/api';
 import {
   MapPin,
   ShieldCheck,
@@ -279,7 +280,7 @@ export default function PartnerStorefrontPage() {
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [geoNotice, setGeoNotice] = useState<string | null>(null);
 
-  const partner: CenterProfile =
+  const fallbackPartner: CenterProfile =
     REGISTERED_CENTERS[rawSlug] || {
       id: 'pt-1',
       name: 'Sri Balaji MeeSeva & Xerox Centre',
@@ -298,6 +299,60 @@ export default function PartnerStorefrontPage() {
       metroStation: 'Ameerpet Interchange (250m)',
       pincode: '500016',
     };
+
+  const [partner, setPartner] = useState<CenterProfile>(fallbackPartner);
+  const [partnerServices, setPartnerServices] = useState<ServiceDetail[]>(PARTNER_SERVICES);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadPartnerProfile() {
+      try {
+        const res = await getPartnerBySlug(rawSlug);
+        if (mounted && res.data) {
+          const p = res.data;
+          setPartner({
+            id: p.id,
+            name: p.business_name,
+            slug: p.slug,
+            type: p.type,
+            address: p.address || fallbackPartner.address,
+            city: p.city || fallbackPartner.city,
+            district: p.district || fallbackPartner.district,
+            phone: p.phone || fallbackPartner.phone,
+            lat: p.latitude || fallbackPartner.lat,
+            lng: p.longitude || fallbackPartner.lng,
+            rating: p.rating_avg || fallbackPartner.rating,
+            reviewCount: p.rating_count || fallbackPartner.reviewCount,
+            openHours: fallbackPartner.openHours,
+            landmark: p.district || fallbackPartner.landmark,
+            metroStation: fallbackPartner.metroStation,
+            pincode: p.pincode || fallbackPartner.pincode,
+          });
+
+          if (p.services && p.services.length > 0) {
+            const mappedServices: ServiceDetail[] = p.services.map((s) => ({
+              id: s.id,
+              title: s.name,
+              category: 'meeseva',
+              categoryLabel: 'MeeSeva / Revenue',
+              description: s.description || 'Verified government documentation and kiosk facilitation service.',
+              price: (s.charge_paise ?? 5000) / 100,
+              turnaround: s.estimated_time_text || 'Same Day',
+              requiredDocs: ['Aadhaar Card', 'Relevant Form Documents'],
+            }));
+            setPartnerServices(mappedServices);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch live partner details, using preset:', err);
+      }
+    }
+
+    loadPartnerProfile();
+    return () => {
+      mounted = false;
+    };
+  }, [rawSlug]);
 
   function handleEnableLocation() {
     setIsLocating(true);
@@ -337,7 +392,7 @@ export default function PartnerStorefrontPage() {
     );
   }
 
-  const filteredServices = PARTNER_SERVICES.filter(
+  const filteredServices = partnerServices.filter(
     (s) => selectedCategory === 'all' || s.category === selectedCategory,
   );
 
