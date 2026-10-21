@@ -25,6 +25,8 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const verifiedNotice = searchParams.get('verified') === 'true';
+  const rawRedirect = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next');
+  const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/account';
 
   const [mode, setMode] = useState<'password' | 'otp' | 'forgot'>('password');
 
@@ -93,7 +95,7 @@ function LoginForm() {
 
     setSuccess('Logged in successfully! Redirecting...');
     setTimeout(() => {
-      router.push('/');
+      router.push(redirectTarget);
     }, 1000);
   }
 
@@ -152,7 +154,7 @@ function LoginForm() {
 
     setSuccess('Authenticated successfully! Redirecting...');
     setTimeout(() => {
-      router.push('/');
+      router.push(redirectTarget);
     }, 1000);
   }
 
@@ -463,15 +465,22 @@ function LoginForm() {
       )}
 
       {mode !== 'forgot' && (
-        <>
-          <AuthDivider label="or" />
-          <SocialAuthButtons mode="login" onError={setError} onSuccess={setSuccess} />
-          <PasskeyLoginButton
-            defaultEmail={passwordCredType === 'email' ? passwordEmail : undefined}
+        <div className="mt-6 space-y-3">
+          <AuthDivider label="or sign in with" />
+          <SocialAuthButtons
+            mode="login"
+            redirectUrl={redirectTarget}
             onError={setError}
             onSuccess={setSuccess}
           />
-        </>
+          <div className="pt-2">
+            <PasskeyLoginButton
+              defaultEmail={passwordCredType === 'email' ? passwordEmail : undefined}
+              onError={setError}
+              onSuccess={setSuccess}
+            />
+          </div>
+        </div>
       )}
 
       <p className="mt-6 text-center text-sm text-teal/60">

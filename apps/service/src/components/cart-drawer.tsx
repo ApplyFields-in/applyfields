@@ -38,22 +38,22 @@ export function CartDrawer() {
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-[#082046]/40 backdrop-blur-sm transition-opacity"
         onClick={() => setIsCartOpen(false)}
       />
 
       <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
-        <div className="w-screen max-w-md bg-slate-900 border-l border-slate-800 text-slate-100 shadow-2xl flex flex-col justify-between">
+        <div className="w-screen max-w-md bg-white border-l border-[#d5deea] text-[#082046] shadow-2xl flex flex-col justify-between">
           {/* Header */}
-          <div className="border-b border-slate-800 p-5">
+          <div className="border-b border-[#d5deea] p-5 bg-[#F8FAFC]">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0e7bf4] text-white shadow-sm">
                   <ShoppingBag className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-white">Your Service Cart</h2>
-                  <p className="text-[11px] text-slate-400">
+                  <h2 className="text-base font-black text-[#082046]">Your Service Cart</h2>
+                  <p className="text-[11px] text-[#526987] font-semibold">
                     {totalQuantity} {totalQuantity === 1 ? 'service item' : 'service items'} selected
                   </p>
                 </div>
@@ -62,7 +62,7 @@ export function CartDrawer() {
               <button
                 type="button"
                 onClick={() => setIsCartOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                className="rounded-xl p-1.5 text-[#526987] hover:text-[#082046] hover:bg-[#edf2f8] transition"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -70,16 +70,16 @@ export function CartDrawer() {
 
             {/* Linked Partner Center Info */}
             {partner && (
-              <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-3.5 space-y-1 text-xs">
-                <div className="flex items-center justify-between text-slate-400 font-semibold text-[10px] uppercase tracking-wider">
+              <div className="mt-4 rounded-2xl border border-white bg-white p-3.5 space-y-1 shadow-sm">
+                <div className="flex items-center justify-between text-[#526987] font-bold text-[10px] uppercase tracking-wider">
                   <span>Selected Center</span>
-                  <span className="text-emerald-400 flex items-center gap-1">
-                    <ShieldCheck className="h-3 w-3" /> Verified Partner
+                  <span className="text-emerald-700 flex items-center gap-1 font-bold">
+                    <ShieldCheck className="h-3 w-3 text-emerald-600" /> Verified Partner
                   </span>
                 </div>
-                <p className="font-bold text-white text-sm truncate">{partner.name}</p>
-                <p className="text-slate-400 text-[11px] flex items-center gap-1 truncate">
-                  <MapPin className="h-3 w-3 text-slate-500 shrink-0" />
+                <p className="font-black text-[#082046] text-sm truncate">{partner.name}</p>
+                <p className="text-[#526987] text-[11px] flex items-center gap-1 truncate font-medium">
+                  <MapPin className="h-3 w-3 text-[#0e7bf4] shrink-0" />
                   {partner.address}, {partner.city}
                 </p>
               </div>
@@ -87,14 +87,14 @@ export function CartDrawer() {
           </div>
 
           {/* Items List */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-[#F0F4F8]">
             {items.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 text-slate-500">
-                  <ShoppingBag className="h-7 w-7" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white shadow-sm text-[#7896bc]">
+                  <ShoppingBag className="h-8 w-8" />
                 </div>
-                <h3 className="text-sm font-bold text-white">Your cart is empty</h3>
-                <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                <h3 className="text-sm font-black text-[#082046]">Your cart is empty</h3>
+                <p className="text-xs text-[#526987] max-w-xs leading-relaxed font-medium">
                   Browse nearby MeeSeva, CSC, and Xerox centers to add certificate filing, PVC prints, or application assistance into your visit.
                 </p>
               </div>
@@ -102,23 +102,23 @@ export function CartDrawer() {
               items.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 space-y-2.5 transition hover:border-slate-700"
+                  className="cut-corner-card rounded-[20px] border border-white bg-white p-4 space-y-2.5 shadow-sm transition hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-cyan-300">
+                      <span className="cut-corner-badge rounded-md bg-[#e0edfb] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#0e7bf4]">
                         {item.category}
                       </span>
-                      <h4 className="font-bold text-white text-xs mt-1.5">{item.title}</h4>
-                      <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                        <Clock className="h-2.5 w-2.5 text-cyan-400" /> {item.turnaround}
+                      <h4 className="font-black text-[#082046] text-xs mt-1.5">{item.title}</h4>
+                      <p className="text-[10px] text-[#526987] flex items-center gap-1 mt-0.5 font-semibold">
+                        <Clock className="h-2.5 w-2.5 text-[#0e7bf4]" /> {item.turnaround}
                       </p>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => removeItem(item.id)}
-                      className="text-slate-500 hover:text-rose-400 transition p-1"
+                      className="text-slate-400 hover:text-rose-600 transition p-1"
                       title="Remove item"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -126,26 +126,26 @@ export function CartDrawer() {
                   </div>
 
                   {/* Quantity and Price */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
-                    <div className="flex items-center rounded-xl border border-slate-800 bg-slate-900 px-2 py-1">
+                  <div className="flex items-center justify-between pt-2 border-t border-[#d5deea] text-xs">
+                    <div className="flex items-center rounded-xl bg-[#edf2f8] px-2 py-1 shadow-[inset_1px_1px_3px_#d5deea,inset_-1px_-1px_3px_#ffffff]">
                       <button
                         type="button"
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="h-5 w-5 flex items-center justify-center text-slate-400 hover:text-white"
+                        className="h-5 w-5 flex items-center justify-center text-[#526987] hover:text-[#082046] font-bold"
                       >
                         <Minus className="h-3 w-3" />
                       </button>
-                      <span className="font-mono font-bold text-white px-2.5">{item.quantity}</span>
+                      <span className="font-mono font-black text-[#082046] px-2.5">{item.quantity}</span>
                       <button
                         type="button"
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="h-5 w-5 flex items-center justify-center text-slate-400 hover:text-white"
+                        className="h-5 w-5 flex items-center justify-center text-[#526987] hover:text-[#082046] font-bold"
                       >
                         <Plus className="h-3 w-3" />
                       </button>
                     </div>
 
-                    <div className="font-mono text-sm font-black text-cyan-300">
+                    <div className="font-mono text-sm font-black text-[#0e7bf4]">
                       ₹{item.price * item.quantity}
                     </div>
                   </div>
@@ -156,19 +156,19 @@ export function CartDrawer() {
 
           {/* Footer & Checkout CTA */}
           {items.length > 0 && (
-            <div className="border-t border-slate-800 p-5 space-y-4 bg-slate-950/70">
+            <div className="border-t border-[#d5deea] p-5 space-y-4 bg-white">
               <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-[#526987] font-medium">
                   <span>Subtotal ({totalQuantity} items):</span>
-                  <span className="font-mono font-bold text-white">₹{subtotal}</span>
+                  <span className="font-mono font-black text-[#082046]">₹{subtotal}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-[#526987] font-medium">
                   <span>Center Booking Convenience:</span>
-                  <span className="font-mono font-bold text-emerald-400">FREE</span>
+                  <span className="font-mono font-bold text-emerald-700">FREE</span>
                 </div>
-                <div className="flex justify-between pt-2 border-t border-slate-800 text-sm font-black text-white">
+                <div className="flex justify-between pt-2 border-t border-[#d5deea] text-sm font-black text-[#082046]">
                   <span>Total Payable:</span>
-                  <span className="font-mono text-cyan-300 text-base">₹{subtotal}</span>
+                  <span className="font-mono text-[#0e7bf4] text-base">₹{subtotal}</span>
                 </div>
               </div>
 
@@ -176,7 +176,7 @@ export function CartDrawer() {
                 <button
                   type="button"
                   onClick={clearCart}
-                  className="rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-3 text-xs font-semibold text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
+                  className="rounded-xl border border-[#d5deea] bg-white px-3.5 py-3 text-xs font-semibold text-[#526987] hover:text-rose-600 hover:bg-rose-50 transition shadow-sm"
                   title="Clear all items"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -188,7 +188,7 @@ export function CartDrawer() {
                     setIsCartOpen(false);
                     router.push('/checkout');
                   }}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition shadow-lg shadow-cyan-500/20"
+                  className="cut-corner-btn flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#0e7bf4] px-5 py-3 text-xs font-bold text-white hover:bg-[#0c6fdc] transition shadow-clay-btn-azure active:scale-95"
                 >
                   <span>Proceed to Slot Booking</span>
                   <ArrowRight className="h-4 w-4" />

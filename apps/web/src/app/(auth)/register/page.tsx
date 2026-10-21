@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { apiPost } from '@/lib/api';
 import { ArrowLeft, ArrowRight, Check, Mail, User } from 'lucide-react';
 import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
@@ -36,8 +36,11 @@ function Steps({ step }: { step: 'form' | 'verify' }) {
   );
 }
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawRedirect = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next');
+  const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/account';
 
   const [step, setStep] = useState<'form' | 'verify'>('form');
   const [fullName, setFullName] = useState('');
@@ -241,9 +244,20 @@ export default function RegisterPage() {
       <Steps step={step} />
 
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-teal sm:text-4xl">Create your account</h1>
-      <p className="mt-2 text-base text-teal/60">Sign up to explore opportunities tailored for you.</p>
+      <p className="mt-2 text-base text-teal/60">Sign up in seconds with your verified device account.</p>
 
       <Notice error={error} success={successMsg} />
+
+      {/* 1-Click Fast Device Account Registration */}
+      <div className="mt-6">
+        <SocialAuthButtons
+          mode="register"
+          redirectUrl={redirectTarget}
+          onError={setError}
+          onSuccess={setSuccessMsg}
+        />
+        <AuthDivider label="or create account with email & password" />
+      </div>
 
       <form onSubmit={handleRegister} className="mt-5 space-y-4">
         <div>
@@ -332,9 +346,6 @@ export default function RegisterPage() {
         </button>
       </form>
 
-      <AuthDivider label="or" />
-      <SocialAuthButtons mode="register" onError={setError} onSuccess={setSuccessMsg} />
-
       <p className="mt-6 text-center text-sm text-teal/60">
         Already have an account?{' '}
         <Link href="/login" className="font-semibold text-sea hover:underline">
@@ -342,5 +353,13 @@ export default function RegisterPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-teal/60">Loading registration...</p>}>
+      <RegisterForm />
+    </Suspense>
   );
 }

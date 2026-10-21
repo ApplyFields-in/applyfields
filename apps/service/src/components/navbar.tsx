@@ -14,6 +14,11 @@ import {
   Sparkles,
   LocateFixed,
   Search,
+  Briefcase,
+  Send,
+  Printer,
+  Home,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
@@ -53,215 +58,216 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-          {/* Left: Brand & Portal Badge */}
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-400 to-teal-500 text-slate-950 font-black shadow-md shadow-cyan-500/20">
+      <header className="sticky top-4 z-50 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 items-center gap-3 lg:grid-cols-4">
+          {/* Left Capsule: Brand & Portal Identification */}
+          <div className="flex items-center gap-3 rounded-[32px] border border-white bg-[#F0F4F8] p-2.5 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)] sm:px-5 sm:py-3 lg:col-span-2">
+            <Link href="/" className="flex items-center gap-3 shrink-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#0e7bf4] to-[#38bdf8] text-white font-black shadow-md shadow-[#0e7bf4]/25">
                 ⚡
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-extrabold tracking-tight text-white">ApplyFields</span>
-                  <span className="rounded-md bg-cyan-500/20 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-cyan-400 border border-cyan-500/30">
+                  <span className="text-base sm:text-lg font-black tracking-tight text-[#082046]">
+                    ApplyFields
+                  </span>
+                  <span className="cut-corner-badge rounded-md bg-[#e0edfb] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#0e7bf4] border border-[#38bdf8]/30">
                     Services Hub
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400 font-medium">MeeSeva · CSC · Xerox · PAN · Aadhaar</p>
+                <p className="text-[10px] text-[#526987] font-semibold hidden sm:block">
+                  MeeSeva · CSC · PAN · Aadhaar · Xerox
+                </p>
               </div>
             </Link>
 
-            {/* Back to main portal link */}
-            <a
-              href={MAIN_WEB_URL}
-              className="hidden lg:inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-white transition ml-3 border-l border-slate-800 pl-4"
-            >
-              <Compass className="h-3.5 w-3.5 text-cyan-400" />
-              <span>Jobs &amp; Guidance Portal</span>
-              <ArrowUpRight className="h-3 w-3 text-slate-500" />
-            </a>
+            {/* Quick Link to Main Web */}
+            <nav className="hidden xl:flex items-center gap-1 border-l border-[#d5deea] pl-3 ml-2 text-xs font-bold text-[#526987]">
+              <a
+                href={MAIN_WEB_URL}
+                className="flex items-center gap-1 rounded-full px-2.5 py-1.5 transition-colors hover:bg-white hover:text-[#082046]"
+              >
+                <Home className="size-3.5 text-[#0e7bf4]" />
+                <span>Home</span>
+              </a>
+              <a
+                href={`${MAIN_WEB_URL}/career`}
+                className="flex items-center gap-1 rounded-full px-2.5 py-1.5 transition-colors hover:bg-white hover:text-[#082046]"
+              >
+                <Compass className="size-3.5 text-[#0e7bf4]" />
+                <span>Explore</span>
+              </a>
+            </nav>
           </div>
 
-          {/* Center: Location Pin Selector */}
-          <div className="hidden md:flex items-center">
+          {/* Center Capsule: Mode Switcher (Career / Apply / Services [Active]) */}
+          <div className="hidden lg:flex items-center justify-center rounded-full border border-white bg-[#F0F4F8] p-1.5 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
+            <div className="flex items-center gap-1 rounded-full bg-[#edf2f8] p-1 shadow-[inset_3px_3px_7px_#d8e0eb,inset_-3px_-3px_7px_#ffffff]">
+              <a
+                href={`${MAIN_WEB_URL}/career`}
+                className="flex min-w-[76px] flex-col items-center gap-0.5 rounded-full px-3 py-2 text-[11px] font-bold text-[#082046] hover:text-[#0e7bf4] transition-all"
+              >
+                <Briefcase className="size-3.5 text-[#526987]" />
+                <span>Career</span>
+              </a>
+
+              <a
+                href={`${MAIN_WEB_URL}/apply`}
+                className="flex min-w-[76px] flex-col items-center gap-0.5 rounded-full px-3 py-2 text-[11px] font-bold text-[#082046] hover:text-[#0e7bf4] transition-all"
+              >
+                <Send className="size-3.5 text-[#526987]" />
+                <span>Apply</span>
+              </a>
+
+              <Link
+                href="/"
+                className="flex min-w-[76px] flex-col items-center gap-0.5 rounded-full px-3 py-2 text-[11px] font-bold bg-[#F0F4F8] text-[#0e7bf4] shadow-[3px_3px_7px_#d8e0eb,-3px_-3px_7px_#ffffff] transition-all"
+              >
+                <Printer className="size-3.5 text-[#0e7bf4]" />
+                <span className="flex items-center gap-1">
+                  <span>Services</span>
+                  <span className="size-1.5 rounded-full bg-[#0e7bf4] animate-ping" />
+                </span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Right Capsule: Location + Cart + Account */}
+          <div className="flex items-center justify-end gap-2 rounded-[32px] border border-white bg-[#F0F4F8] p-2.5 sm:px-4 sm:py-3 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
+            {/* Location Pill */}
             <button
               type="button"
               onClick={() => setShowLocationModal(true)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:border-slate-700 hover:text-white transition shadow-inner"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-[#edf2f8] px-3 py-1.5 text-xs font-bold text-[#082046] shadow-[inset_2px_2px_5px_#d5deea,inset_-2px_-2px_5px_#ffffff] hover:text-[#0e7bf4] transition"
+              title="Change search location / PIN code"
             >
-              <MapPin className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
-              <span className="max-w-[160px] truncate">{locationName}</span>
-              <span className="text-[10px] text-cyan-400 font-bold bg-cyan-500/10 px-1.5 py-0.5 rounded">
-                Change
-              </span>
+              <MapPin className="h-3.5 w-3.5 text-[#0e7bf4] shrink-0" />
+              <span className="max-w-[100px] md:max-w-[130px] truncate">{locationName}</span>
             </button>
-          </div>
 
-          {/* Right: Partner link, Cart trigger & Profile */}
-          <div className="flex items-center gap-3">
-            <a
-              href={`${PARTNER_URL}/onboard`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition"
-            >
-              <Store className="h-3.5 w-3.5" />
-              <span>Become a Partner</span>
-            </a>
-
-            {/* Cart Button */}
+            {/* Visit Cart Trigger Button */}
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="relative inline-flex items-center gap-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 px-3.5 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20 transition shadow-sm"
-              title="Open Service Cart"
+              className="relative inline-flex items-center gap-2 rounded-2xl bg-[#0e7bf4] px-3.5 py-2 text-xs font-bold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95"
             >
-              <ShoppingBag className="h-4 w-4 text-cyan-400" />
+              <ShoppingBag className="h-4 w-4" />
               <span className="hidden sm:inline">Cart</span>
-              {totalQuantity > 0 && (
-                <span className="rounded-full bg-cyan-400 text-slate-950 px-1.5 py-0.2 text-[10px] font-black">
+              {totalQuantity > 0 ? (
+                <span className="rounded-full bg-white px-1.5 py-0.2 text-[10px] font-black text-[#0e7bf4]">
                   {totalQuantity}
                 </span>
-              )}
-              {subtotal > 0 && (
-                <span className="font-mono text-white text-xs border-l border-cyan-500/40 pl-2">
-                  ₹{subtotal}
-                </span>
-              )}
+              ) : null}
             </button>
 
-            {/* Profile Dropdown / Sign in */}
-            {isLoggedIn && user ? (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-slate-800 transition"
-                >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-cyan-500 font-bold text-slate-950 text-[10px]">
-                    {user.full_name ? user.full_name[0].toUpperCase() : 'U'}
-                  </div>
-                  <span className="hidden sm:inline max-w-[100px] truncate font-medium">
-                    {user.full_name || user.email.split('@')[0]}
-                  </span>
-                  <ChevronDown className="h-3 w-3 text-slate-400" />
-                </button>
-
-                {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-52 rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow-2xl space-y-1 text-xs">
-                    <div className="p-2 border-b border-slate-800">
-                      <p className="font-bold text-white truncate">{user.full_name || 'Citizen'}</p>
-                      <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
+            {/* User Account Menu */}
+            <div className="relative">
+              {isLoggedIn ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white border border-[#d5deea] shadow-sm text-xs font-black text-[#082046] hover:border-[#0e7bf4]"
+                  >
+                    {user?.full_name?.[0] || 'U'}
+                  </button>
+                  {showUserMenu && (
+                    <div className="absolute right-0 top-12 z-50 w-52 rounded-2xl border border-white bg-white p-3 shadow-2xl animate-in fade-in space-y-2">
+                      <div className="border-b border-slate-100 pb-2">
+                        <p className="text-xs font-bold text-[#082046] truncate">{user?.full_name || 'Citizen User'}</p>
+                        <p className="text-[11px] text-slate-500 font-mono truncate">{user?.phone}</p>
+                      </div>
+                      <a
+                        href={PARTNER_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold text-[#082046] hover:bg-[#F0F4F8]"
+                      >
+                        <Store className="h-3.5 w-3.5 text-[#0e7bf4]" />
+                        <span>Partner Desk Login</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={logout}
+                        className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                        <span>Sign Out</span>
+                      </button>
                     </div>
-                    <a
-                      href={`${MAIN_WEB_URL}/applications`}
-                      className="flex items-center gap-2 rounded-xl p-2 text-slate-300 hover:bg-slate-800 hover:text-white"
-                    >
-                      My Applications &amp; Vault
-                    </a>
-                    <a
-                      href={`${MAIN_WEB_URL}/profile`}
-                      className="flex items-center gap-2 rounded-xl p-2 text-slate-300 hover:bg-slate-800 hover:text-white"
-                    >
-                      Unified Account Profile
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        logout();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl p-2 text-rose-400 hover:bg-rose-500/10 text-left font-medium"
-                    >
-                      <LogOut className="h-3.5 w-3.5" /> Sign out
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
+                  )}
+                </div>
+              ) : (
                 <button
                   type="button"
                   onClick={setDemoUser}
-                  className="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
-                >
-                  Demo Login
-                </button>
-                <a
-                  href={`${MAIN_WEB_URL}/login`}
-                  className="rounded-xl bg-cyan-400 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition"
+                  className="rounded-2xl border border-[#d5deea] bg-white px-3 py-1.5 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
                 >
                   Sign In
-                </a>
-              </div>
-            )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Location Modal */}
+      {/* Change Location Modal */}
       {showLocationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-cyan-400" /> Select Your Location
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white bg-[#F0F4F8] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#d5deea] pb-3">
+              <h3 className="text-base font-bold text-[#082046] flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-[#0e7bf4]" />
+                Select Your City or Pincode
               </h3>
               <button
                 type="button"
                 onClick={() => setShowLocationModal(false)}
-                className="text-slate-400 hover:text-white text-xs"
+                className="text-slate-400 hover:text-[#082046] text-sm font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-slate-300">
-              Find MeeSeva, CSC digital seva, and Xerox centers closest to your home or college.
+            <p className="text-xs text-[#526987]">
+              Enter your PIN code, mandal, or locality to view nearby MeeSeva and Xerox kiosks.
             </p>
 
-            <button
-              type="button"
-              onClick={handleDetectGps}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 py-2.5 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20 transition"
-            >
-              <LocateFixed className="h-4 w-4" /> Use Current GPS Location
-            </button>
+            <div className="space-y-3">
+              <div className="flex items-center rounded-2xl bg-white border border-[#d5deea] p-2 focus-within:border-[#0e7bf4] shadow-sm">
+                <Search className="h-4 w-4 text-slate-400 ml-2 mr-2" />
+                <input
+                  type="text"
+                  placeholder="e.g. 500016, Ameerpet, Gachibowli"
+                  value={tempLocation}
+                  onChange={(e) => setTempLocation(e.target.value)}
+                  className="w-full bg-transparent text-sm text-[#082046] outline-none"
+                />
+              </div>
 
-            <div className="relative flex items-center justify-center">
-              <div className="border-t border-slate-800 w-full" />
-              <span className="bg-slate-900 px-3 text-[10px] text-slate-500 font-bold uppercase">Or Search Manually</span>
+              <button
+                type="button"
+                onClick={handleDetectGps}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#0e7bf4]/60 bg-[#e0edfb] py-2.5 text-xs font-bold text-[#0e7bf4] hover:bg-[#d0e5fb] transition"
+              >
+                <LocateFixed className="h-4 w-4" /> Use Current GPS Position
+              </button>
             </div>
 
-            <div>
-              <label className="block text-slate-400 text-xs font-semibold mb-1">
-                Enter PIN code, Mandal, or City
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. 500016, Ameerpet, Gachibowli..."
-                value={tempLocation}
-                onChange={(e) => setTempLocation(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveLocation()}
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyan-400 text-xs font-medium"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#d5deea]">
               <button
                 type="button"
                 onClick={() => setShowLocationModal(false)}
-                className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700"
+                className="rounded-xl px-4 py-2 text-xs font-bold text-[#526987] hover:bg-white"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleSaveLocation}
-                className="rounded-xl bg-cyan-400 px-5 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-300"
+                className="rounded-xl bg-[#0e7bf4] px-5 py-2 text-xs font-bold text-white shadow-clay-btn-azure hover:bg-[#0c6fdc]"
               >
-                Apply Location
+                Save Location
               </button>
             </div>
           </div>

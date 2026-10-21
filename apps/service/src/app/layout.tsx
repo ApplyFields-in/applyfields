@@ -19,13 +19,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased selection:bg-cyan-500 selection:text-slate-950">
+    <html lang="en">
+      <body className="min-h-screen bg-[#F0F4F8] font-sans text-[#082046] antialiased selection:bg-[#38bdf8] selection:text-[#082046]">
         <AuthProvider>
           <CartProvider>
             <div className="flex min-h-screen flex-col justify-between">
               <Navbar />
-              <main className="flex-1">{children}</main>
+              <main className="flex-1 w-full animate-rise">{children}</main>
               <Footer />
             </div>
             <CartDrawer />
