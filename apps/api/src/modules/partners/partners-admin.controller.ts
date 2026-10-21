@@ -45,13 +45,9 @@ export class PartnersAdminController {
     });
   }
 
-  @Patch(':id/verify')
-  async verifyPartner(
-    @Param('id') partnerId: string,
-    @ActorId() reviewerId: string,
-    @Body(new ZodPipe(partnerVerifySchema)) body: AdminPartnerVerifyInput,
-  ): Promise<PartnerDetail> {
-    return this.partnersService.adminVerifyPartner(partnerId, reviewerId, body);
+  @Get(':id')
+  async getPartner(@Param('id') partnerId: string): Promise<PartnerDetail> {
+    return this.partnersService.adminGetPartner(partnerId);
   }
 
   @Patch('documents/:id/verify')
@@ -66,5 +62,14 @@ export class PartnersAdminController {
       body.status,
       body.reviewer_note,
     );
+  }
+
+  @Patch(':id/verify')
+  async verifyPartner(
+    @Param('id') partnerId: string,
+    @ActorId() reviewerId: string,
+    @Body(new ZodPipe(partnerVerifySchema)) body: AdminPartnerVerifyInput,
+  ): Promise<PartnerDetail> {
+    return this.partnersService.adminVerifyPartner(partnerId, reviewerId, body);
   }
 }
