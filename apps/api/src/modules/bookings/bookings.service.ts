@@ -91,7 +91,7 @@ export class BookingsService {
   // CITIZEN BOOKINGS
   // =========================================================================
 
-  async createBooking(userId: string, input: CreateBookingInput): Promise<BookingDetail> {
+  async createBooking(userId: string | null, input: CreateBookingInput): Promise<BookingDetail> {
     const partner = await this.prisma.partners.findUnique({
       where: { id: input.partner_id },
     });
@@ -155,14 +155,18 @@ export class BookingsService {
     };
   }
 
-  async getUserBooking(userId: string, bookingId: string): Promise<BookingDetail> {
+  async getUserBooking(userId: string | null, bookingId: string): Promise<BookingDetail> {
     const req = await this.prisma.service_requests.findUnique({
       where: { id: bookingId },
       include: LEAN_BOOKING_INCLUDE,
     });
 
-    if (!req || req.user_id !== userId) {
+    if (!req) {
       throw new NotFoundException(`Booking "${bookingId}" not found`);
+    }
+
+    if (req.user_id && userId && req.user_id !== userId) {
+      throw new ForbiddenException(`You are not authorized to view this booking`);
     }
 
     return this.mapToDetail(req);
