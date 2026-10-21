@@ -556,6 +556,20 @@ export class PartnersService {
     return this.mapToDetail(updated);
   }
 
+  async adminGetPartner(partnerId: string): Promise<PartnerDetail> {
+    const existing = await this.prisma.partners.findUnique({
+      where: { id: partnerId },
+      include: {
+        partner_services: true,
+        partner_documents: true,
+      },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Partner with ID "${partnerId}" not found`);
+    }
+    return this.mapToDetail(existing);
+  }
+
   async adminVerifyDocument(
     docId: string,
     reviewerId: string,
