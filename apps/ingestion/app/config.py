@@ -1,5 +1,8 @@
 """All settings come from environment variables (.env locally). Never hard-code secrets."""
 
+
+
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,7 +16,10 @@ class Settings(BaseSettings):
     internal_service_token: str = ""
 
     # Supabase Storage (for downloaded notification PDFs)
-    supabase_url: str = ""
+    supabase_url: str = Field(
+    default="",
+    validation_alias=AliasChoices("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"),
+    )
     supabase_service_role_key: str = ""
     storage_bucket: str = "notifications"
 
