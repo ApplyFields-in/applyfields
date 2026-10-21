@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { AgeRelaxation, CategoryCode, QualificationLevel } from '@applyfields/types';
 import { Badge, buttonClass, Card, cn } from '@applyfields/ui';
+import { trackEvent } from '@/lib/analytics/tracker';
 import {
   Bell,
   Bookmark,
@@ -262,7 +263,18 @@ export function CheckEligibilityButton({
     <>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setOpen((v) => {
+            const next = !v;
+            if (next) {
+              trackEvent('eligibility_check', {
+                entity_type: 'opportunity',
+                metadata: { action: 'open_checker' },
+              });
+            }
+            return next;
+          });
+        }}
         className={cn(buttonClass({ variant: btnVariant, size: 'md' }), className)}
       >
         <UserCheck className="size-4" aria-hidden="true" />
