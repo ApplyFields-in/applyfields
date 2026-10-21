@@ -41,6 +41,48 @@ export const createReviewSchema = z.object({
   comment: z.string().trim().max(500).optional(),
 });
 
+/** Lean selection projection for service request queries to eliminate heavy JSON/blob payload overhead. */
+export const LEAN_BOOKING_INCLUDE = {
+  partners: {
+    select: {
+      business_name: true,
+      slug: true,
+      phone: true,
+      address: true,
+      city: true,
+      district: true,
+    },
+  },
+  partner_services: {
+    select: {
+      name: true,
+    },
+  },
+  service_request_events: {
+    orderBy: { created_at: 'asc' as const },
+    select: {
+      id: true,
+      request_id: true,
+      from_status: true,
+      to_status: true,
+      note: true,
+      actor_user_id: true,
+      created_at: true,
+    },
+  },
+  partner_reviews: {
+    select: {
+      id: true,
+      partner_id: true,
+      user_id: true,
+      request_id: true,
+      rating: true,
+      comment: true,
+      created_at: true,
+    },
+  },
+} as const;
+
 @Injectable()
 export class BookingsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -81,12 +123,7 @@ export class BookingsService {
           user_note: input.user_note ?? null,
           quoted_paise: initialQuotedPaise,
         },
-        include: {
-          partners: true,
-          partner_services: true,
-          service_request_events: true,
-          partner_reviews: true,
-        },
+        include: LEAN_BOOKING_INCLUDE,
       });
 
       await tx.service_request_events.create({
@@ -109,14 +146,7 @@ export class BookingsService {
     const rows = await this.prisma.service_requests.findMany({
       where: { user_id: userId },
       orderBy: { created_at: 'desc' },
-      include: {
-        partners: true,
-        partner_services: true,
-        service_request_events: {
-          orderBy: { created_at: 'asc' },
-        },
-        partner_reviews: true,
-      },
+      include: LEAN_BOOKING_INCLUDE,
     });
 
     return {
@@ -128,14 +158,7 @@ export class BookingsService {
   async getUserBooking(userId: string, bookingId: string): Promise<BookingDetail> {
     const req = await this.prisma.service_requests.findUnique({
       where: { id: bookingId },
-      include: {
-        partners: true,
-        partner_services: true,
-        service_request_events: {
-          orderBy: { created_at: 'asc' },
-        },
-        partner_reviews: true,
-      },
+      include: LEAN_BOOKING_INCLUDE,
     });
 
     if (!req || req.user_id !== userId) {
@@ -171,12 +194,7 @@ export class BookingsService {
           status: 'cancelled',
           cancelled_reason: reason ?? 'Cancelled by citizen',
         },
-        include: {
-          partners: true,
-          partner_services: true,
-          service_request_events: { orderBy: { created_at: 'asc' } },
-          partner_reviews: true,
-        },
+        include: LEAN_BOOKING_INCLUDE,
       });
 
       await tx.service_request_events.create({
@@ -282,12 +300,7 @@ export class BookingsService {
     const rows = await this.prisma.service_requests.findMany({
       where,
       orderBy: { created_at: 'desc' },
-      include: {
-        partners: true,
-        partner_services: true,
-        service_request_events: { orderBy: { created_at: 'asc' } },
-        partner_reviews: true,
-      },
+      include: LEAN_BOOKING_INCLUDE,
     });
 
     return {
@@ -328,12 +341,7 @@ export class BookingsService {
           ...(input.final_paise !== undefined && { final_paise: input.final_paise }),
           ...(input.status === 'completed' && { completed_at: new Date() }),
         },
-        include: {
-          partners: true,
-          partner_services: true,
-          service_request_events: { orderBy: { created_at: 'asc' } },
-          partner_reviews: true,
-        },
+        include: LEAN_BOOKING_INCLUDE,
       });
 
       await tx.service_request_events.create({
@@ -377,12 +385,7 @@ export class BookingsService {
         take: limit,
         skip,
         orderBy: { created_at: 'desc' },
-        include: {
-          partners: true,
-          partner_services: true,
-          service_request_events: { orderBy: { created_at: 'asc' } },
-          partner_reviews: true,
-        },
+        include: LEAN_BOOKING_INCLUDE,
       }),
     ]);
 

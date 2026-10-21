@@ -11,6 +11,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
+import { HttpCacheInterceptor } from './common/http-cache.interceptor.js';
 import { AppModule } from './app.module.js';
 
 // Auto-load .env if available
@@ -26,9 +28,18 @@ if (typeof process.loadEnvFile === 'function') {
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Gzip / Brotli compression for all JSON payloads over 1KB
+  app.use(
+    compression({
+      threshold: 1024,
+      level: 6,
+    }),
+  );
+
   app.useBodyParser('json', { limit: '25mb' });
   app.useBodyParser('urlencoded', { limit: '25mb', extended: true });
   app.use(cookieParser());
+  app.useGlobalInterceptors(new HttpCacheInterceptor());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
