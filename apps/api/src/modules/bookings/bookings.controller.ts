@@ -18,7 +18,12 @@ import type {
   UpdateBookingStatusInput,
 } from '@applyfields/types';
 import { ZodPipe } from '../../common/zod.pipe.js';
-import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard.js';
+import {
+  AuthGuard,
+  OptionalAuthGuard,
+  type AuthenticatedRequest,
+  type MaybeUserRequest,
+} from '../auth/auth.guard.js';
 import {
   BookingsService,
   createBookingSchema,
@@ -27,7 +32,6 @@ import {
 } from './bookings.service.js';
 
 @Controller('bookings')
-@UseGuards(AuthGuard)
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
@@ -36,20 +40,24 @@ export class BookingsController {
   // =========================================================================
 
   @Post()
+  @UseGuards(OptionalAuthGuard)
   async createBooking(
-    @Req() req: AuthenticatedRequest,
+    @Req() req: MaybeUserRequest,
     @Body(new ZodPipe(createBookingSchema)) body: CreateBookingInput,
   ): Promise<BookingDetail> {
-    return this.bookingsService.createBooking(req.user.userId, body);
+    const userId = req.user?.userId ?? null;
+    return this.bookingsService.createBooking(userId, body);
   }
 
   @Get('my')
+  @UseGuards(AuthGuard)
   async listMyBookings(@Req() req: AuthenticatedRequest): Promise<BookingListResponse> {
     return this.bookingsService.listUserBookings(req.user.userId);
   }
 
   // Partner inbox routes (must precede :id to prevent param collision)
   @Get('partner/inbox')
+  @UseGuards(AuthGuard)
   async listPartnerInbox(
     @Req() req: AuthenticatedRequest,
     @Query('status') status?: string,
@@ -58,6 +66,7 @@ export class BookingsController {
   }
 
   @Patch('partner/:id')
+  @UseGuards(AuthGuard)
   async updatePartnerBooking(
     @Req() req: AuthenticatedRequest,
     @Param('id') bookingId: string,
@@ -67,11 +76,13 @@ export class BookingsController {
   }
 
   @Get(':id')
+  @UseGuards(OptionalAuthGuard)
   async getBooking(
-    @Req() req: AuthenticatedRequest,
+    @Req() req: MaybeUserRequest,
     @Param('id') bookingId: string,
   ): Promise<BookingDetail> {
-    return this.bookingsService.getUserBooking(req.user.userId, bookingId);
+    const userId = req.user?.userId ?? null;
+    return this.bookingsService.getUserBooking(userId, bookingId);
   }
 
   @Post(':id/cancel')
