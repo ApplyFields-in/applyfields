@@ -1,4 +1,4 @@
-
+﻿
 """
 ApplyFields ingestion service (INTERNAL ONLY).
 
@@ -21,12 +21,14 @@ from app.db.repository import (
 from app.fetcher import fetch
 from app.pipeline import process_pdf_notice
 from app.scrapers.ssc import SSCScraper
+from app.scrapers.appsc import AppscScraper
 
 app = FastAPI(title="ApplyFields Ingestion (internal)", version="0.1.0")
 
 # Only sources with implemented scrapers belong here.
 SCRAPERS = {
     "ssc": SSCScraper,
+    "appsc": AppscScraper,
 }
 
 
@@ -225,3 +227,4 @@ def run_scraper(source_key: str) -> dict[str, object]:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Scraping source '{source_key}' failed",
         ) from exc
+
