@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { ApiOffline } from '@/components/admin-shell';
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
+import { getMockAdminUsers } from '@/lib/mock-data';
 
 export const metadata = { title: SECTIONS.users.title };
 
@@ -111,11 +112,15 @@ export default async function UsersPage({
     }
   >(endpoint);
 
-  const total = data?.total ?? 0;
-  const limit = data?.limit ?? 20;
+  const mockFallback = getMockAdminUsers({ q, type: activeType, page: currentPage });
+  const displayData = data && data.users.length > 0 ? data : mockFallback;
+  const isMock = !data || data.users.length === 0;
+
+  const total = displayData.total ?? 0;
+  const limit = displayData.limit ?? 20;
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const staffCount = data?.staff_count ?? 0;
-  const citizenCount = data?.citizen_count ?? 0;
+  const staffCount = displayData.staff_count ?? 0;
+  const citizenCount = displayData.citizen_count ?? 0;
   const allCount = staffCount + citizenCount;
 
   function tabUrl(type: 'all' | 'staff' | 'citizens') {
@@ -149,11 +154,16 @@ export default async function UsersPage({
         }
         icon={<Users />}
         actions={
-          data ? (
+          <div className="flex items-center gap-2">
+            {isMock && (
+              <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10">
+                Demo Mode
+              </Badge>
+            )}
             <Badge tone="celadon">
               {total} {total === 1 ? 'Account' : 'Accounts'}
             </Badge>
-          ) : undefined
+          </div>
         }
       />
 
@@ -241,9 +251,7 @@ export default async function UsersPage({
         </form>
       </div>
 
-      {!data ? (
-        <ApiOffline />
-      ) : data.users.length === 0 ? (
+      {displayData.users.length === 0 ? (
         <Card className="p-12">
           <EmptyState
             icon={<Users className="size-8 text-tea" />}
@@ -273,7 +281,7 @@ export default async function UsersPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {data.users.map((u) => {
+                {displayData.users.map((u) => {
                   const isStaffMember = Boolean(u.roles && u.roles.length > 0);
                   return (
                     <tr key={u.id} className="hover:bg-tea/10 transition-colors">

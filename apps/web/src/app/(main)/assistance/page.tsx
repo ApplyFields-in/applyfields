@@ -62,7 +62,12 @@ export default function AssistancePage() {
       const response = await apiGet<PartnerDirectoryResponse>(`/partners/directory${queryStr}`);
 
       if (!isCancelled) {
-        setCenters(response?.items ?? []);
+        if (response?.items && response.items.length > 0) {
+          setCenters(response.items);
+        } else {
+          const { getMockPartnerSummaries } = await import('@/lib/mock-data');
+          setCenters(getMockPartnerSummaries({ type: currentFilter?.type, q: searchLocation.trim() }));
+        }
         setLoading(false);
       }
     };

@@ -21,6 +21,7 @@ import { CloseExpiredButton, StatusBadge } from '@/components/opportunities-ui';
 import { formatDay, TYPE_LABEL } from '@/components/review-ui';
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
+import { MOCK_ADMIN_OPPORTUNITIES } from '@/lib/mock-data';
 
 export const metadata = { title: SECTIONS.opportunities.title };
 
@@ -43,6 +44,33 @@ export default async function OpportunitiesPage({
   if (page > 1) query.set('page', String(page));
 
   const data = await apiGet<AdminOpportunityList>(`/admin/opportunities${query.size ? `?${query}` : ''}`);
+
+  const displayData = data && data.items.length > 0 ? data : (() => {
+    let list = [...MOCK_ADMIN_OPPORTUNITIES.items];
+    if (status) {
+      list = list.filter((item) => item.status === status);
+    }
+    if (type) {
+      list = list.filter((item) => item.type === type);
+    }
+    if (q) {
+      const qLower = q.toLowerCase();
+      list = list.filter(
+        (item) =>
+          item.title.toLowerCase().includes(qLower) ||
+          item.slug.toLowerCase().includes(qLower) ||
+          item.organization.toLowerCase().includes(qLower),
+      );
+    }
+    return {
+      total: list.length,
+      page: 1,
+      page_size: 20,
+      counts: MOCK_ADMIN_OPPORTUNITIES.counts,
+      items: list,
+    };
+  })();
+  const isMock = !data || data.items.length === 0;
 
   const buildUrl = (next: { q?: string; status?: string; type?: string; page?: number }) => {
     const params = new URLSearchParams();
@@ -68,6 +96,11 @@ export default async function OpportunitiesPage({
         icon={<Briefcase />}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            {isMock && (
+              <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10">
+                Demo Mode
+              </Badge>
+            )}
             <CloseExpiredButton />
             <Link href="/opportunities/new" className={buttonClass({ variant: 'primary', size: 'sm' })}>
               <Plus className="size-4" aria-hidden="true" /> New opportunity
@@ -76,18 +109,15 @@ export default async function OpportunitiesPage({
         }
       />
 
-      {data === null ? (
-        <ApiOffline />
-      ) : (
-        <div className="space-y-5">
-          {/* Top KPI counters */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-            <StatCard label="All records" count={data.total} active={!status} href={buildUrl({ status: '' })} />
-            <StatCard label="Live / Published" count={data.counts.published} active={status === 'published'} href={buildUrl({ status: 'published' })} tone="teal" />
-            <StatCard label="Drafts" count={data.counts.draft} active={status === 'draft'} href={buildUrl({ status: 'draft' })} tone="celadon" />
-            <StatCard label="Closed" count={data.counts.closed} active={status === 'closed'} href={buildUrl({ status: 'closed' })} tone="tea" />
-            <StatCard label="Archived" count={data.counts.archived} active={status === 'archived'} href={buildUrl({ status: 'archived' })} tone="outline" />
-          </div>
+      <div className="space-y-5">
+        {/* Top KPI counters */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <StatCard label="All records" count={displayData.total} active={!status} href={buildUrl({ status: '' })} />
+          <StatCard label="Live / Published" count={displayData.counts.published} active={status === 'published'} href={buildUrl({ status: 'published' })} tone="teal" />
+          <StatCard label="Drafts" count={displayData.counts.draft} active={status === 'draft'} href={buildUrl({ status: 'draft' })} tone="celadon" />
+          <StatCard label="Closed" count={displayData.counts.closed} active={status === 'closed'} href={buildUrl({ status: 'closed' })} tone="tea" />
+          <StatCard label="Archived" count={displayData.counts.archived} active={status === 'archived'} href={buildUrl({ status: 'archived' })} tone="outline" />
+        </div>
 
           {/* Search and Filters Bar */}
           <Card className="p-3">
@@ -132,7 +162,7 @@ export default async function OpportunitiesPage({
           </Card>
 
           {/* List or Empty State */}
-          {data.items.length === 0 ? (
+          {displayData.items.length === 0 ? (
             <EmptyState
               icon={<CheckCircle2 />}
               title={q || status || type ? 'No opportunities match your filter' : 'No opportunities found'}
@@ -159,7 +189,7 @@ export default async function OpportunitiesPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-teal/10">
-                    {data.items.map((item) => (
+                    {displayData.items.map((item) => (
                       <tr key={item.id} className="hover:bg-cream/40 transition-colors">
                         <td className="px-4 py-3.5">
                           <Link href={`/opportunities/${item.id}`} className="font-bold hover:underline line-clamp-1">
@@ -206,24 +236,24 @@ export default async function OpportunitiesPage({
               </div>
 
               {/* Pagination footer */}
-              {data.total > data.page_size && (
+              {displayData.total > displayData.page_size && (
                 <div className="flex items-center justify-between border-t border-teal/10 px-4 py-3 text-xs text-teal/80">
                   <span>
-                    Showing {(data.page - 1) * data.page_size + 1} to{' '}
-                    {Math.min(data.page * data.page_size, data.total)} of {data.total}
+                    Showing {(displayData.page - 1) * displayData.page_size + 1} to{' '}
+                    {Math.min(displayData.page * displayData.page_size, displayData.total)} of {displayData.total}
                   </span>
                   <div className="flex items-center gap-1">
-                    {data.page > 1 && (
+                    {displayData.page > 1 && (
                       <Link
-                        href={buildUrl({ page: data.page - 1 })}
+                        href={buildUrl({ page: displayData.page - 1 })}
                         className={buttonClass({ variant: 'secondary', size: 'sm' })}
                       >
                         <ChevronLeft className="size-3.5" aria-hidden="true" /> Previous
                       </Link>
                     )}
-                    {data.page * data.page_size < data.total && (
+                    {displayData.page * displayData.page_size < displayData.total && (
                       <Link
-                        href={buildUrl({ page: data.page + 1 })}
+                        href={buildUrl({ page: displayData.page + 1 })}
                         className={buttonClass({ variant: 'secondary', size: 'sm' })}
                       >
                         Next <ChevronRight className="size-3.5" aria-hidden="true" />
@@ -235,7 +265,6 @@ export default async function OpportunitiesPage({
             </Card>
           )}
         </div>
-      )}
     </>
   );
 }

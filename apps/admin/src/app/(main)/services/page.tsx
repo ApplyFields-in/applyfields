@@ -15,6 +15,7 @@ import { ApiOffline } from '@/components/admin-shell';
 import { StatusBadge } from '@/components/opportunities-ui';
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
+import { MOCK_ADMIN_SERVICES } from '@/lib/mock-data';
 
 export const metadata = { title: SECTIONS.services.title };
 
@@ -35,6 +36,29 @@ export default async function ServicesAdminPage({
   if (page > 1) query.set('page', String(page));
 
   const data = await apiGet<AdminGovServiceList>(`/admin/services${query.size ? `?${query}` : ''}`);
+
+  const displayData = data && data.items.length > 0 ? data : (() => {
+    let list = [...MOCK_ADMIN_SERVICES.items];
+    if (status) {
+      list = list.filter((s) => s.status === status);
+    }
+    if (q) {
+      const qLower = q.toLowerCase();
+      list = list.filter(
+        (s) =>
+          s.name.toLowerCase().includes(qLower) ||
+          s.slug.toLowerCase().includes(qLower) ||
+          (s.authority_name && s.authority_name.toLowerCase().includes(qLower)) ||
+          (s.category && s.category.toLowerCase().includes(qLower)),
+      );
+    }
+    return {
+      total: list.length,
+      counts: MOCK_ADMIN_SERVICES.counts,
+      items: list,
+    };
+  })();
+  const isMock = !data || data.items.length === 0;
 
   const buildUrl = (next: { q?: string; status?: string; page?: number }) => {
     const params = new URLSearchParams();
@@ -57,41 +81,45 @@ export default async function ServicesAdminPage({
         description="Create, verify and publish citizen services — PAN, passport, certificates, licenses with official links."
         icon={<Landmark />}
         actions={
-          <Link href="/services/new" className={buttonClass({ variant: 'primary', size: 'sm' })}>
-            <Plus className="size-4" aria-hidden="true" /> New service
-          </Link>
+          <div className="flex items-center gap-2">
+            {isMock && (
+              <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10">
+                Demo Mode
+              </Badge>
+            )}
+            <Link href="/services/new" className={buttonClass({ variant: 'primary', size: 'sm' })}>
+              <Plus className="size-4" aria-hidden="true" /> New service
+            </Link>
+          </div>
         }
       />
 
-      {data === null ? (
-        <ApiOffline />
-      ) : (
-        <div className="space-y-5">
-          {/* Top KPI counters */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="All records" count={data.total} active={!status} href={buildUrl({ status: '' })} />
-            <StatCard
-              label="Live / Published"
-              count={data.counts.published}
-              active={status === 'published'}
-              href={buildUrl({ status: 'published' })}
-              tone="teal"
-            />
-            <StatCard
-              label="Drafts"
-              count={data.counts.draft}
-              active={status === 'draft'}
-              href={buildUrl({ status: 'draft' })}
-              tone="celadon"
-            />
-            <StatCard
-              label="Archived"
-              count={data.counts.archived}
-              active={status === 'archived'}
-              href={buildUrl({ status: 'archived' })}
-              tone="outline"
-            />
-          </div>
+      <div className="space-y-5">
+        {/* Top KPI counters */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard label="All records" count={displayData.total} active={!status} href={buildUrl({ status: '' })} />
+          <StatCard
+            label="Live / Published"
+            count={displayData.counts.published}
+            active={status === 'published'}
+            href={buildUrl({ status: 'published' })}
+            tone="teal"
+          />
+          <StatCard
+            label="Drafts"
+            count={displayData.counts.draft}
+            active={status === 'draft'}
+            href={buildUrl({ status: 'draft' })}
+            tone="celadon"
+          />
+          <StatCard
+            label="Archived"
+            count={displayData.counts.archived}
+            active={status === 'archived'}
+            href={buildUrl({ status: 'archived' })}
+            tone="outline"
+          />
+        </div>
 
           {/* Search bar */}
           <Card className="p-3">
@@ -125,7 +153,7 @@ export default async function ServicesAdminPage({
           </Card>
 
           {/* List or Empty State */}
-          {data.items.length === 0 ? (
+          {displayData.items.length === 0 ? (
             <EmptyState
               icon={<CheckCircle2 />}
               title={q || status ? 'No services match your search' : 'No government services yet'}
@@ -151,7 +179,7 @@ export default async function ServicesAdminPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-teal/10">
-                    {data.items.map((item) => (
+                    {displayData.items.map((item) => (
                       <tr key={item.id} className="hover:bg-cream/40 transition-colors">
                         <td className="px-4 py-3.5">
                           <Link href={`/services/${item.id}`} className="font-bold hover:underline line-clamp-1">
@@ -189,7 +217,6 @@ export default async function ServicesAdminPage({
             </Card>
           )}
         </div>
-      )}
     </>
   );
 }

@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
 import { apiGet } from '@/lib/api';
+import { MOCK_ADMIN_OPPORTUNITIES, MOCK_ADMIN_SUMMARY, MOCK_HOME_SUMMARY } from '@/lib/mock-data';
 
 /** '2026-10-04T05:56:18Z' → '10 min ago' or '4 Oct, 11:26 am' */
 function formatTimeAgo(iso?: string | null): string {
@@ -48,27 +49,28 @@ export default async function DashboardPage() {
     apiGet<HomeSummary>('/home'),
   ]);
 
-  if (!summary) {
-    return <ApiOffline />;
-  }
+  const summaryData = summary ?? MOCK_ADMIN_SUMMARY;
+  const oppsData = oppsList && oppsList.items.length > 0 ? oppsList : MOCK_ADMIN_OPPORTUNITIES;
+  const homeSummaryData = homeData ?? MOCK_HOME_SUMMARY;
+  const isMock = !summary;
 
-  const statsMap = new Map(summary.stats.map((s) => [s.key, s]));
+  const statsMap = new Map(summaryData.stats.map((s) => [s.key, s]));
   const pendingReviewsCount = statsMap.get('pending_reviews')?.value ?? 0;
   const publishedWeekCount = statsMap.get('published_week')?.value ?? 0;
   const deadlinesWeekCount = statsMap.get('deadlines_week')?.value ?? 0;
   const usersCount = statsMap.get('users')?.value ?? 0;
 
   // Filter items requiring attention (low confidence, failing scrapers)
-  const careItems = summary.review_queue
+  const careItems = summaryData.review_queue
     .filter((r) => r.confidence < 0.7)
     .slice(0, 4);
-  const failingScrapers = summary.scrapers.filter((s) => s.consecutive_failures > 0);
+  const failingScrapers = summaryData.scrapers.filter((s) => s.consecutive_failures > 0);
 
-  // Real upcoming deadlines from database
-  const deadlines = homeData?.closing_soon?.slice(0, 4) ?? [];
+  // Real upcoming deadlines from database or fallback
+  const deadlines = homeSummaryData.closing_soon?.slice(0, 4) ?? [];
 
-  // Real recent opportunities
-  const recentOpportunities = oppsList?.items?.slice(0, 5) ?? [];
+  // Real recent opportunities or fallback
+  const recentOpportunities = oppsData.items?.slice(0, 5) ?? [];
 
   // Current formatted date string matching reference UI
   const now = new Date();
@@ -89,9 +91,16 @@ export default async function DashboardPage() {
       {/* -------------------- Top Greeting & Action Header -------------------- */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-teal sm:text-3xl">
-            Good morning, Admin
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-extrabold tracking-tight text-teal sm:text-3xl">
+              Good morning, Admin
+            </h1>
+            {isMock && (
+              <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10 text-xs">
+                Demo Mode
+              </Badge>
+            )}
+          </div>
           <p className="mt-1 text-xs font-medium text-[#536780]">
             Platform overview · {dateFormatted}, {timeFormatted} IST
           </p>
@@ -189,7 +198,7 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            {summary.review_queue.length === 0 ? (
+            {summaryData.review_queue.length === 0 ? (
               <div className="p-8 text-center text-xs text-[#536780]">
                 No applications or drafts waiting in the review queue.
               </div>
@@ -206,7 +215,7 @@ export default async function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {summary.review_queue.slice(0, 6).map((item, idx) => (
+                    {summaryData.review_queue.slice(0, 6).map((item, idx) => (
                       <tr key={item.id} className="transition-colors hover:bg-[#f8fbff]">
                         <td className="py-3 pl-5 pr-3 font-mono font-semibold text-teal/80">
                           AF-{String(idx + 24812).padStart(5, '0')}

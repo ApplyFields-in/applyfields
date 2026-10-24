@@ -17,6 +17,7 @@ import { ApiOffline } from '@/components/admin-shell';
 import { StatusBadge } from '@/components/opportunities-ui';
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
+import { MOCK_ADMIN_CAREERS } from '@/lib/mock-data';
 
 export const metadata = { title: SECTIONS.careers.title };
 
@@ -35,6 +36,28 @@ export default async function CareersAdminPage({
   if (status) query.set('status', status);
 
   const data = await apiGet<AdminCareerList>(`/admin/careers${query.size ? `?${query}` : ''}`);
+
+  const displayData = data && data.items.length > 0 ? data : (() => {
+    let list = [...MOCK_ADMIN_CAREERS.items];
+    if (status) {
+      list = list.filter((item) => item.status === status);
+    }
+    if (q) {
+      const qLower = q.toLowerCase();
+      list = list.filter(
+        (item) =>
+          item.title.toLowerCase().includes(qLower) ||
+          item.slug.toLowerCase().includes(qLower) ||
+          item.category_name.toLowerCase().includes(qLower),
+      );
+    }
+    return {
+      total: list.length,
+      counts: MOCK_ADMIN_CAREERS.counts,
+      items: list,
+    };
+  })();
+  const isMock = !data || data.items.length === 0;
 
   const buildUrl = (next: { q?: string; status?: string }) => {
     const params = new URLSearchParams();
@@ -56,6 +79,11 @@ export default async function CareersAdminPage({
         icon={<Compass />}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            {isMock && (
+              <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10">
+                Demo Mode
+              </Badge>
+            )}
             <a
               href="http://localhost:3000/career/roadmaps"
               target="_blank"
@@ -92,35 +120,32 @@ export default async function CareersAdminPage({
         }
       />
 
-      {data === null ? (
-        <ApiOffline />
-      ) : (
-        <div className="space-y-5">
-          {/* Top KPI counters */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="All careers" count={data.total} active={!status} href={buildUrl({ status: '' })} />
-            <StatCard
-              label="Live / Published"
-              count={data.counts.published}
-              active={status === 'published'}
-              href={buildUrl({ status: 'published' })}
-              tone="teal"
-            />
-            <StatCard
-              label="Drafts"
-              count={data.counts.draft}
-              active={status === 'draft'}
-              href={buildUrl({ status: 'draft' })}
-              tone="celadon"
-            />
-            <StatCard
-              label="Archived"
-              count={data.counts.archived}
-              active={status === 'archived'}
-              href={buildUrl({ status: 'archived' })}
-              tone="outline"
-            />
-          </div>
+      <div className="space-y-5">
+        {/* Top KPI counters */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard label="All careers" count={displayData.total} active={!status} href={buildUrl({ status: '' })} />
+          <StatCard
+            label="Live / Published"
+            count={displayData.counts.published}
+            active={status === 'published'}
+            href={buildUrl({ status: 'published' })}
+            tone="teal"
+          />
+          <StatCard
+            label="Drafts"
+            count={displayData.counts.draft}
+            active={status === 'draft'}
+            href={buildUrl({ status: 'draft' })}
+            tone="celadon"
+          />
+          <StatCard
+            label="Archived"
+            count={displayData.counts.archived}
+            active={status === 'archived'}
+            href={buildUrl({ status: 'archived' })}
+            tone="outline"
+          />
+        </div>
 
           {/* Search bar */}
           <Card className="p-3">
@@ -154,7 +179,7 @@ export default async function CareersAdminPage({
           </Card>
 
           {/* List or Empty State */}
-          {data.items.length === 0 ? (
+          {displayData.items.length === 0 ? (
             <EmptyState
               icon={<CheckCircle2 />}
               title={q || status ? 'No careers match your search' : 'No careers yet'}
@@ -175,7 +200,7 @@ export default async function CareersAdminPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-teal/10">
-                    {data.items.map((item) => (
+                    {displayData.items.map((item) => (
                       <tr key={item.id} className="hover:bg-cream/40 transition-colors">
                         <td className="px-4 py-3.5">
                           <span className="font-bold text-teal line-clamp-1">
@@ -221,7 +246,6 @@ export default async function CareersAdminPage({
             </Card>
           )}
         </div>
-      )}
     </>
   );
 }

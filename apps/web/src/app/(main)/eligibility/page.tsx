@@ -99,8 +99,25 @@ export default function EligibilityPage() {
     if (domicile && domicile !== 'ALL') params.set('state', domicile);
 
     apiGet<OpportunityList>(`/opportunities?${params.toString()}`)
-      .then((res) => {
-        setOpportunities(res?.items ?? []);
+      .then(async (res) => {
+        if (res?.items && res.items.length > 0) {
+          setOpportunities(res.items);
+        } else {
+          const { getMockOpportunities } = await import('@/lib/mock-data');
+          const mock = getMockOpportunities(undefined, {
+            qualification,
+            state: domicile !== 'ALL' ? domicile : undefined,
+          });
+          setOpportunities(mock.items);
+        }
+      })
+      .catch(async () => {
+        const { getMockOpportunities } = await import('@/lib/mock-data');
+        const mock = getMockOpportunities(undefined, {
+          qualification,
+          state: domicile !== 'ALL' ? domicile : undefined,
+        });
+        setOpportunities(mock.items);
       })
       .finally(() => setLoading(false));
   };
