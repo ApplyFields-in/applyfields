@@ -24,6 +24,7 @@ import { ApplicationsModule } from './modules/applications/applications.module.j
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { DigilockerModule } from './modules/digilocker/digilocker.module.js';
 import { AnalyticsModule } from './modules/analytics/analytics.module.js';
+import { MessagesModule } from './modules/messages/messages.module.js';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module.js';
     ReportsModule,
     DigilockerModule,
     AnalyticsModule,
+    MessagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

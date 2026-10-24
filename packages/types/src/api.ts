@@ -1906,4 +1906,57 @@ export interface AnalyticsFunnelSummary {
   top_viewed_opportunities: Array<{ id: string; count: number }>;
 }
 
+// ============================================================================
+// CITIZEN <-> PARTNER TWO-WAY LIVE CHAT & CONVERSATIONS
+// ============================================================================
+
+export type ChatSenderType = 'citizen' | 'partner' | 'system';
+
+export interface ChatAttachment {
+  name: string;
+  url?: string;
+  file_type?: string;
+  file_size?: string;
+  kind?: 'pdf' | 'image' | 'doc';
+}
+
+export interface ChatMessageItem {
+  id: string;
+  request_id: string;
+  sender_user_id?: string | null;
+  sender_type: ChatSenderType;
+  sender_name: string;
+  message: string;
+  attachments?: ChatAttachment[];
+  is_read: boolean;
+  read_at?: string | null;
+  created_at: string;
+}
+
+export interface SendChatMessageInput {
+  message: string;
+  sender_type: ChatSenderType;
+  sender_name: string;
+  attachments?: ChatAttachment[];
+}
+
+export interface PartnerConversationThread {
+  booking_id: string;
+  token: string;
+  citizen_name: string;
+  citizen_phone: string;
+  service_title: string;
+  status: string;
+  slot_date?: string | null;
+  slot_time?: string | null;
+  unread_count: number;
+  last_message: string;
+  last_timestamp: string;
+}
+
+export interface ConversationListResponse {
+  total: number;
+  threads: PartnerConversationThread[];
+}
+
 export * from './schedule';

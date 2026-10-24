@@ -13,6 +13,8 @@ import {
   MapPin,
   ExternalLink,
 } from 'lucide-react';
+import { ScrollToTopButton } from '@applyfields/ui';
+
 
 export function Footer() {
   const MAIN_WEB_URL = process.env.NEXT_PUBLIC_MAIN_WEB_URL || 'http://localhost:3000';
@@ -139,11 +141,13 @@ export function Footer() {
         <div className="pt-8 border-t border-[#0d2a58] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#7896bc]">
           <p>© 2026 ApplyFields Technologies Inc. · Dedicated Citizen Services Portal (`service.applyfields.in`)</p>
           <div className="flex items-center gap-4">
+            <ScrollToTopButton className="text-[#a8c1de] hover:text-white border-[#0d2a58] hover:border-[#38bdf8] hover:bg-[#0e7bf4]/10" />
             <a href={`${MAIN_WEB_URL}/help`} className="hover:text-white transition">Help &amp; FAQs</a>
             <a href={`${MAIN_WEB_URL}/privacy`} className="hover:text-white transition">Privacy Policy</a>
             <a href={`${MAIN_WEB_URL}/terms`} className="hover:text-white transition">Terms of Service</a>
           </div>
         </div>
+
       </div>
     </footer>
   );

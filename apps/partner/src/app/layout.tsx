@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import '@fontsource-variable/plus-jakarta-sans';
 import './globals.css';
 import { PartnerAuthProvider } from '@/lib/auth-context';
+import { ScrollToTop } from '@applyfields/ui';
 
 export const metadata: Metadata = {
   title: {
@@ -29,8 +30,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full font-sans bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-white">
-        <PartnerAuthProvider>{children}</PartnerAuthProvider>
+        <PartnerAuthProvider>
+          {children}
+          <ScrollToTop />
+        </PartnerAuthProvider>
       </body>
     </html>
   );
 }
+
