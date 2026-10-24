@@ -25,9 +25,11 @@ import {
 import {
   getBookingMessages,
   getPartnerConversations,
+  listPartnerBookings,
   markBookingMessagesRead,
   sendBookingMessage,
 } from '@/lib/api';
+
 
 
 export interface ChatMessage {
@@ -203,8 +205,9 @@ export default function PartnerMessagesPage() {
       try {
         const res = await listPartnerBookings();
         if (res.data?.items && res.data.items.length > 0) {
-          const liveThreads: ConversationThread[] = res.data.items.map((b) => {
+          const liveThreads: ConversationThread[] = res.data.items.map((b: any) => {
             const token = `AF-${b.id.slice(0, 4).toUpperCase()}`;
+
             const citizenName =
               b.user_note?.split(';')[0]?.replace(/^(Name|Applicant):\s*/i, '').trim() ||
               'Citizen Applicant';
@@ -385,22 +388,18 @@ export default function PartnerMessagesPage() {
                 messages: t.messages.map((m) => ({ ...m, isRead: true })),
               }
             : t,
-<<<<<<< HEAD
-        ),
-      );
-      if (activeThread.bookingId) {
-        markBookingMessagesRead(activeThread.bookingId, 'partner').catch(() => {});
-      }
-=======
         );
         if (typeof window !== 'undefined') {
           localStorage.setItem('applyfields_partner_chat_threads_v1', JSON.stringify(updated));
         }
+        if (activeThread.bookingId) {
+          markBookingMessagesRead(activeThread.bookingId, 'partner').catch(() => {});
+        }
         return updated;
       });
->>>>>>> origin/main
     }
   }, [activeToken]);
+
 
   async function handleSendMessage(textToSend?: string) {
     const text = (textToSend || inputText).trim();

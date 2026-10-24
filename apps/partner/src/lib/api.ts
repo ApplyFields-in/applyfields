@@ -11,7 +11,15 @@ import type {
   PartnerUpdateInput,
   SendChatMessageInput,
   UpdateBookingStatusInput,
+  InstitutionPartnerProfile,
+  UpdateInstitutionProfileInput,
+  InstitutionEnquiryListResponse,
+  InstitutionEnquiry,
+  RespondInstitutionEnquiryInput,
+  InstitutionListResponse,
+  InstitutionSummary,
 } from '@applyfields/types';
+
 
 
 export const API_URL =
@@ -369,4 +377,45 @@ export async function updatePartnerBookingStatus(
 ): Promise<ApiResponse<BookingDetail>> {
   return apiPatch<BookingDetail, UpdateBookingStatusInput>(`/bookings/partner/${bookingId}`, input);
 }
+
+// ============================================================================
+// INSTITUTIONAL PARTNER DOMAIN HELPERS (Founder Doc §21)
+// ============================================================================
+
+export async function getPartnerInstitutionDesk(): Promise<ApiResponse<InstitutionPartnerProfile>> {
+  return apiGet<InstitutionPartnerProfile>('/career/colleges/partner/desk');
+}
+
+export async function updatePartnerInstitutionDesk(
+  input: UpdateInstitutionProfileInput,
+): Promise<ApiResponse<InstitutionPartnerProfile>> {
+  return apiPatch<InstitutionPartnerProfile, UpdateInstitutionProfileInput>(
+    '/career/colleges/partner/desk',
+    input,
+  );
+}
+
+export async function listPartnerEnquiries(
+  status?: string,
+): Promise<ApiResponse<InstitutionEnquiryListResponse>> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiGet<InstitutionEnquiryListResponse>(`/career/colleges/partner/enquiries${q}`);
+}
+
+export async function respondToPartnerEnquiry(
+  enquiryId: string,
+  input: RespondInstitutionEnquiryInput,
+): Promise<ApiResponse<InstitutionEnquiry>> {
+  return apiPatch<InstitutionEnquiry, RespondInstitutionEnquiryInput>(
+    `/career/colleges/partner/enquiries/${enquiryId}`,
+    input,
+  );
+}
+
+export async function searchCollegesDirectory(
+  query: string,
+): Promise<ApiResponse<InstitutionListResponse>> {
+  return apiGet<InstitutionListResponse>(`/career/colleges?q=${encodeURIComponent(query)}&limit=15`);
+}
+
 
