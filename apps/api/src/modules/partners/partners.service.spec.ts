@@ -2,12 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createSlotOverrideSchema,
   dayScheduleSchema,
-  holidayOverrideSchema,
-  updatePartnerScheduleSchema,
-} from '@applyfields/types';
-import {
   formatSlotTimeRange,
   getPeriod,
+  holidayOverrideSchema,
   minutesToTime,
   partnerDirectoryQuerySchema,
   partnerRegisterSchema,
@@ -16,6 +13,7 @@ import {
   partnerUpdateSchema,
   partnerVerifySchema,
   timeToMinutes,
+  updatePartnerScheduleSchema,
 } from './partners.service.js';
 
 describe('Partner Schemas Validation', () => {
