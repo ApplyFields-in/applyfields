@@ -473,13 +473,11 @@ function LoginForm() {
             onError={setError}
             onSuccess={setSuccess}
           />
-          <div className="pt-2">
-            <PasskeyLoginButton
-              defaultEmail={passwordCredType === 'email' ? passwordEmail : undefined}
-              onError={setError}
-              onSuccess={setSuccess}
-            />
-          </div>
+          <PasskeyLoginButton
+            defaultEmail={passwordCredType === 'email' ? passwordEmail : undefined}
+            onError={setError}
+            onSuccess={setSuccess}
+          />
         </div>
       )}
 
