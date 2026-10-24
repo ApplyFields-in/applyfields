@@ -6,19 +6,27 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
-import type {
-  PartnerDetail,
-  PartnerDirectoryQuery,
-  PartnerDirectoryResponse,
-  PartnerDocumentSummary,
-  PartnerRegistrationInput,
-  PartnerServiceDetail,
-  PartnerServiceInput,
-  PartnerUpdateInput,
+import {
+  type AvailableSlotsResponse,
+  type CreateSlotOverrideInput,
+  createSlotOverrideSchema,
+  type HolidayOverride,
+  type PartnerDetail,
+  type PartnerDirectoryQuery,
+  type PartnerDirectoryResponse,
+  type PartnerDocumentSummary,
+  type PartnerRegistrationInput,
+  type PartnerScheduleMatrix,
+  type PartnerServiceDetail,
+  type PartnerServiceInput,
+  type PartnerUpdateInput,
+  type UpdatePartnerScheduleInput,
+  updatePartnerScheduleSchema,
 } from '@applyfields/types';
 import { ZodPipe } from '../../common/zod.pipe.js';
 import {
@@ -49,7 +57,8 @@ export class PartnersController {
 
   @Get('directory')
   async listDirectory(
-    @Query(new ZodPipe(partnerDirectoryQuerySchema)) query: PartnerDirectoryQuery,
+    @Query(new ZodPipe(partnerDirectoryQuerySchema))
+    query: PartnerDirectoryQuery,
   ): Promise<PartnerDirectoryResponse> {
     const key = `partners:dir:${JSON.stringify(query)}`;
     return this.cache.wrap(key, 30, async () => {
@@ -88,7 +97,9 @@ export class PartnersController {
 
   @Get('me/services')
   @UseGuards(AuthGuard)
-  async listMyServices(@Req() req: AuthenticatedRequest): Promise<PartnerServiceDetail[]> {
+  async listMyServices(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<PartnerServiceDetail[]> {
     return this.partnersService.listServices(req.user.userId);
   }
 
@@ -106,7 +117,8 @@ export class PartnersController {
   async updateMyService(
     @Req() req: AuthenticatedRequest,
     @Param('id') serviceId: string,
-    @Body(new ZodPipe(partnerServiceInputSchema.partial())) body: Partial<PartnerServiceInput>,
+    @Body(new ZodPipe(partnerServiceInputSchema.partial()))
+    body: Partial<PartnerServiceInput>,
   ): Promise<PartnerServiceDetail> {
     return this.partnersService.updateService(req.user.userId, serviceId, body);
   }
@@ -127,6 +139,54 @@ export class PartnersController {
     @Body() body: { document_kind: string; storage_path: string },
   ): Promise<PartnerDocumentSummary> {
     return this.partnersService.uploadDocument(req.user.userId, body);
+  }
+
+  // =========================================================================
+  // SCHEDULE & SLOT RESERVATION (Session 18)
+  // =========================================================================
+
+  @Get('me/schedule')
+  @UseGuards(AuthGuard)
+  async getMySchedule(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<PartnerScheduleMatrix> {
+    return this.partnersService.getScheduleForUser(req.user.userId);
+  }
+
+  @Put('me/schedule')
+  @UseGuards(AuthGuard)
+  async updateMySchedule(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodPipe(updatePartnerScheduleSchema))
+    body: UpdatePartnerScheduleInput,
+  ): Promise<PartnerScheduleMatrix> {
+    return this.partnersService.updateSchedule(req.user.userId, body);
+  }
+
+  @Post('me/overrides')
+  @UseGuards(AuthGuard)
+  async addMyOverride(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodPipe(createSlotOverrideSchema)) body: CreateSlotOverrideInput,
+  ): Promise<HolidayOverride> {
+    return this.partnersService.addOverride(req.user.userId, body);
+  }
+
+  @Delete('me/overrides/:id')
+  @UseGuards(AuthGuard)
+  async deleteMyOverride(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') overrideId: string,
+  ): Promise<{ success: boolean }> {
+    return this.partnersService.removeOverride(req.user.userId, overrideId);
+  }
+
+  @Get(':id/available-slots')
+  async getAvailableSlots(
+    @Param('id') partnerIdOrSlug: string,
+    @Query('date') date: string,
+  ): Promise<AvailableSlotsResponse> {
+    return this.partnersService.getAvailableSlots(partnerIdOrSlug, date);
   }
 
   // =========================================================================
