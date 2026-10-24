@@ -29,6 +29,7 @@ import {
   sendBookingMessage,
 } from '@/lib/api';
 
+
 export interface ChatMessage {
   id: string;
   senderType: 'citizen' | 'partner' | 'system';
@@ -196,6 +197,80 @@ export default function PartnerMessagesPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Load threads from live bookings and localStorage
+  useEffect(() => {
+    async function loadThreads() {
+      try {
+        const res = await listPartnerBookings();
+        if (res.data?.items && res.data.items.length > 0) {
+          const liveThreads: ConversationThread[] = res.data.items.map((b) => {
+            const token = `AF-${b.id.slice(0, 4).toUpperCase()}`;
+            const citizenName =
+              b.user_note?.split(';')[0]?.replace(/^(Name|Applicant):\s*/i, '').trim() ||
+              'Citizen Applicant';
+            const initialMsgs: ChatMessage[] = [
+              {
+                id: `sys-${b.id}`,
+                senderType: 'system',
+                senderName: 'System',
+                text: `Assistance booking created. Status: ${b.status}.`,
+                timestamp: b.created_at ? new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today',
+                isRead: true,
+              },
+            ];
+            if (b.user_note) {
+              initialMsgs.push({
+                id: `usr-${b.id}`,
+                senderType: 'citizen',
+                senderName: citizenName,
+                text: b.user_note,
+                timestamp: b.created_at ? new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today',
+                isRead: true,
+              });
+            }
+            return {
+              bookingId: b.id,
+              token,
+              citizenName,
+              citizenPhone: b.partner_phone || '—',
+              serviceTitle: b.service_name || 'Assistance Service',
+              slotDate: b.appointment_at ? b.appointment_at.slice(0, 10) : 'Today',
+              slotTime: b.appointment_at
+                ? new Date(b.appointment_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : 'Flexible',
+              unreadCount: 0,
+              lastMessage: b.user_note || 'Booking registered at desk',
+              lastTimestamp: 'Recent',
+              messages: initialMsgs,
+            };
+          });
+
+          setThreads((prev) => {
+            const combined = [...liveThreads, ...prev.filter((p) => !liveThreads.some((lt) => lt.token === p.token))];
+            if (combined.length > 0 && !combined.some((c) => c.token === activeToken)) {
+              setActiveToken(combined[0].token);
+            }
+            return combined;
+          });
+        }
+      } catch {}
+
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('applyfields_partner_chat_threads_v1');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setThreads(parsed);
+            }
+          } catch {}
+        }
+      }
+    }
+
+    loadThreads();
+  }, []);
+
   const activeThread = threads.find((t) => t.token === activeToken) || threads[0];
 
   // Fetch live partner conversations
@@ -301,8 +376,8 @@ export default function PartnerMessagesPage() {
   // Mark active thread as read locally
   useEffect(() => {
     if (activeThread && activeThread.unreadCount > 0) {
-      setThreads((prev) =>
-        prev.map((t) =>
+      setThreads((prev) => {
+        const updated = prev.map((t) =>
           t.token === activeThread.token
             ? {
                 ...t,
@@ -310,11 +385,20 @@ export default function PartnerMessagesPage() {
                 messages: t.messages.map((m) => ({ ...m, isRead: true })),
               }
             : t,
+<<<<<<< HEAD
         ),
       );
       if (activeThread.bookingId) {
         markBookingMessagesRead(activeThread.bookingId, 'partner').catch(() => {});
       }
+=======
+        );
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('applyfields_partner_chat_threads_v1', JSON.stringify(updated));
+        }
+        return updated;
+      });
+>>>>>>> origin/main
     }
   }, [activeToken]);
 
@@ -331,8 +415,8 @@ export default function PartnerMessagesPage() {
       isRead: true,
     };
 
-    setThreads((prev) =>
-      prev.map((t) =>
+    setThreads((prev) => {
+      const updated = prev.map((t) =>
         t.token === activeThread.token
           ? {
               ...t,
@@ -341,8 +425,12 @@ export default function PartnerMessagesPage() {
               messages: [...t.messages, optimisticMsg],
             }
           : t,
-      ),
-    );
+      );
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('applyfields_partner_chat_threads_v1', JSON.stringify(updated));
+      }
+      return updated;
+    });
 
     if (!textToSend) {
       setInputText('');
