@@ -31,7 +31,7 @@ export interface OpportunityCard {
   location: string;
   qualification: string;
   vacancies: number | null;
-  last_date: string | null;   // YYYY-MM-DD
+  last_date: string | null; // YYYY-MM-DD
   days_left: number | null;
   tags: string[];
   /** only when the request came from a logged-in user */
@@ -72,15 +72,14 @@ export interface EligibilityResult {
 }
 
 export type EligibilityResponse =
-  | ({ slug: string } & EligibilityResult)
-  | { slug: string; status: 'login_required' };
+  ({ slug: string } & EligibilityResult) | { slug: string; status: 'login_required' };
 
 export interface OpportunityList {
   type: OpportunityType | 'all';
   query: string;
   total: number;
   items: OpportunityCard[];
-  sample: boolean;            // true while the API returns sample data
+  sample: boolean; // true while the API returns sample data
 }
 
 export interface UpdateItem {
@@ -88,7 +87,7 @@ export interface UpdateItem {
   kind: UpdateKind;
   title: string;
   organization: string;
-  date: string;               // YYYY-MM-DD
+  date: string; // YYYY-MM-DD
   opportunity_slug: string | null;
 }
 
@@ -130,8 +129,8 @@ export interface ReviewQueueItem {
   id: string;
   title: string;
   source: string;
-  confidence: number;          // 0–1
-  found_at: string;            // ISO date-time
+  confidence: number; // 0–1
+  found_at: string; // ISO date-time
   kind: 'new' | 'change' | 'update';
 }
 
@@ -448,7 +447,9 @@ export interface OpportunityInput {
   /** the rules for the whole notification (null = none extracted yet) */
   eligibility: Omit<ReviewEligibility, 'id' | 'post_id'> | null;
   /** full list — posts missing from it are deleted; no id = new post */
-  posts: (Omit<ReviewPost, 'id' | 'vacancies_by_category' | 'salary_min' | 'salary_max'> & { id?: string })[];
+  posts: (Omit<ReviewPost, 'id' | 'vacancies_by_category' | 'salary_min' | 'salary_max'> & {
+    id?: string;
+  })[];
   /** full list — dates missing from it are deleted; no id = new date */
   dates: (Omit<ReviewDate, 'id'> & { id?: string })[];
 }
@@ -504,7 +505,12 @@ export interface AdminUpdateListItem {
   date: string | null;
   status: OpportunityStatus;
   /** the job or service it belongs to */
-  parent: { kind: 'opportunity' | 'service'; id: string; title: string; status: OpportunityStatus | null } | null;
+  parent: {
+    kind: 'opportunity' | 'service';
+    id: string;
+    title: string;
+    status: OpportunityStatus | null;
+  } | null;
   source_url: string | null;
   created_at: string;
 }
@@ -723,7 +729,11 @@ export interface AdminDeliveryItem {
 }
 
 export interface AdminNotificationOverview {
-  counts: Record<DeliveryStatus, number> & { in_app_total: number; in_app_unread: number; push_subscriptions_total: number };
+  counts: Record<DeliveryStatus, number> & {
+    in_app_total: number;
+    in_app_unread: number;
+    push_subscriptions_total: number;
+  };
   items: AdminDeliveryItem[];
 }
 
@@ -742,7 +752,8 @@ export interface ManualAlertResult {
 
 /* ------------------------------------------------------------------ universal search (Session 09) */
 
-export type SearchResultType = OpportunityType | 'service' | 'career' | 'course' | 'institution' | 'roadmap';
+export type SearchResultType =
+  OpportunityType | 'service' | 'career' | 'course' | 'institution' | 'roadmap';
 export type SearchSort = 'relevance' | 'deadline';
 
 /** GET /search — one result of any type. */
@@ -754,7 +765,7 @@ export interface SearchResult {
   /** website path, e.g. /exams/ssc-cgl-2026 */
   url: string;
   location: string;
-  last_date: string | null;   // YYYY-MM-DD
+  last_date: string | null; // YYYY-MM-DD
   days_left: number | null;
 }
 
@@ -875,7 +886,16 @@ export interface AdminCareerList {
 
 // ---------- Session 12: Roadmaps, Courses, Colleges & AI Guidance ----------
 
-export type RoadmapStepKind = 'education' | 'course' | 'exam' | 'skill' | 'certification' | 'project' | 'internship' | 'job' | 'milestone';
+export type RoadmapStepKind =
+  | 'education'
+  | 'course'
+  | 'exam'
+  | 'skill'
+  | 'certification'
+  | 'project'
+  | 'internship'
+  | 'job'
+  | 'milestone';
 export type ProgressStatus = 'todo' | 'in_progress' | 'done' | 'skipped';
 
 export interface RoadmapStepResource {
@@ -1241,12 +1261,7 @@ export interface AdminPartnerVerifyInput {
 // ============================================================================
 
 export type BookingRequestStatus =
-  | 'new'
-  | 'accepted'
-  | 'rejected'
-  | 'in_progress'
-  | 'completed'
-  | 'cancelled';
+  'new' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled';
 
 export interface BookingRequestEvent {
   id: string;
@@ -1397,12 +1412,7 @@ export interface InstitutionEnquiryListResponse {
 // ============================================================================
 
 export type CommunityThreadCategory =
-  | 'general'
-  | 'admit_card'
-  | 'exam_prep'
-  | 'syllabus'
-  | 'result'
-  | 'counselling';
+  'general' | 'admit_card' | 'exam_prep' | 'syllabus' | 'result' | 'counselling';
 
 export interface CommunityComment {
   id: string;
@@ -1471,9 +1481,24 @@ export interface CommunityThreadListResponse {
 }
 
 export interface ReportContentInput {
-  item_type: 'opportunity' | 'exam' | 'service' | 'institution' | 'course' | 'career' | 'roadmap' | 'partner' | 'update';
+  item_type:
+    | 'opportunity'
+    | 'exam'
+    | 'service'
+    | 'institution'
+    | 'course'
+    | 'career'
+    | 'roadmap'
+    | 'partner'
+    | 'update';
   item_id: string;
-  reason: 'incorrect_info' | 'broken_link' | 'fake_or_scam' | 'partner_issue' | 'service_complaint' | 'other';
+  reason:
+    | 'incorrect_info'
+    | 'broken_link'
+    | 'fake_or_scam'
+    | 'partner_issue'
+    | 'service_complaint'
+    | 'other';
   details?: string;
 }
 
@@ -1593,13 +1618,7 @@ export interface DocumentReadinessCheck {
 }
 
 export type ApplicationTrackerStatus =
-  | 'saved'
-  | 'planning'
-  | 'applied'
-  | 'exam_interview'
-  | 'selected'
-  | 'rejected'
-  | 'completed';
+  'saved' | 'planning' | 'applied' | 'exam_interview' | 'selected' | 'rejected' | 'completed';
 
 export interface ApplicationTrackerItem {
   id: string;
@@ -1940,3 +1959,4 @@ export interface ConversationListResponse {
   threads: PartnerConversationThread[];
 }
 
+export * from './schedule';

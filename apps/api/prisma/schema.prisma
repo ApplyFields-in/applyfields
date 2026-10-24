@@ -854,6 +854,39 @@ model partner_services {
   @@index([service_id])
 }
 
+model partner_schedules {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  partner_id              String   @db.Uuid
+  day_of_week             Int      @db.SmallInt
+  open_time               String   @default("09:00")
+  close_time              String   @default("20:00")
+  has_break               Boolean  @default(true)
+  break_start             String?  @default("13:00")
+  break_end               String?  @default("14:00")
+  slot_duration_minutes   Int      @default(30)
+  max_concurrent_bookings Int      @default(2)
+  is_active               Boolean  @default(true)
+  created_at              DateTime @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime @default(now()) @db.Timestamptz(6)
+  partners                partners @relation(fields: [partner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([partner_id, day_of_week])
+  @@index([partner_id, is_active])
+}
+
+model partner_slot_overrides {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  partner_id    String   @db.Uuid
+  override_date DateTime @db.Date
+  is_closed     Boolean  @default(true)
+  reason        String?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  partners      partners @relation(fields: [partner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([partner_id, override_date])
+  @@index([partner_id, override_date])
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -899,6 +932,8 @@ model partners {
   payments             payments[]
   service_requests     service_requests[]
   subscriptions        subscriptions[]
+  partner_schedules    partner_schedules[]
+  partner_slot_overrides partner_slot_overrides[]
 
   @@index([institution_id])
   @@index([state_code, district])
