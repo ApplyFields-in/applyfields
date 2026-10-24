@@ -84,10 +84,10 @@ export function SocialAuthButtons({
   onSuccess,
 }: SocialAuthButtonsProps) {
   const router = useRouter();
-  const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | 'microsoft' | null>(null);
+  const [activeProvider, setActiveProvider] = useState<'google' | null>(null);
 
-  // Account Chooser modal (Google, Microsoft, Apple device account selector)
-  const [accountChooserProvider, setAccountChooserProvider] = useState<'google' | 'microsoft' | 'apple' | null>(null);
+  // Account Chooser modal (Google device account selector)
+  const [accountChooserProvider, setAccountChooserProvider] = useState<'google' | null>(null);
   const [showCustomEntry, setShowCustomEntry] = useState(false);
   const [customEmail, setCustomEmail] = useState('');
   const [customName, setCustomName] = useState('');
@@ -95,27 +95,13 @@ export function SocialAuthButtons({
   const targetPath = redirectUrl && redirectUrl !== '/me' ? redirectUrl : '/account';
 
   // Get configured Client IDs (from env vars or local storage override)
-  function getClientId(provider: 'google' | 'microsoft' | 'apple'): string {
+  function getClientId(provider: 'google'): string {
     if (typeof window === 'undefined') return '';
     if (provider === 'google') {
       return (
         process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
         localStorage.getItem('af_google_client_id') ||
         '1050658504646-ld2jm8qgkv8aiq68nu7o6fbjpgq5o7to.apps.googleusercontent.com'
-      );
-    }
-    if (provider === 'microsoft') {
-      return (
-        process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID ||
-        localStorage.getItem('af_microsoft_client_id') ||
-        ''
-      );
-    }
-    if (provider === 'apple') {
-      return (
-        process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ||
-        localStorage.getItem('af_apple_client_id') ||
-        ''
       );
     }
     return '';
@@ -210,7 +196,9 @@ export function SocialAuthButtons({
     accessToken?: string;
   }) {
     onError?.(null);
-    setActiveProvider(payload.provider);
+    if (payload.provider === 'google') {
+      setActiveProvider('google');
+    }
 
     try {
       const res = await apiPost<AuthResponse>('/auth/social-login', payload);
@@ -297,73 +285,21 @@ export function SocialAuthButtons({
     }
   }
 
-  // Launch Real Microsoft Account Chooser Popup (when Client ID is configured)
-  function launchMicrosoftPopup(clientId: string) {
-    onError?.(null);
-    setActiveProvider('microsoft');
-
-    const callbackUrl = `${window.location.origin}/auth/callback`;
-    const msAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
-      clientId,
-    )}&response_type=token&redirect_uri=${encodeURIComponent(
-      callbackUrl,
-    )}&scope=${encodeURIComponent('openid profile email User.Read')}&response_mode=fragment&prompt=select_account&state=microsoft_${Math.random().toString(36).substring(2)}`;
-
-    openCenteredPopup(msAuthUrl, 'Sign in with Microsoft');
-  }
-
-  // Launch Real Apple ID Authorization Popup (when Client ID is configured)
-  function launchApplePopup(clientId: string) {
-    onError?.(null);
-    setActiveProvider('apple');
-
-    const callbackUrl = `${window.location.origin}/auth/callback`;
-    const appleAuthUrl = `https://appleid.apple.com/auth/authorize?client_id=${encodeURIComponent(
-      clientId,
-    )}&redirect_uri=${encodeURIComponent(
-      callbackUrl,
-    )}&response_type=code%20id_token&scope=name%20email&response_mode=fragment&state=apple_${Math.random().toString(36).substring(2)}`;
-
-    openCenteredPopup(appleAuthUrl, 'Sign in with Apple ID');
-  }
-
   async function handleGoogleClick() {
     const clientId = getClientId('google');
     if (clientId) {
       launchGooglePopup(clientId);
       return;
     }
-    // Directly open Google Account Chooser with device accounts (matching Image 3)
+    // Directly open Google Account Chooser with device accounts
     setAccountChooserProvider('google');
-    setShowCustomEntry(false);
-  }
-
-  async function handleMicrosoftClick() {
-    const clientId = getClientId('microsoft');
-    if (clientId) {
-      launchMicrosoftPopup(clientId);
-      return;
-    }
-    // Directly open Microsoft Account Chooser
-    setAccountChooserProvider('microsoft');
-    setShowCustomEntry(false);
-  }
-
-  async function handleAppleClick() {
-    const clientId = getClientId('apple');
-    if (clientId) {
-      launchApplePopup(clientId);
-      return;
-    }
-    // Directly open Apple Account Chooser
-    setAccountChooserProvider('apple');
     setShowCustomEntry(false);
   }
 
   const googleButtonLabel = mode === 'register' ? 'Register with Google' : 'Continue with Google';
 
   return (
-    <div className="space-y-2.5">
+    <div className="w-full">
       {/* Primary Google 1-Click Button */}
       <button
         type="button"
@@ -379,38 +315,7 @@ export function SocialAuthButtons({
         <span>{googleButtonLabel}</span>
       </button>
 
-      {/* Secondary Providers: Real Microsoft & Apple Native OAuth */}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={handleMicrosoftClick}
-          disabled={activeProvider !== null}
-          className="flex h-10 items-center justify-center gap-2 rounded-xl border border-line bg-cream text-xs font-semibold text-teal hover:bg-paper transition disabled:opacity-60"
-        >
-          {activeProvider === 'microsoft' ? (
-            <Loader2 className="size-3.5 animate-spin text-sea" />
-          ) : (
-            <MicrosoftIcon className="size-3.5 shrink-0" />
-          )}
-          <span>Microsoft</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={handleAppleClick}
-          disabled={activeProvider !== null}
-          className="flex h-10 items-center justify-center gap-2 rounded-xl bg-teal text-xs font-semibold text-cream hover:bg-teal/90 transition disabled:opacity-60"
-        >
-          {activeProvider === 'apple' ? (
-            <Loader2 className="size-3.5 animate-spin text-sea" />
-          ) : (
-            <AppleIcon className="size-3.5 shrink-0" />
-          )}
-          <span>Apple ID</span>
-        </button>
-      </div>
-
-      {/* Native Device Account Chooser Modal (Google, Microsoft, Apple) matching Image 3 */}
+      {/* Native Device Account Chooser Modal (Google) */}
       {accountChooserProvider && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in"
@@ -421,24 +326,8 @@ export function SocialAuthButtons({
             {/* Top Bar: Brand & Close */}
             <div className="flex items-center justify-between pb-4 border-b border-[#3c4043]/60">
               <div className="flex items-center gap-2">
-                {accountChooserProvider === 'google' && (
-                  <>
-                    <GoogleIcon className="size-5" />
-                    <span className="text-xs font-medium text-[#c4c7c5]">Sign in with Google</span>
-                  </>
-                )}
-                {accountChooserProvider === 'microsoft' && (
-                  <>
-                    <MicrosoftIcon className="size-4" />
-                    <span className="text-xs font-medium text-[#c4c7c5]">Microsoft</span>
-                  </>
-                )}
-                {accountChooserProvider === 'apple' && (
-                  <>
-                    <AppleIcon className="size-4 text-white" />
-                    <span className="text-xs font-medium text-[#c4c7c5]">Sign in with Apple</span>
-                  </>
-                )}
+                <GoogleIcon className="size-5" />
+                <span className="text-xs font-medium text-[#c4c7c5]">Sign in with Google</span>
               </div>
               <button
                 type="button"
@@ -459,9 +348,7 @@ export function SocialAuthButtons({
                   AF
                 </div>
                 <div>
-                  <h2 className="text-xl font-normal text-white">
-                    {accountChooserProvider === 'microsoft' ? 'Pick an account' : 'Choose an account'}
-                  </h2>
+                  <h2 className="text-xl font-normal text-white">Choose an account</h2>
                   <p className="text-xs text-[#9aa0a6] mt-0.5">
                     to continue to <span className="text-[#8ab4f8] font-medium">ApplyFields</span>
                   </p>
@@ -469,150 +356,74 @@ export function SocialAuthButtons({
               </div>
             </div>
 
-            {/* Account List (Matching Google's Native Account Chooser in Image 3) */}
+            {/* Account List */}
             {!showCustomEntry ? (
               <div className="space-y-1 rounded-2xl border border-[#3c4043] overflow-hidden bg-[#181818]">
-                {accountChooserProvider === 'google' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleCompleteSocialLogin({
-                          provider: 'google',
-                          email: 'yghanasathyakarthik@gmail.com',
-                          name: 'Yendluri Ghana Sathya Karthik',
-                        })
-                      }
-                      className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
-                    >
-                      <div className="size-9 rounded-full bg-[#7c4dff] text-white flex items-center justify-center font-medium text-sm shrink-0">
-                        Y
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
-                          Yendluri Ghana Sathya Karthik
-                        </div>
-                        <div className="text-xs text-[#9aa0a6] truncate">yghanasathyakarthik@gmail.com</div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleCompleteSocialLogin({
-                          provider: 'google',
-                          email: 'yendlurighanasathyakarthik@gmail.com',
-                          name: 'karthik',
-                        })
-                      }
-                      className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
-                    >
-                      <div className="size-9 rounded-full bg-[#00897b] text-white flex items-center justify-center font-medium text-sm shrink-0">
-                        k
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
-                          karthik
-                        </div>
-                        <div className="text-xs text-[#9aa0a6] truncate">yendlurighanasathyakarthik@gmail.com</div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleCompleteSocialLogin({
-                          provider: 'google',
-                          email: 'ghanasathyakarthiky@gmail.com',
-                          name: 'Yendluri Ghana sathya karthik',
-                        })
-                      }
-                      className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
-                    >
-                      <div className="size-9 rounded-full bg-[#5c6bc0] text-white flex items-center justify-center font-medium text-sm shrink-0">
-                        Y
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
-                          Yendluri Ghana sathya karthik
-                        </div>
-                        <div className="text-xs text-[#9aa0a6] truncate">ghanasathyakarthiky@gmail.com</div>
-                      </div>
-                    </button>
-                  </>
-                )}
-
-                {accountChooserProvider === 'microsoft' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleCompleteSocialLogin({
-                          provider: 'microsoft',
-                          email: 'yghanasathyakarthik@outlook.com',
-                          name: 'Yendluri Ghana Sathya Karthik',
-                        })
-                      }
-                      className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
-                    >
-                      <div className="size-9 rounded-full bg-[#0078d4] text-white flex items-center justify-center font-medium text-sm shrink-0">
-                        Y
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
-                          Yendluri Ghana Sathya Karthik
-                        </div>
-                        <div className="text-xs text-[#9aa0a6] truncate">yghanasathyakarthik@outlook.com</div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleCompleteSocialLogin({
-                          provider: 'microsoft',
-                          email: 'karthik.yendluri@microsoft.com',
-                          name: 'karthik',
-                        })
-                      }
-                      className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
-                    >
-                      <div className="size-9 rounded-full bg-[#107c41] text-white flex items-center justify-center font-medium text-sm shrink-0">
-                        k
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
-                          karthik
-                        </div>
-                        <div className="text-xs text-[#9aa0a6] truncate">karthik.yendluri@microsoft.com</div>
-                      </div>
-                    </button>
-                  </>
-                )}
-
-                {accountChooserProvider === 'apple' && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleCompleteSocialLogin({
-                        provider: 'apple',
-                        email: 'yghanasathyakarthik@icloud.com',
-                        name: 'Yendluri Ghana Sathya Karthik',
-                      })
-                    }
-                    className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
-                  >
-                    <div className="size-9 rounded-full bg-[#333336] text-white flex items-center justify-center font-medium text-sm shrink-0">
-                      <AppleIcon className="size-4" />
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCompleteSocialLogin({
+                      provider: 'google',
+                      email: 'yghanasathyakarthik@gmail.com',
+                      name: 'Yendluri Ghana Sathya Karthik',
+                    })
+                  }
+                  className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
+                >
+                  <div className="size-9 rounded-full bg-[#7c4dff] text-white flex items-center justify-center font-medium text-sm shrink-0">
+                    Y
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
+                      Yendluri Ghana Sathya Karthik
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
-                        Yendluri Ghana Sathya Karthik
-                      </div>
-                      <div className="text-xs text-[#9aa0a6] truncate">yghanasathyakarthik@icloud.com</div>
+                    <div className="text-xs text-[#9aa0a6] truncate">yghanasathyakarthik@gmail.com</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCompleteSocialLogin({
+                      provider: 'google',
+                      email: 'yendlurighanasathyakarthik@gmail.com',
+                      name: 'karthik',
+                    })
+                  }
+                  className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
+                >
+                  <div className="size-9 rounded-full bg-[#00897b] text-white flex items-center justify-center font-medium text-sm shrink-0">
+                    k
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
+                      karthik
                     </div>
-                  </button>
-                )}
+                    <div className="text-xs text-[#9aa0a6] truncate">yendlurighanasathyakarthik@gmail.com</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCompleteSocialLogin({
+                      provider: 'google',
+                      email: 'ghanasathyakarthiky@gmail.com',
+                      name: 'Yendluri Ghana sathya karthik',
+                    })
+                  }
+                  className="w-full flex items-center gap-3.5 p-3.5 hover:bg-[#282a2c] transition text-left border-b border-[#2e3134] group"
+                >
+                  <div className="size-9 rounded-full bg-[#5c6bc0] text-white flex items-center justify-center font-medium text-sm shrink-0">
+                    Y
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-white truncate group-hover:text-[#8ab4f8] transition-colors">
+                      Yendluri Ghana sathya karthik
+                    </div>
+                    <div className="text-xs text-[#9aa0a6] truncate">ghanasathyakarthiky@gmail.com</div>
+                  </div>
+                </button>
 
                 {/* Use another account option */}
                 <button
@@ -634,13 +445,7 @@ export function SocialAuthButtons({
                 <div className="text-xs font-medium text-white">Enter your account details:</div>
                 <input
                   type="email"
-                  placeholder={
-                    accountChooserProvider === 'google'
-                      ? 'name@gmail.com'
-                      : accountChooserProvider === 'microsoft'
-                        ? 'name@outlook.com'
-                        : 'name@icloud.com'
-                  }
+                  placeholder="name@gmail.com"
                   value={customEmail}
                   onChange={(e) => setCustomEmail(e.target.value)}
                   className="w-full rounded-xl border border-[#3c4043] bg-[#1f1f1f] px-3.5 py-2 text-xs text-white placeholder:text-[#9aa0a6] focus:outline-none focus:border-[#8ab4f8]"
@@ -881,7 +686,7 @@ export function PasskeyLoginButton({ defaultEmail, onError, onSuccess }: Passkey
       <button
         type="button"
         onClick={openModal}
-        className="mt-2.5 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-sea/40 text-sm font-semibold text-sea transition hover:bg-tea/40"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-sea/40 text-sm font-semibold text-sea transition hover:bg-tea/40"
       >
         <Fingerprint className="size-[18px]" aria-hidden="true" />
         Sign in with a passkey
