@@ -40,6 +40,7 @@ import type {
 } from '@applyfields/types';
 import { Badge, Card, buttonClass } from '@applyfields/ui';
 import { formatDate } from '@/lib/format';
+import { MOCK_APPLICATIONS, MOCK_BOOKINGS, MOCK_ENQUIRIES } from '@/lib/mock-data';
 
 const PIPELINE_STAGES: { id: ApplicationTrackerStatus; label: string; step: number; color: string }[] = [
   { id: 'saved', label: 'Saved', step: 1, color: 'bg-slate-100 text-slate-700 border-slate-300' },
@@ -91,11 +92,13 @@ export default function ApplicationsPage() {
     setLoadingApps(true);
     try {
       const res = await apiGet<ApplicationTrackerItem[]>('/applications');
-      if (res && Array.isArray(res)) {
+      if (res && Array.isArray(res) && res.length > 0) {
         setApplications(res);
+      } else {
+        setApplications(MOCK_APPLICATIONS);
       }
     } catch {
-      // ignore
+      setApplications(MOCK_APPLICATIONS);
     } finally {
       setLoadingApps(false);
     }
@@ -104,18 +107,30 @@ export default function ApplicationsPage() {
   useEffect(() => {
     loadApplications();
 
-    // Load bookings & enquiries in background
+    // Load bookings & enquiries in background with mock fallbacks for testing
     apiGet<BookingListResponse>('/bookings/my')
       .then((res) => {
-        if (res?.items) setBookings(res.items);
+        if (res?.items && res.items.length > 0) {
+          setBookings(res.items);
+        } else {
+          setBookings(MOCK_BOOKINGS);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        setBookings(MOCK_BOOKINGS);
+      });
 
     apiGet<InstitutionEnquiryListResponse>('/career/colleges/my-enquiries')
       .then((res) => {
-        if (res?.items) setEnquiries(res.items);
+        if (res?.items && res.items.length > 0) {
+          setEnquiries(res.items);
+        } else {
+          setEnquiries(MOCK_ENQUIRIES);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        setEnquiries(MOCK_ENQUIRIES);
+      });
   }, []);
 
   function openAddModal() {

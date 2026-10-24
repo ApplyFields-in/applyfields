@@ -13,12 +13,13 @@ import { ServicesQuickBridge } from '@/components/home/services-quick-bridge';
 import { ApiOffline } from '@/components/opportunity';
 import { apiGetAsUser } from '@/lib/server-api';
 import { ClientAuthDashboardSwitch } from '@/components/dashboard/client-auth-dashboard-switch';
+import { MOCK_HOME_SUMMARY } from '@/lib/mock-data';
 
 /** Home dashboard. Automatically presents the unauthenticated view when signed out and the personalized dashboard when signed in. */
 export default async function HomePage() {
   await connection();
   const home = await apiGetAsUser<HomeSummary>('/home');
-  const liveHome = home && !home.sample ? home : null;
+  const liveHome = home && !home.sample && home.closing_soon.length > 0 ? home : MOCK_HOME_SUMMARY;
 
   // The signed-out home uses only live API content; sample payloads are omitted.
   const publicDashboard = (

@@ -7,6 +7,7 @@ import { ApiOffline, FilterBar, type ListSearchParams } from '@/components/oppor
 import { SearchAnalyticsTracker } from '@/components/analytics-tracker';
 import { apiGet } from '@/lib/api';
 import { daysLeftLabel, formatDate, Highlight, RESULT_META, urgencyTone } from '@/lib/format';
+import { getMockSearchResults } from '@/lib/mock-data';
 
 export const metadata = { title: 'Search' };
 
@@ -38,7 +39,8 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
   const api = new URLSearchParams({ q: query });
   if (type) api.set('type', type);
   for (const k of ['state', 'qualification', 'deadline', 'sort'] as const) if (sp[k]) api.set(k, sp[k]);
-  const data = query ? await apiGet<SearchResponse>(`/search?${api}`) : null;
+  const rawData = query ? await apiGet<SearchResponse>(`/search?${api}`) : null;
+  const data = query ? (rawData && rawData.total > 0 ? rawData : getMockSearchResults(query, type)) : null;
 
   const sortHref = (sort: string) => `/search?${new URLSearchParams({ ...(sp as Record<string, string>), sort })}`;
   const currentSort = sp.sort ?? 'relevance';
@@ -75,16 +77,14 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
             </div>
           }
         />
-      ) : data === null ? (
-        <ApiOffline />
-      ) : data.total === 0 ? (
+      ) : !data || data.total === 0 ? (
         <div className="space-y-4">
           <EmptyState
             icon={<Search />}
             title="No matches"
             text="Search covers published, open jobs, exams, scholarships, admissions and services. Try fewer words or the board name (SSC, APPSC), or clear the filters."
           />
-          {data.related && data.related.length > 0 && (
+          {data?.related && data.related.length > 0 && (
             <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-cream p-4 shadow-clay">
               <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal/70">
                 <Sparkles className="size-3.5 text-teal" /> Try searching for

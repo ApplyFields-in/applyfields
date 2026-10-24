@@ -6,6 +6,8 @@ import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
+import { getMockAdminPartners } from '@/lib/mock-data';
+import { Badge } from '@applyfields/ui';
 import { PartnersClient } from './partners-client';
 
 export const metadata = { title: SECTIONS.partners.title };
@@ -30,6 +32,10 @@ export default async function PartnersAdminPage({
     `/admin/partners${query.size ? `?${query}` : ''}`,
   );
 
+  const mockFallback = getMockAdminPartners({ q, status, page });
+  const displayData = data && data.items.length > 0 ? data : mockFallback;
+  const isMock = !data || data.items.length === 0;
+
   const buildUrl = (next: { q?: string; status?: string; page?: number }) => {
     const params = new URLSearchParams();
     const nextQ = next.q !== undefined ? next.q : q;
@@ -50,6 +56,13 @@ export default async function PartnersAdminPage({
         title="Partner Centers & Verification"
         description="Verify citizen assistance centers, MeeSeva kiosks, cyber points, and college desks. Approve rate cards and enable public directory listings."
         icon={<Store />}
+        actions={
+          isMock ? (
+            <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10">
+              Demo Mode
+            </Badge>
+          ) : undefined
+        }
       />
 
       {/* Mode Switcher Tabs */}
@@ -106,84 +119,80 @@ export default async function PartnersAdminPage({
         </Link>
       </div>
 
-      {data === null ? (
-        <ApiOffline />
-      ) : (
-        <div className="space-y-5">
-          {/* Top KPI counters */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard
-              label="All Applications"
-              count={data.total}
-              active={!status}
-              href={buildUrl({ status: '' })}
-            />
-            <StatCard
-              label="Pending Review"
-              count={data.items.filter((p) => p.verification_status === 'pending').length}
-              active={status === 'pending'}
-              href={buildUrl({ status: 'pending' })}
-              tone="celadon"
-            />
-            <StatCard
-              label="Verified & Listed"
-              count={data.items.filter((p) => p.verification_status === 'verified' && p.is_listed).length}
-              active={status === 'verified'}
-              href={buildUrl({ status: 'verified' })}
-              tone="teal"
-            />
-            <StatCard
-              label="Rejected"
-              count={data.items.filter((p) => p.verification_status === 'rejected').length}
-              active={status === 'rejected'}
-              href={buildUrl({ status: 'rejected' })}
-              tone="outline"
-            />
-          </div>
-
-          {/* Search bar */}
-          <Card className="p-3">
-            <form action="/partners" method="GET" className="flex flex-wrap items-center gap-3">
-              <div className="relative min-w-[240px] flex-1">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-teal/70"
-                  aria-hidden="true"
-                />
-                <input
-                  type="search"
-                  name="q"
-                  defaultValue={q}
-                  placeholder="Search by center name, owner, city, district, PIN or phone..."
-                  className="h-9 w-full rounded-full border border-teal/15 bg-canvas pl-9 pr-3 text-sm focus:border-teal focus:outline-none"
-                />
-              </div>
-
-              {status && <input type="hidden" name="status" value={status} />}
-
-              <button
-                type="submit"
-                className="rounded-full bg-teal px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-teal/90"
-              >
-                Search
-              </button>
-
-              {(q || status) && (
-                <Link href="/partners" className="text-xs font-semibold text-teal/70 hover:underline">
-                  Clear filters
-                </Link>
-              )}
-            </form>
-          </Card>
-
-          {/* Real Partners Table & Client Component */}
-          <PartnersClient
-            initialItems={data.items}
-            total={data.total}
-            currentStatus={status}
-            currentQuery={q}
+      <div className="space-y-5">
+        {/* Top KPI counters */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard
+            label="All Applications"
+            count={displayData.total}
+            active={!status}
+            href={buildUrl({ status: '' })}
+          />
+          <StatCard
+            label="Pending Review"
+            count={displayData.items.filter((p) => p.verification_status === 'pending').length}
+            active={status === 'pending'}
+            href={buildUrl({ status: 'pending' })}
+            tone="celadon"
+          />
+          <StatCard
+            label="Verified & Listed"
+            count={displayData.items.filter((p) => p.verification_status === 'verified' && p.is_listed).length}
+            active={status === 'verified'}
+            href={buildUrl({ status: 'verified' })}
+            tone="teal"
+          />
+          <StatCard
+            label="Rejected"
+            count={displayData.items.filter((p) => p.verification_status === 'rejected').length}
+            active={status === 'rejected'}
+            href={buildUrl({ status: 'rejected' })}
+            tone="outline"
           />
         </div>
-      )}
+
+        {/* Search bar */}
+        <Card className="p-3">
+          <form action="/partners" method="GET" className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[240px] flex-1">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-teal/70"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                name="q"
+                defaultValue={q}
+                placeholder="Search by center name, owner, city, district, PIN or phone..."
+                className="h-9 w-full rounded-full border border-teal/15 bg-canvas pl-9 pr-3 text-sm focus:border-teal focus:outline-none"
+              />
+            </div>
+
+            {status && <input type="hidden" name="status" value={status} />}
+
+            <button
+              type="submit"
+              className="rounded-full bg-teal px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-teal/90"
+            >
+              Search
+            </button>
+
+            {(q || status) && (
+              <Link href="/partners" className="text-xs font-semibold text-teal/70 hover:underline">
+                Clear filters
+              </Link>
+            )}
+          </form>
+        </Card>
+
+        {/* Real Partners Table & Client Component */}
+        <PartnersClient
+          initialItems={displayData.items}
+          total={displayData.total}
+          currentStatus={status}
+          currentQuery={q}
+        />
+      </div>
     </>
   );
 }

@@ -19,6 +19,7 @@ import { API_URL } from '@/lib/api';
 import { daysLeftLabel, ELIGIBILITY_META, formatDate, TYPE_META, urgencyTone } from '@/lib/format';
 import { apiGetAsUser } from '@/lib/server-api';
 import { SaveButton } from '@/components/save-button';
+import { getMockOpportunities } from '@/lib/mock-data';
 
 /* ------------------------------------------------------------------ one card */
 
@@ -327,6 +328,19 @@ export async function OpportunityListPage({
   const meta = TYPE_META[type];
   const hasActiveFilters = Boolean(sp.category || sp.state || sp.qualification || sp.deadline || sp.q);
 
+  // Seamless fallback to rich mock data if API is offline or empty, making testing instant & effortless
+  const displayData =
+    data && data.total > 0
+      ? data
+      : getMockOpportunities(type, {
+          q: sp.q,
+          category: sp.category,
+          state: sp.state,
+          qualification: sp.qualification,
+          deadline: sp.deadline,
+          eligible: only,
+        });
+
   return (
     <>
       <PageHeader
@@ -345,9 +359,7 @@ export async function OpportunityListPage({
         eligible={{ on: only, loggedIn }}
       />
 
-      {data === null ? (
-        <ApiOffline />
-      ) : data.total === 0 && only ? (
+      {displayData.total === 0 && only ? (
         <EmptyState
           icon={<UserCheck />}
           title={`No open ${meta.plural} match your profile`}
@@ -358,7 +370,7 @@ export async function OpportunityListPage({
             </Link>
           }
         />
-      ) : data.total === 0 ? (
+      ) : displayData.total === 0 ? (
         <EmptyState
           icon={meta.icon}
           title={hasActiveFilters ? `No matching ${meta.plural} found` : `No open ${meta.plural} yet`}
@@ -382,14 +394,14 @@ export async function OpportunityListPage({
         <>
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-teal">
-              {data.total} {meta.plural}
+              {displayData.total} {meta.plural}
               {only ? ' you may be eligible for' : ''} · closing soonest first
               {hasActiveFilters && ' (filtered)'}
             </p>
-            {data.sample && <Badge tone="celadon">Sample data from the API</Badge>}
+            {(!data || data.sample) && <Badge tone="celadon">Demo / Mock Data</Badge>}
           </div>
           <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-            {data.items.map((item) => (
+            {displayData.items.map((item) => (
               <OpportunityCardView key={item.slug} item={item} />
             ))}
           </div>

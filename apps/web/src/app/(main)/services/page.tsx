@@ -27,6 +27,7 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/opportunity';
 import { apiGet } from '@/lib/api';
+import { getMockGovServices } from '@/lib/mock-data';
 
 export const metadata: Metadata = {
   title: 'Government Citizen Services in India — PAN, Passport, Certificates',
@@ -63,6 +64,11 @@ export default async function ServicesPage({
   if (state) query.set('state', state);
 
   const data = await apiGet<GovServiceList>(`/services${query.size ? `?${query}` : ''}`);
+  const hasActiveFilters = Boolean(q || category || state);
+
+  // Fallback to rich mock data if API is offline or empty, making testing easy & intuitive
+  const displayData =
+    data && data.total > 0 ? data : getMockGovServices({ q, category, state });
 
   const buildCategoryUrl = (cat: string) => {
     const params = new URLSearchParams();
@@ -72,8 +78,6 @@ export default async function ServicesPage({
     const qs = params.toString();
     return qs ? `/services?${qs}` : '/services';
   };
-
-  const hasActiveFilters = Boolean(q || category || state);
 
   return (
     <>
@@ -171,9 +175,7 @@ export default async function ServicesPage({
       </div>
 
       {/* Services Content */}
-      {data === null ? (
-        <ApiOffline />
-      ) : data.total === 0 ? (
+      {displayData.total === 0 ? (
         <EmptyState
           icon={<Landmark />}
           title={hasActiveFilters ? 'No services match your search' : 'No citizen services published yet'}
@@ -197,13 +199,14 @@ export default async function ServicesPage({
         <>
           <div className="mb-4 flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-teal">
-              {data.total} citizen service{data.total === 1 ? '' : 's'} available
+              {displayData.total} citizen service{displayData.total === 1 ? '' : 's'} available
               {hasActiveFilters && ' (filtered)'}
             </p>
+            {(!data || data.total === 0) && <Badge tone="celadon">Demo / Mock Data</Badge>}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-            {data.items.map((srv) => (
+            {displayData.items.map((srv) => (
               <Card key={srv.slug} interactive className="flex flex-col p-4">
                 <div className="flex items-start gap-3">
                   <IconTile tone="tea" className="size-11 rounded-2xl shrink-0">
