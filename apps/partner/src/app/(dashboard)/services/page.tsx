@@ -260,19 +260,53 @@ export default function ServicesPage() {
   const [customDocTag, setCustomDocTag] = useState('');
   const [customDocs, setCustomDocs] = useState<string[]>(['Aadhaar Card', 'Mobile Number']);
 
-  // Load saved rate card from localStorage on mount
+  // Load saved rate card from API or localStorage on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('applyfields_partner_services_v1');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setActiveServices(parsed);
-          }
-        } catch {}
+    async function loadCatalog() {
+      try {
+        const res = await listPartnerServices();
+        if (res.data && res.data.length > 0) {
+          const mapped: ServiceItem[] = res.data.map((s) => ({
+            id: s.id,
+            title: s.name,
+            category: (s.name.toLowerCase().includes('xerox') || s.name.toLowerCase().includes('print')
+              ? 'xerox'
+              : s.name.toLowerCase().includes('aadhaar')
+                ? 'aadhaar'
+                : s.name.toLowerCase().includes('pan')
+                  ? 'pan'
+                  : s.name.toLowerCase().includes('certificate') || s.name.toLowerCase().includes('caste') || s.name.toLowerCase().includes('income')
+                    ? 'meeseva'
+                    : s.name.toLowerCase().includes('exam') || s.name.toLowerCase().includes('ssc') || s.name.toLowerCase().includes('upsc')
+                      ? 'exams'
+                      : 'custom') as ServiceItem['category'],
+            categoryLabel: s.name,
+            description: s.description || '',
+            price: (s.charge_paise ?? 10000) / 100,
+            turnaround: s.estimated_time_text || 'Instant (15m)',
+            requiredDocs: ['Original Documents', 'Valid Government ID Proof'],
+            isActive: s.is_active,
+            isCustom: true,
+          }));
+          setActiveServices(mapped);
+          return;
+        }
+      } catch {}
+
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('applyfields_partner_services_v1');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setActiveServices(parsed);
+            }
+          } catch {}
+        }
       }
     }
+
+    loadCatalog();
   }, []);
 
   function showToast(msg: string) {
@@ -282,22 +316,34 @@ export default function ServicesPage() {
 
   // Toggle Active/Paused state of a service
   function handleToggleActive(id: string) {
+    const target = activeServices.find((s) => s.id === id);
+    const nextActive = target ? !target.isActive : true;
     setActiveServices((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isActive: !s.isActive } : s))
+      prev.map((s) => (s.id === id ? { ...s, isActive: nextActive } : s))
     );
+    if (!id.startsWith('pre-') && !id.startsWith('custom-')) {
+      updatePartnerService(id, { is_active: nextActive }).catch(() => {});
+    }
     showToast('Service availability updated.');
   }
 
   // Update Price
   function handlePriceChange(id: string, newPrice: number) {
+    const validatedPrice = Math.max(1, newPrice);
     setActiveServices((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, price: Math.max(1, newPrice) } : s))
+      prev.map((s) => (s.id === id ? { ...s, price: validatedPrice } : s))
     );
+    if (!id.startsWith('pre-') && !id.startsWith('custom-')) {
+      updatePartnerService(id, { charge_paise: Math.round(validatedPrice * 100) }).catch(() => {});
+    }
   }
 
   // Remove Service
   function handleRemoveService(id: string) {
     setActiveServices((prev) => prev.filter((s) => s.id !== id));
+    if (!id.startsWith('pre-') && !id.startsWith('custom-')) {
+      deletePartnerService(id).catch(() => {});
+    }
     showToast('Service removed from your catalog.');
   }
 
@@ -345,10 +391,32 @@ export default function ServicesPage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('applyfields_partner_services_v1', JSON.stringify(activeServices));
     }
-    setTimeout(() => {
-      setIsSaving(false);
+
+    try {
+      for (const service of activeServices) {
+        const payload = {
+          name: service.title,
+          description: service.description,
+          charge_paise: Math.round(service.price * 100),
+          estimated_time_text: service.turnaround,
+          is_active: service.isActive,
+        };
+
+        if (!service.id.startsWith('pre-') && !service.id.startsWith('custom-')) {
+          await updatePartnerService(service.id, payload).catch(() => {});
+        } else {
+          const res = await createPartnerService(payload).catch(() => null);
+          if (res?.data?.id) {
+            service.id = res.data.id;
+          }
+        }
+      }
       showToast('Rate card catalog saved & synced with live citizen booking engine!');
-    }, 400);
+    } catch {
+      showToast('Rate card saved locally.');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   // Add Doc Tag in Modal

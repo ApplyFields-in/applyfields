@@ -24,8 +24,10 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
+import { listPartnerBookings, updatePartnerBookingStatus } from '@/lib/api';
 
 export type BookingStatus = 'scheduled' | 'arrived' | 'completed' | 'cancelled';
+
 
 export interface BookingDocument {
   name: string;
@@ -179,19 +181,61 @@ export default function BookingsPage() {
     }
   }
 
-  // Load from localStorage on mount
+  // Load live bookings from API on mount, with fallback to saved or sample bookings
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('applyfields_partner_bookings_v1');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setBookings(parsed);
-          }
-        } catch {}
+    async function loadBookings() {
+      try {
+        const res = await listPartnerBookings();
+        if (res.data?.items && res.data.items.length > 0) {
+          const mapped: CitizenBooking[] = res.data.items.map((b) => ({
+            id: b.id,
+            token: `AF-${b.id.slice(0, 4).toUpperCase()}`,
+            citizenName:
+              b.user_note?.split(';')[0]?.replace(/^(Name|Applicant):\s*/i, '').trim() ||
+              'Citizen Applicant',
+            citizenPhone: b.partner_phone || '—',
+            serviceTitle: b.service_name || 'Citizen Application Service',
+            serviceCategory: 'Assistance Filing',
+            fee: (b.quoted_paise ?? b.final_paise ?? 10000) / 100,
+            paymentMode: 'online',
+            isPaid: b.status === 'completed' || b.status === 'accepted',
+            slotDate: b.appointment_at ? b.appointment_at.slice(0, 10) : 'Today',
+            slotTime: b.appointment_at
+              ? new Date(b.appointment_at).toLocaleTimeString('en-IN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Flexible',
+            status: (b.status === 'in_progress'
+              ? 'arrived'
+              : b.status === 'accepted'
+                ? 'scheduled'
+                : b.status === 'new'
+                  ? 'scheduled'
+                  : b.status) as BookingStatus,
+            notes: b.user_note || undefined,
+            documents: [],
+            createdAt: b.created_at,
+          }));
+          setBookings(mapped);
+          return;
+        }
+      } catch {}
+
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('applyfields_partner_bookings_v1');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setBookings(parsed);
+            }
+          } catch {}
+        }
       }
     }
+
+    loadBookings();
   }, []);
 
   function saveAndPersist(updated: CitizenBooking[]) {
@@ -210,6 +254,10 @@ export default function BookingsPage() {
   function handleMarkArrived(id: string) {
     const updated = bookings.map((b) => (b.id === id ? { ...b, status: 'arrived' as BookingStatus } : b));
     saveAndPersist(updated);
+    updatePartnerBookingStatus(id, {
+      status: 'in_progress',
+      partner_note: 'Citizen arrived at counter',
+    }).catch(() => {});
     showToast('Citizen marked as Arrived at counter!');
   }
 
@@ -228,6 +276,10 @@ export default function BookingsPage() {
         : b
     );
     saveAndPersist(updated);
+    updatePartnerBookingStatus(completingBooking.id, {
+      status: 'completed',
+      partner_note: completionAckNumber ? `Govt Ack #: ${completionAckNumber.trim()}` : 'Completed at desk',
+    }).catch(() => {});
     setCompletingBooking(null);
     setCompletionAckNumber('');
     showToast('Job marked Completed! Citizen receipt ready.');
@@ -238,8 +290,13 @@ export default function BookingsPage() {
     if (!confirm('Are you sure you want to cancel this citizen appointment?')) return;
     const updated = bookings.map((b) => (b.id === id ? { ...b, status: 'cancelled' as BookingStatus } : b));
     saveAndPersist(updated);
+    updatePartnerBookingStatus(id, {
+      status: 'cancelled',
+      cancelled_reason: 'Cancelled by partner operator',
+    }).catch(() => {});
     showToast('Booking cancelled.');
   }
+
 
   // Filter Bookings
   const todayStr = '2026-10-19'; // or dynamically new Date().toISOString().split('T')[0]

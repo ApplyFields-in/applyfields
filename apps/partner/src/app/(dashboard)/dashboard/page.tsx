@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePartnerAuth } from '@/lib/auth-context';
+import { listPartnerBookings } from '@/lib/api';
 import {
   AlertCircle,
   ArrowRight,
@@ -25,6 +27,36 @@ import {
 
 export default function PartnerDashboardPage() {
   const { partner, user } = usePartnerAuth();
+  const [todayCount, setTodayCount] = useState<number>(0);
+  const [totalRevenue, setTotalRevenue] = useState<number>(0);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const res = await listPartnerBookings();
+        if (res.data?.items) {
+          const items = res.data.items;
+          const todayIso = new Date().toISOString().slice(0, 10);
+          const todays = items.filter(
+            (b) =>
+              (b.appointment_at && b.appointment_at.slice(0, 10) === todayIso) ||
+              (b.created_at && b.created_at.slice(0, 10) === todayIso),
+          );
+          setTodayCount(todays.length);
+
+          const rev = items.reduce((acc, b) => {
+            if (b.status === 'completed' || b.status === 'in_progress' || b.status === 'accepted') {
+              return acc + (b.final_paise ?? b.quoted_paise ?? 0) / 100;
+            }
+            return acc;
+          }, 0);
+          setTotalRevenue(rev);
+        }
+      } catch {}
+    }
+
+    loadStats();
+  }, []);
 
   const businessName = partner?.business_name || 'Sri Balaji MeeSeva & Xerox Centre';
   const ownerName = partner?.owner_name || user?.email?.split('@')[0] || 'Center Operator';
@@ -91,9 +123,9 @@ export default function PartnerDashboardPage() {
               <FileCheck2 className="h-4 w-4" />
             </div>
           </div>
-          <div className="mt-3 text-3xl font-black text-white">0</div>
+          <div className="mt-3 text-3xl font-black text-white">{todayCount}</div>
           <div className="mt-1 text-[11px] text-slate-400">
-            Citizen slot engine activates in Session 20
+            {todayCount > 0 ? `${todayCount} citizen appointments queued` : 'Awaiting citizen appointments today'}
           </div>
         </div>
 
@@ -105,7 +137,9 @@ export default function PartnerDashboardPage() {
               <TrendingUp className="h-4 w-4" />
             </div>
           </div>
-          <div className="mt-3 text-3xl font-black text-white">₹0.00</div>
+          <div className="mt-3 text-3xl font-black text-white">
+            ₹{totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
           <div className="mt-1 text-[11px] text-slate-400">Direct citizen convenience fees</div>
         </div>
 
@@ -140,7 +174,9 @@ export default function PartnerDashboardPage() {
               <Award className="h-4 w-4" />
             </div>
           </div>
-          <div className="mt-3 text-3xl font-black text-amber-300">5.0 ★</div>
+          <div className="mt-3 text-3xl font-black text-amber-300">
+            {(partner?.rating_avg && partner.rating_avg > 0 ? partner.rating_avg : 5.0).toFixed(1)} ★
+          </div>
           <div className="mt-1 text-[11px] text-slate-400">Verified Partner Badge active</div>
         </div>
       </div>

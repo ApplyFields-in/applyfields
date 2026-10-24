@@ -1,4 +1,6 @@
 import type {
+  BookingDetail,
+  BookingListResponse,
   ChatMessageItem,
   ConversationListResponse,
   PartnerDetail,
@@ -8,7 +10,9 @@ import type {
   PartnerServiceInput,
   PartnerUpdateInput,
   SendChatMessageInput,
+  UpdateBookingStatusInput,
 } from '@applyfields/types';
+
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ||
@@ -353,3 +357,16 @@ export async function markBookingMessagesRead(
     { reader_type },
   );
 }
+
+export async function listPartnerBookings(status?: string): Promise<ApiResponse<BookingListResponse>> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiGet<BookingListResponse>(`/bookings/partner/inbox${query}`);
+}
+
+export async function updatePartnerBookingStatus(
+  bookingId: string,
+  input: UpdateBookingStatusInput,
+): Promise<ApiResponse<BookingDetail>> {
+  return apiPatch<BookingDetail, UpdateBookingStatusInput>(`/bookings/partner/${bookingId}`, input);
+}
+
