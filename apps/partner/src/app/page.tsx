@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { usePartnerAuth } from '@/lib/auth-context';
+import { ScrollToTopButton } from '@applyfields/ui';
 import {
   ArrowRight,
   Award,
@@ -68,7 +69,14 @@ export default function PartnerLandingPage() {
                   href="/login"
                   className="rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-700 hover:text-white"
                 >
-                  Operator Login
+                  Partner Sign In
+                </Link>
+                <Link
+                  href="/institution/onboard"
+                  className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 px-3.5 py-2 text-xs font-semibold text-blue-300 hover:bg-blue-500/20 transition"
+                >
+                  <Building2 className="h-3.5 w-3.5" />
+                  <span>College Portal</span>
                 </Link>
                 <Link
                   href="/onboard"
@@ -77,6 +85,7 @@ export default function PartnerLandingPage() {
                   Register Center
                   <ArrowRight className="h-4 w-4" />
                 </Link>
+
               </>
             )}
           </div>
@@ -109,7 +118,16 @@ export default function PartnerLandingPage() {
               href="/onboard"
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-7 py-3.5 text-base font-bold text-slate-950 transition-all hover:bg-emerald-400 hover:shadow-xl hover:shadow-emerald-500/25 active:scale-[0.99]"
             >
-              Register Your Shop in 3 Mins
+              Register Kiosk / CSC Shop
+              <ArrowRight className="h-5 w-5" />
+            </Link>
+
+            <Link
+              href="/institution/onboard"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-7 py-3.5 text-base font-bold text-white transition-all hover:bg-blue-500 hover:shadow-xl hover:shadow-blue-500/25 active:scale-[0.99]"
+            >
+              <Building2 className="h-5 w-5" />
+              <span>College Admissions Desk (Founder Doc §21)</span>
               <ArrowRight className="h-5 w-5" />
             </Link>
 
@@ -117,9 +135,10 @@ export default function PartnerLandingPage() {
               href="/login"
               className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-6 py-3.5 text-base font-semibold text-slate-200 transition hover:bg-slate-700 hover:text-white"
             >
-              Sign In to Existing Center
+              Sign In to Desk
             </Link>
           </div>
+
 
           {/* Social Proof Stats */}
           <div className="mt-16 grid grid-cols-2 gap-4 rounded-2xl border border-slate-800 bg-slate-800/40 p-6 backdrop-blur-sm sm:grid-cols-4 max-w-4xl mx-auto">
@@ -331,9 +350,13 @@ export default function PartnerLandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 bg-slate-950 py-8 text-center text-xs text-slate-500">
-        <p>© 2026 ApplyFields Technologies Inc. · Dedicated Operator Portal (`partners.applyfields.com`)</p>
+      <footer className="border-t border-slate-800 bg-slate-950 py-8 text-xs text-slate-500">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p>© 2026 ApplyFields Technologies Inc. · Dedicated Operator Portal (`partners.applyfields.com`)</p>
+          <ScrollToTopButton className="text-slate-400 hover:text-white border-slate-800 hover:border-slate-700 hover:bg-slate-900" />
+        </div>
       </footer>
     </div>
   );
 }
+

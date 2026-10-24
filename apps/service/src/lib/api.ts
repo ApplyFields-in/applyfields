@@ -77,6 +77,41 @@ export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<A
   }
 }
 
+export async function apiPatch<T, B = unknown>(path: string, body?: B): Promise<ApiResponse<T>> {
+  try {
+    const res = await fetch(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: 'include',
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      let errText = `Request failed (${res.status})`;
+      try {
+        const json = await res.json();
+        if (json?.message) {
+          errText = Array.isArray(json.message) ? json.message.join(', ') : json.message;
+        }
+      } catch {}
+      return { data: null, error: errText, status: res.status };
+    }
+
+    const data = (await res.json()) as T;
+    return { data, error: null, status: res.status };
+  } catch (err) {
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : 'Network connection failed',
+      status: 0,
+    };
+  }
+}
+
 // ============================================================================
 // CITIZEN SERVICES & BOOKINGS API HELPERS
 // ============================================================================
@@ -84,9 +119,11 @@ export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<A
 import type {
   BookingDetail,
   BookingListResponse,
+  ChatMessageItem,
   CreateBookingInput,
   PartnerDirectoryResponse,
   PartnerDetail,
+  SendChatMessageInput,
 } from '@applyfields/types';
 
 export async function listDirectoryPartners(
@@ -123,6 +160,32 @@ export async function cancelBooking(
   return apiPost<BookingDetail, { reason?: string }>(
     `/bookings/${encodeURIComponent(id)}/cancel`,
     { reason },
+  );
+}
+
+export async function getBookingMessages(
+  bookingId: string,
+): Promise<ApiResponse<ChatMessageItem[]>> {
+  return apiGet<ChatMessageItem[]>(`/bookings/${encodeURIComponent(bookingId)}/messages`);
+}
+
+export async function sendBookingMessage(
+  bookingId: string,
+  input: SendChatMessageInput,
+): Promise<ApiResponse<ChatMessageItem>> {
+  return apiPost<ChatMessageItem, SendChatMessageInput>(
+    `/bookings/${encodeURIComponent(bookingId)}/messages`,
+    input,
+  );
+}
+
+export async function markBookingMessagesRead(
+  bookingId: string,
+  reader_type: 'citizen' | 'partner' = 'citizen',
+): Promise<ApiResponse<{ count: number }>> {
+  return apiPatch<{ count: number }, { reader_type: 'citizen' | 'partner' }>(
+    `/bookings/${encodeURIComponent(bookingId)}/messages/read`,
+    { reader_type },
   );
 }
 

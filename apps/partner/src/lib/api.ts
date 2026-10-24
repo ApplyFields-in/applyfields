@@ -1,14 +1,26 @@
 import type {
   BookingDetail,
   BookingListResponse,
+  ChatMessageItem,
+  ConversationListResponse,
   PartnerDetail,
   PartnerDocumentSummary,
   PartnerRegistrationInput,
   PartnerServiceDetail,
   PartnerServiceInput,
   PartnerUpdateInput,
+  SendChatMessageInput,
   UpdateBookingStatusInput,
+  InstitutionPartnerProfile,
+  UpdateInstitutionProfileInput,
+  InstitutionEnquiryListResponse,
+  InstitutionEnquiry,
+  RespondInstitutionEnquiryInput,
+  InstitutionListResponse,
+  InstitutionSummary,
 } from '@applyfields/types';
+
+
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ||
@@ -325,6 +337,35 @@ export async function deletePartnerService(id: string): Promise<ApiResponse<{ su
   return apiDelete<{ success: boolean }>(`/partners/me/services/${id}`);
 }
 
+// ============================================================================
+// PARTNER CHAT & LIVE MESSAGING HELPERS
+// ============================================================================
+
+export async function getPartnerConversations(): Promise<ApiResponse<ConversationListResponse>> {
+  return apiGet<ConversationListResponse>('/partners/me/conversations');
+}
+
+export async function getBookingMessages(bookingId: string): Promise<ApiResponse<ChatMessageItem[]>> {
+  return apiGet<ChatMessageItem[]>(`/bookings/${bookingId}/messages`);
+}
+
+export async function sendBookingMessage(
+  bookingId: string,
+  input: SendChatMessageInput,
+): Promise<ApiResponse<ChatMessageItem>> {
+  return apiPost<ChatMessageItem, SendChatMessageInput>(`/bookings/${bookingId}/messages`, input);
+}
+
+export async function markBookingMessagesRead(
+  bookingId: string,
+  reader_type: 'citizen' | 'partner' = 'partner',
+): Promise<ApiResponse<{ count: number }>> {
+  return apiPatch<{ count: number }, { reader_type: 'citizen' | 'partner' }>(
+    `/bookings/${bookingId}/messages/read`,
+    { reader_type },
+  );
+}
+
 export async function listPartnerBookings(status?: string): Promise<ApiResponse<BookingListResponse>> {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
   return apiGet<BookingListResponse>(`/bookings/partner/inbox${query}`);
@@ -336,4 +377,45 @@ export async function updatePartnerBookingStatus(
 ): Promise<ApiResponse<BookingDetail>> {
   return apiPatch<BookingDetail, UpdateBookingStatusInput>(`/bookings/partner/${bookingId}`, input);
 }
+
+// ============================================================================
+// INSTITUTIONAL PARTNER DOMAIN HELPERS (Founder Doc §21)
+// ============================================================================
+
+export async function getPartnerInstitutionDesk(): Promise<ApiResponse<InstitutionPartnerProfile>> {
+  return apiGet<InstitutionPartnerProfile>('/career/colleges/partner/desk');
+}
+
+export async function updatePartnerInstitutionDesk(
+  input: UpdateInstitutionProfileInput,
+): Promise<ApiResponse<InstitutionPartnerProfile>> {
+  return apiPatch<InstitutionPartnerProfile, UpdateInstitutionProfileInput>(
+    '/career/colleges/partner/desk',
+    input,
+  );
+}
+
+export async function listPartnerEnquiries(
+  status?: string,
+): Promise<ApiResponse<InstitutionEnquiryListResponse>> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiGet<InstitutionEnquiryListResponse>(`/career/colleges/partner/enquiries${q}`);
+}
+
+export async function respondToPartnerEnquiry(
+  enquiryId: string,
+  input: RespondInstitutionEnquiryInput,
+): Promise<ApiResponse<InstitutionEnquiry>> {
+  return apiPatch<InstitutionEnquiry, RespondInstitutionEnquiryInput>(
+    `/career/colleges/partner/enquiries/${enquiryId}`,
+    input,
+  );
+}
+
+export async function searchCollegesDirectory(
+  query: string,
+): Promise<ApiResponse<InstitutionListResponse>> {
+  return apiGet<InstitutionListResponse>(`/career/colleges?q=${encodeURIComponent(query)}&limit=15`);
+}
+
 

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { CookiePreferencesTrigger } from '@/components/cookie-banner';
 import { PARTNER_PORTAL_URL } from '@/lib/urls';
+import { ScrollToTopButton } from '@applyfields/ui';
 
 export function DarkNavyFooter() {
   const { t } = useLanguage();
@@ -199,12 +200,14 @@ export function DarkNavyFooter() {
           </div>
         </div>
 
-        <div className="border-t border-white/10 py-3.5 text-[11px] text-[#c8d5e6]">
+        <div className="border-t border-white/10 py-3.5 text-[11px] text-[#c8d5e6] flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="leading-relaxed">
             {t('footer_copyright')}
           </p>
+          <ScrollToTopButton className="text-[#c8d5e6] hover:text-white border-white/20 hover:border-white/40" />
         </div>
       </div>
     </footer>
   );
 }
+

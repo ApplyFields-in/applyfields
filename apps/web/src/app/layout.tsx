@@ -4,6 +4,7 @@ import '@fontsource-variable/plus-jakarta-sans';
 import './globals.css';
 import { LanguageProvider } from '@/lib/i18n/language-context';
 import { RealtimeNotificationToast } from '@/components/realtime-notification-toast';
+import { ScrollToTop } from '@applyfields/ui';
 
 export const metadata: Metadata = {
   title: {
@@ -29,9 +30,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>
           {children}
           <RealtimeNotificationToast />
+          <ScrollToTop />
         </LanguageProvider>
       </body>
     </html>
   );
 }
+
 
