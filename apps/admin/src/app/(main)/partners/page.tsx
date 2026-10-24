@@ -1,6 +1,6 @@
 import type { AdminPartnerListResponse } from '@applyfields/types';
 import { buttonClass, Card, cn, PageHeader } from '@applyfields/ui';
-import { GraduationCap, Store, Search, ShieldCheck, MapPin } from 'lucide-react';
+import { GraduationCap, Store, Search, ShieldCheck, MapPin, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
@@ -65,6 +65,16 @@ export default async function PartnersAdminPage({
           <Store className="size-3.5" /> Partner Centers &amp; KYC
         </Link>
         <Link
+          href="/partners/colleges"
+          className={buttonClass({
+            variant: 'ghost',
+            size: 'sm',
+            className: 'gap-1.5 text-xs text-teal/70 hover:text-teal',
+          })}
+        >
+          <GraduationCap className="size-3.5" /> Colleges &amp; Universities Desk
+        </Link>
+        <Link
           href="/partners/enquiries"
           className={buttonClass({
             variant: 'ghost',
@@ -72,7 +82,7 @@ export default async function PartnersAdminPage({
             className: 'gap-1.5 text-xs text-teal/70 hover:text-teal',
           })}
         >
-          <GraduationCap className="size-3.5" /> College Admission Inquiries
+          <MessageSquare className="size-3.5" /> College Admission Inquiries
         </Link>
         <Link
           href="/partners/map"
