@@ -8,6 +8,7 @@
 | **Internal Admin Portal** (`apps/admin`) | Vercel | Production | [https://applyfields-admin.vercel.app](https://applyfields-admin.vercel.app) |
 | **Core API Backend** (`apps/api`) | Render | Production | [https://applyfields.onrender.com](https://applyfields.onrender.com) |
 | **API Health Check** | Render | Production | [https://applyfields.onrender.com/api/v1/health](https://applyfields.onrender.com/api/v1/health) |
+| **Ingestion & Scrapers** (`apps/ingestion`) | Render | Production | [https://applyfields-1.onrender.com](https://applyfields-1.onrender.com) (Health: [/health](https://applyfields-1.onrender.com/health)) |
 | **Database** | Supabase | Managed Cloud | `db.obvcvcgwzjzsujdczxyj.supabase.co` |
 
 ---
