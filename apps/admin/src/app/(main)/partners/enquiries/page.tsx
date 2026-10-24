@@ -75,6 +75,16 @@ export default async function InstitutionEnquiriesAdminPage({
           <Store className="size-3.5" /> Partner Centers &amp; KYC
         </Link>
         <Link
+          href="/partners/colleges"
+          className={buttonClass({
+            variant: 'ghost',
+            size: 'sm',
+            className: 'gap-1.5 text-xs text-teal/70 hover:text-teal',
+          })}
+        >
+          <GraduationCap className="size-3.5" /> Colleges &amp; Universities Desk
+        </Link>
+        <Link
           href="/partners/enquiries"
           className={buttonClass({
             variant: 'primary',
@@ -82,7 +92,7 @@ export default async function InstitutionEnquiriesAdminPage({
             className: 'gap-1.5 text-xs shadow-clay',
           })}
         >
-          <GraduationCap className="size-3.5" /> College Admission Inquiries
+          <MessageSquare className="size-3.5" /> College Admission Inquiries
         </Link>
         <Link
           href="/assistance"
