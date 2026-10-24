@@ -21,6 +21,7 @@ function LoginFormContent() {
   const searchParams = useSearchParams();
   const { refreshSession } = usePartnerAuth();
 
+  const [persona, setPersona] = useState<'kiosk' | 'institution'>('kiosk');
   const [mode, setMode] = useState<'password' | 'otp'>('password');
   const [phoneOrEmail, setPhoneOrEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,15 +35,18 @@ function LoginFormContent() {
     await refreshSession();
     const partnerRes = await getMyPartner();
     if (partnerRes.data) {
+      const isInst =
+        partnerRes.data.type === 'college' || partnerRes.data.type === 'training_institution';
       if (partnerRes.data.verification_status === 'verified') {
-        router.push('/dashboard');
+        router.push(isInst ? '/institution/dashboard' : '/dashboard');
       } else {
-        router.push('/under-review');
+        router.push(isInst ? '/institution/under-review' : '/under-review');
       }
     } else {
-      router.push('/onboard');
+      router.push(persona === 'institution' ? '/institution/onboard' : '/onboard');
     }
   }
+
 
   async function handlePasswordLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -137,9 +141,15 @@ function LoginFormContent() {
   }
 
   // Quick test demo credentials helper
+  // Quick test demo credentials helper
   function fillDemo() {
-    setPhoneOrEmail('9876543210');
-    setPassword('PartnerPass123!');
+    if (persona === 'institution') {
+      setPhoneOrEmail('admissions@cbit.ac.in');
+      setPassword('CollegeAdmin2026!');
+    } else {
+      setPhoneOrEmail('9876543210');
+      setPassword('PartnerPass123!');
+    }
   }
 
   return (
@@ -152,13 +162,58 @@ function LoginFormContent() {
           <ArrowLeft className="h-4 w-4" /> Back to Partner Network Home
         </Link>
 
+        {/* Persona Segmented Controller (Founder Doc §20 vs §21) */}
+        <div className="mb-6 flex rounded-2xl border border-slate-800 bg-slate-900/90 p-1.5 shadow-xl backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => {
+              setPersona('kiosk');
+              setError(null);
+            }}
+            className={`flex items-center justify-center gap-2 flex-1 rounded-xl py-2.5 text-xs font-bold transition-all ${
+              persona === 'kiosk'
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>⚡ Service Kiosk</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPersona('institution');
+              setError(null);
+            }}
+            className={`flex items-center justify-center gap-2 flex-1 rounded-xl py-2.5 text-xs font-bold transition-all ${
+              persona === 'institution'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            <span>College / University</span>
+          </button>
+        </div>
+
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 font-black shadow-lg shadow-emerald-500/20 text-xl">
-            ⚡
+          <div
+            className={`flex h-12 w-12 items-center justify-center rounded-2xl text-slate-950 font-black shadow-lg text-xl transition-all ${
+              persona === 'institution'
+                ? 'bg-gradient-to-tr from-blue-500 to-indigo-400 text-white shadow-blue-500/25'
+                : 'bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-emerald-500/20'
+            }`}
+          >
+            {persona === 'institution' ? '🏛️' : '⚡'}
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Operator Sign In</h1>
-            <p className="text-xs text-slate-400">ApplyFields Dedicated Partner Desk</p>
+            <h1 className="text-2xl font-bold tracking-tight text-white">
+              {persona === 'institution' ? 'Institution Sign In' : 'Operator Sign In'}
+            </h1>
+            <p className="text-xs text-slate-400">
+              {persona === 'institution'
+                ? 'College & University Admissions Desk (Founder Doc §21)'
+                : 'ApplyFields Dedicated Partner Desk (MeeSeva / CSC / Xerox)'}
+            </p>
           </div>
         </div>
 
@@ -171,7 +226,9 @@ function LoginFormContent() {
             }}
             className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
               mode === 'password'
-                ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                ? persona === 'institution'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-emerald-500 text-slate-950 shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -185,7 +242,9 @@ function LoginFormContent() {
             }}
             className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
               mode === 'otp'
-                ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                ? persona === 'institution'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-emerald-500 text-slate-950 shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -212,7 +271,9 @@ function LoginFormContent() {
             <form onSubmit={handlePasswordLogin} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300">
-                  Mobile Number or Email
+                  {persona === 'institution'
+                    ? 'Official Institutional Email or Phone'
+                    : 'Mobile Number or Email'}
                 </label>
                 <div className="relative mt-1">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
@@ -222,8 +283,16 @@ function LoginFormContent() {
                     type="text"
                     value={phoneOrEmail}
                     onChange={(e) => setPhoneOrEmail(e.target.value)}
-                    placeholder="e.g. 9876543210 or center@gmail.com"
-                    className="block w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    placeholder={
+                      persona === 'institution'
+                        ? 'e.g. admissions@cbit.ac.in or 9876543210'
+                        : 'e.g. 9876543210 or center@gmail.com'
+                    }
+                    className={`block w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 ${
+                      persona === 'institution'
+                        ? 'focus:border-blue-500 focus:ring-blue-500'
+                        : 'focus:border-emerald-500 focus:ring-emerald-500'
+                    }`}
                     required
                   />
                 </div>
@@ -232,12 +301,16 @@ function LoginFormContent() {
               <div>
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-semibold text-slate-300">
-                    Operator Password
+                    {persona === 'institution' ? 'Admissions Desk Password' : 'Operator Password'}
                   </label>
                   <button
                     type="button"
                     onClick={fillDemo}
-                    className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300"
+                    className={`text-[11px] font-medium transition ${
+                      persona === 'institution'
+                        ? 'text-blue-400 hover:text-blue-300'
+                        : 'text-emerald-400 hover:text-emerald-300'
+                    }`}
                   >
                     Use Sample Demo Login
                   </button>
@@ -251,7 +324,11 @@ function LoginFormContent() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="block w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className={`block w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 ${
+                      persona === 'institution'
+                        ? 'focus:border-blue-500 focus:ring-blue-500'
+                        : 'focus:border-emerald-500 focus:ring-emerald-500'
+                    }`}
                     required
                   />
                 </div>
@@ -260,9 +337,17 @@ function LoginFormContent() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+                className={`mt-6 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition disabled:opacity-50 ${
+                  persona === 'institution'
+                    ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/20'
+                    : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
+                }`}
               >
-                {loading ? 'Authenticating...' : 'Sign In to Workspace'}
+                {loading
+                  ? 'Authenticating...'
+                  : persona === 'institution'
+                  ? 'Sign In to Admissions Desk'
+                  : 'Sign In to Operator Workspace'}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </form>
@@ -281,7 +366,11 @@ function LoginFormContent() {
                     value={phoneOrEmail}
                     onChange={(e) => setPhoneOrEmail(e.target.value)}
                     placeholder="10-digit mobile number"
-                    className="block w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className={`block w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 ${
+                      persona === 'institution'
+                        ? 'focus:border-blue-500 focus:ring-blue-500'
+                        : 'focus:border-emerald-500 focus:ring-emerald-500'
+                    }`}
                   />
                 </div>
               </div>
@@ -291,7 +380,11 @@ function LoginFormContent() {
                   type="button"
                   onClick={handleSendOtp}
                   disabled={loading}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+                  className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition disabled:opacity-50 ${
+                    persona === 'institution'
+                      ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/20'
+                      : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
+                  }`}
                 >
                   {loading ? 'Sending OTP...' : 'Send Verification OTP'}
                   <ArrowRight className="h-4 w-4" />
@@ -312,7 +405,11 @@ function LoginFormContent() {
                         onChange={(e) => setOtpCode(e.target.value)}
                         placeholder="123456"
                         maxLength={6}
-                        className="block w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-10 pr-4 py-2.5 text-sm tracking-widest font-mono text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        className={`block w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-10 pr-4 py-2.5 text-sm tracking-widest font-mono text-white placeholder-slate-500 focus:outline-none focus:ring-1 ${
+                          persona === 'institution'
+                            ? 'focus:border-blue-500 focus:ring-blue-500'
+                            : 'focus:border-emerald-500 focus:ring-emerald-500'
+                        }`}
                         required
                       />
                     </div>
@@ -321,7 +418,11 @@ function LoginFormContent() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition disabled:opacity-50 ${
+                      persona === 'institution'
+                        ? 'bg-blue-600 text-white hover:bg-blue-500'
+                        : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
+                    }`}
                   >
                     {loading ? 'Verifying...' : 'Verify OTP & Enter'}
                     <ArrowRight className="h-4 w-4" />
@@ -331,7 +432,7 @@ function LoginFormContent() {
                     <button
                       type="button"
                       onClick={handleSendOtp}
-                      className="text-xs text-slate-400 hover:text-emerald-400"
+                      className="text-xs text-slate-400 hover:text-white"
                     >
                       Didn&apos;t receive code? Resend OTP
                     </button>
@@ -342,21 +443,34 @@ function LoginFormContent() {
           )}
 
           <div className="mt-6 border-t border-slate-800 pt-6 text-center">
-            <p className="text-xs text-slate-400">
-              Not registered as a partner yet?{' '}
-              <Link
-                href="/onboard"
-                className="font-semibold text-emerald-400 hover:text-emerald-300"
-              >
-                Register your shop now →
-              </Link>
-            </p>
+            {persona === 'institution' ? (
+              <p className="text-xs text-slate-400">
+                Representative from a college or university?{' '}
+                <Link
+                  href="/institution/onboard"
+                  className="font-semibold text-blue-400 hover:text-blue-300"
+                >
+                  Claim or Register your College Desk →
+                </Link>
+              </p>
+            ) : (
+              <p className="text-xs text-slate-400">
+                Not registered as a partner yet?{' '}
+                <Link
+                  href="/onboard"
+                  className="font-semibold text-emerald-400 hover:text-emerald-300"
+                >
+                  Register your shop now →
+                </Link>
+              </p>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 export default function LoginPage() {
   return (

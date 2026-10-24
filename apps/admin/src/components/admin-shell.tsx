@@ -1,5 +1,5 @@
 import type { AdminMeResponse } from '@applyfields/types';
-import { Badge, buttonClass, Card, Shell, Sidebar } from '@applyfields/ui';
+import { Badge, buttonClass, Card, ScrollToTopButton, Shell, Sidebar } from '@applyfields/ui';
 import { Bell, LogIn, Search, ShieldCheck, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -100,10 +100,14 @@ function Footer() {
   return (
     <footer className="flex flex-col gap-3 border-t border-line px-4 py-5 text-xs text-teal/80 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
       <p>ApplyFields Internal Portal · for the ApplyFields team only</p>
-      <ApiStatus />
+      <div className="flex items-center gap-4">
+        <ScrollToTopButton className="text-teal/70 hover:text-teal border-line hover:border-teal/40" />
+        <ApiStatus />
+      </div>
     </footer>
   );
 }
+
 
 
 export function ApiOffline() {

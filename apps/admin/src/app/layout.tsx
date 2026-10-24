@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 // Font files ship with the app (no download from Google at runtime)
 import '@fontsource-variable/plus-jakarta-sans';
 import './globals.css';
+import { ScrollToTop } from '@applyfields/ui';
 
 export const metadata: Metadata = {
   title: {
@@ -23,7 +24,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full font-sans">{children}</body>
+      <body className="min-h-full font-sans">
+        {children}
+        <ScrollToTop />
+      </body>
     </html>
   );
 }
+
