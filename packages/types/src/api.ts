@@ -14,7 +14,7 @@ import type {
   OrganizationLevel,
   RequiredDocument,
   UpdateKind,
-} from './opportunity';
+} from './opportunity.js';
 
 export interface ApiHealth {
   status: 'ok';
@@ -1959,4 +1959,4 @@ export interface ConversationListResponse {
   threads: PartnerConversationThread[];
 }
 
-export * from './schedule';
+export * from './schedule.js';

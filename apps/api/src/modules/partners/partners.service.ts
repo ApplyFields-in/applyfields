@@ -126,6 +126,40 @@ export const partnerVerifySchema = z.object({
   reviewer_note: z.string().trim().max(500).optional(),
 });
 
+export const dayScheduleSchema = z.object({
+  dayOfWeek: z.number().int().min(0).max(6),
+  dayName: z.string().optional(),
+  isOpen: z.boolean(),
+  openTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:mm (e.g. 09:00)'),
+  closeTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:mm (e.g. 20:00)'),
+  hasBreak: z.boolean().default(false),
+  breakStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:mm').nullish(),
+  breakEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:mm').nullish(),
+});
+
+export const holidayOverrideSchema = z.object({
+  id: z.string().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
+  reason: z.string().trim().max(250).nullish(),
+  isClosed: z.boolean().default(true),
+});
+
+export const updatePartnerScheduleSchema = z.object({
+  schedule: z.array(dayScheduleSchema),
+  slotDuration: z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60)]).default(30),
+  maxConcurrent: z.number().int().min(1).max(10).default(2),
+  isEmergencyPaused: z.boolean().optional(),
+  holidayOverrides: z.array(holidayOverrideSchema).optional(),
+});
+
+export const createSlotOverrideSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
+  isClosed: z.boolean().default(false),
+  openTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:mm').nullish(),
+  closeTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:mm').nullish(),
+  reason: z.string().trim().max(250).nullish(),
+});
+
 function slugify(text: string): string {
   return text
     .toLowerCase()

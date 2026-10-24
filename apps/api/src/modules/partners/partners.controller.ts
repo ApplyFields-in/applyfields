@@ -11,22 +11,20 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import {
-  type AvailableSlotsResponse,
-  type CreateSlotOverrideInput,
-  createSlotOverrideSchema,
-  type HolidayOverride,
-  type PartnerDetail,
-  type PartnerDirectoryQuery,
-  type PartnerDirectoryResponse,
-  type PartnerDocumentSummary,
-  type PartnerRegistrationInput,
-  type PartnerScheduleMatrix,
-  type PartnerServiceDetail,
-  type PartnerServiceInput,
-  type PartnerUpdateInput,
-  type UpdatePartnerScheduleInput,
-  updatePartnerScheduleSchema,
+import type {
+  AvailableSlotsResponse,
+  CreateSlotOverrideInput,
+  HolidayOverride,
+  PartnerDetail,
+  PartnerDirectoryQuery,
+  PartnerDirectoryResponse,
+  PartnerDocumentSummary,
+  PartnerRegistrationInput,
+  PartnerScheduleMatrix,
+  PartnerServiceDetail,
+  PartnerServiceInput,
+  PartnerUpdateInput,
+  UpdatePartnerScheduleInput,
 } from '@applyfields/types';
 import { ZodPipe } from '../../common/zod.pipe.js';
 import {
@@ -37,11 +35,13 @@ import {
 } from '../auth/auth.guard.js';
 import { CacheService } from '../../common/cache.service.js';
 import {
+  createSlotOverrideSchema,
   partnerDirectoryQuerySchema,
   partnerRegisterSchema,
   partnerServiceInputSchema,
   PartnersService,
   partnerUpdateSchema,
+  updatePartnerScheduleSchema,
 } from './partners.service.js';
 
 @Controller('partners')
