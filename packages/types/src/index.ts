@@ -3,3 +3,4 @@
 export * from './opportunity';
 export * from './api';
 export * from './auth';
+export * from './schedule';
