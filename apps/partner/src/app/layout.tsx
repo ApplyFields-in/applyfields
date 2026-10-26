@@ -29,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full font-sans bg-slate-50 text-slate-900 selection:bg-emerald-500 selection:text-white">
+      <body className="min-h-full font-sans bg-[#F0F4F8] text-[#082046] selection:bg-[#38bdf8] selection:text-[#082046]">
         <PartnerAuthProvider>
           {children}
           <ScrollToTop />

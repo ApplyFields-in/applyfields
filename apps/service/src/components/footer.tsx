@@ -10,11 +10,9 @@ import {
   Printer,
   Sparkles,
   ArrowUpRight,
-  MapPin,
   ExternalLink,
 } from 'lucide-react';
-import { ScrollToTopButton } from '@applyfields/ui';
-
+import Image from 'next/image';
 
 export function Footer() {
   const MAIN_WEB_URL = process.env.NEXT_PUBLIC_MAIN_WEB_URL || 'http://localhost:3000';
@@ -22,14 +20,18 @@ export function Footer() {
 
   return (
     <footer className="border-t border-[#0d2a58] bg-[#082046] text-[#e0edfb] py-14 text-xs mt-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-4">
           {/* Brand Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#0e7bf4] text-white font-black text-sm shadow-md">
-                ⚡
-              </div>
+              <Image
+                src="/logo-mark.png"
+                alt="ApplyFields Logo"
+                width={32}
+                height={32}
+                className="size-8 object-contain"
+              />
               <span className="text-base font-black tracking-tight text-white">
                 ApplyFields Services
               </span>
@@ -141,7 +143,6 @@ export function Footer() {
         <div className="pt-8 border-t border-[#0d2a58] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#7896bc]">
           <p>© 2026 ApplyFields Technologies Inc. · Dedicated Citizen Services Portal (`service.applyfields.in`)</p>
           <div className="flex items-center gap-4">
-            <ScrollToTopButton className="text-[#a8c1de] hover:text-white border-[#0d2a58] hover:border-[#38bdf8] hover:bg-[#0e7bf4]/10" />
             <a href={`${MAIN_WEB_URL}/help`} className="hover:text-white transition">Help &amp; FAQs</a>
             <a href={`${MAIN_WEB_URL}/privacy`} className="hover:text-white transition">Privacy Policy</a>
             <a href={`${MAIN_WEB_URL}/terms`} className="hover:text-white transition">Terms of Service</a>

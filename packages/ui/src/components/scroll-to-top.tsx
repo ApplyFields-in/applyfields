@@ -42,7 +42,7 @@ export function scrollToPageTop() {
  * Compatible with all 4 portals (Web, Admin, Partner, Services).
  */
 export function ScrollToTop({
-  threshold = 240,
+  threshold = 200,
   className,
   showLabel = true,
 }: {
@@ -51,13 +51,23 @@ export function ScrollToTop({
   showLabel?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const checkScroll = () => {
       const windowY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-      const mainY = document.querySelector('main')?.scrollTop || 0;
-      const isPast = windowY > threshold || mainY > threshold;
-      setVisible(isPast);
+      const mainEl = document.querySelector('main');
+      const mainY = mainEl?.scrollTop || 0;
+      const currentScroll = Math.max(windowY, mainY);
+
+      const docHeight = Math.max(
+        (document.documentElement.scrollHeight || 0) - (window.innerHeight || 0),
+        (mainEl?.scrollHeight || 0) - (mainEl?.clientHeight || 0)
+      );
+
+      const p = docHeight > 0 ? Math.min(100, Math.max(0, Math.round((currentScroll / docHeight) * 100))) : 0;
+      setProgress(p);
+      setVisible(currentScroll > threshold);
     };
 
     // Initial check
@@ -75,19 +85,52 @@ export function ScrollToTop({
 
   if (!visible) return null;
 
+  // Circumference for r=16: 2 * Math.PI * 16 ≈ 100.53
+  const strokeDashoffset = 100.53 - (100.53 * progress) / 100;
+
   return (
     <button
       type="button"
       onClick={scrollToPageTop}
-      aria-label="Scroll back to top"
-      title="Back to top"
+      aria-label={`Scroll back to top (${progress}% completed)`}
+      title={`Back to top (${progress}% scrolled)`}
       className={cn(
-        'fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full border border-white/20 bg-[#082046]/90 px-3.5 py-2.5 text-xs font-bold text-white shadow-xl backdrop-blur-md transition-all duration-300 hover:scale-105 hover:bg-[#0e7bf4] hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-[#38bdf8] focus:ring-offset-2 active:scale-95 sm:bottom-8 sm:right-8',
+        'group fixed bottom-6 left-6 z-50 flex items-center gap-2.5 rounded-full border border-white/25 bg-[#082046]/95 p-1.5 pr-4 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-105 hover:bg-[#0e7bf4] hover:shadow-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-[#38bdf8] focus:ring-offset-2 active:scale-95 sm:bottom-8 sm:left-8',
         className
       )}
     >
-      <ArrowUp className="size-4 shrink-0 transition-transform duration-200 group-hover:-translate-y-0.5" />
-      {showLabel && <span className="tracking-wide">Back to Top</span>}
+      {/* Circular Progress Ring */}
+      <div className="relative grid size-8 place-items-center">
+        <svg className="size-8 -rotate-90 transform" viewBox="0 0 36 36">
+          <circle
+            cx="18"
+            cy="18"
+            r="16"
+            stroke="currentColor"
+            strokeWidth="3"
+            fill="transparent"
+            className="text-white/20"
+          />
+          <circle
+            cx="18"
+            cy="18"
+            r="16"
+            stroke="#38bdf8"
+            strokeWidth="3"
+            strokeDasharray={100.53}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            fill="transparent"
+            className="transition-all duration-150 ease-out"
+          />
+        </svg>
+        <ArrowUp className="absolute size-3.5 text-white transition-transform duration-200 group-hover:-translate-y-0.5" />
+      </div>
+
+      <div className="flex flex-col items-start text-left leading-none">
+        {showLabel && <span className="text-[11px] font-semibold text-white/90">Top</span>}
+        <span className="text-[9px] font-mono font-bold text-[#38bdf8]">{progress}%</span>
+      </div>
     </button>
   );
 }
