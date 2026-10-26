@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function CommunityHubPage() {
   return (
-    <div className="mx-auto max-w-5xl space-y-8 pb-16 pt-4">
+    <div className="mx-auto max-w-[1360px] space-y-8 pb-16 pt-4">
       {/* Top Banner */}
       <div className="rounded-3xl border border-line/60 bg-gradient-to-br from-cream/40 via-canvas to-cream/20 p-6 sm:p-8 shadow-sm">
         <div className="max-w-2xl space-y-2">

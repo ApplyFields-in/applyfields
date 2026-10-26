@@ -8,8 +8,8 @@
 
 @layer base {
   body {
-    background-color: var(--color-bg, #f8fafc);
-    color: var(--color-ink, #0f172a);
+    background-color: #F0F4F8;
+    color: #082046;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }

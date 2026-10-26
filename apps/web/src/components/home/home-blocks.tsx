@@ -15,32 +15,32 @@ export function Hero({ popular, deadlines }: { popular: string[]; deadlines: Opp
   return (
     <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-center">
       <div className="max-w-2xl">
-        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-sea">
-          <span className="size-1.5 rounded-full bg-sea" aria-hidden="true" /> {t('hero_tag')}
+        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#0e7bf4]">
+          <span className="size-2 rounded-full bg-[#0e7bf4]" aria-hidden="true" /> {t('hero_tag')}
         </p>
-        <h1 className="mt-4 text-5xl font-bold leading-[1.08] tracking-tight text-teal sm:text-[56px]">
+        <h1 className="mt-4 text-5xl font-black leading-[1.05] tracking-tight text-[#082046] sm:text-6xl lg:text-7xl">
           {t('hero_title')}
-          <span className="mt-1 block text-sea">{t('hero_subtitle_1')}<br />{t('hero_subtitle_2')}</span>
+          <span className="mt-1 block text-[#0e7bf4]">{t('hero_subtitle_1')}<br />{t('hero_subtitle_2')}</span>
         </h1>
-        <p className="mt-4 max-w-xl text-base leading-relaxed text-[#536780]">
+        <p className="mt-5 max-w-xl text-lg sm:text-xl font-medium leading-relaxed text-[#435775]">
           {t('hero_desc')}
         </p>
 
-        <form action="/search" role="search" className="mt-6 flex max-w-xl items-center gap-2 rounded-xl bg-canvas p-1.5 pl-4 shadow-pressed">
-          <Search className="size-5 shrink-0 text-sea" aria-hidden="true" />
+        <form action="/search" role="search" className="mt-7 flex max-w-xl items-center gap-2 rounded-2xl bg-canvas p-2 pl-4 shadow-pressed">
+          <Search className="size-5 shrink-0 text-[#0e7bf4]" aria-hidden="true" />
           <input
             name="q"
             type="search"
             aria-label="Search ApplyFields"
             placeholder={t('hero_search_placeholder')}
-            className="h-10 min-w-0 flex-1 bg-transparent text-sm text-teal outline-none placeholder:text-[#71839b]"
+            className="h-11 min-w-0 flex-1 bg-transparent text-base text-[#082046] outline-none placeholder:text-[#71839b]"
           />
           <button type="submit" className={buttonClass()}>
             {t('hero_search_btn')} <ArrowRight aria-hidden="true" />
           </button>
         </form>
 
-        {!!popular.length && <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+        {!!popular.length && <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium">
           <span className="text-[#536780]">{t('hero_trending')}</span>
           {popular.map((q) => (
             <Link key={q} href={`/search?q=${encodeURIComponent(q)}`} className="font-semibold text-teal hover:text-sea">
@@ -87,8 +87,8 @@ export function ExploreAmbitionSection({ stats }: { stats: HomeStat[] }) {
   return (
     <section aria-labelledby="explore-opportunities">
       <div className="mb-4 flex items-end justify-between gap-3">
-        <h2 id="explore-opportunities" className="text-lg font-bold text-teal">{t('ambition_title')}</h2>
-        <Link href="/career" className="text-xs font-medium text-[#536780] hover:text-sea">{t('ambition_find_dir')}</Link>
+        <h2 id="explore-opportunities" className="text-xl sm:text-2xl font-black text-[#082046]">{t('ambition_title')}</h2>
+        <Link href="/career" className="text-xs font-semibold text-[#536780] hover:text-[#0e7bf4]">{t('ambition_find_dir')}</Link>
       </div>
       <StatsRow stats={stats} />
     </section>
@@ -132,8 +132,8 @@ export function ClosingSoon({ items }: { items: OpportunityCard[] }) {
     <section>
       <div className="mb-4 flex items-end justify-between gap-3 border-b border-line pb-3">
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-wide text-[#536780]">{t('closing_soon_badge')}</p>
-          <h2 className="mt-1 text-lg font-bold text-teal">{t('closing_soon_title')}</h2>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#536780]">{t('closing_soon_badge')}</p>
+          <h2 className="mt-1 text-xl sm:text-2xl font-black text-[#082046]">{t('closing_soon_title')}</h2>
         </div>
         <Link href="/apply" className="inline-flex items-center gap-1 text-xs font-semibold text-teal hover:text-sea">{t('closing_soon_all')} <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
       </div>
@@ -165,19 +165,23 @@ export function LatestUpdates({ items }: { items: UpdateItem[] }) {
     <section>
       <div className="mb-3 flex items-end justify-between gap-3 border-b border-line pb-3">
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-wide text-[#536780]">{t('updates_source')}</p>
-          <h2 className="mt-1 text-lg font-bold text-teal">{t('updates_title')}</h2>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#536780]">{t('updates_source')}</p>
+          <h2 className="mt-1 text-xl sm:text-2xl font-black text-[#082046]">{t('updates_title')}</h2>
         </div>
         <Link href="/updates" className="inline-flex items-center gap-1 text-xs font-semibold text-teal hover:text-sea">{t('updates_all')} <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
       </div>
       {items.length === 0 && <p className="text-sm text-[#536780]">{t('updates_none')}</p>}
       <ul className="divide-y divide-line">
         {items.map((u) => (
-          <li key={u.id} className="grid gap-2 py-3 sm:grid-cols-[52px_84px_minmax(0,1fr)_auto] sm:items-center">
-            <span className="text-xs text-[#536780]">{formatDate(u.date)}</span>
-            <Badge tone={u.kind === 'result' || u.kind === 'admit_card' ? 'celadon' : 'tea'}>{UPDATE_LABEL[u.kind]}</Badge>
-            <span className="text-sm font-medium text-teal">{u.title}</span>
-            <span className="text-xs text-[#536780] sm:text-right">{u.organization}</span>
+          <li key={u.id} className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:gap-4 transition-colors hover:bg-white/60 rounded-xl px-2">
+            <span className="w-20 shrink-0 text-xs text-[#536780]">{formatDate(u.date)}</span>
+            <div className="shrink-0">
+              <Badge tone={u.kind === 'result' || u.kind === 'admit_card' ? 'celadon' : 'tea'} className="whitespace-nowrap font-semibold">
+                {UPDATE_LABEL[u.kind]}
+              </Badge>
+            </div>
+            <span className="min-w-0 flex-1 text-sm font-medium text-teal leading-snug">{u.title}</span>
+            <span className="shrink-0 text-xs text-[#536780] sm:text-right max-w-[280px] truncate">{u.organization}</span>
           </li>
         ))}
       </ul>
@@ -397,10 +401,11 @@ export function TrustNote() {
     t('trust_private_docs'),
   ];
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-card bg-canvas px-5 py-4 text-sm shadow-pressed">
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-2xl border border-[#d5e1ef] bg-[#f8fbff] px-6 py-4 text-xs font-medium text-teal shadow-xs">
       {notes.map((item) => (
-        <span key={item} className="flex items-center gap-2 font-semibold">
-          <CircleCheck className="size-4 text-sea" aria-hidden="true" /> {item}
+        <span key={item} className="flex items-center gap-2 whitespace-nowrap">
+          <CircleCheck className="size-4 shrink-0 text-sea" aria-hidden="true" />
+          <span>{item}</span>
         </span>
       ))}
     </div>

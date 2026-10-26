@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePartnerAuth } from '@/lib/auth-context';
 import { updatePartner } from '@/lib/api';
-import { ScrollToTopButton } from '@applyfields/ui';
 import {
   AlertCircle,
   Building2,
@@ -328,7 +327,6 @@ export default function PartnerDashboardLayout({
           <div className="flex-1">{children}</div>
           <footer className="mt-12 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
             <span>ApplyFields Partner Operator Desk · Real-time Workspace</span>
-            <ScrollToTopButton className="text-slate-400 hover:text-white border-slate-800 hover:border-slate-700 hover:bg-slate-800/50" />
           </footer>
         </main>
 

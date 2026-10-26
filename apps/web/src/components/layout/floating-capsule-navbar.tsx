@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Compass,
   Briefcase,
   Home,
   LogOut,
@@ -23,7 +22,6 @@ import {
 } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
 import type { MeResponse, UserSummary } from '@applyfields/types';
-import { LanguageSwitcher } from '../language-switcher';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { PARTNER_PORTAL_URL, SERVICE_PORTAL_URL } from '@/lib/urls';
 
@@ -114,41 +112,32 @@ export function FloatingCapsuleNavbar() {
   }
 
   return (
-    <header className="sticky top-5 z-50 mx-auto mt-5 w-full max-w-[1420px] px-2 sm:px-3">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:gap-3 xl:grid-cols-[minmax(0,1fr)_205px_minmax(0,1fr)]">
+    <header className="sticky top-4 z-50 mx-auto w-full max-w-[1360px] px-2 sm:px-4 mb-5 sm:mb-8">
+      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-[1fr_auto_1fr] items-center">
         {/* Left: Brand + Nav Links */}
-        <div className="flex min-w-0 items-center gap-3 rounded-[30px] border border-[#ffffff] bg-[#F0F4F8] px-4 py-3.5 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.28),-8px_-8px_20px_rgba(255,255,255,0.95)] sm:gap-6 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 group">
+        <div className="flex min-w-0 items-center justify-start gap-2 sm:gap-4 rounded-[32px] border border-white bg-[#F0F4F8] px-3.5 py-2 sm:px-5 sm:py-2.5 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
+          <Link href="/" className="flex items-center gap-2 group shrink-0">
             {/* Origami-style ApplyFields Logo */}
-            <Image src="/logo-mark.png" alt="" width={40} height={40} className="size-10 shrink-0 object-contain transition-transform group-hover:scale-105" />
-            <span className="hidden whitespace-nowrap text-lg font-bold tracking-tight text-[#082046] sm:inline">
+            <Image src="/logo-mark.png" alt="ApplyFields Logo" width={36} height={36} unoptimized className="size-9 shrink-0 object-contain transition-transform group-hover:scale-105" />
+            <span className="hidden whitespace-nowrap text-base sm:text-lg font-black tracking-tight text-[#082046] sm:inline">
               Apply<span className="text-[#0e7bf4]">Fields</span>
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-1 text-sm font-medium text-[#435775] lg:flex">
+          <nav className="hidden items-center gap-1 text-xs font-bold text-[#435775] md:flex">
             <Link
               href="/"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-2 transition-colors ${
-                isHome ? 'text-[#0e7bf4]' : 'hover:bg-[#ffffff] hover:text-[#082046]'
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition-colors ${
+                isHome ? 'text-[#0e7bf4]' : 'hover:bg-white hover:text-[#082046]'
               }`}
             >
               <Home className="size-3.5" />
               <span>{t('nav_home', 'Home')}</span>
             </Link>
             <Link
-              href="/career"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-2 transition-colors ${
-                isCareer ? 'text-[#0e7bf4]' : 'hover:bg-[#ffffff] hover:text-[#082046]'
-              }`}
-            >
-              <Compass className="size-3.5" />
-              <span>{t('nav_explore', 'Explore')}</span>
-            </Link>
-            <Link
               href="/community"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-2 transition-colors ${
-                isCommunity ? 'text-[#0e7bf4]' : 'hover:bg-[#ffffff] hover:text-[#082046]'
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition-colors ${
+                isCommunity ? 'text-[#0e7bf4]' : 'hover:bg-white hover:text-[#082046]'
               }`}
             >
               <MessageSquare className="size-3.5" />
@@ -156,7 +145,7 @@ export function FloatingCapsuleNavbar() {
             </Link>
             <Link
               href="/documents"
-              className="flex items-center gap-1.5 rounded-full px-3 py-2 transition-colors hover:bg-[#ffffff] hover:text-[#082046]"
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition-colors hover:bg-white hover:text-[#082046]"
             >
               <FolderOpen className="size-3.5" />
               <span>{t('nav_documents', 'Resources')}</span>
@@ -164,84 +153,78 @@ export function FloatingCapsuleNavbar() {
           </nav>
         </div>
 
-        {/* Center: Career / Apply Mode Switcher Capsule */}
-        <div className="flex items-center justify-center rounded-full border border-[#ffffff] bg-[#F0F4F8] p-2.5 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.28),-8px_-8px_20px_rgba(255,255,255,0.95)]">
-          <div className="flex items-center gap-1 rounded-full bg-[#edf2f8] p-1.5 shadow-[inset_3px_3px_7px_#d8e0eb,inset_-3px_-3px_7px_#ffffff]">
+        {/* Center: Career / Apply / Services Mode Switcher Capsule */}
+        <div className="flex items-center justify-center justify-self-center rounded-full border border-white bg-[#F0F4F8] p-1.5 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
+          <div className="flex items-center gap-1 rounded-full bg-[#edf2f8] p-1 shadow-[inset_2px_2px_5px_#d8e0eb,inset_-2px_-2px_5px_#ffffff]">
             <Link
               href="/career"
-              className={`flex min-w-[82px] flex-col items-center gap-0.5 rounded-full px-3.5 py-4 text-xs font-semibold transition-all ${
+              className={`flex min-w-[70px] sm:min-w-[74px] flex-col items-center gap-0.5 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-all ${
                 isCareer
-                  ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[4px_4px_9px_#d8e0eb,-4px_-4px_9px_#ffffff]'
+                  ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[3px_3px_7px_#d8e0eb,-3px_-3px_7px_#ffffff]'
                   : 'text-[#082046] hover:text-[#0e7bf4]'
               }`}
             >
-              <Briefcase className="size-4 text-[#0e7bf4]" />
+              <Briefcase className="size-3.5 text-[#0e7bf4]" />
               <span>{t('nav_career', 'Career')}</span>
             </Link>
             <Link
               href="/apply"
-              className={`flex min-w-[82px] flex-col items-center gap-0.5 rounded-full px-3.5 py-4 text-xs font-semibold transition-all ${
+              className={`flex min-w-[70px] sm:min-w-[74px] flex-col items-center gap-0.5 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-all ${
                 isApply
-                  ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[4px_4px_9px_#d8e0eb,-4px_-4px_9px_#ffffff]'
+                  ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[3px_3px_7px_#d8e0eb,-3px_-3px_7px_#ffffff]'
                   : 'text-[#082046] hover:text-[#0e7bf4]'
               }`}
             >
-              <Send className="size-4 text-[#0e7bf4]" />
+              <Send className="size-3.5 text-[#0e7bf4]" />
               <span>{t('nav_apply', 'Apply')}</span>
             </Link>
             <a
               href={SERVICE_PORTAL_URL}
-              className="flex min-w-[82px] flex-col items-center gap-0.5 rounded-full px-3.5 py-4 text-xs font-semibold transition-all text-[#082046] hover:text-[#06b6d4] relative group"
+              className="flex min-w-[70px] sm:min-w-[74px] flex-col items-center gap-0.5 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
               title="Citizen Services: MeeSeva, CSC, PAN, Aadhaar & Xerox"
             >
-              <div className="relative">
-                <Printer className="size-4 text-[#06b6d4]" />
-                <span className="absolute -top-1 -right-2 size-2 bg-cyan-400 rounded-full animate-pulse" />
-              </div>
-              <span className="flex items-center gap-0.5">
+              <Printer className="size-3.5 text-[#0e7bf4]" />
+              <span className="flex items-center gap-1">
                 <span>Services</span>
-                <span className="text-[9px] font-bold text-cyan-700 bg-cyan-100 px-1 py-0.2 rounded-full">New</span>
+                <span className="text-[8px] font-black uppercase text-[#0e7bf4] bg-[#e0edfb] px-1 py-0.2 rounded-full">New</span>
               </span>
             </a>
           </div>
         </div>
 
-        {/* Right: Search + Icons + Language Switcher + User Avatar Pill */}
-        <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 rounded-[30px] border border-[#ffffff] bg-[#F0F4F8] px-4 py-3.5 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.28),-8px_-8px_20px_rgba(255,255,255,0.95)] sm:gap-3 sm:px-5 xl:col-span-1">
+        {/* Right: Search + Notifications + Saved + User Avatar / Sign In */}
+        <div className="flex items-center justify-end justify-self-end gap-1.5 sm:gap-2 rounded-[32px] border border-white bg-[#F0F4F8] px-3 sm:px-4 py-2 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
           {/* Search Input Pill */}
-          <form onSubmit={handleSearchSubmit} className="relative hidden min-w-0 flex-1 md:block xl:flex-none">
-            <div className="mx-auto flex w-full max-w-48 items-center rounded-full bg-[#e8eef6] px-3.5 py-2 shadow-[inset_4px_4px_8px_#d5deea,inset_-4px_-4px_8px_#ffffff] transition-all focus-within:ring-2 focus-within:ring-[#0e7bf4]/20 xl:w-48">
-              <Search className="mr-1.5 size-4 shrink-0 text-[#526987]" />
+          <form onSubmit={handleSearchSubmit} className="relative hidden md:block">
+            <div className="flex w-32 sm:w-36 lg:w-44 items-center rounded-full bg-[#e8eef6] px-3 py-1.5 shadow-[inset_3px_3px_6px_#d5deea,inset_-3px_-3px_6px_#ffffff] transition-all focus-within:ring-2 focus-within:ring-[#0e7bf4]/20">
+              <Search className="mr-1.5 size-3.5 shrink-0 text-[#526987]" />
               <input
                 type="text"
-                placeholder={t('nav_search', 'Search')}
+                placeholder={t('nav_search', 'Search...')}
                 value={searchVal}
                 onChange={(e) => setSearchVal(e.target.value)}
-                className="w-full bg-transparent text-sm text-[#082046] placeholder:text-[#71839b] outline-none"
+                className="w-full bg-transparent text-xs text-[#082046] placeholder:text-[#71839b] outline-none"
               />
             </div>
           </form>
 
-          {/* Language Switcher */}
-          <LanguageSwitcher />
-
           {/* Notifications */}
           <Link
             href="/notifications"
-            className="relative rounded-full p-2 text-[#082046] transition-colors hover:bg-[#ffffff] hover:text-[#0e7bf4]"
+            className="relative rounded-full p-2 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
             title={t('nav_notifications', 'Notifications')}
           >
-            <Bell className="size-4" />
+            <Bell className="size-3.5 sm:size-4" />
             <span className="absolute top-1.5 right-1.5 size-2 bg-[#0e7bf4] rounded-full" />
           </Link>
 
           {/* Bookmarks / Saved */}
           <Link
             href="/saved"
-            className="hidden rounded-full p-2 text-[#082046] transition-colors hover:bg-[#ffffff] hover:text-[#0e7bf4] sm:block"
+            className="hidden sm:block rounded-full p-2 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
             title={t('nav_saved', 'Saved Opportunities')}
           >
-            <Bookmark className="size-4" />
+            <Bookmark className="size-3.5 sm:size-4" />
           </Link>
 
           {/* User Profile Pill & Dropdown / Sign in & Register */}
@@ -302,7 +285,7 @@ export function FloatingCapsuleNavbar() {
             <div className="flex items-center gap-1.5">
               <Link
                 href="/login"
-                className="flex items-center gap-1.5 rounded-full bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0c6fdc]"
+                className="flex items-center gap-1.5 rounded-2xl bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95"
               >
                 <User className="size-3.5" />
                 <span>Sign in / Register</span>

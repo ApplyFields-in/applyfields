@@ -16,11 +16,11 @@ export function SiteShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[#F0F4F8] flex flex-col justify-between text-[#082046]">
       <FloatingCapsuleNavbar />
-      <main id="main" className="flex-1 w-full animate-rise">
+      <main id="main" className="flex-1 w-full animate-rise pt-2 sm:pt-4">
         {isCustomBleed ? (
           children
         ) : (
-          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1360px] px-4 pt-6 pb-12 sm:pt-8 sm:pb-16 sm:px-6 lg:px-8">
             {children}
           </div>
         )}
