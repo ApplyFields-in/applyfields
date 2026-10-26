@@ -63,14 +63,14 @@ export function ClientAuthDashboardSwitch({
   // When user is logged in, show UI matching Images 1, 2, and 3
   if (isLoggedIn) {
     return (
-      <div className="mx-auto max-w-7xl px-4 pt-2 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1360px] px-4 pt-2 sm:px-6 lg:px-8">
         <LoggedInDashboard initialHomeData={home} userName={userName} />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-[1050px] px-4 sm:px-6">
+    <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
       {publicDashboard}
     </div>
   );

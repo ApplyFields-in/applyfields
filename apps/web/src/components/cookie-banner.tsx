@@ -92,30 +92,17 @@ export function CookieConsentBanner() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end shrink-0 pt-1 lg:pt-0">
-              <button
-                type="button"
-                onClick={() => setShowPreferencesModal(true)}
-                className={buttonClass({
-                  variant: 'secondary',
-                  size: 'sm',
-                  className: 'bg-white/10 hover:bg-white/20 text-white border-white/10 text-xs gap-1.5',
-                })}
-              >
-                <Sliders className="size-3.5" />
-                Customize
-              </button>
-
+            <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-end shrink-0 pt-1 lg:pt-0">
               <button
                 type="button"
                 onClick={rejectNonEssential}
                 className={buttonClass({
                   variant: 'secondary',
                   size: 'sm',
-                  className: 'bg-white/10 hover:bg-white/20 text-white border-white/10 text-xs',
+                  className: 'bg-white/10 hover:bg-white/20 text-white border-white/15 text-xs font-semibold px-4 py-2 rounded-xl transition',
                 })}
               >
-                Reject Non-Essential
+                Reject
               </button>
 
               <button
@@ -124,10 +111,10 @@ export function CookieConsentBanner() {
                 className={buttonClass({
                   variant: 'primary',
                   size: 'sm',
-                  className: 'bg-[#0e7bf4] text-white hover:bg-[#0e7bf4]/90 text-xs font-bold shadow-clay',
+                  className: 'bg-[#0e7bf4] text-white hover:bg-[#0e7bf4]/90 text-xs font-bold shadow-clay px-5 py-2 rounded-xl transition',
                 })}
               >
-                Accept All
+                Allow Cookies
               </button>
             </div>
           </div>

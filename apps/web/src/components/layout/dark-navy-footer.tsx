@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { CookiePreferencesTrigger } from '@/components/cookie-banner';
 import { PARTNER_PORTAL_URL } from '@/lib/urls';
-import { ScrollToTopButton } from '@applyfields/ui';
 
 export function DarkNavyFooter() {
   const { t } = useLanguage();
@@ -35,12 +34,12 @@ export function DarkNavyFooter() {
 
   return (
     <footer className="mt-12 border-t border-white/10 bg-[#0B2240] text-[#c8d5e6]">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
           {/* Brand Column */}
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
-              <Image src="/logo-mark.png" alt="" width={40} height={32} className="h-8 w-10 object-contain" />
+              <Image src="/logo-mark.png" alt="" width={40} height={32} unoptimized className="h-8 w-10 object-contain" />
               <span className="text-lg font-bold tracking-tight text-white">Apply<span className="text-[#0e7bf4]">Fields</span></span>
             </div>
             <p className="max-w-sm text-xs leading-relaxed text-[#c8d5e6]">
@@ -204,7 +203,6 @@ export function DarkNavyFooter() {
           <p className="leading-relaxed">
             {t('footer_copyright')}
           </p>
-          <ScrollToTopButton className="text-[#c8d5e6] hover:text-white border-white/20 hover:border-white/40" />
         </div>
       </div>
     </footer>

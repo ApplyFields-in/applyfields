@@ -66,7 +66,7 @@ export default function ApplyPage() {
   return (
     <div>
       <section className="border-y border-[#c4d2e3] bg-[#DCE7F3]">
-          <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1360px] space-y-5 px-4 pt-8 pb-7 sm:pt-10 sm:pb-8 sm:px-6 lg:px-8">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-[#082046] sm:text-3xl">Apply</h1>
               <p className="mt-1 text-sm text-[#435775]">
@@ -115,7 +115,7 @@ export default function ApplyPage() {
           </div>
         </section>
 
-        <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1360px] space-y-4 px-4 py-6 sm:px-6 lg:px-8">
         {/* Secondary Filter Dropdowns Row */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[#435775]">
           <div className="flex flex-wrap items-center gap-2">

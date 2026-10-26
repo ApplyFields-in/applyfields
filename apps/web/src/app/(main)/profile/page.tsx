@@ -850,7 +850,7 @@ export default function ProfilePage() {
   ].filter(Boolean).join(' · ');
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+    <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       {/* Global Alerts */}
       {saveSuccess && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 text-xs font-semibold text-emerald-800 flex items-center gap-3 shadow-xs animate-in fade-in">
