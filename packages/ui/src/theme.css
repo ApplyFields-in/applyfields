@@ -11,13 +11,12 @@
  */
 
 @theme {
-  --color-*: initial;
-
   --color-teal: #082046;     /* Dark Teal / Midnight Navy — primary text, sidebar, dark accents */
   --color-sea: #0e7bf4;      /* Azure Blue                — active states, progress, brand blue, icons */
   --color-celadon: #38bdf8;  /* Sky Blue                  — badges, highlights */
   --color-tea: #e0edfb;      /* Ice Blue Tint             — soft backgrounds, chips */
   --color-cream: #ffffff;    /* Crisp White               — cards, surface, text on teal */
+  --color-white: #ffffff;    /* Universal Pure White */
   --color-paper: #f4f7fb;    /* Light clean canvas */
   --color-ink: #082046;      /* Rich dark ink text */
   --color-terracotta: #e11d48; /* Crimson / error alert */

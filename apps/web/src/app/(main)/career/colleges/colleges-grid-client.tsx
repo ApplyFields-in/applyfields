@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { InstitutionSummary } from '@applyfields/types';
 import { Badge, buttonClass, Card, cn, EmptyState } from '@applyfields/ui';
 import {
@@ -13,6 +13,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Columns,
+  LayoutGrid,
+  List,
   MapPin,
   Plus,
   X,
@@ -52,6 +54,16 @@ export function CollegesGridClient({
   const [selectedColleges, setSelectedColleges] = useState<
     Array<{ slug: string; name: string; short_name: string | null }>
   >([]);
+  const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('applyfields_colleges_view');
+      if (saved === 'list' || saved === 'grid') {
+        setViewLayout(saved);
+      }
+    }
+  }, []);
 
   const toggleCompare = (college: InstitutionSummary) => {
     const isSelected = selectedColleges.some((c) => c.slug === college.slug);
@@ -107,26 +119,167 @@ export function CollegesGridClient({
 
   return (
     <div className="space-y-6">
-      {/* Header Info & Counts */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-teal/70">
+      {/* Header Info & Counts + Grid/List View Toggle */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-teal/70">
         <div>
           Showing <strong className="text-teal font-bold">{total > 0 ? startCount : 0}</strong> to{' '}
           <strong className="text-teal font-bold">{endCount}</strong> of{' '}
           <strong className="text-teal font-bold">{total.toLocaleString()}</strong> institutions (20 per page)
         </div>
-        <div className="text-[11px] text-teal/60">
-          Page <strong>{page}</strong> of <strong>{totalPages}</strong>
+
+        <div className="flex items-center gap-3">
+          <div className="text-[11px] text-teal/60">
+            Page <strong>{page}</strong> of <strong>{totalPages}</strong>
+          </div>
+
+          {/* Grid vs List View Mode Toggle */}
+          <div className="flex items-center gap-1 rounded-2xl bg-white border border-[#d5deea] p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => {
+                setViewLayout('grid');
+                if (typeof window !== 'undefined') localStorage.setItem('applyfields_colleges_view', 'grid');
+              }}
+              aria-label="Grid View"
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
+                viewLayout === 'grid'
+                  ? 'bg-[#0e7bf4] text-white shadow-clay-btn-azure'
+                  : 'text-[#526987] hover:text-[#082046] hover:bg-slate-50',
+              )}
+            >
+              <LayoutGrid className="size-3.5" />
+              <span>Grid View</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setViewLayout('list');
+                if (typeof window !== 'undefined') localStorage.setItem('applyfields_colleges_view', 'list');
+              }}
+              aria-label="List View"
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
+                viewLayout === 'list'
+                  ? 'bg-[#0e7bf4] text-white shadow-clay-btn-azure'
+                  : 'text-[#526987] hover:text-[#082046] hover:bg-slate-50',
+              )}
+            >
+              <List className="size-3.5" />
+              <span>List View</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* College Cards Grid */}
+      {/* College Cards: Grid or List Mode */}
       {colleges.length === 0 ? (
         <EmptyState
           icon={<Building />}
           title="No institutions found"
           text="Try broadening your search term or clearing the filters above."
         />
+      ) : viewLayout === 'list' ? (
+        /* List Mode: Wide Full-Width Row Cards */
+        <div className="space-y-4">
+          {colleges.map((c) => {
+            const compared = isCompared(c.slug);
+            return (
+              <Card
+                key={c.id}
+                className={cn(
+                  'group flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 sm:p-6 transition-all hover:border-teal/40 hover:shadow-clay',
+                  compared && 'border-teal ring-2 ring-teal/20 bg-teal/[0.02]',
+                )}
+              >
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="teal" className="text-[11px]">
+                      {TYPE_LABELS[c.type] || c.type}
+                    </Badge>
+                    {c.ranking_text && (
+                      <Badge tone="tea" className="gap-1 text-[11px] font-bold">
+                        <Award className="size-3" /> {c.ranking_text}
+                      </Badge>
+                    )}
+                    <span className="flex items-center gap-1 text-xs font-medium text-teal/70">
+                      <MapPin className="size-3.5 text-teal/50" /> {c.city || c.district || 'India'}
+                      {c.state_code ? `, ${c.state_code}` : ''}
+                    </span>
+                    {c.ownership && (
+                      <span className="text-xs text-teal/60">
+                        · {c.ownership === 'government' ? 'Government' : c.ownership.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+
+                  <Link href={`/career/colleges/${c.slug}`}>
+                    <h2 className="text-lg sm:text-xl font-bold text-teal group-hover:underline line-clamp-1">
+                      {c.name}
+                    </h2>
+                  </Link>
+
+                  <div className="flex flex-wrap items-center gap-4 text-xs">
+                    <span className="text-teal/70">
+                      Placement: <strong className="text-teal">{c.placement_stats?.avg_package || 'Industry standard'}</strong>
+                    </span>
+                    <span className="text-teal/70">
+                      Annual Fee: <strong className="text-teal">{c.fees_text || 'Subsidized'}</strong>
+                    </span>
+                    <span className="text-teal/70 font-semibold">
+                      {c.courses_count || 0} Programs Offered
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-line/60">
+                  <SaveButton
+                    itemType="institution"
+                    slug={c.slug}
+                    title={c.name}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => toggleCompare(c)}
+                    className={buttonClass({
+                      variant: compared ? 'primary' : 'secondary',
+                      size: 'sm',
+                      className: cn(
+                        'text-xs gap-1 transition-all',
+                        compared && 'bg-teal text-cream font-bold',
+                      ),
+                    })}
+                    title={compared ? 'Click to remove from compare' : 'Add to compare tray'}
+                  >
+                    {compared ? (
+                      <>
+                        <Check className="size-3.5" /> Comparing
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="size-3.5" /> Compare
+                      </>
+                    )}
+                  </button>
+
+                  <Link
+                    href={`/career/colleges/${c.slug}`}
+                    className={buttonClass({
+                      variant: 'primary',
+                      size: 'sm',
+                      className: 'gap-1 shadow-clay text-xs',
+                    })}
+                  >
+                    View Details <ArrowRight className="size-3.5" />
+                  </Link>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       ) : (
+        /* Grid Mode: 2-Column Responsive Card Grid */
         <div className="grid gap-6 md:grid-cols-2">
           {colleges.map((c) => {
             const compared = isCompared(c.slug);

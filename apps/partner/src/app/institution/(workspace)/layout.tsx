@@ -26,7 +26,6 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { ScrollToTopButton } from '@applyfields/ui';
 import type { InstitutionPartnerProfile } from '@applyfields/types';
 
 export default function InstitutionWorkspaceLayout({
@@ -320,7 +319,6 @@ export default function InstitutionWorkspaceLayout({
           <div className="flex-1">{children}</div>
           <footer className="mt-12 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
             <span>ApplyFields Institutional Admissions Desk (Founder Doc §21) · Direct College Channel</span>
-            <ScrollToTopButton className="text-slate-400 hover:text-white border-slate-800 hover:border-slate-700 hover:bg-slate-900" />
           </footer>
         </main>
       </div>

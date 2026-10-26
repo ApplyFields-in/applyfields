@@ -240,8 +240,62 @@ export default function ServicesHomePage() {
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [focusedCenter, setFocusedCenter] = useState<VerifiedCenter | null>(null);
+  const [activeLocation, setActiveLocation] = useState<string>('Enable Location');
+  const [gpsFarAway, setGpsFarAway] = useState<boolean>(false);
 
   const { addItem } = useCart();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    function syncLocationFromStorage() {
+      const stored = localStorage.getItem('applyfields_service_location');
+      if (stored) {
+        setActiveLocation(stored);
+      }
+      const coordsRaw = localStorage.getItem('applyfields_service_coords');
+      if (coordsRaw) {
+        try {
+          const { lat, lng } = JSON.parse(coordsRaw);
+          setUserLocation({ lat, lng });
+          const nearestDistance = Math.min(...SAMPLE_CENTERS.map((c) => calculateHaversineDistance(lat, lng, c.lat, c.lng)));
+          if (nearestDistance > 30) {
+            setGpsFarAway(true);
+          } else {
+            setGpsFarAway(false);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    syncLocationFromStorage();
+
+    function handleLocationEvent(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.location) {
+        setActiveLocation(detail.location);
+      }
+      if (detail?.coords) {
+        const { lat, lng } = detail.coords;
+        setUserLocation({ lat, lng });
+        const nearestDistance = Math.min(...SAMPLE_CENTERS.map((c) => calculateHaversineDistance(lat, lng, c.lat, c.lng)));
+        if (nearestDistance > 30) {
+          setGpsFarAway(true);
+        } else {
+          setGpsFarAway(false);
+        }
+      } else {
+        setGpsFarAway(false);
+      }
+    }
+
+    window.addEventListener('applyfields:location-change', handleLocationEvent);
+    return () => {
+      window.removeEventListener('applyfields:location-change', handleLocationEvent);
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -329,15 +383,43 @@ export default function ServicesHomePage() {
         const lng = pos.coords.longitude;
         setUserLocation({ lat, lng });
 
-        const updated = SAMPLE_CENTERS.map((c) => ({
-          ...c,
-          distanceKm: calculateHaversineDistance(lat, lng, c.lat, c.lng),
-        })).sort((a, b) => a.distanceKm - b.distanceKm);
+        const nearestDistance = Math.min(...SAMPLE_CENTERS.map((c) => calculateHaversineDistance(lat, lng, c.lat, c.lng)));
+        if (nearestDistance > 30) {
+          setGpsFarAway(true);
+          setActiveLocation('GPS Location (Outside City)');
+          setIsLocating(false);
+          setLocationNotice(`GPS detected: ${nearestDistance}km away. No verified centers found within 30 km.`);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('applyfields_service_location', 'GPS: Outside City');
+            localStorage.setItem('applyfields_service_coords', JSON.stringify({ lat, lng }));
+            window.dispatchEvent(
+              new CustomEvent('applyfields:location-change', {
+                detail: { location: 'GPS: Outside City', coords: { lat, lng } },
+              }),
+            );
+          }
+        } else {
+          setGpsFarAway(false);
+          const updated = SAMPLE_CENTERS.map((c) => ({
+            ...c,
+            distanceKm: calculateHaversineDistance(lat, lng, c.lat, c.lng),
+          })).sort((a, b) => a.distanceKm - b.distanceKm);
 
-        setCenters(updated);
-        setIsLocating(false);
-        setLocationNotice('GPS Location Enabled! Centers sorted by closest proximity to you.');
-        setTimeout(() => setLocationNotice(null), 5000);
+          setCenters(updated);
+          setIsLocating(false);
+          setActiveLocation('GPS: Hyderabad (Current)');
+          setLocationNotice('GPS Location Enabled! Centers sorted by closest proximity to you.');
+          setTimeout(() => setLocationNotice(null), 5000);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('applyfields_service_location', 'GPS: Hyderabad (Current)');
+            localStorage.setItem('applyfields_service_coords', JSON.stringify({ lat, lng }));
+            window.dispatchEvent(
+              new CustomEvent('applyfields:location-change', {
+                detail: { location: 'GPS: Hyderabad (Current)', coords: { lat, lng } },
+              }),
+            );
+          }
+        }
       },
       () => {
         applyDefaultLocation(17.4374, 78.4482, 'GPS permission denied. Centered on Hyderabad Core.');
@@ -348,6 +430,7 @@ export default function ServicesHomePage() {
 
   function applyDefaultLocation(lat: number, lng: number, msg: string) {
     setUserLocation({ lat, lng });
+    setGpsFarAway(false);
     const updated = SAMPLE_CENTERS.map((c) => ({
       ...c,
       distanceKm: calculateHaversineDistance(lat, lng, c.lat, c.lng),
@@ -360,6 +443,30 @@ export default function ServicesHomePage() {
   }
 
   const filteredCenters = centers.filter((c) => {
+    // If user's GPS is far away from all centers, show 0 centers
+    if (gpsFarAway) return false;
+
+    // Check active location filter if specified and not default/all
+    const loc = activeLocation.toLowerCase().trim();
+    const isSpecificLocation =
+      loc !== 'enable location' &&
+      loc !== 'all centers' &&
+      loc !== 'all centers (hyderabad metro)' &&
+      !loc.startsWith('gps: hyderabad');
+
+    let matchesActiveLocation = true;
+    if (isSpecificLocation) {
+      const tokens = loc.split(/[\s,/-]+/).filter((t) => t.length > 2);
+      matchesActiveLocation = tokens.some(
+        (token) =>
+          c.city.toLowerCase().includes(token) ||
+          c.district.toLowerCase().includes(token) ||
+          c.address.toLowerCase().includes(token) ||
+          (c.landmark && c.landmark.toLowerCase().includes(token)) ||
+          c.pincode.includes(token),
+      );
+    }
+
     const matchesCategory =
       selectedCategory === 'all' ||
       (selectedCategory === 'meeseva' && (c.type === 'meeseva' || c.type === 'csc')) ||
@@ -371,15 +478,16 @@ export default function ServicesHomePage() {
       (selectedCategory === 'exams' &&
         c.sampleServices.some((s) => s.title.toLowerCase().includes('ssc') || s.title.toLowerCase().includes('upsc')));
 
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
+      !q ||
       c.name.toLowerCase().includes(q) ||
       c.city.toLowerCase().includes(q) ||
       c.address.toLowerCase().includes(q) ||
       c.pincode.includes(q) ||
       c.sampleServices.some((s) => s.title.toLowerCase().includes(q));
 
-    return matchesCategory && matchesSearch;
+    return matchesActiveLocation && matchesCategory && matchesSearch;
   });
 
   const mapPins: MapCenterPin[] = filteredCenters.map((c) => ({
@@ -408,19 +516,13 @@ export default function ServicesHomePage() {
       )}
 
       {/* Hero Section — Claymorphic Card Container */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-[36px] border border-white bg-gradient-to-b from-white via-white to-[#F8FAFC] p-8 sm:p-12 lg:p-16 shadow-[8px_14px_32px_-12px_rgba(8,32,70,0.18),-8px_-8px_24px_rgba(255,255,255,0.95)]">
           {/* Subtle Ambient Azure Aura */}
           <div className="absolute top-0 right-0 -mr-20 -mt-20 h-96 w-96 rounded-full bg-gradient-to-br from-[#0e7bf4]/10 via-[#38bdf8]/15 to-transparent blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 -ml-20 -mb-20 h-96 w-96 rounded-full bg-gradient-to-tr from-[#e0edfb]/80 to-transparent blur-3xl pointer-events-none" />
 
           <div className="relative mx-auto max-w-3xl text-center space-y-6">
-            {/* Cut-Corner Pill Badge */}
-            <div className="inline-flex items-center gap-2 cut-corner-badge rounded-xl border border-[#38bdf8]/40 bg-[#e0edfb] px-4 py-1.5 text-xs font-black uppercase tracking-wider text-[#0e7bf4]">
-              <Sparkles className="h-3.5 w-3.5 text-[#0e7bf4]" />
-              <span>ApplyFields Services · OpenStreetMap GPS Discovery</span>
-            </div>
-
             <h1 className="text-3xl font-black tracking-tight sm:text-5xl lg:text-6xl text-[#082046] leading-[1.1]">
               Zero waiting lines at your{' '}
               <span className="bg-gradient-to-r from-[#0e7bf4] via-[#082046] to-[#0e7bf4] bg-clip-text text-transparent">
@@ -510,7 +612,7 @@ export default function ServicesHomePage() {
       </section>
 
       {/* Directory Section with View Switcher (Grid vs OpenStreetMap) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <section className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#d5deea] pb-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-[#082046] flex items-center gap-2">
@@ -552,7 +654,40 @@ export default function ServicesHomePage() {
         </div>
 
         {/* Dynamic Display based on viewMode */}
-        {viewMode === 'map' ? (
+        {filteredCenters.length === 0 ? (
+          <div className="rounded-3xl border border-white bg-white p-12 text-center shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.12)] space-y-4 my-6">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e0edfb] text-[#0e7bf4]">
+              <MapPin className="h-8 w-8 text-[#0e7bf4]" />
+            </div>
+            <h3 className="text-2xl font-black text-[#082046]">No nearby service centers found</h3>
+            <p className="text-sm text-[#526987] max-w-lg mx-auto leading-relaxed">
+              We currently do not have verified MeeSeva kiosks, CSC points, or Xerox centers listed within{' '}
+              <strong className="text-[#082046]">{activeLocation !== 'Enable Location' ? activeLocation : 'your detected location'}</strong>.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveLocation('All Centers');
+                  setGpsFarAway(false);
+                  setSearchQuery('');
+                  setSelectedCategory('all');
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('applyfields_service_location', 'All Centers (Hyderabad Metro)');
+                    window.dispatchEvent(
+                      new CustomEvent('applyfields:location-change', {
+                        detail: { location: 'All Centers (Hyderabad Metro)' },
+                      }),
+                    );
+                  }
+                }}
+                className="rounded-2xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-bold text-white shadow-clay-btn-azure hover:bg-[#0c6fdc] transition active:scale-95"
+              >
+                View All Available Centers (Hyderabad Metro)
+              </button>
+            </div>
+          </div>
+        ) : viewMode === 'map' ? (
           <div className="space-y-4">
             <div className="rounded-[32px] border border-white bg-white p-3 shadow-clay-card">
               <OpenStreetMap

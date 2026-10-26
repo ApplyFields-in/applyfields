@@ -63,7 +63,7 @@ export default function CareerPage() {
   return (
     <div>
       <section className="border-y border-[#e5d0aa] bg-[#F4E8D1]">
-          <div className="mx-auto max-w-6xl space-y-4 px-4 py-5 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1360px] space-y-4 px-4 pt-8 pb-6 sm:pt-10 sm:pb-7 sm:px-6 lg:px-8">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-[#76562d]">Career mode</p>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#082046] sm:text-3xl">Career</h1>
@@ -93,7 +93,7 @@ export default function CareerPage() {
         </section>
 
         <div className="bg-[#F2F1ED]">
-        <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 pb-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1360px] space-y-5 px-4 py-6 pb-12 sm:px-6 lg:px-8">
 
         {loadingCategories || loadingCareers ? (
           <p className="rounded-xl border border-[#d3ddeb] bg-[#f8fbff] p-6 text-sm text-[#536780]">Loading careers…</p>

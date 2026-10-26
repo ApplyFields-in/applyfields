@@ -32,10 +32,16 @@ export function ServicesQuickBridge() {
             Skip walk-in queues. Reserve guaranteed 15-to-30 minute time slots at verified digital centers near your home or college with pre-filled forms.
           </p>
 
-          <div className="flex flex-wrap gap-2 pt-1 text-[11px] font-semibold text-[#324b6f]">
-            <span className="rounded-lg bg-white px-2.5 py-1 border border-[#d6e3f2]">✓ Laser Xerox &amp; Spiral Binding</span>
-            <span className="rounded-lg bg-white px-2.5 py-1 border border-[#d6e3f2]">✓ Instant e-PAN &amp; NSDL</span>
-            <span className="rounded-lg bg-white px-2.5 py-1 border border-[#d6e3f2]">✓ Caste &amp; Income Certificates</span>
+          <div className="flex flex-wrap gap-2 pt-1 text-xs font-semibold text-[#082046]">
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
+              <span className="font-bold text-[#0e7bf4]">✓</span> Laser Xerox &amp; Spiral Binding
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
+              <span className="font-bold text-[#0e7bf4]">✓</span> Instant e-PAN &amp; NSDL
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
+              <span className="font-bold text-[#0e7bf4]">✓</span> Caste &amp; Income Certificates
+            </span>
           </div>
 
           <div className="pt-2">
@@ -43,9 +49,10 @@ export function ServicesQuickBridge() {
               href={SERVICE_PORTAL_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#082046] px-5 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#0c2f66]"
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#082046] px-5 py-3 text-xs font-bold !text-white shadow-md transition hover:bg-[#0e7bf4] hover:shadow-lg active:scale-95"
+              style={{ color: '#ffffff' }}
             >
-              <span>Explore Centers &amp; Book Slots</span>
+              <span className="font-bold !text-white" style={{ color: '#ffffff' }}>Explore Centers &amp; Book Slots</span>
               <ArrowRight className="size-4 text-cyan-300" />
             </a>
           </div>
@@ -68,10 +75,16 @@ export function ServicesQuickBridge() {
             Join the ApplyFields Partner Network. Receive pre-scheduled citizen appointments, boost monthly revenue, and manage your shifts with zero software friction.
           </p>
 
-          <div className="flex flex-wrap gap-2 pt-1 text-[11px] font-semibold text-[#324b6f]">
-            <span className="rounded-lg bg-white px-2.5 py-1 border border-[#d6e3f2]">✓ GPS Distance Discovery</span>
-            <span className="rounded-lg bg-white px-2.5 py-1 border border-[#d6e3f2]">✓ Swiggy-Style Shift Scheduler</span>
-            <span className="rounded-lg bg-white px-2.5 py-1 border border-[#d6e3f2]">✓ 1-Click Document Printing</span>
+          <div className="flex flex-wrap gap-2 pt-1 text-xs font-semibold text-[#082046]">
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
+              <span className="font-bold text-emerald-600">✓</span> GPS Distance Discovery
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
+              <span className="font-bold text-emerald-600">✓</span> Swiggy-Style Shift Scheduler
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
+              <span className="font-bold text-emerald-600">✓</span> 1-Click Document Printing
+            </span>
           </div>
 
           <div className="pt-2">
@@ -79,9 +92,10 @@ export function ServicesQuickBridge() {
               href={`${PARTNER_PORTAL_URL}/onboard`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-500"
+              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-bold !text-white shadow-md transition hover:bg-emerald-500 hover:shadow-lg active:scale-95"
+              style={{ color: '#ffffff' }}
             >
-              <span>Register Your Center in 3 Mins</span>
+              <span className="font-bold !text-white" style={{ color: '#ffffff' }}>Register Your Center in 3 Mins</span>
               <ArrowRight className="size-4 text-emerald-200" />
             </a>
           </div>
