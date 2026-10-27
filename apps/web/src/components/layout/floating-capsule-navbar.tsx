@@ -123,92 +123,92 @@ export function FloatingCapsuleNavbar() {
   }
 
   return (
-    <header className="sticky top-3 sm:top-5 z-50 mx-auto w-full max-w-[1420px] px-3 sm:px-6 mb-6 sm:mb-9">
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_1fr] items-center">
+    <header className="sticky top-4 sm:top-6 z-50 mx-auto w-full max-w-[1460px] px-3 sm:px-6 mb-7 sm:mb-10">
+      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[1fr_auto_1fr] items-center">
         {/* Left: Brand + Nav Links */}
-        <div className="flex min-w-0 items-center justify-start gap-3 sm:gap-5 rounded-[36px] border border-white bg-[#F0F4F8] px-4 py-3 sm:px-6 sm:py-3.5 shadow-[8px_12px_28px_-10px_rgba(8,32,70,0.22),-8px_-8px_22px_rgba(255,255,255,0.95)]">
-          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
+        <div className="flex min-w-0 items-center justify-start gap-4 sm:gap-6 rounded-[40px] border border-white bg-[#F0F4F8] px-5 py-3.5 sm:px-7 sm:py-4 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.24),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+          <Link href="/" className="flex items-center gap-3 group shrink-0">
             {/* Origami-style ApplyFields Logo */}
-            <Image src="/logo-mark.png" alt="ApplyFields Logo" width={42} height={42} unoptimized className="size-10 sm:size-11 shrink-0 object-contain transition-transform group-hover:scale-105" />
-            <span className="hidden whitespace-nowrap text-lg sm:text-xl font-black tracking-tight text-[#082046] sm:inline">
+            <Image src="/logo-mark.png" alt="ApplyFields Logo" width={48} height={48} unoptimized className="size-11 sm:size-12 shrink-0 object-contain transition-transform group-hover:scale-105" />
+            <span className="hidden whitespace-nowrap text-xl sm:text-2xl font-black tracking-tight text-[#082046] sm:inline">
               Apply<span className="text-[#0e7bf4]">Fields</span>
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-1.5 text-sm font-bold text-[#435775] md:flex">
+          <nav className="hidden items-center gap-2 text-sm sm:text-base font-extrabold text-[#435775] md:flex">
             <Link
               href="/"
-              className={`flex items-center gap-2 rounded-full px-3.5 py-2 transition-colors ${
-                isHome ? 'text-[#0e7bf4]' : 'hover:bg-white hover:text-[#082046]'
+              className={`flex items-center gap-2 rounded-full px-4 py-2.5 transition-colors ${
+                isHome ? 'text-[#0e7bf4] bg-white/70 shadow-sm' : 'hover:bg-white hover:text-[#082046]'
               }`}
             >
-              <Home className="size-4" />
+              <Home className="size-4 sm:size-4.5" />
               <span>{t('nav_home', 'Home')}</span>
             </Link>
             <Link
               href="/community"
-              className={`flex items-center gap-2 rounded-full px-3.5 py-2 transition-colors ${
-                isCommunity ? 'text-[#0e7bf4]' : 'hover:bg-white hover:text-[#082046]'
+              className={`flex items-center gap-2 rounded-full px-4 py-2.5 transition-colors ${
+                isCommunity ? 'text-[#0e7bf4] bg-white/70 shadow-sm' : 'hover:bg-white hover:text-[#082046]'
               }`}
             >
-              <MessageSquare className="size-4" />
+              <MessageSquare className="size-4 sm:size-4.5" />
               <span>{t('nav_community', 'Community')}</span>
             </Link>
             <Link
               href="/documents"
-              className="flex items-center gap-2 rounded-full px-3.5 py-2 transition-colors hover:bg-white hover:text-[#082046]"
+              className="flex items-center gap-2 rounded-full px-4 py-2.5 transition-colors hover:bg-white hover:text-[#082046]"
             >
-              <FolderOpen className="size-4" />
+              <FolderOpen className="size-4 sm:size-4.5" />
               <span>{t('nav_documents', 'Resources')}</span>
             </Link>
           </nav>
         </div>
 
         {/* Center: Career / Apply / Services Mode Switcher Capsule */}
-        <div className="flex items-center justify-center justify-self-center rounded-full border border-white bg-[#F0F4F8] p-2 shadow-[8px_12px_28px_-10px_rgba(8,32,70,0.22),-8px_-8px_22px_rgba(255,255,255,0.95)]">
-          <div className="flex items-center gap-1.5 rounded-full bg-[#edf2f8] p-1.5 shadow-[inset_2px_2px_5px_#d8e0eb,inset_-2px_-2px_5px_#ffffff]">
+        <div className="flex items-center justify-center justify-self-center rounded-full border border-white bg-[#F0F4F8] p-2.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.24),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+          <div className="flex items-center gap-2 rounded-full bg-[#edf2f8] p-2 shadow-[inset_2px_2px_6px_#d8e0eb,inset_-2px_-2px_6px_#ffffff]">
             <Link
               href="/career"
-              className={`flex min-w-[78px] sm:min-w-[88px] flex-col items-center gap-1 rounded-full px-3 py-2 text-xs sm:text-[13px] font-bold transition-all ${
+              className={`flex min-w-[84px] sm:min-w-[96px] flex-col items-center gap-1 rounded-full px-3.5 py-2.5 text-xs sm:text-sm font-extrabold transition-all ${
                 isCareer
-                  ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[3px_3px_7px_#d8e0eb,-3px_-3px_7px_#ffffff]'
+                  ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[3px_3px_8px_#d8e0eb,-3px_-3px_8px_#ffffff]'
                   : 'text-[#082046] hover:text-[#0e7bf4]'
               }`}
             >
-              <Briefcase className="size-4 text-[#0e7bf4]" />
+              <Briefcase className="size-4 sm:size-4.5 text-[#0e7bf4]" />
               <span>{t('nav_career', 'Career')}</span>
             </Link>
             <Link
               href="/apply"
-              className={`flex min-w-[78px] sm:min-w-[88px] flex-col items-center gap-1 rounded-full px-3 py-2 text-xs sm:text-[13px] font-bold transition-all ${
+              className={`flex min-w-[84px] sm:min-w-[96px] flex-col items-center gap-1 rounded-full px-3.5 py-2.5 text-xs sm:text-sm font-extrabold transition-all ${
                 isApply
-                  ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[3px_3px_7px_#d8e0eb,-3px_-3px_7px_#ffffff]'
+                  ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[3px_3px_8px_#d8e0eb,-3px_-3px_8px_#ffffff]'
                   : 'text-[#082046] hover:text-[#0e7bf4]'
               }`}
             >
-              <Send className="size-4 text-[#0e7bf4]" />
+              <Send className="size-4 sm:size-4.5 text-[#0e7bf4]" />
               <span>{t('nav_apply', 'Apply')}</span>
             </Link>
             <a
               href={SERVICE_PORTAL_URL}
-              className="flex min-w-[78px] sm:min-w-[88px] flex-col items-center gap-1 rounded-full px-3 py-2 text-xs sm:text-[13px] font-bold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
+              className="flex min-w-[84px] sm:min-w-[96px] flex-col items-center gap-1 rounded-full px-3.5 py-2.5 text-xs sm:text-sm font-extrabold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
               title="Citizen Services: MeeSeva, CSC, PAN, Aadhaar & Xerox"
             >
-              <Printer className="size-4 text-[#0e7bf4]" />
+              <Printer className="size-4 sm:size-4.5 text-[#0e7bf4]" />
               <span className="flex items-center gap-1">
                 <span>Services</span>
-                <span className="text-[9px] font-black uppercase text-[#0e7bf4] bg-[#e0edfb] px-1.5 py-0.5 rounded-full">New</span>
+                <span className="text-[10px] font-black uppercase text-[#0e7bf4] bg-[#e0edfb] px-1.5 py-0.5 rounded-full">New</span>
               </span>
             </a>
           </div>
         </div>
 
         {/* Right: Search + Notifications + Saved + User Avatar / Sign In */}
-        <div className="flex items-center justify-end justify-self-end gap-2 sm:gap-3 rounded-[36px] border border-white bg-[#F0F4F8] px-4 sm:px-5 py-2.5 sm:py-3 shadow-[8px_12px_28px_-10px_rgba(8,32,70,0.22),-8px_-8px_22px_rgba(255,255,255,0.95)]">
+        <div className="flex items-center justify-end justify-self-end gap-2.5 sm:gap-3.5 rounded-[40px] border border-white bg-[#F0F4F8] px-5 sm:px-6 py-3 sm:py-3.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.24),-8px_-8px_24px_rgba(255,255,255,0.95)]">
           {/* Search Input Pill */}
           <form onSubmit={handleSearchSubmit} className="relative hidden md:block">
-            <div className="flex w-36 sm:w-44 lg:w-56 items-center rounded-full bg-[#e8eef6] px-4 py-2 shadow-[inset_3px_3px_6px_#d5deea,inset_-3px_-3px_6px_#ffffff] transition-all focus-within:ring-2 focus-within:ring-[#0e7bf4]/20">
-              <Search className="mr-2 size-4 shrink-0 text-[#526987]" />
+            <div className="flex w-40 sm:w-48 lg:w-60 items-center rounded-full bg-[#e8eef6] px-4 py-2.5 shadow-[inset_3px_3px_6px_#d5deea,inset_-3px_-3px_6px_#ffffff] transition-all focus-within:ring-2 focus-within:ring-[#0e7bf4]/20">
+              <Search className="mr-2 size-4 sm:size-4.5 shrink-0 text-[#526987]" />
               <input
                 type="text"
                 placeholder={t('nav_search', 'Search opportunities...')}
@@ -222,20 +222,20 @@ export function FloatingCapsuleNavbar() {
           {/* Notifications */}
           <Link
             href="/notifications"
-            className="relative rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            className="relative rounded-full p-2.5 sm:p-3 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
             title={t('nav_notifications', 'Notifications')}
           >
-            <Bell className="size-4 sm:size-5" />
-            <span className="absolute top-2 right-2 size-2 bg-[#0e7bf4] rounded-full" />
+            <Bell className="size-4.5 sm:size-5" />
+            <span className="absolute top-2.5 right-2.5 size-2 bg-[#0e7bf4] rounded-full" />
           </Link>
 
           {/* Bookmarks / Saved */}
           <Link
             href="/saved"
-            className="hidden sm:block rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            className="hidden sm:block rounded-full p-2.5 sm:p-3 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
             title={t('nav_saved', 'Saved Opportunities')}
           >
-            <Bookmark className="size-4 sm:size-5" />
+            <Bookmark className="size-4.5 sm:size-5" />
           </Link>
 
           {/* User Profile Pill & Dropdown / Sign in & Register */}
@@ -247,15 +247,15 @@ export function FloatingCapsuleNavbar() {
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2.5 rounded-full px-2 py-1.5 transition-colors hover:bg-[#ffffff]"
               >
-                <div className="flex size-9 sm:size-10 items-center justify-center rounded-full bg-[#0e7bf4] text-xs sm:text-sm font-bold text-[#ffffff] shadow-sm">
-                  {initials || <User className="size-4" aria-hidden="true" />}
+                <div className="flex size-10 sm:size-11 items-center justify-center rounded-full bg-[#0e7bf4] text-sm sm:text-base font-extrabold text-[#ffffff] shadow-sm">
+                  {initials || <User className="size-4.5" aria-hidden="true" />}
                 </div>
-                <span className="hidden max-w-[120px] truncate text-sm sm:text-base font-semibold text-[#082046] sm:inline">{displayName}</span>
+                <span className="hidden max-w-[130px] truncate text-sm sm:text-base font-bold text-[#082046] sm:inline">{displayName}</span>
                 <ChevronDown className="size-3.5 text-[#435775]" />
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 z-50 mt-2.5 w-56 rounded-2xl border border-[#d3ddeb] bg-[#ffffff] py-2 text-xs sm:text-sm shadow-xl animate-in fade-in slide-in-from-top-1">
+                <div className="absolute right-0 z-50 mt-2.5 w-60 rounded-2xl border border-[#d3ddeb] bg-[#ffffff] py-2 text-sm shadow-xl animate-in fade-in slide-in-from-top-1">
                   <div className="border-b border-[#e3eaf3] px-4 py-2.5">
                     <p className="truncate font-bold text-[#082046]">{displayName}</p>
                     <p className="truncate text-xs text-[#536780]">{user.email}</p>
@@ -296,9 +296,9 @@ export function FloatingCapsuleNavbar() {
             <div className="flex items-center gap-2">
               <Link
                 href="/login"
-                className="flex items-center gap-2 rounded-2xl bg-[#0e7bf4] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95"
+                className="flex items-center gap-2 rounded-2xl bg-[#0e7bf4] px-6 py-3 text-sm sm:text-base font-extrabold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95"
               >
-                <User className="size-4" />
+                <User className="size-4.5" />
                 <span>Sign in / Register</span>
               </Link>
             </div>
