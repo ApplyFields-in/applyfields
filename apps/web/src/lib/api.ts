@@ -24,7 +24,12 @@ function formatErrorMessage(err: unknown): string {
   return 'Could not connect to the API server';
 }
 
-/** Attempt to refresh access token using the httpOnly refreshToken cookie */
+function getStoredToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('accessToken');
+}
+
+/** Attempt to refresh access token using the httpOnly refreshToken cookie or existing token */
 async function attemptTokenRefresh(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
 
@@ -35,12 +40,23 @@ async function attemptTokenRefresh(): Promise<boolean> {
   isRefreshing = true;
   refreshPromise = (async () => {
     try {
+      const storedToken = getStoredToken();
       const res = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+        },
       });
-      return res.ok;
+      if (res.ok) {
+        const json = await res.json().catch(() => null);
+        if (json?.accessToken) {
+          localStorage.setItem('accessToken', json.accessToken);
+        }
+        return true;
+      }
+      return false;
     } catch {
       return false;
     } finally {
@@ -59,9 +75,16 @@ export async function apiGet<T>(
   options?: RequestInit,
 ): Promise<T | null> {
   try {
+    const token = _token || getStoredToken();
+    const headers: Record<string, string> = {
+      ...((options?.headers as Record<string, string>) || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
     let res = await fetch(`${API_URL}${path}`, {
       cache: options?.cache ?? 'default',
       ...options,
+      headers,
       credentials: 'include',
       signal: options?.signal ?? AbortSignal.timeout(20000),
     });
@@ -70,9 +93,15 @@ export async function apiGet<T>(
     if (res.status === 401 && typeof window !== 'undefined') {
       const refreshed = await attemptTokenRefresh();
       if (refreshed) {
+        const refreshedToken = getStoredToken();
+        const retryHeaders: Record<string, string> = {
+          ...((options?.headers as Record<string, string>) || {}),
+          ...(refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : {}),
+        };
         res = await fetch(`${API_URL}${path}`, {
           cache: options?.cache ?? 'default',
           ...options,
+          headers: retryHeaders,
           credentials: 'include',
           signal: options?.signal ?? AbortSignal.timeout(20000),
         });
@@ -94,8 +123,10 @@ export interface ApiResponse<T> {
 /** POST a JSON endpoint with automatic silent refresh on 401. */
 export async function apiPost<T, B = unknown>(path: string, body?: B, _token?: string): Promise<ApiResponse<T>> {
   try {
+    const token = _token || getStoredToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
     const timeoutMs = path.includes('/resume') ? 60000 : 35000;
@@ -115,9 +146,14 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, _token?: s
     ) {
       const refreshed = await attemptTokenRefresh();
       if (refreshed) {
+        const refreshedToken = getStoredToken();
+        const retryHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...(refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : {}),
+        };
         res = await fetch(`${API_URL}${path}`, {
           method: 'POST',
-          headers,
+          headers: retryHeaders,
           body: body ? JSON.stringify(body) : undefined,
           credentials: 'include',
           signal: AbortSignal.timeout(timeoutMs),
@@ -130,6 +166,16 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, _token?: s
       const msg = json?.message || (Array.isArray(json?.message) ? json.message.join(', ') : 'Request failed');
       return { data: null, error: msg, status: res.status };
     }
+
+    // Save token if returned in auth response
+    if (json?.accessToken && typeof window !== 'undefined') {
+      localStorage.setItem('accessToken', json.accessToken);
+    }
+    if (path.includes('/auth/logout') && typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('currentUser');
+    }
+
     return { data: json as T, error: null, status: res.status };
   } catch (err: unknown) {
     return { data: null, error: formatErrorMessage(err), status: 500 };
@@ -139,8 +185,10 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, _token?: s
 /** PUT a JSON endpoint with automatic silent refresh on 401. */
 export async function apiPut<T, B = unknown>(path: string, body?: B, _token?: string): Promise<ApiResponse<T>> {
   try {
+    const token = _token || getStoredToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
     let res = await fetch(`${API_URL}${path}`, {
@@ -154,9 +202,14 @@ export async function apiPut<T, B = unknown>(path: string, body?: B, _token?: st
     if (res.status === 401 && typeof window !== 'undefined') {
       const refreshed = await attemptTokenRefresh();
       if (refreshed) {
+        const refreshedToken = getStoredToken();
+        const retryHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...(refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : {}),
+        };
         res = await fetch(`${API_URL}${path}`, {
           method: 'PUT',
-          headers,
+          headers: retryHeaders,
           body: body ? JSON.stringify(body) : undefined,
           credentials: 'include',
           signal: AbortSignal.timeout(25000),
@@ -178,8 +231,10 @@ export async function apiPut<T, B = unknown>(path: string, body?: B, _token?: st
 /** PATCH a JSON endpoint with automatic silent refresh on 401. */
 export async function apiPatch<T, B = unknown>(path: string, body?: B, _token?: string): Promise<ApiResponse<T>> {
   try {
+    const token = _token || getStoredToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
     let res = await fetch(`${API_URL}${path}`, {
@@ -193,9 +248,14 @@ export async function apiPatch<T, B = unknown>(path: string, body?: B, _token?: 
     if (res.status === 401 && typeof window !== 'undefined') {
       const refreshed = await attemptTokenRefresh();
       if (refreshed) {
+        const refreshedToken = getStoredToken();
+        const retryHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...(refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : {}),
+        };
         res = await fetch(`${API_URL}${path}`, {
           method: 'PATCH',
-          headers,
+          headers: retryHeaders,
           body: body ? JSON.stringify(body) : undefined,
           credentials: 'include',
           signal: AbortSignal.timeout(25000),
@@ -217,8 +277,14 @@ export async function apiPatch<T, B = unknown>(path: string, body?: B, _token?: 
 /** DELETE a resource from a JSON endpoint with automatic silent refresh on 401. */
 export async function apiDelete<T>(path: string, _token?: string): Promise<ApiResponse<T>> {
   try {
+    const token = _token || getStoredToken();
+    const headers: Record<string, string> = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
     let res = await fetch(`${API_URL}${path}`, {
       method: 'DELETE',
+      headers,
       credentials: 'include',
       signal: AbortSignal.timeout(20000),
     });
@@ -226,8 +292,13 @@ export async function apiDelete<T>(path: string, _token?: string): Promise<ApiRe
     if (res.status === 401 && typeof window !== 'undefined') {
       const refreshed = await attemptTokenRefresh();
       if (refreshed) {
+        const refreshedToken = getStoredToken();
+        const retryHeaders: Record<string, string> = {
+          ...(refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : {}),
+        };
         res = await fetch(`${API_URL}${path}`, {
           method: 'DELETE',
+          headers: retryHeaders,
           credentials: 'include',
           signal: AbortSignal.timeout(20000),
         });

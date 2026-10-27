@@ -48,6 +48,10 @@ export function TopNavAuth() {
       setUser(null);
       setAvatarId('pixel-scholar');
       setDisplayName('');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('accessToken');
+      }
     }
   }, []);
 
@@ -82,6 +86,7 @@ export function TopNavAuth() {
 
     if (typeof window !== 'undefined') {
       localStorage.removeItem('currentUser');
+      localStorage.removeItem('accessToken');
       window.dispatchEvent(new Event('auth-changed'));
     }
 

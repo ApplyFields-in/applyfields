@@ -24,10 +24,11 @@ import { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
 const REFRESH_COOKIE_NAME = 'refresh_token';
 const ACCESS_COOKIE_NAME = 'accessToken';
 
+const isProduction = process.env.NODE_ENV === 'production';
 const COOKIE_BASE = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  secure: isProduction,
+  sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
   path: '/',
 };
 
@@ -80,7 +81,7 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
-    return { user: result.user };
+    return { user: result.user, accessToken: result.accessToken };
   }
 
   @Post('login/otp')
@@ -100,7 +101,7 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
-    return { user: result.user };
+    return { user: result.user, accessToken: result.accessToken };
   }
 
   @Post(['social/login', 'social-login'])
@@ -144,7 +145,7 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
-    return { user: result.user };
+    return { user: result.user, accessToken: result.accessToken };
   }
 
   @Post('passkey/register')
@@ -180,7 +181,7 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, tokens.newRefreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, opts.access);
 
-    return { success: true };
+    return { success: true, accessToken: tokens.accessToken };
   }
 
   @Post('logout')
