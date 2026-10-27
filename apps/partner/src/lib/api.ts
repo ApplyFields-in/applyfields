@@ -32,6 +32,12 @@ export interface ApiResponse<T> {
   status: number;
 }
 
+function getAuthHeader(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('partnerToken');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
@@ -48,9 +54,19 @@ async function attemptTokenRefresh(): Promise<boolean> {
       const res = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
       });
-      return res.ok;
+      if (res.ok) {
+        const json = await res.json().catch(() => null);
+        if (json?.accessToken && typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', json.accessToken);
+        }
+        return true;
+      }
+      return false;
     } catch {
       return false;
     } finally {
@@ -70,6 +86,7 @@ export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
       credentials: 'include',
       headers: {
         Accept: 'application/json',
+        ...getAuthHeader(),
       },
       signal: AbortSignal.timeout(20000),
     });
@@ -83,6 +100,7 @@ export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
           credentials: 'include',
           headers: {
             Accept: 'application/json',
+            ...getAuthHeader(),
           },
           signal: AbortSignal.timeout(20000),
         });
@@ -118,6 +136,7 @@ export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<A
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...getAuthHeader(),
       },
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',

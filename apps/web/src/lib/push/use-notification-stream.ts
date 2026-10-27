@@ -14,12 +14,31 @@ export function useNotificationStream() {
 
     let eventSource: EventSource | null = null;
     let retryTimer: NodeJS.Timeout | null = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
 
     function connect() {
+      const user = localStorage.getItem('currentUser');
+      if (!user) return;
+
+      const token = localStorage.getItem('accessToken');
+      const url = token
+        ? `${API_URL}/notifications/stream?token=${encodeURIComponent(token)}`
+        : `${API_URL}/notifications/stream`;
+
       try {
-        eventSource = new EventSource(`${API_URL}/notifications/stream`, {
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+
+        eventSource = new EventSource(url, {
           withCredentials: true,
         });
+
+        eventSource.onopen = () => {
+          retryCount = 0;
+        };
 
         eventSource.addEventListener('notification', (event) => {
           try {
@@ -37,10 +56,17 @@ export function useNotificationStream() {
             eventSource.close();
             eventSource = null;
           }
-          // Exponential backoff or retry after 15s
+          retryCount++;
+          // If unauthenticated or repeated failures, abort to prevent flooding console with 401s
+          if (retryCount >= MAX_RETRIES) {
+            return;
+          }
+          // Exponential backoff
           retryTimer = setTimeout(() => {
-            connect();
-          }, 15_000);
+            if (localStorage.getItem('currentUser')) {
+              connect();
+            }
+          }, 15_000 * retryCount);
         };
       } catch (err) {
         console.warn('[SSE] Connection error:', err);
@@ -51,11 +77,14 @@ export function useNotificationStream() {
 
     const handleAuthChange = () => {
       const user = localStorage.getItem('currentUser');
-      if (user && !eventSource) {
+      if (user) {
+        retryCount = 0;
+        if (retryTimer) clearTimeout(retryTimer);
         connect();
-      } else if (!user && eventSource) {
+      } else if (eventSource) {
         eventSource.close();
         eventSource = null;
+        if (retryTimer) clearTimeout(retryTimer);
       }
     };
 

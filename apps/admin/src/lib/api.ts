@@ -40,6 +40,12 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     } catch {
       // Cookies not available outside request scope
     }
+  } else {
+    // Browser-side: include Bearer token if present in localStorage
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('adminToken');
+    if (token && !headers['Authorization'] && !headers['authorization']) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
   }
 
   try {
