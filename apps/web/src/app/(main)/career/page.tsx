@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, Building2, Route } from 'lucide-react';
+import { BookOpen, Route } from 'lucide-react';
 import { apiGet } from '@/lib/api';
+import { CareerCollegesHoverMenu } from '@/components/career-colleges-hover-menu';
 import type { CareerCategory, CareerDetail, CareerSummary } from '@applyfields/types';
 
 export default function CareerPage() {
@@ -69,10 +70,10 @@ export default function CareerPage() {
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#082046] sm:text-3xl">Career</h1>
               <p className="mt-1 text-sm text-[#435775]">Your first move starts here.</p>
             </div>
-            <nav aria-label="Career resources" className="flex flex-wrap gap-2">
+            <nav aria-label="Career resources" className="flex flex-wrap items-center gap-2">
               <Link href="/career/roadmaps" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"><Route className="size-4 text-[#0e7bf4]" /> Roadmaps</Link>
               <Link href="/career/courses" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"><BookOpen className="size-4 text-[#0e7bf4]" /> Courses</Link>
-              <Link href="/career/colleges" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"><Building2 className="size-4 text-[#0e7bf4]" /> Colleges &amp; universities</Link>
+              <CareerCollegesHoverMenu />
             </nav>
             {categories.length > 0 && (
               <nav aria-label="Career categories" className="flex gap-2 overflow-x-auto pt-1 scrollbar-none">

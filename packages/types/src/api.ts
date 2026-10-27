@@ -1002,6 +1002,9 @@ export interface InstitutionSummary {
   accreditation: Record<string, any>;
   placement_stats: PlacementStats;
   courses_count?: number;
+  description?: string | null;
+  established_year?: number | null;
+  address?: string | null;
 }
 
 export interface InstitutionDetail extends InstitutionSummary {
