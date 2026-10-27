@@ -34,6 +34,8 @@ export const institutionListQuerySchema = z.object({
   q: z.string().trim().optional(),
   type: z.string().trim().optional(),
   state: z.string().trim().optional(),
+  stream: z.string().trim().optional(),
+  category: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -266,9 +268,25 @@ export class InstitutionsService {
     const q = query.q?.trim().toLowerCase();
     const type = query.type?.trim();
     const state = query.state?.trim().toUpperCase();
+    const stream = (query.stream || query.category)?.trim().toLowerCase();
     const page = Math.max(1, query.page || 1);
     const limit = Math.min(100, Math.max(1, query.limit || 20));
     const offset = (page - 1) * limit;
+
+    let streamSql = Prisma.empty;
+    if (stream === 'top-50-engg' || stream === 'top-50' || stream === 'top-50-engineering') {
+      streamSql = Prisma.sql`and (i.accreditation->>'nirf_rank') is not null`;
+    } else if (stream === 'management' || stream === 'mba' || stream === 'business') {
+      streamSql = Prisma.sql`and (i.name ilike '%management%' or i.name ilike '%business%' or i.name ilike '%mba%')`;
+    } else if (stream === 'polytechnic' || stream === 'diploma') {
+      streamSql = Prisma.sql`and (i.name ilike '%polytechnic%' or i.name ilike '%diploma%')`;
+    } else if (stream === 'architecture' || stream === 'planning' || stream === 'town-planning') {
+      streamSql = Prisma.sql`and (i.name ilike '%architecture%' or i.name ilike '%planning%' or i.name ilike '%design%')`;
+    } else if (stream === 'pharmacy') {
+      streamSql = Prisma.sql`and (i.name ilike '%pharmacy%' or i.name ilike '%pharm%')`;
+    } else if (stream === 'medical') {
+      streamSql = Prisma.sql`and (i.name ilike '%medical%' or i.name ilike '%dental%' or i.name ilike '%nursing%' or i.name ilike '%health%')`;
+    }
 
     const countRows = await this.prisma.$queryRaw<Array<{ total: number }>>`
       select count(*)::int as total
@@ -276,6 +294,7 @@ export class InstitutionsService {
       where i.status = 'published'
         ${type ? Prisma.sql`and i.type = ${type}::institution_type` : Prisma.empty}
         ${state ? Prisma.sql`and i.state_code = ${state}` : Prisma.empty}
+        ${streamSql}
         ${
           q
             ? Prisma.sql`and (
@@ -304,6 +323,8 @@ export class InstitutionsService {
         website: string | null;
         ranking_text: string | null;
         fees_text: string | null;
+        description: string | null;
+        established_year: number | null;
         accreditation: any;
         placement_stats: any;
         courses_count: number;
@@ -313,6 +334,7 @@ export class InstitutionsService {
              i.type::text as type, i.ownership::text as ownership,
              i.state_code, i.city, i.district, i.website,
              i.ranking_text, i.fees_text,
+             i.description, i.established_year,
              i.accreditation, i.placement_stats,
              count(distinct ic.course_id)::int as courses_count
       from institutions i
@@ -320,6 +342,7 @@ export class InstitutionsService {
       where i.status = 'published'
         ${type ? Prisma.sql`and i.type = ${type}::institution_type` : Prisma.empty}
         ${state ? Prisma.sql`and i.state_code = ${state}` : Prisma.empty}
+        ${streamSql}
         ${
           q
             ? Prisma.sql`and (
@@ -331,13 +354,15 @@ export class InstitutionsService {
               )`
             : Prisma.empty
         }
-      group by i.id, i.slug, i.name, i.short_name, i.type, i.ownership, i.state_code, i.city, i.district, i.website, i.ranking_text, i.fees_text, i.accreditation, i.placement_stats
+      group by i.id, i.slug, i.name, i.short_name, i.type, i.ownership, i.state_code, i.city, i.district, i.website, i.ranking_text, i.fees_text, i.description, i.established_year, i.accreditation, i.placement_stats
       order by
         case
-          when i.ranking_text like 'NIRF%' then 1
-          when i.ranking_text like 'NBA%' then 2
-          else 3
+          when coalesce((i.accreditation->>'nirf_rank')::int, 9999) < 9999 then 1
+          when i.ranking_text like 'NIRF%' then 2
+          when i.ranking_text like 'NBA%' then 3
+          else 4
         end asc,
+        coalesce((i.accreditation->>'nirf_rank')::int, 9999) asc,
         i.created_at asc
       limit ${limit}
       offset ${offset}
@@ -437,23 +462,23 @@ export class InstitutionsService {
 
   /** Side-by-Side Comparison of 2-4 institutions */
   async compareInstitutions(slugsOrIds: string[]): Promise<InstitutionDetail[]> {
-    const list: InstitutionDetail[] = [];
-    for (const item of slugsOrIds) {
-      try {
-        const detail = await this.getInstitutionBySlug(item);
-        list.push(detail);
-      } catch {
-        // try ID lookup
-        const row = await this.prisma.$queryRaw<Array<{ slug: string }>>`
-          select slug from institutions where id = ${item}::uuid limit 1
-        `;
-        if (row && row.length > 0) {
-          const detail = await this.getInstitutionBySlug(row[0].slug);
-          list.push(detail);
+    const results = await Promise.all(
+      slugsOrIds.map(async (item) => {
+        try {
+          return await this.getInstitutionBySlug(item);
+        } catch {
+          // try ID lookup
+          const row = await this.prisma.$queryRaw<Array<{ slug: string }>>`
+            select slug from institutions where id = ${item}::uuid limit 1
+          `;
+          if (row && row.length > 0) {
+            return await this.getInstitutionBySlug(row[0].slug);
+          }
+          return null;
         }
-      }
-    }
-    return list;
+      }),
+    );
+    return results.filter((d): d is InstitutionDetail => d !== null);
   }
 
   // =========================================================================

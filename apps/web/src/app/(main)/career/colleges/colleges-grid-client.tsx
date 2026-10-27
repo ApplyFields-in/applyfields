@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import type { InstitutionSummary } from '@applyfields/types';
-import { Badge, buttonClass, Card, cn, EmptyState } from '@applyfields/ui';
+import { cn, EmptyState } from '@applyfields/ui';
 import {
   ArrowRight,
   Award,
   Building,
-  Check,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -16,11 +15,19 @@ import {
   LayoutGrid,
   List,
   MapPin,
-  Plus,
-  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { SaveButton } from '@/components/save-button';
+
+function getShortDescription(desc?: string | null): string {
+  if (!desc) return 'Premier technical education and higher research institute in India.';
+  const clean = desc
+    .replace(/^(IIT|NIT|BITS|VIT|DTU|[A-Z\s]+)\s+Highlights\s+\d{4}/i, '')
+    .replace(/^IIT Madras is known as an 'Institute of Eminence'\./i, 'Renowned Institute of Eminence.')
+    .trim();
+  if (clean.length <= 135) return clean;
+  return clean.slice(0, 130).replace(/[\s,\.\-]+$/, '') + '...';
+}
 
 const TYPE_LABELS: Record<string, string> = {
   institute: 'National Institute',
@@ -39,6 +46,7 @@ interface CollegesGridClientProps {
   q: string;
   type: string;
   state: string;
+  stream?: string;
 }
 
 export function CollegesGridClient({
@@ -50,42 +58,14 @@ export function CollegesGridClient({
   q,
   type,
   state,
+  stream = '',
 }: CollegesGridClientProps) {
-  const [selectedColleges, setSelectedColleges] = useState<
-    Array<{ slug: string; name: string; short_name: string | null }>
-  >([]);
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('applyfields_colleges_view');
-      if (saved === 'list' || saved === 'grid') {
-        setViewLayout(saved);
-      }
-    }
-  }, []);
-
-  const toggleCompare = (college: InstitutionSummary) => {
-    const isSelected = selectedColleges.some((c) => c.slug === college.slug);
-    if (isSelected) {
-      setSelectedColleges(selectedColleges.filter((c) => c.slug !== college.slug));
-    } else {
-      if (selectedColleges.length >= 4) {
-        alert('You can compare up to 4 colleges at a time.');
-        return;
-      }
-      setSelectedColleges([
-        ...selectedColleges,
-        { slug: college.slug, name: college.name, short_name: college.short_name },
-      ]);
-    }
-  };
-
-  const isCompared = (slug: string) => selectedColleges.some((c) => c.slug === slug);
 
   // Helper to build page URL preserving search and filter parameters
   const buildPageUrl = (targetPage: number) => {
     const p = new URLSearchParams();
+    if (stream) p.set('stream', stream);
     if (q) p.set('q', q);
     if (type) p.set('type', type);
     if (state) p.set('state', state);
@@ -118,22 +98,22 @@ export function CollegesGridClient({
   const endCount = Math.min(page * limit, total);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header Info & Counts + Grid/List View Toggle */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-teal/70">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-[#536780]">
         <div>
-          Showing <strong className="text-teal font-bold">{total > 0 ? startCount : 0}</strong> to{' '}
-          <strong className="text-teal font-bold">{endCount}</strong> of{' '}
-          <strong className="text-teal font-bold">{total.toLocaleString()}</strong> institutions (20 per page)
+          Showing <strong className="text-[#082046] font-bold">{total > 0 ? startCount : 0}</strong> to{' '}
+          <strong className="text-[#082046] font-bold">{endCount}</strong> of{' '}
+          <strong className="text-[#082046] font-bold">{total.toLocaleString()}</strong> institutions (20 per page)
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="text-[11px] text-teal/60">
+          <div className="text-[11px] text-[#536780]">
             Page <strong>{page}</strong> of <strong>{totalPages}</strong>
           </div>
 
-          {/* Grid vs List View Mode Toggle */}
-          <div className="flex items-center gap-1 rounded-2xl bg-white border border-[#d5deea] p-1 shadow-sm">
+          {/* Grid vs List View Mode Toggle - Rectangular rounded-md */}
+          <div className="flex items-center gap-1 rounded-md bg-[#ffffff] border border-[#dec9a5] p-1 shadow-sm">
             <button
               type="button"
               onClick={() => {
@@ -142,10 +122,10 @@ export function CollegesGridClient({
               }}
               aria-label="Grid View"
               className={cn(
-                'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
+                'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold transition-all',
                 viewLayout === 'grid'
-                  ? 'bg-[#0e7bf4] text-white shadow-clay-btn-azure'
-                  : 'text-[#526987] hover:text-[#082046] hover:bg-slate-50',
+                  ? 'border border-[#dec9a5] bg-[#F4E8D1] text-[#082046] font-bold'
+                  : 'text-[#536780] hover:text-[#082046] hover:bg-[#f8f5ef]',
               )}
             >
               <LayoutGrid className="size-3.5" />
@@ -159,10 +139,10 @@ export function CollegesGridClient({
               }}
               aria-label="List View"
               className={cn(
-                'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
+                'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold transition-all',
                 viewLayout === 'list'
-                  ? 'bg-[#0e7bf4] text-white shadow-clay-btn-azure'
-                  : 'text-[#526987] hover:text-[#082046] hover:bg-slate-50',
+                  ? 'border border-[#dec9a5] bg-[#F4E8D1] text-[#082046] font-bold'
+                  : 'text-[#536780] hover:text-[#082046] hover:bg-[#f8f5ef]',
               )}
             >
               <List className="size-3.5" />
@@ -172,7 +152,7 @@ export function CollegesGridClient({
         </div>
       </div>
 
-      {/* College Cards: Grid or List Mode */}
+      {/* College Cards: Grid or List Mode (Rectangular rounded-md, No AI badges) */}
       {colleges.length === 0 ? (
         <EmptyState
           icon={<Building />}
@@ -180,127 +160,107 @@ export function CollegesGridClient({
           text="Try broadening your search term or clearing the filters above."
         />
       ) : viewLayout === 'list' ? (
-        /* List Mode: Wide Full-Width Row Cards */
+        /* List Mode: Wide Full-Width Row Cards - Rectangular rounded-md */
         <div className="space-y-4">
           {colleges.map((c) => {
-            const compared = isCompared(c.slug);
+            const rankDisplay = c.accreditation?.nirf_rank_text || c.ranking_text || (c.accreditation?.nirf_rank ? `NIRF Rank #${c.accreditation.nirf_rank}` : null);
+            const instituteType = c.accreditation?.institute_type_raw || TYPE_LABELS[c.type] || c.type;
+            const establishedDisplay = c.accreditation?.established_text || (c.established_year ? `Estd. ${c.established_year}` : null);
+            const locationDisplay = c.accreditation?.location_shown || [c.city, c.state_code].filter(Boolean).join(', ') || 'India';
+            const descriptionSnippet = getShortDescription(c.description);
+
             return (
-              <Card
+              <div
                 key={c.id}
-                className={cn(
-                  'group flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 sm:p-6 transition-all hover:border-teal/40 hover:shadow-clay',
-                  compared && 'border-teal ring-2 ring-teal/20 bg-teal/[0.02]',
-                )}
+                className="group flex flex-col lg:flex-row lg:items-center justify-between gap-5 p-5 sm:p-6 rounded-md border border-[#dec9a5] bg-[#ffffff] transition-all hover:border-[#082046]/50 shadow-sm"
               >
                 <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="teal" className="text-[11px]">
-                      {TYPE_LABELS[c.type] || c.type}
-                    </Badge>
-                    {c.ranking_text && (
-                      <Badge tone="tea" className="gap-1 text-[11px] font-bold">
-                        <Award className="size-3" /> {c.ranking_text}
-                      </Badge>
-                    )}
-                    <span className="flex items-center gap-1 text-xs font-medium text-teal/70">
-                      <MapPin className="size-3.5 text-teal/50" /> {c.city || c.district || 'India'}
-                      {c.state_code ? `, ${c.state_code}` : ''}
-                    </span>
-                    {c.ownership && (
-                      <span className="text-xs text-teal/60">
-                        · {c.ownership === 'government' ? 'Government' : c.ownership.toUpperCase()}
+                    {rankDisplay && (
+                      <span className="inline-flex items-center gap-1 rounded border border-[#dec9a5] bg-[#F4E8D1] px-2 py-0.5 text-[11px] font-bold text-[#76562d]">
+                        <Award className="size-3 text-[#76562d]" /> {rankDisplay}
                       </span>
                     )}
+                    <span className="inline-flex items-center rounded border border-[#dec9a5] bg-[#f8f5ef] px-2 py-0.5 text-[11px] font-medium text-[#243b5b]">
+                      {instituteType}
+                    </span>
+                    {establishedDisplay && (
+                      <span className="inline-flex items-center rounded border border-[#dec9a5] bg-[#f8f5ef] px-2 py-0.5 text-[11px] font-medium text-[#536780]">
+                        {establishedDisplay}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1 text-xs font-medium text-[#536780]">
+                      <MapPin className="size-3.5 text-[#76562d] shrink-0" /> {locationDisplay}
+                    </span>
                   </div>
 
                   <Link href={`/career/colleges/${c.slug}`}>
-                    <h2 className="text-lg sm:text-xl font-bold text-teal group-hover:underline line-clamp-1">
+                    <h2 className="text-lg sm:text-xl font-bold text-[#082046] group-hover:text-[#0e7bf4] group-hover:underline line-clamp-1 transition-colors">
                       {c.name}
                     </h2>
                   </Link>
 
-                  <div className="flex flex-wrap items-center gap-4 text-xs">
-                    <span className="text-teal/70">
-                      Placement: <strong className="text-teal">{c.placement_stats?.avg_package || 'Industry standard'}</strong>
-                    </span>
-                    <span className="text-teal/70">
-                      Annual Fee: <strong className="text-teal">{c.fees_text || 'Subsidized'}</strong>
-                    </span>
-                    <span className="text-teal/70 font-semibold">
-                      {c.courses_count || 0} Programs Offered
-                    </span>
-                  </div>
+                  <p className="text-xs text-[#536780] leading-relaxed line-clamp-2 max-w-3xl">
+                    {descriptionSnippet}
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-line/60">
+                <div className="flex items-center gap-2.5 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#dec9a5]/40">
                   <SaveButton
                     itemType="institution"
                     slug={c.slug}
                     title={c.name}
                   />
 
-                  <button
-                    type="button"
-                    onClick={() => toggleCompare(c)}
-                    className={buttonClass({
-                      variant: compared ? 'primary' : 'secondary',
-                      size: 'sm',
-                      className: cn(
-                        'text-xs gap-1 transition-all',
-                        compared && 'bg-teal text-cream font-bold',
-                      ),
-                    })}
-                    title={compared ? 'Click to remove from compare' : 'Add to compare tray'}
+                  <Link
+                    href={`/career/colleges/compare?slugs=${c.slug}`}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3 text-xs font-semibold text-[#082046] hover:bg-[#ffffff] transition-colors"
+                    title={`Compare ${c.name} with other colleges`}
                   >
-                    {compared ? (
-                      <>
-                        <Check className="size-3.5" /> Comparing
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="size-3.5" /> Compare
-                      </>
-                    )}
-                  </button>
+                    <Columns className="size-3.5 text-[#0e7bf4]" /> Compare
+                  </Link>
 
                   <Link
                     href={`/career/colleges/${c.slug}`}
-                    className={buttonClass({
-                      variant: 'primary',
-                      size: 'sm',
-                      className: 'gap-1 shadow-clay text-xs',
-                    })}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-[#dec9a5] bg-[#F4E8D1] px-3.5 text-xs font-bold text-[#082046] hover:bg-[#ebdcc0] transition-colors shadow-sm"
                   >
                     View Details <ArrowRight className="size-3.5" />
                   </Link>
                 </div>
-              </Card>
+              </div>
             );
           })}
         </div>
       ) : (
-        /* Grid Mode: 2-Column Responsive Card Grid */
-        <div className="grid gap-6 md:grid-cols-2">
+        /* Grid Mode: 2-Column Responsive Card Grid - Rectangular rounded-md */
+        <div className="grid gap-5 md:grid-cols-2">
           {colleges.map((c) => {
-            const compared = isCompared(c.slug);
+            const rankDisplay = c.accreditation?.nirf_rank_text || c.ranking_text || (c.accreditation?.nirf_rank ? `NIRF Rank #${c.accreditation.nirf_rank}` : null);
+            const instituteType = c.accreditation?.institute_type_raw || TYPE_LABELS[c.type] || c.type;
+            const establishedDisplay = c.accreditation?.established_text || (c.established_year ? `Estd. ${c.established_year}` : null);
+            const locationDisplay = c.accreditation?.location_shown || [c.city, c.state_code].filter(Boolean).join(', ') || 'India';
+            const descriptionSnippet = getShortDescription(c.description);
+
             return (
-              <Card
+              <div
                 key={c.id}
-                className={cn(
-                  'group flex flex-col justify-between p-6 transition-all hover:border-teal/40 hover:shadow-clay',
-                  compared && 'border-teal ring-2 ring-teal/20 bg-teal/[0.02]',
-                )}
+                className="group flex flex-col justify-between p-5 sm:p-6 rounded-md border border-[#dec9a5] bg-[#ffffff] transition-all hover:border-[#082046]/50 shadow-sm"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge tone="teal" className="text-[11px]">
-                        {TYPE_LABELS[c.type] || c.type}
-                      </Badge>
-                      {c.ranking_text && (
-                        <Badge tone="tea" className="gap-1 text-[11px] font-bold">
-                          <Award className="size-3" /> {c.ranking_text}
-                        </Badge>
+                      {rankDisplay && (
+                        <span className="inline-flex items-center gap-1 rounded border border-[#dec9a5] bg-[#F4E8D1] px-2 py-0.5 text-[11px] font-bold text-[#76562d]">
+                          <Award className="size-3 text-[#76562d]" /> {rankDisplay}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center rounded border border-[#dec9a5] bg-[#f8f5ef] px-2 py-0.5 text-[11px] font-medium text-[#243b5b]">
+                        {instituteType}
+                      </span>
+                      {establishedDisplay && (
+                        <span className="inline-flex items-center rounded border border-[#dec9a5] bg-[#f8f5ef] px-2 py-0.5 text-[11px] font-medium text-[#536780]">
+                          {establishedDisplay}
+                        </span>
                       )}
                     </div>
                     {/* Save / Bookmark Button */}
@@ -312,107 +272,61 @@ export function CollegesGridClient({
                   </div>
 
                   <Link href={`/career/colleges/${c.slug}`}>
-                    <h2 className="mt-3 text-lg font-bold text-teal group-hover:underline line-clamp-2">
+                    <h2 className="mt-3 text-lg font-bold text-[#082046] group-hover:text-[#0e7bf4] group-hover:underline line-clamp-2 transition-colors">
                       {c.name}
                     </h2>
                   </Link>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium text-teal/70">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="size-3.5 text-teal/50" /> {c.city || c.district || 'India'}
-                      {c.state_code ? `, ${c.state_code}` : ''}
-                    </span>
-                    {c.ownership && (
-                      <span>
-                        · {c.ownership === 'government' ? 'Government' : c.ownership.toUpperCase()}
-                      </span>
-                    )}
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-[#536780]">
+                    <MapPin className="size-3.5 text-[#76562d] shrink-0" />
+                    <span>{locationDisplay}</span>
                   </div>
 
-                  {/* Placement & Tuition Fee Highlights */}
-                  <div className="mt-4 grid grid-cols-2 gap-2.5 rounded-xl bg-tea/30 p-3 text-xs">
-                    <div>
-                      <span className="text-[11px] text-teal/70 font-medium">Placement Avg</span>
-                      <p className="font-bold text-teal mt-0.5 truncate">
-                        {c.placement_stats?.avg_package || 'Industry standard'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-teal/70 font-medium">Annual Tuition Fee</span>
-                      <p className="font-bold text-teal mt-0.5 truncate" title={c.fees_text || ''}>
-                        {c.fees_text || 'Subsidized'}
-                      </p>
-                    </div>
-                  </div>
+                  {/* Description a little */}
+                  <p className="mt-2.5 text-xs text-[#536780] leading-relaxed line-clamp-2">
+                    {descriptionSnippet}
+                  </p>
                 </div>
 
-                <div className="mt-6 flex items-center justify-between border-t border-line/60 pt-4">
-                  <span className="text-xs font-semibold text-teal/70">
-                    {c.courses_count || 0} Programs Offered
-                  </span>
+                <div className="mt-5 flex items-center justify-between border-t border-[#dec9a5]/40 pt-4">
+                  <Link
+                    href={`/career/colleges/compare?slugs=${c.slug}`}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3 text-xs font-semibold text-[#082046] hover:bg-[#ffffff] transition-colors"
+                    title={`Compare ${c.name} with other colleges`}
+                  >
+                    <Columns className="size-3.5 text-[#0e7bf4]" /> Compare
+                  </Link>
 
-                  <div className="flex items-center gap-2">
-                    {/* Add to compare toggle */}
-                    <button
-                      type="button"
-                      onClick={() => toggleCompare(c)}
-                      className={buttonClass({
-                        variant: compared ? 'primary' : 'secondary',
-                        size: 'sm',
-                        className: cn(
-                          'text-xs gap-1 transition-all',
-                          compared && 'bg-teal text-cream font-bold',
-                        ),
-                      })}
-                      title={compared ? 'Click to remove from compare' : 'Add to compare tray'}
-                    >
-                      {compared ? (
-                        <>
-                          <Check className="size-3.5" /> Comparing
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="size-3.5" /> Compare
-                        </>
-                      )}
-                    </button>
-
-                    <Link
-                      href={`/career/colleges/${c.slug}`}
-                      className={buttonClass({
-                        variant: 'primary',
-                        size: 'sm',
-                        className: 'gap-1 shadow-clay text-xs',
-                      })}
-                    >
-                      View Details <ArrowRight className="size-3.5" />
-                    </Link>
-                  </div>
+                  <Link
+                    href={`/career/colleges/${c.slug}`}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-[#dec9a5] bg-[#F4E8D1] px-3.5 text-xs font-bold text-[#082046] hover:bg-[#ebdcc0] transition-colors shadow-sm"
+                  >
+                    View Details <ArrowRight className="size-3.5" />
+                  </Link>
                 </div>
-              </Card>
+              </div>
             );
           })}
         </div>
       )}
 
-      {/* Pagination Bar */}
+      {/* Pagination Bar - Rectangular rounded-md */}
       {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-line/60 bg-cream/30 p-4 shadow-sm">
-          <div className="text-xs text-teal/70">
-            Showing <strong className="font-bold text-teal">{startCount}</strong> to{' '}
-            <strong className="font-bold text-teal">{endCount}</strong> of{' '}
-            <strong className="font-bold text-teal">{total.toLocaleString()}</strong> colleges
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-md border border-[#dec9a5] bg-[#f8f5ef] p-4 shadow-sm">
+          <div className="text-xs text-[#536780]">
+            Showing <strong className="font-bold text-[#082046]">{startCount}</strong> to{' '}
+            <strong className="font-bold text-[#082046]">{endCount}</strong> of{' '}
+            <strong className="font-bold text-[#082046]">{total.toLocaleString()}</strong> colleges
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* First Page */}
             <Link
               href={buildPageUrl(1)}
-              className={buttonClass({
-                variant: 'ghost',
-                size: 'sm',
-                className: cn('size-8 p-0', page <= 1 && 'pointer-events-none opacity-40'),
-              })}
+              className={cn(
+                'grid size-8 place-items-center rounded-md border border-[#dec9a5] bg-[#ffffff] text-[#082046] text-xs transition-colors hover:bg-[#F4E8D1]',
+                page <= 1 && 'pointer-events-none opacity-40',
+              )}
               aria-label="First page"
               title="First page"
             >
@@ -422,11 +336,10 @@ export function CollegesGridClient({
             {/* Previous Page */}
             <Link
               href={buildPageUrl(Math.max(1, page - 1))}
-              className={buttonClass({
-                variant: 'ghost',
-                size: 'sm',
-                className: cn('size-8 p-0', page <= 1 && 'pointer-events-none opacity-40'),
-              })}
+              className={cn(
+                'grid size-8 place-items-center rounded-md border border-[#dec9a5] bg-[#ffffff] text-[#082046] text-xs transition-colors hover:bg-[#F4E8D1]',
+                page <= 1 && 'pointer-events-none opacity-40',
+              )}
               aria-label="Previous page"
               title="Previous page"
             >
@@ -437,7 +350,7 @@ export function CollegesGridClient({
             {getPageNumbers().map((num, idx) => {
               if (num === '...') {
                 return (
-                  <span key={`dots-${idx}`} className="px-2 text-xs font-bold text-teal/50">
+                  <span key={`dots-${idx}`} className="px-2 text-xs font-bold text-[#76562d]">
                     ...
                   </span>
                 );
@@ -448,10 +361,10 @@ export function CollegesGridClient({
                   key={`page-${num}`}
                   href={buildPageUrl(num as number)}
                   className={cn(
-                    'grid size-8 place-items-center rounded-xl text-xs font-bold transition-all',
+                    'grid size-8 place-items-center rounded-md text-xs font-bold transition-all border',
                     isCurrent
-                      ? 'bg-teal text-cream shadow-sm scale-105'
-                      : 'bg-canvas text-teal/80 hover:bg-tea/40 border border-line/60',
+                      ? 'border-[#082046] bg-[#082046] text-[#ffffff]'
+                      : 'border-[#dec9a5] bg-[#ffffff] text-[#243b5b] hover:bg-[#F4E8D1]',
                   )}
                 >
                   {num}
@@ -462,11 +375,10 @@ export function CollegesGridClient({
             {/* Next Page */}
             <Link
               href={buildPageUrl(Math.min(totalPages, page + 1))}
-              className={buttonClass({
-                variant: 'ghost',
-                size: 'sm',
-                className: cn('size-8 p-0', page >= totalPages && 'pointer-events-none opacity-40'),
-              })}
+              className={cn(
+                'grid size-8 place-items-center rounded-md border border-[#dec9a5] bg-[#ffffff] text-[#082046] text-xs transition-colors hover:bg-[#F4E8D1]',
+                page >= totalPages && 'pointer-events-none opacity-40',
+              )}
               aria-label="Next page"
               title="Next page"
             >
@@ -476,11 +388,10 @@ export function CollegesGridClient({
             {/* Last Page */}
             <Link
               href={buildPageUrl(totalPages)}
-              className={buttonClass({
-                variant: 'ghost',
-                size: 'sm',
-                className: cn('size-8 p-0', page >= totalPages && 'pointer-events-none opacity-40'),
-              })}
+              className={cn(
+                'grid size-8 place-items-center rounded-md border border-[#dec9a5] bg-[#ffffff] text-[#082046] text-xs transition-colors hover:bg-[#F4E8D1]',
+                page >= totalPages && 'pointer-events-none opacity-40',
+              )}
               aria-label="Last page"
               title="Last page"
             >
@@ -488,65 +399,6 @@ export function CollegesGridClient({
             </Link>
           </div>
         </div>
-      )}
-
-      {/* Floating Compare Dock */}
-      {selectedColleges.length > 0 && (
-        <aside
-          aria-label="College Comparison Tray"
-          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 w-[94%] max-w-3xl animate-in fade-in slide-in-from-bottom-5 duration-200"
-        >
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-teal/40 bg-teal/95 p-3.5 text-cream shadow-2xl backdrop-blur-md">
-            <div className="flex items-center gap-3 overflow-x-auto max-w-full w-full sm:w-auto pb-1 sm:pb-0">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Columns className="size-4 text-tea" />
-                <span className="text-xs font-bold">
-                  Compare ({selectedColleges.length}/4):
-                </span>
-              </div>
-              <div className="flex items-center gap-2 overflow-x-auto py-0.5">
-                {selectedColleges.map((c) => (
-                  <span
-                    key={c.slug}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-cream/15 px-2.5 py-1 text-[11px] font-semibold text-cream border border-cream/20 shrink-0"
-                  >
-                    <span className="max-w-[130px] truncate">{c.short_name || c.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => toggleCompare(c as InstitutionSummary)}
-                      className="hover:text-amber-300 transition-colors"
-                      title={`Remove ${c.name}`}
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
-              <button
-                type="button"
-                onClick={() => setSelectedColleges([])}
-                className="text-xs font-semibold text-cream/70 hover:text-cream px-2 py-1"
-              >
-                Clear
-              </button>
-
-              <Link
-                href={`/career/colleges/compare?slugs=${selectedColleges.map((c) => c.slug).join(',')}`}
-                className={buttonClass({
-                  variant: 'secondary',
-                  size: 'sm',
-                  className: 'bg-tea text-teal font-extrabold hover:bg-tea/90 shadow-clay text-xs gap-1.5',
-                })}
-              >
-                <Columns className="size-3.5" />
-                Compare Now
-              </Link>
-            </div>
-          </div>
-        </aside>
       )}
     </div>
   );
