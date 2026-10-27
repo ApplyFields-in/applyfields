@@ -26,6 +26,7 @@ import type {
   VerifyOtpDto,
 } from './dto/otp.dto.js';
 import type { UserSummary } from '@applyfields/types';
+import { sendOtpEmail } from '../notifications/email.js';
 
 // Internal type — includes tokens so the controller can set cookies. Never sent to clients.
 type LoginResult = { user: UserSummary; accessToken: string; refreshToken: string };
@@ -161,6 +162,13 @@ export class AuthService {
     console.log(
       `\x1b[36m[DEV OTP]\x1b[0m Generated code for \x1b[33m${maskedTarget}\x1b[0m (${dto.purpose}): \x1b[32m\x1b[1m${rawOtp}\x1b[0m (valid for 10m)`,
     );
+
+    // If target is an email address and RESEND_API_KEY is configured, dispatch the real OTP email:
+    if (dto.target.includes('@')) {
+      sendOtpEmail(dto.target, rawOtp, dto.purpose).catch((err) => {
+        console.warn(`[OTP EMAIL] Could not deliver OTP email to ${maskedTarget}:`, err?.message ?? err);
+      });
+    }
 
     const isDev = process.env.NODE_ENV !== 'production';
 
