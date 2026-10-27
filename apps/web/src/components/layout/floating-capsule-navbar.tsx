@@ -63,10 +63,18 @@ export function FloatingCapsuleNavbar() {
     const me = await apiGet<MeResponse>('/me');
     if (me && me.user) {
       setUser(me.user);
+      localStorage.setItem('currentUser', JSON.stringify(me.user));
       const name = me.profile?.full_name?.trim() || me.user.email?.split('@')[0] || 'Account';
       setDisplayName(name);
       const parts = name.trim().split(' ');
       setInitials(name === 'Account' ? '' : parts.length > 1 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : name.slice(0, 2).toUpperCase());
+    } else {
+      // Session expired or unauthenticated — clear ghost user from navbar and storage
+      setUser(null);
+      setDisplayName('');
+      setInitials('');
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('accessToken');
     }
   }, []);
 
@@ -97,9 +105,12 @@ export function FloatingCapsuleNavbar() {
     await apiPost('/auth/logout');
     if (typeof window !== 'undefined') {
       localStorage.removeItem('currentUser');
+      localStorage.removeItem('accessToken');
       window.dispatchEvent(new Event('auth-changed'));
     }
     setUser(null);
+    setDisplayName('');
+    setInitials('');
     setDropdownOpen(false);
     router.push('/');
   }
