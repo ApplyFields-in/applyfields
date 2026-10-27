@@ -8,6 +8,12 @@ export interface ApiResponse<T> {
   status: number;
 }
 
+function getAuthHeader(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const token = localStorage.getItem('accessToken');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
   try {
     const res = await fetch(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, {
@@ -16,6 +22,7 @@ export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
       credentials: 'include',
       headers: {
         Accept: 'application/json',
+        ...getAuthHeader(),
       },
       signal: AbortSignal.timeout(20000),
     });
@@ -49,6 +56,7 @@ export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<A
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...getAuthHeader(),
       },
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',
