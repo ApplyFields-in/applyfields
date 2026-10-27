@@ -282,24 +282,40 @@ export class AuthService {
     dto: LoginOtpDto,
     meta: { userAgent?: string; ipAddress?: string } = {},
   ): Promise<LoginResult> {
+    const target = (dto.identifier || dto.email || dto.phone || '').trim();
+    if (!target) {
+      throw new BadRequestException('Phone number or email is required');
+    }
+
     await this.verifyOtp({
-      target: dto.phone,
+      target,
       purpose: 'login',
       code: dto.code,
     });
 
-    let user = await this.store.findUserByPhone(dto.phone);
+    const isEmail = target.includes('@');
+    let user = isEmail
+      ? await this.store.findUserByEmail(target.toLowerCase())
+      : await this.store.findUserByPhone(target);
+
     if (!user) {
       // Create user if not existing
       const dummyPassword = randomBytes(24).toString('hex');
       const password_hash = await argon2.hash(dummyPassword, ARGON2_OPTIONS);
       user = await this.store.createUser({
-        phone: dto.phone,
+        email: isEmail ? target.toLowerCase() : undefined,
+        phone: !isEmail ? target : undefined,
         password_hash,
       });
-      await this.store.updateUser(user.id, {
-        phone_verified_at: new Date().toISOString(),
-      });
+      if (isEmail) {
+        await this.store.updateUser(user.id, {
+          email_verified_at: new Date().toISOString(),
+        });
+      } else {
+        await this.store.updateUser(user.id, {
+          phone_verified_at: new Date().toISOString(),
+        });
+      }
     }
 
     const [, tokens] = await Promise.all([
