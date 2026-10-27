@@ -15,9 +15,17 @@ export class LoginDto {
 }
 
 export class LoginOtpDto {
-  @IsNotEmpty({ message: 'Phone number is required' })
+  @IsOptional()
   @IsString()
-  phone!: string;
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  identifier?: string;
 
   @IsNotEmpty({ message: 'OTP code is required' })
   @IsString()

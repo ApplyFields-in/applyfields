@@ -37,6 +37,8 @@ function LoginForm() {
   const [password, setPassword] = useState('');
 
   // OTP mode states
+  const [otpCredType, setOtpCredType] = useState<'phone' | 'email'>('phone');
+  const [otpEmail, setOtpEmail] = useState('');
   const [phone, setPhone] = useState('+91');
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
@@ -119,15 +121,24 @@ function LoginForm() {
 
   async function handleSendOtp() {
     setError(null);
-    const cleanPhone = phone.trim();
-    if (!isValidPhone(cleanPhone)) {
-      setError('Please select your country and enter your mobile number.');
-      return;
+    const target = otpCredType === 'phone' ? phone.trim() : otpEmail.toLowerCase().trim();
+
+    if (otpCredType === 'phone') {
+      const national = extractNationalDigits(target);
+      if (!national || !isValidPhone(target)) {
+        setError('Please select your country and enter your mobile number.');
+        return;
+      }
+    } else {
+      if (!target.includes('@')) {
+        setError('Please enter a valid email address.');
+        return;
+      }
     }
 
     setLoading(true);
     const res = await apiPost<{ success: boolean; message: string; devOtp?: string }>('/auth/otp/send', {
-      target: cleanPhone,
+      target,
       purpose: 'login',
     });
     setLoading(false);
@@ -136,7 +147,7 @@ function LoginForm() {
       setError(res.error);
     } else {
       setOtpSent(true);
-      setSuccess('A 6-digit login code has been generated.');
+      setSuccess(`A 6-digit login code has been generated for ${target}.`);
       if (res.data?.devOtp) {
         setDevOtp(res.data.devOtp);
         setOtpCode(res.data.devOtp);
@@ -152,9 +163,13 @@ function LoginForm() {
       return;
     }
 
+    const target = otpCredType === 'phone' ? phone.trim() : otpEmail.toLowerCase().trim();
+
     setLoading(true);
     const res = await apiPost<AuthResponse>('/auth/login/otp', {
-      phone: phone.trim(),
+      identifier: target,
+      phone: otpCredType === 'phone' ? target : undefined,
+      email: otpCredType === 'email' ? target : undefined,
       code: otpCode.trim(),
       rememberMe,
     });
@@ -342,12 +357,47 @@ function LoginForm() {
       {mode === 'otp' && (
         <form onSubmit={handleOtpLogin} className="mt-5 space-y-4">
           <div>
-            <label htmlFor="otp-phone" className={LABEL}>
-              Mobile number
-            </label>
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <label htmlFor="otp-target" className="text-sm font-semibold text-teal">
+                {otpCredType === 'phone' ? 'Mobile number' : 'Email address'}
+              </label>
+              {!otpSent && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpCredType(otpCredType === 'phone' ? 'email' : 'phone');
+                    setError(null);
+                  }}
+                  className="text-xs font-semibold text-sea hover:underline cursor-pointer"
+                >
+                  {otpCredType === 'phone' ? 'Use email instead' : 'Use mobile number instead'}
+                </button>
+              )}
+            </div>
+
             <div className="flex gap-2">
               <div className="min-w-0 flex-1">
-                <CountryPhoneInput id="otp-phone" value={phone} onChange={setPhone} disabled={otpSent} placeholder="9876543210" />
+                {otpCredType === 'phone' ? (
+                  <CountryPhoneInput
+                    id="otp-target"
+                    value={phone}
+                    onChange={setPhone}
+                    disabled={otpSent}
+                    placeholder="9876543210"
+                  />
+                ) : (
+                  <IconInput
+                    icon={Mail}
+                    id="otp-target"
+                    type="email"
+                    autoComplete="email"
+                    value={otpEmail}
+                    onChange={(e) => setOtpEmail(e.target.value)}
+                    placeholder="yourname@example.com"
+                    disabled={otpSent}
+                    required
+                  />
+                )}
               </div>
               {!otpSent ? (
                 <button type="button" onClick={handleSendOtp} disabled={loading} className={SIDE_BTN}>
@@ -366,7 +416,9 @@ function LoginForm() {
                 </button>
               )}
             </div>
-            <p className="mt-1.5 text-xs text-teal/50">Dev mode: the code appears in the API terminal, no SMS is sent.</p>
+            <p className="mt-1.5 text-xs text-teal/50">
+              Dev mode: the code appears in the API terminal, no {otpCredType === 'phone' ? 'SMS' : 'email'} is sent.
+            </p>
           </div>
 
           {otpSent && devOtp && <DevCode code={devOtp} onFill={() => setOtpCode(devOtp)} />}
