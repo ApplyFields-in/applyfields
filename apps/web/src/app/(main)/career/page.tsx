@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, Route } from 'lucide-react';
+import { BookOpen, Briefcase, Route } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import { CareerCollegesHoverMenu } from '@/components/career-colleges-hover-menu';
 import type { CareerCategory, CareerDetail, CareerSummary } from '@applyfields/types';
@@ -71,6 +71,7 @@ export default function CareerPage() {
               <p className="mt-1 text-sm text-[#435775]">Your first move starts here.</p>
             </div>
             <nav aria-label="Career resources" className="flex flex-wrap items-center gap-2">
+              <Link href="/career" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#082046] bg-[#082046] px-3.5 text-xs font-semibold text-[#ffffff]"><Briefcase className="size-4 text-amber-300" /> Career Mode</Link>
               <Link href="/career/roadmaps" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"><Route className="size-4 text-[#0e7bf4]" /> Roadmaps</Link>
               <Link href="/career/courses" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"><BookOpen className="size-4 text-[#0e7bf4]" /> Courses</Link>
               <CareerCollegesHoverMenu />

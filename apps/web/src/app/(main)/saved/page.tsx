@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline, OpportunityCardView } from '@/components/opportunity';
 import { ReminderToggle, SaveButton } from '@/components/save-button';
+import { PrintExportButton } from '@/components/print-export-button';
 import { TYPE_META } from '@/lib/format';
 import { apiGetAsUser } from '@/lib/server-api';
 
@@ -74,16 +75,25 @@ export default async function Page({ searchParams }: PageProps<'/saved'>) {
   return (
     <>
       {header}
-      <nav aria-label="Filter saved items" className="-mx-1 mb-5 flex gap-2 overflow-x-auto px-1 pb-3 pt-1">
-        <Link href="/saved" className={chip(!filter)} aria-current={!filter ? 'page' : undefined}>
-          All ({data.total})
-        </Link>
-        {FILTERS.map((f) => (
-          <Link key={f.key} href={`/saved?type=${f.key}`} className={chip(filter === f.key)} aria-current={filter === f.key ? 'page' : undefined}>
-            {f.label} ({count(f.key)})
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <nav aria-label="Filter saved items" className="-mx-1 flex gap-2 overflow-x-auto px-1 py-1">
+          <Link href="/saved" className={chip(!filter)} aria-current={!filter ? 'page' : undefined}>
+            All ({data.total})
           </Link>
-        ))}
-      </nav>
+          {FILTERS.map((f) => (
+            <Link key={f.key} href={`/saved?type=${f.key}`} className={chip(filter === f.key)} aria-current={filter === f.key ? 'page' : undefined}>
+              {f.label} ({count(f.key)})
+            </Link>
+          ))}
+        </nav>
+
+        {items.length > 0 && (
+          <PrintExportButton
+            label="Export Saved Report / PDF"
+            documentTitle="My Saved Opportunities & Applications Report - ApplyFields"
+          />
+        )}
+      </div>
 
       {items.length === 0 ? (
         <EmptyState

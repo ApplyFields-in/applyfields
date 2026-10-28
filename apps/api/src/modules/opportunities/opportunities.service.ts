@@ -497,4 +497,68 @@ export class OpportunitiesService {
       opportunity_slug: u.opportunities?.slug ?? null,
     }));
   }
+
+  /**
+   * Trending opportunities: the most-saved published opportunities in the
+   * last 48 hours. Falls back to the most recently published if there are
+   * fewer than `take` saves in that window.
+   */
+  async trending(take = 10): Promise<OpportunityCard[]> {
+    const today = todayIst();
+    const cutoff = new Date(today.getTime() - 48 * 60 * 60 * 1000);
+
+    // Count saves per opportunity_id in the last 48 h
+    const rows = await this.prisma.$queryRaw<{ id: string; save_count: bigint }[]>`
+      select si.item_id as id, count(*) as save_count
+      from saved_items si
+      join opportunities o on o.id = si.item_id
+      where si.item_type = 'opportunity'
+        and si.created_at >= ${cutoff}
+        and o.status = 'published'
+        and (o.application_end is null or o.application_end >= ${today}::date)
+      group by si.item_id
+      order by save_count desc
+      limit ${take}
+    `;
+
+    if (rows.length === 0) {
+      // No saves in window — fall back to freshest published opps
+      return this.list({ take });
+    }
+
+    const ids = rows.map((r) => r.id);
+    const byId = await this.cardMap(ids);
+    // Preserve save-count order
+    return ids.flatMap((id) => byId.get(id) ?? []);
+  }
+
+  /**
+   * Similar opportunities: up to 5 published, open opportunities that share
+   * the same type and category as the given slug, excluding that slug itself.
+   */
+  async similar(slug: string, take = 5): Promise<OpportunityCard[]> {
+    const today = todayIst();
+    const source = await this.prisma.opportunities.findFirst({
+      where: { slug, status: 'published' },
+      select: { type: true, category: true },
+    });
+    if (!source) return [];
+
+    const rows = await this.prisma.opportunities.findMany({
+      where: {
+        ...openWhere(today),
+        type: source.type,
+        category: source.category,
+        slug: { not: slug },
+      },
+      select: CARD_SELECT,
+      orderBy: [
+        { application_end: { sort: 'asc', nulls: 'last' } },
+        { published_at: 'desc' },
+      ],
+      take,
+    });
+    return rows.map((r) => this.toCard(r, today));
+  }
 }
+

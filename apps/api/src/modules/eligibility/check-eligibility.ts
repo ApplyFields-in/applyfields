@@ -236,6 +236,19 @@ function overall(rules: EligibilityRuleResult[]): EligibilityStatus {
 }
 
 /**
+ * Computes a 0–100 match score based on verifiable rules.
+ * Score = (rules with status 'pass') / (total scorable rules) * 100.
+ * Excludes 'other' (free-text conditions) and the placeholder 'rules' rule.
+ * Returns null when there are no scorable rules.
+ */
+function matchScore(rules: EligibilityRuleResult[]): number | null {
+  const scorable = rules.filter((r) => r.rule !== 'other' && r.rule !== 'rules');
+  if (scorable.length === 0) return null;
+  const passed = scorable.filter((r) => r.status === 'pass').length;
+  return Math.round((passed / scorable.length) * 100);
+}
+
+/**
  * Checks a profile against an opportunity's rule sets (the whole notification, plus posts with their own rules)
  * and returns the best match. `today` is YYYY-MM-DD in India time.
  */
@@ -245,11 +258,12 @@ export function checkEligibility(profile: EligibilityProfile, sets: RuleSet[], t
       status: 'manual_check',
       rules: [{ rule: 'rules', status: 'manual', reason: 'Eligibility not added yet — check the official notification' }],
       post: null,
+      match_score: null,
     };
   return sets
     .map((s) => {
       const rules = checkRules(profile, s.rules, today);
-      return { status: overall(rules), rules, post: s.post };
+      return { status: overall(rules), rules, post: s.post, match_score: matchScore(rules) };
     })
     .reduce((best, x) => (ORDER.indexOf(x.status) < ORDER.indexOf(best.status) ? x : best));
 }

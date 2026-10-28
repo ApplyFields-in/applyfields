@@ -5,3 +5,101 @@
 
 /* let Tailwind see the class names used inside the shared components */
 @source "../../../../packages/ui/src";
+
+/* Print & Offline Export Optimization */
+@media print {
+  /* Hide navigation, floating bars, footers, interactive buttons, and cookie banners */
+  header,
+  footer,
+  nav[aria-label="Site navigation"],
+  nav[aria-label="Floating navigation"],
+  .print\:hidden,
+  [data-print-hidden] {
+    display: none !important;
+  }
+
+  /* A4 page geometry with clean margins */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 14mm 12mm 14mm;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #082046 !important;
+    font-size: 10.5pt !important;
+    line-height: 1.45 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Prevent awkward page break cutting across cards, checklist items, or comparison table rows */
+  .rounded-md,
+  .border,
+  article,
+  tr,
+  li {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  * {
+    box-shadow: none !important;
+  }
+}
+
+/* Reading Themes: Warm Sepia & High Contrast Glare Reduction */
+[data-reading-theme="sepia"] {
+  background-color: #f7f1e3 !important;
+  color: #3b2713 !important;
+}
+
+[data-reading-theme="sepia"] main,
+[data-reading-theme="sepia"] .bg-\[\#F0F4F8\],
+[data-reading-theme="sepia"] .bg-\[\#F2F1ED\],
+[data-reading-theme="sepia"] .bg-canvas {
+  background-color: #f7f1e3 !important;
+}
+
+[data-reading-theme="sepia"] .bg-white,
+[data-reading-theme="sepia"] .bg-\[\#ffffff\] {
+  background-color: #faf5eb !important;
+  color: #3b2713 !important;
+}
+
+[data-reading-theme="high-contrast"] {
+  background-color: #06111f !important;
+  color: #f8fafc !important;
+}
+
+[data-reading-theme="high-contrast"] main,
+[data-reading-theme="high-contrast"] .bg-\[\#F0F4F8\],
+[data-reading-theme="high-contrast"] .bg-\[\#F2F1ED\],
+[data-reading-theme="high-contrast"] .bg-canvas {
+  background-color: #06111f !important;
+}
+
+[data-reading-theme="high-contrast"] .bg-white,
+[data-reading-theme="high-contrast"] .bg-\[\#ffffff\] {
+  background-color: #0b1d33 !important;
+  color: #ffffff !important;
+}
+
+[data-reading-theme="high-contrast"] h1,
+[data-reading-theme="high-contrast"] h2,
+[data-reading-theme="high-contrast"] h3,
+[data-reading-theme="high-contrast"] .text-\[\#082046\] {
+  color: #ffffff !important;
+}
+
+[data-reading-theme="high-contrast"] .text-\[\#536780\],
+[data-reading-theme="high-contrast"] .text-\[\#435775\] {
+  color: #94a3b8 !important;
+}
+
+

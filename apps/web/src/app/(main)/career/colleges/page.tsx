@@ -1,9 +1,10 @@
 import type { InstitutionListResponse, InstitutionSummary } from '@applyfields/types';
-import { BookOpen, Building2, Columns, Route, Search, Stethoscope } from 'lucide-react';
+import { BookOpen, Briefcase, Building2, Columns, Route, Search, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { apiGet } from '@/lib/api';
 import { CollegesGridClient } from './colleges-grid-client';
+import { ActiveFilterTray, type ActiveFilterItem } from '@/components/active-filter-tray';
 
 export const metadata = {
   title: 'Colleges & Universities Directory',
@@ -33,11 +34,11 @@ const TYPE_LABELS: Record<string, string> = {
 const STREAM_TABS = [
   { key: '', label: 'All Colleges' },
   { key: 'top-50-engg', label: 'Top 50 Engineering' },
+  { key: 'medical', label: 'Top 50 Medical' },
   { key: 'management', label: 'Management' },
   { key: 'polytechnic', label: 'Polytechnic' },
   { key: 'architecture', label: 'Architecture & Town Planning' },
   { key: 'pharmacy', label: 'Pharmacy' },
-  { key: 'medical', label: 'Medical Colleges' },
 ];
 
 export default async function CollegesPage({ searchParams }: CollegesPageProps) {
@@ -110,11 +111,11 @@ export default async function CollegesPage({ searchParams }: CollegesPageProps) 
     title = 'Pharmacy Colleges in India';
     description =
       'PCI-approved colleges offering B.Pharm, M.Pharm, and pharmaceutical healthcare research credentials.';
-  } else if (stream === 'medical') {
-    eyebrow = 'Medical & Allied Health Sciences';
-    title = 'Medical Colleges in India';
+  } else if (stream === 'medical' || stream === 'top-50-medical' || stream === 'top-50-med') {
+    eyebrow = 'National Institutional Ranking Framework (NIRF Medical / NMC)';
+    title = 'Top 50 Medical Colleges in India';
     description =
-      'Directory of medical colleges for MBBS, BDS, and health sciences. The complete verified Top 50 Medical Colleges dataset will be released shortly.';
+      'Explore official NIRF medical rankings, MBBS & MD/MS clinical specializations, NEET cutoffs, subsidized fee structures, and premier hospital residency stipends.';
   }
 
   return (
@@ -145,6 +146,12 @@ export default async function CollegesPage({ searchParams }: CollegesPageProps) 
 
           {/* Navigation Resources Links - Rectangular */}
           <nav aria-label="Career resources" className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/career"
+              className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"
+            >
+              <Briefcase className="size-4 text-[#0e7bf4]" /> Career Mode
+            </Link>
             <Link
               href="/career/roadmaps"
               className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"
@@ -196,14 +203,14 @@ export default async function CollegesPage({ searchParams }: CollegesPageProps) 
       {/* Main Content Body with Soft Neutral Parchment Background */}
       <div className="bg-[#F2F1ED] min-h-screen">
         <div className="mx-auto max-w-[1360px] space-y-5 px-4 py-6 pb-12 sm:px-6 lg:px-8">
-          {/* Medical Stream Placeholder Notice if selected */}
+          {/* Medical Stream Banner */}
           {stream === 'medical' && (
             <div className="rounded-md border border-[#dec9a5] bg-[#F4E8D1] p-4 text-[#76562d] flex items-start gap-3">
-              <Stethoscope className="size-5 shrink-0 text-[#76562d] mt-0.5" />
+              <Stethoscope className="size-5 shrink-0 text-[#0e7bf4] mt-0.5" />
               <div className="text-xs space-y-1">
-                <p className="font-bold text-[#082046]">Top 50 Medical Colleges Dataset Coming Soon</p>
+                <p className="font-bold text-[#082046]">Top 50 Medical Colleges in India (NIRF &amp; NMC Verified)</p>
                 <p className="text-[#435775] leading-relaxed">
-                  We are currently preparing the official NIRF Medical and NMC-approved colleges dataset (including AIIMS, CMC Vellore, JIPMER, and top government medical colleges) with NEET-UG cutoffs, seats, and hospital bed statistics. Below are the medical institutions currently indexed in our system.
+                  Showing India&apos;s premier medical institutions including AIIMS New Delhi, PGIMER, CMC Vellore, JIPMER, and top state government medical colleges with NEET-UG &amp; NEET-PG cutoff benchmarks, MBBS/MD seats, annual tuition, and residency stipends.
                 </p>
               </div>
             </div>
@@ -294,6 +301,62 @@ export default async function CollegesPage({ searchParams }: CollegesPageProps) 
               })}
             </div>
           </div>
+
+          {/* Active Filter Chips & Dismissible Clear All Bar */}
+          {(() => {
+            const activeFilters: ActiveFilterItem[] = [];
+            if (stream) {
+              const tab = STREAM_TABS.find((t) => t.key === stream);
+              const p = new URLSearchParams();
+              if (q) p.set('q', q);
+              if (type) p.set('type', type);
+              if (state) p.set('state', state);
+              activeFilters.push({
+                key: 'stream',
+                label: 'Category',
+                displayValue: tab?.label || stream,
+                removeHref: `/career/colleges${p.size ? `?${p}` : ''}`,
+              });
+            }
+            if (type) {
+              const p = new URLSearchParams();
+              if (stream) p.set('stream', stream);
+              if (q) p.set('q', q);
+              if (state) p.set('state', state);
+              activeFilters.push({
+                key: 'type',
+                label: 'Type',
+                displayValue: TYPE_LABELS[type] || type,
+                removeHref: `/career/colleges${p.size ? `?${p}` : ''}`,
+              });
+            }
+            if (state) {
+              const p = new URLSearchParams();
+              if (stream) p.set('stream', stream);
+              if (q) p.set('q', q);
+              if (type) p.set('type', type);
+              activeFilters.push({
+                key: 'state',
+                label: 'State',
+                displayValue: state,
+                removeHref: `/career/colleges${p.size ? `?${p}` : ''}`,
+              });
+            }
+            if (q) {
+              const p = new URLSearchParams();
+              if (stream) p.set('stream', stream);
+              if (type) p.set('type', type);
+              if (state) p.set('state', state);
+              activeFilters.push({
+                key: 'q',
+                label: 'Search',
+                displayValue: `"${q}"`,
+                removeHref: `/career/colleges${p.size ? `?${p}` : ''}`,
+              });
+            }
+
+            return <ActiveFilterTray filters={activeFilters} clearAllHref="/career/colleges" totalResults={total} />;
+          })()}
 
           {/* Paginated Colleges Grid with Rectangular Boxes & Yellowish Accents */}
           <CollegesGridClient

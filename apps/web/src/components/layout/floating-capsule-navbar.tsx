@@ -24,6 +24,7 @@ import { apiGet, apiPost } from '@/lib/api';
 import type { MeResponse, UserSummary } from '@applyfields/types';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { PARTNER_PORTAL_URL, SERVICE_PORTAL_URL } from '@/lib/urls';
+import { openCommandPalette } from '@/components/search/command-palette';
 
 export function FloatingCapsuleNavbar() {
   const pathname = usePathname();
@@ -205,19 +206,21 @@ export function FloatingCapsuleNavbar() {
 
         {/* Right: Search + Notifications + Saved + User Avatar / Sign In */}
         <div className="flex items-center justify-end justify-self-end gap-2.5 sm:gap-3.5 rounded-[40px] border border-white bg-[#F0F4F8] px-5 sm:px-6 py-3 sm:py-3.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.24),-8px_-8px_24px_rgba(255,255,255,0.95)]">
-          {/* Search Input Pill */}
-          <form onSubmit={handleSearchSubmit} className="relative hidden md:block">
-            <div className="flex w-40 sm:w-48 lg:w-60 items-center rounded-full bg-[#e8eef6] px-4 py-2.5 shadow-[inset_3px_3px_6px_#d5deea,inset_-3px_-3px_6px_#ffffff] transition-all focus-within:ring-2 focus-within:ring-[#0e7bf4]/20">
-              <Search className="mr-2 size-4 sm:size-4.5 shrink-0 text-[#526987]" />
-              <input
-                type="text"
-                placeholder={t('nav_search', 'Search opportunities...')}
-                value={searchVal}
-                onChange={(e) => setSearchVal(e.target.value)}
-                className="w-full bg-transparent text-xs sm:text-sm text-[#082046] placeholder:text-[#71839b] outline-none"
-              />
-            </div>
-          </form>
+          {/* Search Input Pill with Ctrl+K shortcut badge */}
+          <button
+            type="button"
+            onClick={openCommandPalette}
+            className="relative hidden md:flex items-center w-40 sm:w-48 lg:w-60 rounded-full bg-[#e8eef6] px-4 py-2.5 shadow-[inset_3px_3px_6px_#d5deea,inset_-3px_-3px_6px_#ffffff] transition-all hover:bg-[#dce7f3] text-left cursor-pointer"
+            title="Search everything (Ctrl + K)"
+          >
+            <Search className="mr-2 size-4 sm:size-4.5 shrink-0 text-[#526987]" />
+            <span className="w-full text-xs sm:text-sm text-[#71839b] truncate">
+              {t('nav_search', 'Search opportunities...')}
+            </span>
+            <kbd className="hidden lg:inline-flex items-center rounded border border-[#c4d2e3] bg-white px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#526987]">
+              ⌘K
+            </kbd>
+          </button>
 
           {/* Notifications */}
           <Link
