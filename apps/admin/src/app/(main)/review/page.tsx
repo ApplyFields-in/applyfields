@@ -35,7 +35,7 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
   return (
     <>
       <PageHeader
-        eyebrow="Content"
+        eyebrow="Apply & Ingestion Department · Review Cockpit"
         title="Review queue"
         description="Drafts found by the scrapers. Check each one against its official PDF before it goes live."
         icon={<Inbox />}

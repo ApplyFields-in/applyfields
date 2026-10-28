@@ -39,7 +39,7 @@ export default async function AdminCollegesPage({
   return (
     <div className="space-y-6 pb-12">
       <PageHeader
-        eyebrow="Content Management"
+        eyebrow="Career & Higher Education Department · Colleges Cockpit"
         title="Colleges & Universities"
         description="Verified directory of 13,000+ higher education institutions. Fill missing fee and placement fields, add new institutions, or edit rankings."
         icon={<Building />}

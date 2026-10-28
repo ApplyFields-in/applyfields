@@ -549,7 +549,20 @@ export interface UpdateInput {
 
 // ---------- Internal Portal: Staff, Roles & Users ----------
 
-export type StaffRole = 'super_admin' | 'admin' | 'reviewer' | 'content_editor' | 'support';
+export type StaffRole =
+  | 'super_admin'
+  | 'admin'
+  | 'reviewer'
+  | 'content_editor'
+  | 'support'
+  | 'partner_manager'
+  | 'partner_ops'
+  | 'services_officer'
+  | 'case_agent'
+  | 'content_reviewer'
+  | 'scraper_lead'
+  | 'career_curator'
+  | 'institution_analyst';
 
 export interface StaffProfile {
   id: string;
