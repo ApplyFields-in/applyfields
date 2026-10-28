@@ -8,6 +8,7 @@ import { ApiOffline } from '@/components/admin-shell';
 import { ConfidenceMeter, formatFoundAt, TYPE_LABEL } from '@/components/review-ui';
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
+import { ReviewQueueClient } from './review-queue-client';
 
 export const metadata = { title: SECTIONS.review.title };
 
@@ -84,57 +85,13 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
               }
             />
           ) : (
-            <Card className="overflow-hidden p-0">
-              {/* Header row (desktop) */}
-              <div className="hidden grid-cols-[minmax(0,1fr)_110px_120px_120px_130px_24px] gap-4 border-b border-teal/10 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-teal/70 lg:grid">
-                <span>Draft</span>
-                <span>Source</span>
-                <span>Confidence</span>
-                <span>Found</span>
-                <span>Publish check</span>
-                <span />
-              </div>
-              <ul className="divide-y divide-teal/10">
-                {data.items.map((d) => (
-                  <li key={d.id}>
-                    <Link
-                      href={`/review/${d.id}`}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-4 transition-colors hover:bg-tea/40 lg:grid-cols-[minmax(0,1fr)_110px_120px_120px_130px_24px]"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-bold">{d.title}</p>
-                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-teal/80">
-                          {d.organization} · {TYPE_LABEL[d.type]}
-                          {d.needs_care && (
-                            <Badge tone="celadon" className="text-[11px]">
-                              <TriangleAlert aria-hidden="true" /> Check carefully
-                            </Badge>
-                          )}
-                        </p>
-                      </div>
-                      <ArrowRight className="size-4 text-teal/60 lg:order-last" aria-hidden="true" />
-                      <span className="text-xs font-semibold uppercase lg:text-sm">
-                        <span className="text-teal/70 lg:hidden">Source </span>
-                        {d.source_key ?? '—'}
-                      </span>
-                      <ConfidenceMeter value={d.confidence} />
-                      <span className="text-xs text-teal/80 lg:text-sm">{formatFoundAt(d.found_at)}</span>
-                      <span>
-                        {d.missing.length === 0 ? (
-                          <Badge tone="teal">
-                            <CircleCheck aria-hidden="true" /> Ready
-                          </Badge>
-                        ) : (
-                          <Badge tone="outline" className="bg-cream">
-                            <CircleAlert aria-hidden="true" /> {d.missing.length} missing
-                          </Badge>
-                        )}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Card>
+            <ReviewQueueClient
+              items={data.items}
+              total={data.total}
+              sources={data.sources}
+              currentSource={source}
+              isCareful={careful}
+            />
           )}
         </>
       )}

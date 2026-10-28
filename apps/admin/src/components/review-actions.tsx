@@ -79,8 +79,9 @@ export function ReviewActions({ id, missing }: { id: string; missing: string[] }
         </div>
 
         {errorMsg && (
-          <p className="mt-3 text-xs font-bold text-red-200">
-            ⚠️ {errorMsg}
+          <p className="mt-3 text-xs font-bold text-red-200 flex items-center gap-1">
+            <TriangleAlert className="size-3.5 shrink-0 text-red-200" />
+            <span>{errorMsg}</span>
           </p>
         )}
 

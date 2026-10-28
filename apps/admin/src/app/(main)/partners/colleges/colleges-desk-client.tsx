@@ -619,8 +619,8 @@ export function CollegesDeskClient({
                       {/* College Name */}
                       <td className="px-4 py-3.5 max-w-xs">
                         <div className="flex items-start gap-2.5">
-                          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-teal/10 text-teal font-extrabold shadow-sm">
-                            🏛️
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-teal/10 text-teal shadow-sm">
+                            <Building2 className="size-4" />
                           </div>
                           <div>
                             <div className="font-extrabold text-teal flex items-center gap-1.5">
@@ -741,8 +741,8 @@ export function CollegesDeskClient({
             {/* Header */}
             <div className="flex items-start justify-between pb-4 border-b border-teal/10">
               <div className="flex items-start gap-3">
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-teal/10 text-2xl shadow-clay">
-                  🏛️
+                <div className="flex size-12 items-center justify-center rounded-2xl bg-teal/10 text-teal shadow-clay">
+                  <Building2 className="size-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
