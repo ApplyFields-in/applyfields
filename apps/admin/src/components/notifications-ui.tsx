@@ -105,10 +105,10 @@ export function ManualAlertForm() {
               onChange={(e) => setKind(e.target.value as 'all' | 'subscribers' | 'savers' | 'user')}
               className="h-10 w-full rounded-xl bg-cream px-3 text-sm shadow-pressed outline-none"
             >
-              <option value="subscribers">⚡ Premium Subscribers Only (Instant Alert)</option>
-              <option value="all">📢 All Registered Candidates</option>
-              <option value="savers">⭐ Candidates who saved an Opportunity</option>
-              <option value="user">👤 Individual Candidate (by email)</option>
+              <option value="subscribers">Premium Subscribers Only (Instant Alert)</option>
+              <option value="all">All Registered Candidates</option>
+              <option value="savers">Candidates Who Saved an Opportunity</option>
+              <option value="user">Individual Candidate (by Email)</option>
             </select>
           </Field>
 
@@ -142,7 +142,7 @@ export function ManualAlertForm() {
               maxLength={150}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. 🚨 SSC CGL 2026 Notification Released!"
+              placeholder="e.g. SSC CGL 2026 Official Notification Released"
             />
           </Field>
 

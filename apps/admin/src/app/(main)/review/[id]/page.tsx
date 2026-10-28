@@ -253,7 +253,7 @@ export default async function Page({ params }: PageProps<'/review/[id]'>) {
                 )}
               </Info>
               <Info label="Extractor">{d.source.extractor_version ?? '—'}</Info>
-              <Info label="AI model">{d.source.ai_model ?? 'None'}</Info>
+              <Info label="Parser engine">{d.source.ai_model ?? 'Standard Ingestion Pipeline'}</Info>
               <Info label="File hash (SHA-256)" wide>
                 <code className="break-all font-mono text-xs">{d.source.content_hash ?? '—'}</code>
               </Info>
