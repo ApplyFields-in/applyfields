@@ -275,7 +275,7 @@ export class InstitutionsService {
 
     let streamSql = Prisma.empty;
     if (stream === 'top-50-engg' || stream === 'top-50' || stream === 'top-50-engineering') {
-      streamSql = Prisma.sql`and (i.accreditation->>'nirf_rank') is not null`;
+      streamSql = Prisma.sql`and (i.accreditation->>'nirf_rank') is not null and coalesce(i.accreditation->>'nirf_category', 'Engineering') = 'Engineering'`;
     } else if (stream === 'management' || stream === 'mba' || stream === 'business') {
       streamSql = Prisma.sql`and (i.name ilike '%management%' or i.name ilike '%business%' or i.name ilike '%mba%')`;
     } else if (stream === 'polytechnic' || stream === 'diploma') {
@@ -284,8 +284,8 @@ export class InstitutionsService {
       streamSql = Prisma.sql`and (i.name ilike '%architecture%' or i.name ilike '%planning%' or i.name ilike '%design%')`;
     } else if (stream === 'pharmacy') {
       streamSql = Prisma.sql`and (i.name ilike '%pharmacy%' or i.name ilike '%pharm%')`;
-    } else if (stream === 'medical') {
-      streamSql = Prisma.sql`and (i.name ilike '%medical%' or i.name ilike '%dental%' or i.name ilike '%nursing%' or i.name ilike '%health%')`;
+    } else if (stream === 'medical' || stream === 'top-50-medical' || stream === 'top-50-med') {
+      streamSql = Prisma.sql`and ((i.accreditation->>'nirf_category') = 'Medical' or i.name ilike '%medical%' or i.name ilike '%dental%' or i.name ilike '%nursing%' or i.name ilike '%health%')`;
     }
 
     const countRows = await this.prisma.$queryRaw<Array<{ total: number }>>`

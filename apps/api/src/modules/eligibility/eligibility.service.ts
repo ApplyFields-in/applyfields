@@ -104,10 +104,14 @@ export class EligibilityService {
     if (cards.length === 0) return cards;
     const sets = await this.ruleSets(cards.map((c) => c.slug));
     const today = iso(todayIst());
-    return cards.map((c) => ({
-      ...c,
-      eligibility: checkEligibility(profile, sets.get(c.slug) ?? [], today).status,
-    }));
+    return cards.map((c) => {
+      const result = checkEligibility(profile, sets.get(c.slug) ?? [], today);
+      return {
+        ...c,
+        eligibility: result.status,
+        match_score: result.match_score ?? undefined,
+      };
+    });
   }
 
   /** True once there's enough in the profile for recommendations to mean something. */

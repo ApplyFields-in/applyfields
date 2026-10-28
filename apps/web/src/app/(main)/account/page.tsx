@@ -20,6 +20,8 @@ import { apiGet } from '@/lib/api';
 import type { MeResponse } from '@applyfields/types';
 import { DigiLockerCard } from '@/components/digilocker-card';
 import { PARTNER_PORTAL_URL } from '@/lib/urls';
+import { AccessibilityReadingSettings } from '@/components/settings/accessibility-reading-settings';
+import { AdvancedAccountSettings } from '@/components/settings/advanced-account-settings';
 
 function AccountContent() {
   const [userEmail, setUserEmail] = useState('');
@@ -116,6 +118,12 @@ function AccountContent() {
 
           {/* Government DigiLocker Integration Card */}
           <DigiLockerCard />
+
+          {/* Display, Language & Reading Accessibility Settings */}
+          <AccessibilityReadingSettings />
+
+          {/* Modern App Settings: Active Sessions, WhatsApp Matrix, Alert Cadence & DPDP Erasure */}
+          <AdvancedAccountSettings />
 
           {/* Plus Tier Card */}
           <div className="rounded-3xl border border-[#b8d7ff] bg-gradient-to-br from-[#EAF3FF] to-white p-7 shadow-sm space-y-5">

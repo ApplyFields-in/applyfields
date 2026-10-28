@@ -11,10 +11,26 @@ import { useLanguage } from '@/lib/i18n/language-context';
 
 export function Hero({ popular, deadlines }: { popular: string[]; deadlines: OpportunityCard[] }) {
   const { t } = useLanguage();
+  const closingToday = deadlines.filter((d) => d.days_left === 0);
 
   return (
     <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-center">
       <div className="max-w-2xl">
+        {closingToday.length > 0 && (
+          <Link
+            href="/apply"
+            className="mb-4 inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50/90 px-3.5 py-1.5 text-xs font-bold text-red-700 shadow-xs transition hover:bg-red-100"
+          >
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-red-500" />
+            </span>
+            <span>
+              Closing Today: {closingToday.length} {closingToday.length === 1 ? 'opportunity' : 'opportunities'} expire in &lt;24 hours — Apply immediately
+            </span>
+            <ArrowRight className="size-3" aria-hidden="true" />
+          </Link>
+        )}
         <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#0e7bf4]">
           <span className="size-2 rounded-full bg-[#0e7bf4]" aria-hidden="true" /> {t('hero_tag')}
         </p>

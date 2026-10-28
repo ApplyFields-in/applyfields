@@ -36,6 +36,8 @@ export interface OpportunityCard {
   tags: string[];
   /** only when the request came from a logged-in user */
   eligibility?: EligibilityStatus;
+  /** 0–100 match score when logged in and eligibility data exists */
+  match_score?: number;
   /** only when the request came from a logged-in user */
   saved?: boolean;
 }
@@ -69,6 +71,11 @@ export interface EligibilityResult {
   rules: EligibilityRuleResult[];
   /** set when the best match was a post with its own rules */
   post: string | null;
+  /**
+   * 0–100: percentage of verifiable rules the user passes.
+   * Excludes 'other' (manual conditions). null when no rules were checked.
+   */
+  match_score: number | null;
 }
 
 export type EligibilityResponse =

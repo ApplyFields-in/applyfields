@@ -35,6 +35,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Circle,
+  Columns,
   Download,
   ExternalLink,
   FileCheck2,
@@ -53,10 +54,26 @@ import {
   Trash2,
   UploadCloud,
   User,
+  UserCheck,
   UserPlus,
   Wand2,
   X,
+  Award,
+  Banknote,
+  Briefcase,
 } from 'lucide-react';
+import {
+  CompetitiveExamScoresCard,
+  type CompetitiveExamScore,
+} from '@/components/profile/competitive-exam-scores-card';
+import { CandidateCardModal } from '@/components/profile/candidate-card-modal';
+import {
+  TOP_50_COLLEGES,
+  TOP_50_ENGINEERING_COLLEGES,
+  TOP_50_MEDICAL_COLLEGES,
+} from '@/lib/top-50-colleges-data';
+import { SaveButton } from '@/components/save-button';
+import { ShareModal } from '@/components/share/share-modal';
 
 export const INDIAN_STATES: { code: string; name: string }[] = [
   { code: 'AP', name: 'Andhra Pradesh' },
@@ -208,6 +225,12 @@ export default function ProfilePage() {
   // Relevant for you matching opportunities
   const [relevantOpportunities, setRelevantOpportunities] = useState<ExtendedOpportunityCard[]>([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
+
+  // Shareable Candidate Card & Exam Scores
+  const [showCandidateCardModal, setShowCandidateCardModal] = useState(false);
+  const [examScores, setExamScores] = useState<CompetitiveExamScore[]>([]);
+  const [bottomTab, setBottomTab] = useState<'jobs' | 'colleges'>('jobs');
+  const [collegeFilter, setCollegeFilter] = useState<'all' | 'engineering' | 'medical' | 'state'>('all');
 
   // Actions & status states
   const [saving, setSaving] = useState(false);
@@ -364,9 +387,9 @@ export default function ProfilePage() {
     return 'AK';
   }, [fullName, currentUser]);
 
-  // Dynamic 19-detail profile completeness calculation
+  // Dynamic 20-detail profile completeness calculation
   const { filledCount, totalCount, percentage } = useMemo(() => {
-    const total = 19;
+    const total = 20;
     let count = 0;
 
     if (fullName.trim()) count++;
@@ -384,6 +407,7 @@ export default function ProfilePage() {
     if (highestEdu?.institution_name || highestEdu?.board_or_university) count++;
     if (highestEdu?.year_of_passing) count++;
     if (highestEdu?.score != null) count++;
+    if (examScores.length > 0) count++;
     if (annualIncome.trim()) count++;
     if (targetJobTypes.length > 0) count++;
     if (skillsList.length > 0) count++;
@@ -402,6 +426,7 @@ export default function ProfilePage() {
     pinCode,
     domicileStateCode,
     highestEdu,
+    examScores,
     annualIncome,
     targetJobTypes,
     skillsList,
@@ -414,10 +439,71 @@ export default function ProfilePage() {
       personal: Boolean(fullName && dob && gender && category),
       address: Boolean(stateCode && district),
       education: educations.length > 0,
+      examScores: examScores.length > 0,
       preferences: targetJobTypes.length > 0,
       skills: skillsList.length > 0,
     };
-  }, [fullName, dob, gender, category, stateCode, district, educations, targetJobTypes, skillsList]);
+  }, [fullName, dob, gender, category, stateCode, district, educations, examScores, targetJobTypes, skillsList]);
+
+  // Public candidate profile handle slug
+  const candidateHandle = useMemo(() => {
+    if (fullName.trim()) {
+      return fullName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    }
+    if (currentUser?.email) {
+      return currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    }
+    return 'candidate';
+  }, [fullName, currentUser]);
+
+  // Suitable Premier Colleges Matched to Stream & Entrance Scores
+  const suitableColleges = useMemo(() => {
+    const streamStr = (highestEdu?.stream || highestEdu?.degree || '').toLowerCase();
+    const isMed =
+      streamStr.includes('med') ||
+      streamStr.includes('mbbs') ||
+      streamStr.includes('neet') ||
+      streamStr.includes('bds') ||
+      examScores.some((e) => e.examType === 'NEET_UG' || e.examType === 'NEET_PG');
+    const isEng =
+      streamStr.includes('tech') ||
+      streamStr.includes('eng') ||
+      streamStr.includes('cse') ||
+      streamStr.includes('gate') ||
+      streamStr.includes('jee') ||
+      examScores.some((e) => e.examType === 'GATE' || e.examType === 'JEE_MAIN' || e.examType === 'JEE_ADVANCED');
+
+    let baseList = TOP_50_COLLEGES;
+    if (isMed && !isEng) {
+      baseList = TOP_50_MEDICAL_COLLEGES;
+    } else if (isEng && !isMed) {
+      baseList = TOP_50_ENGINEERING_COLLEGES;
+    }
+
+    if (collegeFilter === 'engineering') {
+      baseList = TOP_50_ENGINEERING_COLLEGES;
+    } else if (collegeFilter === 'medical') {
+      baseList = TOP_50_MEDICAL_COLLEGES;
+    } else if (collegeFilter === 'state') {
+      const userState = domicileStateCode || stateCode;
+      if (userState) {
+        const inState = baseList.filter((c) => c.state_code === userState);
+        if (inState.length > 0) return inState;
+      }
+    }
+
+    const userState = domicileStateCode || stateCode;
+    return [...baseList]
+      .sort((a, b) => {
+        const aState = a.state_code === userState ? 1 : 0;
+        const bState = b.state_code === userState ? 1 : 0;
+        if (aState !== bState) return bState - aState;
+        const aRank = a.accreditation?.nirf_rank || 999;
+        const bRank = b.accreditation?.nirf_rank || 999;
+        return aRank - bRank;
+      })
+      .slice(0, 8);
+  }, [highestEdu, examScores, collegeFilter, domicileStateCode, stateCode]);
 
   // Scroll into view helper
   function scrollToSection(id: string) {
@@ -920,6 +1006,26 @@ export default function ProfilePage() {
               <p className="text-[11px] text-slate-400 mt-2 font-medium">
                 {filledCount} of {totalCount} details added
               </p>
+
+              {/* Shareable Public Candidate Card CTA */}
+              <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Candidate Registry
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-semibold">
+                    Verified
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCandidateCardModal(true)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-[#dec9a5] bg-[#F4E8D1] hover:bg-[#ebd8b7] text-xs font-bold text-[#76562d] transition-colors shadow-xs"
+                >
+                  <UserCheck className="size-4 text-[#76562d]" />
+                  <span>Shareable Candidate Card</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -929,6 +1035,7 @@ export default function ProfilePage() {
               { id: 'personal-details', label: 'Personal details', completed: sectionStatus.personal },
               { id: 'address-domicile', label: 'Address & domicile', completed: sectionStatus.address },
               { id: 'education', label: 'Education', completed: sectionStatus.education },
+              { id: 'exam-scores', label: 'Competitive exam scores', completed: sectionStatus.examScores },
               { id: 'preferences', label: 'Preferences', completed: sectionStatus.preferences },
               { id: 'skills', label: 'Skills', completed: sectionStatus.skills },
             ].map((sec) => (
@@ -1611,6 +1718,9 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* CARD: Competitive Exam Scores & Roll Numbers */}
+          <CompetitiveExamScoresCard onScoresChange={setExamScores} />
+
           {/* CARD 4: Preferences */}
           <div
             id="preferences"
@@ -1812,35 +1922,216 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* BOTTOM SECTION: Relevant For You (Matching Reference Image 2) */}
-      <div className="pt-8 border-t border-slate-200/70 space-y-5">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            MATCHED TO YOUR PROFILE · {highestEdu?.degree || (highestEdu ? highestEdu.level.toUpperCase() : "BACHELOR'S")} · {domicileObj?.name.toUpperCase() || stateObj?.name.toUpperCase() || 'KARNATAKA'}
-          </p>
-          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
-            Relevant for you
-          </h2>
+      {/* BOTTOM SECTION: Opportunities & Institutions Dual Grid */}
+      <div className="pt-8 border-t border-slate-200/70 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              MATCHED TO YOUR PROFILE · {highestEdu?.degree || (highestEdu ? highestEdu.level.toUpperCase() : "BACHELOR'S")} · {domicileObj?.name.toUpperCase() || stateObj?.name.toUpperCase() || 'INDIA'}
+            </p>
+            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
+              Opportunities & institutions for you
+            </h2>
+          </div>
+
+          {/* Dual Tabs Pill Selector */}
+          <div className="inline-flex rounded-xl border border-slate-200/90 bg-slate-100/80 p-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setBottomTab('jobs')}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                bottomTab === 'jobs'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Briefcase className="size-3.5" />
+              <span>Government Jobs</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-[10px] text-slate-700 font-semibold">
+                {relevantOpportunities.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setBottomTab('colleges')}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                bottomTab === 'colleges'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <GraduationCap className="size-3.5" />
+              <span>Suitable Colleges</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-[#F4E8D1] text-[10px] text-[#76562d] font-bold">
+                {suitableColleges.length}
+              </span>
+            </button>
+          </div>
         </div>
 
-        {/* Horizontal Opportunity Cards Stack */}
-        <div className="space-y-3.5">
-          {loadingOpportunities ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-24 rounded-2xl bg-slate-100 animate-pulse border border-slate-200/60" />
+        {/* TAB 1: Government Jobs & Opportunities */}
+        {bottomTab === 'jobs' && (
+          <div className="space-y-4">
+            <div className="space-y-3.5">
+              {loadingOpportunities ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-24 rounded-2xl bg-slate-100 animate-pulse border border-slate-200/60" />
+                  ))}
+                </div>
+              ) : relevantOpportunities.length > 0 ? (
+                relevantOpportunities.map((item) => (
+                  <HorizontalOpportunityCard key={item.slug} item={item} />
+                ))
+              ) : (
+                <div className="p-8 rounded-2xl border border-slate-200/80 bg-white text-center text-xs text-slate-500">
+                  No matching active opportunities found right now. Check back soon for fresh notifications!
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <Link
+                href="/opportunities"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0e7bf4] hover:underline"
+              >
+                <span>Explore all active government notifications</span>
+                <ExternalLink className="size-3.5" />
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: Suitable Colleges & Cutoffs */}
+        {bottomTab === 'colleges' && (
+          <div className="space-y-4">
+            {/* Filter pills */}
+            <div className="flex flex-wrap items-center gap-2 pb-1">
+              {[
+                { id: 'all', label: `All Recommendations (${suitableColleges.length})` },
+                { id: 'engineering', label: 'Top Engineering' },
+                { id: 'medical', label: 'Top Medical' },
+                ...(stateObj?.name || domicileObj?.name
+                  ? [{ id: 'state', label: `In ${domicileObj?.name || stateObj?.name}` }]
+                  : []),
+              ].map((flt) => (
+                <button
+                  key={flt.id}
+                  type="button"
+                  onClick={() => setCollegeFilter(flt.id as any)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                    collegeFilter === flt.id
+                      ? 'bg-[#082046] text-[#F4E8D1] border-[#082046]'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {flt.label}
+                </button>
               ))}
             </div>
-          ) : relevantOpportunities.length > 0 ? (
-            relevantOpportunities.map((item) => (
-              <HorizontalOpportunityCard key={item.slug} item={item} />
-            ))
-          ) : (
-            <div className="p-8 rounded-2xl border border-slate-200/80 bg-white text-center text-xs text-slate-500">
-              No matching active opportunities found right now. Check back soon for fresh notifications!
+
+            {/* College Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {suitableColleges.map((col) => {
+                const isMed = col.accreditation?.nirf_category === 'Medical' || col.name.toLowerCase().includes('medical');
+                const rankDisplay = col.accreditation?.nirf_rank_text || (col.accreditation?.nirf_rank ? `NIRF Rank #${col.accreditation.nirf_rank}` : null);
+                const acceptedExam = col.accreditation?.accepted_exams?.[0] || (isMed ? 'NEET-UG' : 'JEE Advanced / GATE');
+                const stipendOrSalary = isMed
+                  ? (col.placement_stats?.avg_package || (col.fees_text ? `Fees: ${col.fees_text}` : '₹1.1L/mo Stipend'))
+                  : (col.placement_stats?.avg_package ? `${col.placement_stats.avg_package} Avg` : null);
+
+                return (
+                  <div
+                    key={col.id}
+                    className="p-5 rounded-md border border-[#dec9a5] bg-white shadow-xs hover:border-[#082046]/40 transition-all flex flex-col justify-between space-y-3"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {rankDisplay && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[#dec9a5] bg-[#F4E8D1] text-[10px] font-bold text-[#76562d]">
+                            <Award className="size-3 text-[#76562d]" /> {rankDisplay}
+                          </span>
+                        )}
+                        <span className="inline-flex items-center px-2 py-0.5 rounded border border-slate-200 bg-slate-50 text-[10px] font-medium text-slate-600">
+                          {col.type || 'Institute'}
+                        </span>
+                        <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                          <MapPin className="size-3 text-[#76562d] shrink-0" />
+                          {[col.city, col.state_code].filter(Boolean).join(', ')}
+                        </span>
+                      </div>
+
+                      <Link href={`/career/colleges/${col.slug}`}>
+                        <h3 className="text-base font-bold text-[#082046] hover:text-[#0e7bf4] hover:underline line-clamp-1 transition-colors">
+                          {col.name}
+                        </h3>
+                      </Link>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        {acceptedExam && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-800">
+                            <GraduationCap className="size-3 text-[#0e7bf4]" /> {acceptedExam}
+                          </span>
+                        )}
+                        {stipendOrSalary && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[#dec9a5] bg-[#F4E8D1] text-[11px] font-bold text-[#76562d]">
+                            <Banknote className="size-3 text-[#76562d]" /> {stipendOrSalary}
+                          </span>
+                        )}
+                      </div>
+
+                      {col.accreditation?.cutoff_details && (
+                        <p className="text-[11px] text-slate-500 line-clamp-1 pt-1 border-t border-slate-100">
+                          Benchmark: <span className="font-semibold text-slate-700">{col.accreditation.cutoff_details}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-[#dec9a5]/40 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <ShareModal
+                          variant="icon"
+                          title={col.name}
+                          category="College"
+                          url={`/career/colleges/${col.slug}`}
+                        />
+                        <SaveButton
+                          itemType="institution"
+                          slug={col.slug}
+                          title={col.name}
+                        />
+                        <Link
+                          href={`/career/colleges/compare?slugs=${col.slug}`}
+                          className="px-2.5 py-1.5 rounded border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+                        >
+                          Compare
+                        </Link>
+                      </div>
+
+                      <Link
+                        href={`/career/colleges/${col.slug}`}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-[#082046] hover:underline"
+                      >
+                        <span>View Details</span>
+                        <ExternalLink className="size-3" />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
-        </div>
+
+            <div className="pt-2 flex justify-end">
+              <Link
+                href="/career/colleges"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0e7bf4] hover:underline"
+              >
+                <span>Explore all 100+ premier colleges & cutoff trends</span>
+                <ExternalLink className="size-3.5" />
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Disclaimer Footnote (Matching Image 2 Reference) */}
         <div className="flex items-center gap-2 text-xs text-slate-500 pt-3">
@@ -2085,6 +2376,30 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      {/* Shareable Candidate Portfolio Modal */}
+      <CandidateCardModal
+        isOpen={showCandidateCardModal}
+        onClose={() => setShowCandidateCardModal(false)}
+        candidate={{
+          handle: candidateHandle,
+          fullName: fullName || currentUser?.email?.split('@')[0] || 'Candidate',
+          avatarUrl,
+          stateName: stateObj?.name || stateCode || undefined,
+          district: district || undefined,
+          domicileState: domicileObj?.name || domicileStateCode || undefined,
+          category: category || undefined,
+          highestDegree: highestEdu?.degree || (highestEdu ? EDUCATION_LEVEL_LABELS[highestEdu.level] : undefined),
+          stream: highestEdu?.stream || undefined,
+          institution: highestEdu?.institution_name || highestEdu?.board_or_university || undefined,
+          yearOfPassing: highestEdu?.year_of_passing ?? undefined,
+          score: highestEdu?.score != null ? highestEdu.score : undefined,
+          scoreType: highestEdu?.score_type ?? undefined,
+          skills: skillsList,
+          targetJobTypes,
+          examScores,
+        }}
+      />
     </div>
   );
 }

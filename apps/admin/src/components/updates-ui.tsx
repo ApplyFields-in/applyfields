@@ -1,21 +1,32 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import type { AdminUpdateDetail, OpportunityStatus, UpdateInput, UpdateKind } from '@applyfields/types';
+import { useState, useTransition, useEffect } from 'react';
+import type {
+  AdminOpportunityList,
+  AdminOpportunityListItem,
+  AdminUpdateDetail,
+  OpportunityStatus,
+  UpdateInput,
+  UpdateKind,
+} from '@applyfields/types';
 import { Badge, buttonClass, Card, cn } from '@applyfields/ui';
 import {
   AlertCircle,
   Archive,
   ArrowLeft,
   Calendar,
+  Check,
   CheckCircle2,
   ExternalLink,
   FileCheck,
+  Link as LinkIcon,
   Megaphone,
   Plus,
   RotateCw,
   Save,
+  Search,
   Send,
+  X,
   XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -26,6 +37,7 @@ import {
   saveUpdateAction,
   setUpdateStatusAction,
 } from '@/lib/actions';
+import { apiGet } from '@/lib/api';
 import { Field, FormSection, TextArea, TextInput } from './review-ui';
 import { StatusBadge } from './opportunities-ui';
 
@@ -129,7 +141,59 @@ export function UpdateForm({ initialData, mode }: UpdateFormProps) {
   const [url, setUrl] = useState(initialData?.url ?? '');
   const [summary, setSummary] = useState(initialData?.summary ?? '');
   const [opportunityId, setOpportunityId] = useState(initialData?.parent?.id ?? '');
+  const [linkedParent, setLinkedParent] = useState<{ id: string; title: string } | null>(
+    initialData?.parent ? { id: initialData.parent.id, title: initialData.parent.title } : null,
+  );
   const [sourceUrl, setSourceUrl] = useState(initialData?.source_url ?? '');
+
+  // Opportunity Autocomplete search state
+  const [searchOppQuery, setSearchOppQuery] = useState('');
+  const [searchingOpp, setSearchingOpp] = useState(false);
+  const [oppResults, setOppResults] = useState<AdminOpportunityListItem[]>([]);
+  const [showManualUuid, setShowManualUuid] = useState(false);
+
+  // Search opportunities as user types
+  useEffect(() => {
+    if (!searchOppQuery.trim() || searchOppQuery.trim().length < 2) {
+      setOppResults([]);
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      setSearchingOpp(true);
+      try {
+        const res = await apiGet<AdminOpportunityList>(
+          `/admin/opportunities?q=${encodeURIComponent(searchOppQuery.trim())}&limit=6`,
+        );
+        if (res?.items) {
+          setOppResults(res.items.slice(0, 6));
+        }
+      } catch (err) {
+        console.error('Failed to search opportunities:', err);
+      } finally {
+        setSearchingOpp(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [searchOppQuery]);
+
+  const handleSelectOpportunity = (opp: AdminOpportunityListItem) => {
+    setOpportunityId(opp.id);
+    setLinkedParent({ id: opp.id, title: opp.title });
+    setSearchOppQuery('');
+    setOppResults([]);
+
+    // If title is currently empty, offer intuitive auto-title
+    if (!title.trim()) {
+      setTitle(`${opp.title} — ${UPDATE_KIND_LABEL[kind]}`);
+    }
+  };
+
+  const handleUnlinkOpportunity = () => {
+    setOpportunityId('');
+    setLinkedParent(null);
+  };
 
   const buildPayload = (): UpdateInput => ({
     title: title.trim(),
@@ -184,7 +248,7 @@ export function UpdateForm({ initialData, mode }: UpdateFormProps) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/updates" className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline">
-          <ArrowLeft className="size-4" aria-hidden="true" /> Back to results & updates
+          <ArrowLeft className="size-4" aria-hidden="true" /> Back to results &amp; updates
         </Link>
         {initialData && (
           <div className="flex items-center gap-2">
@@ -283,15 +347,85 @@ export function UpdateForm({ initialData, mode }: UpdateFormProps) {
               />
             </Field>
 
-            <Field label="Linked Opportunity ID (UUID)">
-              <TextInput
-                value={opportunityId}
-                onChange={(e) => setOpportunityId(e.target.value)}
-                placeholder="Optional: UUID of the parent job/exam"
-              />
-            </Field>
+            {/* Smart Linked Opportunity Picker */}
+            <div className="sm:col-span-2 space-y-2">
+              <label className="text-xs font-bold text-teal flex items-center justify-between">
+                <span>Linked Job or Exam Opportunity</span>
+                <button
+                  type="button"
+                  onClick={() => setShowManualUuid(!showManualUuid)}
+                  className="text-[11px] font-normal text-teal/70 hover:underline"
+                >
+                  {showManualUuid ? 'Use Search Picker' : 'Enter Raw UUID'}
+                </button>
+              </label>
 
-            <Field label="Official Notice Source URL">
+              {linkedParent ? (
+                <div className="flex items-center justify-between rounded-xl border border-line bg-cream p-3 text-xs shadow-xs">
+                  <div className="min-w-0 pr-3">
+                    <span className="text-[10px] uppercase font-bold text-teal/60">Linked Opportunity</span>
+                    <p className="font-bold text-teal truncate">{linkedParent.title}</p>
+                    <code className="text-[10px] text-teal/50 font-mono">{linkedParent.id}</code>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUnlinkOpportunity}
+                    className="shrink-0 rounded-lg border border-line/70 bg-canvas px-2.5 py-1 text-xs font-bold text-teal hover:bg-tea transition-colors"
+                  >
+                    Unlink
+                  </button>
+                </div>
+              ) : showManualUuid ? (
+                <TextInput
+                  value={opportunityId}
+                  onChange={(e) => setOpportunityId(e.target.value)}
+                  placeholder="Paste Opportunity UUID..."
+                />
+              ) : (
+                <div className="relative">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-teal/60" />
+                    <input
+                      type="text"
+                      value={searchOppQuery}
+                      onChange={(e) => setSearchOppQuery(e.target.value)}
+                      placeholder="Type job/exam title (e.g. SSC CGL, NEET, UPSC, Railway, IBPS)..."
+                      className="h-10 w-full rounded-full border border-teal/15 bg-canvas pl-9 pr-4 text-xs font-medium text-teal placeholder:text-teal/40 focus:border-teal focus:outline-none"
+                    />
+                    {searchingOpp && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-teal/60">
+                        Searching...
+                      </span>
+                    )}
+                  </div>
+
+                  {oppResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-line bg-canvas p-1 shadow-2xl">
+                      {oppResults.map((opp) => (
+                        <button
+                          key={opp.id}
+                          type="button"
+                          onClick={() => handleSelectOpportunity(opp)}
+                          className="w-full text-left rounded-lg p-2.5 text-xs hover:bg-cream transition-colors flex items-center justify-between gap-2 border-b border-line/40 last:border-0"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-bold text-teal truncate">{opp.title}</p>
+                            <p className="text-[11px] text-teal/60 truncate">
+                              {opp.organization} · {opp.type}
+                            </p>
+                          </div>
+                          <Badge tone={opp.status === 'published' ? 'teal' : 'celadon'} className="text-[10px] shrink-0">
+                            {opp.status}
+                          </Badge>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Field label="Official Notice Source URL" className="sm:col-span-2">
               <TextInput
                 type="url"
                 value={sourceUrl}
@@ -309,6 +443,32 @@ export function UpdateForm({ initialData, mode }: UpdateFormProps) {
             </Field>
           </div>
         </FormSection>
+
+        {/* Citizen Broadcast Preview Box */}
+        <div className="rounded-2xl border border-teal/20 bg-tea/30 p-4 sm:p-5 space-y-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-teal">
+            <Megaphone className="size-4 text-celadon" />
+            <span>Citizen Portal Broadcast &amp; Push Notification Preview</span>
+          </div>
+
+          <div className="rounded-xl border border-line bg-canvas p-3.5 space-y-2 shadow-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <UpdateKindBadge kind={kind} />
+              <span className="font-bold text-teal text-xs sm:text-sm">{title || 'Untitled Notice Preview'}</span>
+            </div>
+
+            {summary && (
+              <p className="text-teal/80 text-xs leading-relaxed">
+                {summary}
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-line/60 text-[11px] text-teal/60">
+              <span>Recipient Audience: <strong>Citizens who saved this opportunity</strong></span>
+              <span className="font-semibold text-teal">Instant Mobile Push &amp; In-App Notification</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
