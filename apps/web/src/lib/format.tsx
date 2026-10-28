@@ -111,3 +111,46 @@ export function formatCurrency(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return '';
   return `₹${amount.toLocaleString('en-IN')}`;
 }
+
+export const PAY_MATRIX_7TH_CPC: Record<number, number> = {
+  1: 18000,
+  2: 19900,
+  3: 21700,
+  4: 25500,
+  5: 29200,
+  6: 35400,
+  7: 44900,
+  8: 47600,
+  9: 53100,
+  10: 56100,
+  11: 67700,
+  12: 78800,
+  13: 123100,
+  14: 144200,
+};
+
+export function estimateSalary(payLevel: string | number | null | undefined): {
+  basic: number;
+  min: number;
+  max: number;
+  formatted: string;
+} | null {
+  if (payLevel === null || payLevel === undefined) return null;
+  const match = String(payLevel).match(/\d+/);
+  if (!match) return null;
+  const level = parseInt(match[0], 10);
+  const basic = PAY_MATRIX_7TH_CPC[level];
+  if (!basic) return null;
+
+  // Approx in-hand: Z-city ~1.47x to X-city ~1.64x (after DA + HRA + TA minus NPS)
+  const min = Math.round((basic * 1.47) / 500) * 500;
+  const max = Math.round((basic * 1.64) / 500) * 500;
+
+  return {
+    basic,
+    min,
+    max,
+    formatted: `~₹${min.toLocaleString('en-IN')}–₹${max.toLocaleString('en-IN')}/month`,
+  };
+}
+

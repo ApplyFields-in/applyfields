@@ -67,8 +67,8 @@ export const COLLEGE_CATEGORIES: CollegeCategoryOption[] = [
     icon: FlaskConical,
   },
   {
-    title: 'Medical Colleges',
-    subtitle: 'MBBS, BDS & Allied Health Sciences (Dataset coming next)',
+    title: 'Top 50 Medical Colleges',
+    subtitle: 'NIRF Ranked Premier AIIMS, JIPMER, CMC & Apex Medical Institutes',
     href: '/career/colleges?stream=medical',
     streamKey: 'medical',
     icon: Stethoscope,

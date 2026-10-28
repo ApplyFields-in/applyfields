@@ -123,7 +123,7 @@ export default async function CareerDetailPage({ params }: PageProps) {
 
           {/* 2. Step-by-Step Educational Pathway */}
           {career.pathway_steps && career.pathway_steps.length > 0 && (
-            <section className="rounded-card bg-cream p-6 shadow-card sm:p-7">
+            <section id="pathway-steps" className="scroll-mt-6 rounded-card bg-cream p-6 shadow-card sm:p-7">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xl font-bold text-teal">
                   <Compass className="size-5 text-teal" /> Step-by-Step Education Pathway
@@ -363,6 +363,35 @@ export default async function CareerDetailPage({ params }: PageProps) {
           )}
         </div>
       </div>
+
+      {/* "Next Step" Sticky CTA Bar */}
+      {career.pathway_steps && career.pathway_steps.length > 0 && (
+        <div className="fixed bottom-3 inset-x-3 sm:bottom-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-40 w-auto sm:min-w-[440px] max-w-xl">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-tea/30 bg-teal/95 px-4 py-3 text-cream shadow-2xl backdrop-blur-md">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-celadon text-teal text-xs font-bold shadow-xs">
+                {career.pathway_steps[0].step || 1}
+              </span>
+              <div className="min-w-0">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-celadon block">
+                  Next Step in Pathway
+                </span>
+                <p className="text-xs font-bold text-cream truncate">
+                  {career.pathway_steps[0].title}
+                </p>
+              </div>
+            </div>
+
+            <a
+              href="#pathway-steps"
+              className="clay-press shrink-0 rounded-xl bg-celadon px-3.5 py-1.5 text-xs font-extrabold text-teal shadow-clay hover:bg-celadon/90 flex items-center gap-1.5"
+            >
+              <span>Explore Step</span>
+              <ArrowUpRight className="size-3.5" />
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
