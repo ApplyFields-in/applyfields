@@ -20,8 +20,16 @@ export const Roles = (...roles: StaffRole[]) => SetMetadata(ROLES_KEY, roles);
 export const ROLE_LEVELS: Record<StaffRole, number> = {
   super_admin: 50,
   admin: 40,
+  partner_manager: 35,
+  partner_ops: 25,
+  services_officer: 30,
+  case_agent: 20,
+  content_reviewer: 30,
   reviewer: 30,
+  scraper_lead: 25,
   content_editor: 20,
+  career_curator: 30,
+  institution_analyst: 25,
   support: 10,
 };
 

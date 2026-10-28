@@ -5,13 +5,17 @@ import {
   AlertTriangle,
   ArrowRight,
   Briefcase,
+  Building,
   Calendar,
   CheckCircle2,
   ChevronRight,
   Clock,
+  Crown,
   Download,
   ExternalLink,
   Globe,
+  HandHelping,
+  Inbox,
   Layers,
   Plus,
   ShieldAlert,
@@ -142,6 +146,163 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* -------------------- Department Operations Cockpits (Role Separation) -------------------- */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Crown className="size-4 text-amber-600" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-olive-900">
+              Department Operations Cockpits · Role Separation
+            </h2>
+          </div>
+          <span className="text-[11px] font-medium text-olive-700/80">
+            Dedicated operational workspaces for internal staff
+          </span>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Dept 1: Partners & Franchise Network */}
+          <div className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-xs hover:border-emerald-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <Store className="size-3 text-emerald-600" /> Partners & Franchise
+                </span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                  Active
+                </span>
+              </div>
+              <h3 className="text-sm font-bold text-olive-950 pt-1">
+                Franchise & Center Ops
+              </h3>
+              <p className="text-xs text-olive-700/80 leading-relaxed">
+                Partner kiosk onboarding, MeeSeva verification, live center slots, and commission settlement ledgers.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-olive-900">
+                <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-800">
+                  24 Partners
+                </span>
+                <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-800">
+                  12 Pending KYC
+                </span>
+              </div>
+            </div>
+            <Link
+              href="/partners"
+              className="inline-flex items-center justify-between w-full pt-3 border-t border-emerald-100 text-xs font-bold text-emerald-800 hover:text-emerald-950 transition-colors"
+            >
+              <span>Launch Partners Cockpit</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+
+          {/* Dept 2: Citizen Services & Assistance */}
+          <div className="rounded-2xl border border-blue-200 bg-white p-5 shadow-xs hover:border-blue-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                  <HandHelping className="size-3 text-blue-600" /> Citizen Services
+                </span>
+                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                  94.2% SLA
+                </span>
+              </div>
+              <h3 className="text-sm font-bold text-olive-950 pt-1">
+                Assistance & Delivery
+              </h3>
+              <p className="text-xs text-olive-700/80 leading-relaxed">
+                Government service delivery, certificate applications, citizen case triage, and center handoffs.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-olive-900">
+                <span className="rounded bg-blue-50 px-2 py-0.5 text-blue-800">
+                  18 Kiosks
+                </span>
+                <span className="rounded bg-blue-50 px-2 py-0.5 text-blue-800">
+                  38 Active Bookings
+                </span>
+              </div>
+            </div>
+            <Link
+              href="/services"
+              className="inline-flex items-center justify-between w-full pt-3 border-t border-blue-100 text-xs font-bold text-blue-800 hover:text-blue-950 transition-colors"
+            >
+              <span>Launch Services Cockpit</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+
+          {/* Dept 3: Apply & Opportunities Pipeline */}
+          <div className="rounded-2xl border border-indigo-200 bg-white p-5 shadow-xs hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                  <Inbox className="size-3 text-indigo-600" /> Apply & Opportunities
+                </span>
+                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                  {pendingReviewsCount} Pending
+                </span>
+              </div>
+              <h3 className="text-sm font-bold text-olive-950 pt-1">
+                Ingestion & Publishing
+              </h3>
+              <p className="text-xs text-olive-700/80 leading-relaxed">
+                Raw ingestion review, confidence filters, scraper anomaly monitoring, and official notifications.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-olive-900">
+                <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-800">
+                  {summaryData.scrapers?.length ?? 8} Scrapers
+                </span>
+                <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-800">
+                  {publishedWeekCount} Published/Wk
+                </span>
+              </div>
+            </div>
+            <Link
+              href="/review"
+              className="inline-flex items-center justify-between w-full pt-3 border-t border-indigo-100 text-xs font-bold text-indigo-800 hover:text-indigo-950 transition-colors"
+            >
+              <span>Launch Review Cockpit</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+
+          {/* Dept 4: Career & Higher Education */}
+          <div className="rounded-2xl border border-amber-200 bg-white p-5 shadow-xs hover:border-amber-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                  <Building className="size-3 text-amber-600" /> Career & Higher Ed
+                </span>
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+                  100 Colleges
+                </span>
+              </div>
+              <h3 className="text-sm font-bold text-olive-950 pt-1">
+                Colleges & Roadmaps
+              </h3>
+              <p className="text-xs text-olive-700/80 leading-relaxed">
+                Top 50 Engineering & Medical Colleges, NIRF ranks, cutoff benchmarks, and trajectory roadmaps.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-olive-900">
+                <span className="rounded bg-amber-50 px-2 py-0.5 text-amber-800">
+                  Top 50 Engg
+                </span>
+                <span className="rounded bg-amber-50 px-2 py-0.5 text-amber-800">
+                  Top 50 Medical
+                </span>
+              </div>
+            </div>
+            <Link
+              href="/colleges"
+              className="inline-flex items-center justify-between w-full pt-3 border-t border-amber-100 text-xs font-bold text-amber-800 hover:text-amber-950 transition-colors"
+            >
+              <span>Launch Colleges Cockpit</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* -------------------- Multi-Portal Architecture Clarity Cards -------------------- */}
       <section className="space-y-3">
