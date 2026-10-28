@@ -18,6 +18,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
+import { ShareModal } from '@/components/share/share-modal';
 
 /* ------------------------------------------------------------------ Share Button */
 
@@ -30,55 +31,14 @@ export function ShareButton({
   url?: string;
   className?: string;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleShare = async () => {
-    const shareUrl = url || (typeof window !== 'undefined' ? window.location.href : '');
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title,
-          text: `Check out ${title} on ApplyFields`,
-          url: shareUrl,
-        });
-        return;
-      } catch {
-        // Fall back to clipboard copy if user dismissed or cancelled share
-      }
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
-      } catch {
-        // clipboard write error
-      }
-    }
-  };
-
   return (
-    <div className="relative inline-flex">
-      <button
-        type="button"
-        onClick={handleShare}
-        className={cn(buttonClass({ variant: 'secondary', size: 'md' }), className)}
-        title="Share this opportunity"
-      >
-        {copied ? (
-          <>
-            <Check className="size-4 text-sea" aria-hidden="true" />
-            <span>Link copied!</span>
-          </>
-        ) : (
-          <>
-            <Share2 className="size-4" aria-hidden="true" />
-            <span>Share</span>
-          </>
-        )}
-      </button>
-    </div>
+    <ShareModal
+      title={title}
+      url={url}
+      buttonLabel="Share"
+      buttonClassName={className}
+      category="Opportunity"
+    />
   );
 }
 

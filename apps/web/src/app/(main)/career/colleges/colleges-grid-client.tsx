@@ -6,18 +6,22 @@ import { cn, EmptyState } from '@applyfields/ui';
 import {
   ArrowRight,
   Award,
+  Banknote,
   Building,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   Columns,
+  GraduationCap,
   LayoutGrid,
   List,
   MapPin,
 } from 'lucide-react';
 import Link from 'next/link';
 import { SaveButton } from '@/components/save-button';
+import { ZeroResultRecovery } from '@/components/zero-result-recovery';
+import { ShareModal } from '@/components/share/share-modal';
 
 function getShortDescription(desc?: string | null): string {
   if (!desc) return 'Premier technical education and higher research institute in India.';
@@ -154,20 +158,28 @@ export function CollegesGridClient({
 
       {/* College Cards: Grid or List Mode (Rectangular rounded-md, No AI badges) */}
       {colleges.length === 0 ? (
-        <EmptyState
-          icon={<Building />}
-          title="No institutions found"
-          text="Try broadening your search term or clearing the filters above."
+        <ZeroResultRecovery
+          title="No colleges found"
+          query={q}
+          clearFiltersHref="/career/colleges"
+          allStreamsHref={stream ? '/career/colleges' : undefined}
+          entityType="colleges"
         />
       ) : viewLayout === 'list' ? (
         /* List Mode: Wide Full-Width Row Cards - Rectangular rounded-md */
         <div className="space-y-4">
           {colleges.map((c) => {
+            const isMedical = c.accreditation?.nirf_category === 'Medical' || c.name.toLowerCase().includes('medical');
             const rankDisplay = c.accreditation?.nirf_rank_text || c.ranking_text || (c.accreditation?.nirf_rank ? `NIRF Rank #${c.accreditation.nirf_rank}` : null);
             const instituteType = c.accreditation?.institute_type_raw || TYPE_LABELS[c.type] || c.type;
             const establishedDisplay = c.accreditation?.established_text || (c.established_year ? `Estd. ${c.established_year}` : null);
             const locationDisplay = c.accreditation?.location_shown || [c.city, c.state_code].filter(Boolean).join(', ') || 'India';
             const descriptionSnippet = getShortDescription(c.description);
+
+            const examBadge = c.accreditation?.accepted_exams?.[0] || (isMedical ? 'NEET-UG' : 'JEE Advanced');
+            const stipendOrSalary = isMedical
+              ? (c.placement_stats?.avg_package || (c.fees_text ? `Fees: ${c.fees_text}` : '₹1.1L/mo Stipend'))
+              : (c.placement_stats?.avg_package ? `${c.placement_stats.avg_package} Avg` : (c.placement_stats?.highest_package ? `${c.placement_stats.highest_package} High` : null));
 
             return (
               <div
@@ -203,9 +215,30 @@ export function CollegesGridClient({
                   <p className="text-xs text-[#536780] leading-relaxed line-clamp-2 max-w-3xl">
                     {descriptionSnippet}
                   </p>
+
+                  {/* Micro-Badges: Stipend/Salary & Exam Cutoff */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {stipendOrSalary && (
+                      <span className="inline-flex items-center gap-1 rounded border border-[#dec9a5] bg-[#F4E8D1] px-2 py-0.5 text-[11px] font-bold text-[#76562d]">
+                        <Banknote className="size-3 text-[#76562d]" /> {stipendOrSalary}
+                      </span>
+                    )}
+                    {examBadge && (
+                      <span className="inline-flex items-center gap-1 rounded border border-[#dec9a5] bg-[#f8f5ef] px-2 py-0.5 text-[11px] font-semibold text-[#082046]">
+                        <GraduationCap className="size-3 text-[#0e7bf4]" /> {examBadge}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2.5 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#dec9a5]/40">
+                  <ShareModal
+                    variant="icon"
+                    title={c.name}
+                    category={instituteType || 'College'}
+                    url={`/career/colleges/${c.slug}`}
+                  />
+
                   <SaveButton
                     itemType="institution"
                     slug={c.slug}
@@ -235,11 +268,17 @@ export function CollegesGridClient({
         /* Grid Mode: 2-Column Responsive Card Grid - Rectangular rounded-md */
         <div className="grid gap-5 md:grid-cols-2">
           {colleges.map((c) => {
+            const isMedical = c.accreditation?.nirf_category === 'Medical' || c.name.toLowerCase().includes('medical');
             const rankDisplay = c.accreditation?.nirf_rank_text || c.ranking_text || (c.accreditation?.nirf_rank ? `NIRF Rank #${c.accreditation.nirf_rank}` : null);
             const instituteType = c.accreditation?.institute_type_raw || TYPE_LABELS[c.type] || c.type;
             const establishedDisplay = c.accreditation?.established_text || (c.established_year ? `Estd. ${c.established_year}` : null);
             const locationDisplay = c.accreditation?.location_shown || [c.city, c.state_code].filter(Boolean).join(', ') || 'India';
             const descriptionSnippet = getShortDescription(c.description);
+
+            const examBadge = c.accreditation?.accepted_exams?.[0] || (isMedical ? 'NEET-UG' : 'JEE Advanced');
+            const stipendOrSalary = isMedical
+              ? (c.placement_stats?.avg_package || (c.fees_text ? `Fees: ${c.fees_text}` : '₹1.1L/mo Stipend'))
+              : (c.placement_stats?.avg_package ? `${c.placement_stats.avg_package} Avg` : (c.placement_stats?.highest_package ? `${c.placement_stats.highest_package} High` : null));
 
             return (
               <div
@@ -263,12 +302,20 @@ export function CollegesGridClient({
                         </span>
                       )}
                     </div>
-                    {/* Save / Bookmark Button */}
-                    <SaveButton
-                      itemType="institution"
-                      slug={c.slug}
-                      title={c.name}
-                    />
+                    {/* Actions: Share & Save */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <ShareModal
+                        variant="icon"
+                        title={c.name}
+                        category={instituteType || 'College'}
+                        url={`/career/colleges/${c.slug}`}
+                      />
+                      <SaveButton
+                        itemType="institution"
+                        slug={c.slug}
+                        title={c.name}
+                      />
+                    </div>
                   </div>
 
                   <Link href={`/career/colleges/${c.slug}`}>
@@ -286,6 +333,20 @@ export function CollegesGridClient({
                   <p className="mt-2.5 text-xs text-[#536780] leading-relaxed line-clamp-2">
                     {descriptionSnippet}
                   </p>
+
+                  {/* Micro-Badges: Stipend/Salary & Exam Cutoff */}
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    {stipendOrSalary && (
+                      <span className="inline-flex items-center gap-1 rounded border border-[#dec9a5] bg-[#F4E8D1] px-2 py-0.5 text-[11px] font-bold text-[#76562d]">
+                        <Banknote className="size-3 text-[#76562d]" /> {stipendOrSalary}
+                      </span>
+                    )}
+                    {examBadge && (
+                      <span className="inline-flex items-center gap-1 rounded border border-[#dec9a5] bg-[#f8f5ef] px-2 py-0.5 text-[11px] font-semibold text-[#082046]">
+                        <GraduationCap className="size-3 text-[#0e7bf4]" /> {examBadge}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-5 flex items-center justify-between border-t border-[#dec9a5]/40 pt-4">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Clock, Info, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock, Info, ShieldCheck, Sparkles } from 'lucide-react';
 import type { HomeSummary, OpportunityCard } from '@applyfields/types';
 import { HorizontalOpportunityCard } from '@/components/opportunity/horizontal-opportunity-card';
 import { apiGet } from '@/lib/api';
@@ -49,6 +49,69 @@ export function LoggedInDashboard({ initialHomeData, userName = '' }: LoggedInDa
         </h1>
         <p className="mt-1 text-sm text-slate-600">Your first move starts here.</p>
       </header>
+
+      {/* New User Welcome Onboarding State */}
+      {(!liveData?.personal?.profile_ready || (saved.length === 0 && recommendations.length === 0)) && (
+        <div className="rounded-3xl border border-line bg-gradient-to-br from-cream/90 via-canvas to-tea/30 p-6 sm:p-8 shadow-card">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-line pb-5">
+            <div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-celadon/40 px-3 py-1 text-xs font-bold text-teal">
+                <Sparkles className="size-3.5 text-sea" /> Quick Start Guide
+              </span>
+              <h2 className="mt-2 text-xl sm:text-2xl font-black text-teal">
+                Welcome to ApplyFields! 🚀
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-teal/80 max-w-xl">
+                Get the most out of your dashboard in 3 simple steps to discover government recruitments, exams, and scholarships you qualify for.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            {/* Step 1 */}
+            <div className="flex flex-col justify-between rounded-2xl border border-line bg-canvas/80 p-5 shadow-xs">
+              <div>
+                <span className="grid size-7 place-items-center rounded-full bg-teal text-cream text-xs font-bold">1</span>
+                <h3 className="mt-3 text-sm font-bold text-teal">Complete Your Profile</h3>
+                <p className="mt-1 text-xs text-teal/70 leading-relaxed">
+                  Add your date of birth, category, and degree to unlock automatic 1-click eligibility matching.
+                </p>
+              </div>
+              <Link href="/profile" className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-sea hover:underline">
+                Set up profile <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+
+            {/* Step 2 */}
+            <div className="flex flex-col justify-between rounded-2xl border border-line bg-canvas/80 p-5 shadow-xs">
+              <div>
+                <span className="grid size-7 place-items-center rounded-full bg-teal text-cream text-xs font-bold">2</span>
+                <h3 className="mt-3 text-sm font-bold text-teal">Check Live Eligibility</h3>
+                <p className="mt-1 text-xs text-teal/70 leading-relaxed">
+                  Run an instant check across 100+ active central and state commission notifications.
+                </p>
+              </div>
+              <Link href="/eligibility" className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-sea hover:underline">
+                Test eligibility <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+
+            {/* Step 3 */}
+            <div className="flex flex-col justify-between rounded-2xl border border-line bg-canvas/80 p-5 shadow-xs">
+              <div>
+                <span className="grid size-7 place-items-center rounded-full bg-teal text-cream text-xs font-bold">3</span>
+                <h3 className="mt-3 text-sm font-bold text-teal">Save Your First Notice</h3>
+                <p className="mt-1 text-xs text-teal/70 leading-relaxed">
+                  Bookmark upcoming application deadlines and receive automatic email/push reminders.
+                </p>
+              </div>
+              <Link href="/apply" className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-sea hover:underline">
+                Browse opportunities <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
         <div className="rounded-2xl border border-[#F5E6CC] bg-[#FFF9EE] p-5">

@@ -19,6 +19,7 @@ import { API_URL } from '@/lib/api';
 import { daysLeftLabel, ELIGIBILITY_META, formatDate, TYPE_META, urgencyTone } from '@/lib/format';
 import { apiGetAsUser } from '@/lib/server-api';
 import { SaveButton } from '@/components/save-button';
+import { CompareToggleButton } from '@/components/opportunity-compare/compare-button';
 import { getMockOpportunities } from '@/lib/mock-data';
 
 /* ------------------------------------------------------------------ one card */
@@ -38,7 +39,10 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
             {item.title}
           </Link>
         </div>
-        <SaveButton itemType="opportunity" slug={item.slug} title={item.title} initial={item.saved} />
+        <div className="flex items-center gap-1 shrink-0">
+          <CompareToggleButton item={item} />
+          <SaveButton itemType="opportunity" slug={item.slug} title={item.title} initial={item.saved} />
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -46,6 +50,15 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
           <Badge tone={ELIGIBILITY_META[item.eligibility].tone}>
             {ELIGIBILITY_META[item.eligibility].icon} {ELIGIBILITY_META[item.eligibility].label}
           </Badge>
+        )}
+        {typeof item.match_score === 'number' && (
+          <span title={`${item.match_score}% of verifiable eligibility rules match your profile`}>
+            <Badge
+              tone={item.match_score >= 80 ? 'celadon' : item.match_score >= 50 ? 'tea' : 'outline'}
+            >
+              {item.match_score}% match
+            </Badge>
+          </span>
         )}
         <Badge tone="outline">
           <MapPin aria-hidden="true" /> {item.location}
@@ -59,6 +72,7 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
           </Badge>
         )}
       </div>
+
 
       <div className="mt-4 flex items-center justify-between gap-2 border-t border-line pt-3">
         <span className="flex items-center gap-1.5 text-xs text-teal/80">

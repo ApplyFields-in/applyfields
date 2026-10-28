@@ -260,6 +260,60 @@ export default function EligibilityPage() {
 
         {/* Right Column: Matched Opportunities List */}
         <div className="space-y-4">
+          <style>{`
+            @keyframes confetti-fall {
+              0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+              100% { transform: translateY(60px) rotate(360deg); opacity: 0; }
+            }
+          `}</style>
+          {!loading && opportunities.length > 0 && (
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-green-50 p-5 shadow-xs">
+              {/* CSS Confetti burst particles */}
+              <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+                {[
+                  { left: '10%', delay: '0s', color: '#1A936F', size: '6px' },
+                  { left: '20%', delay: '0.2s', color: '#88D498', size: '8px' },
+                  { left: '35%', delay: '0.1s', color: '#114B5F', size: '5px' },
+                  { left: '50%', delay: '0.35s', color: '#C6DABF', size: '7px' },
+                  { left: '65%', delay: '0.15s', color: '#f59e0b', size: '6px' },
+                  { left: '80%', delay: '0.25s', color: '#1A936F', size: '8px' },
+                  { left: '92%', delay: '0.05s', color: '#3b82f6', size: '5px' },
+                ].map((c, i) => (
+                  <span
+                    key={i}
+                    className="absolute top-0 rounded-xs"
+                    style={{
+                      left: c.left,
+                      width: c.size,
+                      height: c.size,
+                      backgroundColor: c.color,
+                      animation: `confetti-fall 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${c.delay} forwards`,
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="relative z-10 flex items-start gap-3.5">
+                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                  <CheckCircle2 className="size-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-extrabold text-emerald-950">
+                      You&apos;re Eligible! 🎉
+                    </h3>
+                    <span className="rounded-full bg-emerald-200/80 px-2 py-0.5 text-[11px] font-bold text-emerald-900">
+                      {opportunities.length} Matches Found
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs font-medium text-emerald-800 leading-relaxed">
+                    Based on your age ({calculatedAge ?? '—'} yrs), {category} category reservation, and highest qualification, you meet all primary criteria for the notifications listed below.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-[#082046]">Eligible Opportunities</h2>

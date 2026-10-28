@@ -12,11 +12,13 @@ import {
 } from '@nestjs/common';
 import type {
   EligibilityResponse,
+  OpportunityCard,
   OpportunityDetail,
   OpportunityList,
   OpportunityType,
   UpdateList,
 } from '@applyfields/types';
+
 import { OpportunitiesService } from './opportunities.service.js';
 import { EligibilityService } from '../eligibility/eligibility.service.js';
 import { OptionalAuthGuard, type MaybeUserRequest } from '../auth/auth.guard.js';
@@ -89,7 +91,17 @@ export class OpportunitiesController {
     return { ...data, total: items.length, items };
   }
 
+  /** GET /api/v1/opportunities/trending — top 10 most-saved opportunities in the last 48 hours */
+  @Get('opportunities/trending')
+  async trending(): Promise<{ items: OpportunityCard[] }> {
+    return this.cache.wrap('opportunities:trending', 5, async () => {
+      const items = await this.opportunities.trending(10);
+      return { items };
+    });
+  }
+
   /** GET /api/v1/opportunities/:slug — complete published detail page */
+
   @Get('opportunities/:slug')
   async detail(@Param('slug') slug: string): Promise<OpportunityDetail> {
     const key = `opportunity:slug:${slug}`;
@@ -139,7 +151,17 @@ export class OpportunitiesController {
     });
   }
 
+  /** GET /api/v1/opportunities/:slug/similar — up to 5 related opportunities (same type + category) */
+  @Get('opportunities/:slug/similar')
+  async similar(@Param('slug') slug: string): Promise<{ items: OpportunityCard[] }> {
+    return this.cache.wrap(`opportunities:similar:${slug}`, 10, async () => {
+      const items = await this.opportunities.similar(slug);
+      return { items };
+    });
+  }
+
   /** GET /api/v1/updates — published admit cards, results, answer keys, date changes */
+
   @Get('updates')
   async updates(): Promise<UpdateList> {
     return this.cache.wrap('updates:latest', 30, async () => {

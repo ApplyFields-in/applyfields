@@ -1,4 +1,4 @@
-import type { OpportunityDetail } from '@applyfields/types';
+import type { OpportunityCard, OpportunityDetail } from '@applyfields/types';
 import { Badge, Card, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
 import {
   AlertCircle,
@@ -38,12 +38,20 @@ import {
   ShareButton,
 } from './opportunity-actions';
 import { SaveButton } from './save-button';
+import { CompareToggleButton } from './opportunity-compare/compare-button';
 import { ReportWrongInfoButton } from './report-wrong-info-modal';
 import { OpportunityAnalyticsTracker, ExternalApplyLink } from './analytics-tracker';
-import { isSaved } from '@/lib/server-api';
+import { OpportunityTimelineStepper } from './opportunity/opportunity-timeline-stepper';
+import { VacanciesDonutChart } from './opportunity/vacancies-donut-chart';
+import { Breadcrumbs } from '@/components/layout/breadcrumbs';
+import { PrintExportButton } from '@/components/print-export-button';
+import { QuickSummaryModal } from '@/components/summary/quick-summary-modal';
+import { StickyMobileActionBar } from '@/components/layout/sticky-mobile-action-bar';
+import { isSaved, apiGetPublic } from '@/lib/server-api';
 import {
   DATE_KIND_LABEL,
   daysLeftLabel,
+  estimateSalary,
   formatCurrency,
   formatDate,
   STATE_NAMES,
@@ -55,6 +63,13 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
   const saved = await isSaved('opportunity', item.slug);
   const meta = TYPE_META[item.type];
   const generalEligibility = item.eligibility.find((e) => e.post_id === null) ?? item.eligibility[0];
+
+  // Fetch similar opportunities (server-side, ISR cached 10 min)
+  const similarData = await apiGetPublic<{ items: OpportunityCard[] }>(
+    `/api/v1/opportunities/${item.slug}/similar`,
+    600,
+  );
+  const similarItems = similarData?.items ?? [];
 
   const states = item.state_codes.filter((s) => s !== 'ALL');
   const locationText =
@@ -130,14 +145,20 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
       {/* Privacy-First Anonymous View Telemetry */}
       <OpportunityAnalyticsTracker id={item.id} slug={item.slug} type={item.type} />
 
-      {/* Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-xs text-teal/70">
-        <Link href={meta.base} className="hover:underline">
-          {meta.plural.charAt(0).toUpperCase() + meta.plural.slice(1)}
-        </Link>
-        <ChevronRight className="size-3" aria-hidden="true" />
-        <span className="truncate max-w-[280px] font-semibold text-teal">{item.title}</span>
-      </nav>
+      {/* Contextual Breadcrumb Navigation & Print Action */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <Breadcrumbs
+          items={[
+            { label: 'Apply', href: '/apply' },
+            { label: meta.plural.charAt(0).toUpperCase() + meta.plural.slice(1), href: meta.base },
+            { label: item.title },
+          ]}
+        />
+        <PrintExportButton
+          label="Print Notice / PDF"
+          documentTitle={`${item.title} - ${item.organization.name} - ApplyFields`}
+        />
+      </div>
 
       {/* Main Header */}
       <header className="rounded-3xl border border-line bg-canvas/70 p-5 shadow-card sm:p-7">
@@ -190,6 +211,26 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 shrink-0">
+            <CompareToggleButton
+              item={{
+                slug: item.slug,
+                title: item.title,
+                organization: item.organization.name,
+                type: item.type,
+                vacancies: item.vacancies_total,
+                location: locationText,
+                qualification: generalEligibility?.qualification_level || undefined,
+                salary_text: item.posts[0]?.salary_text,
+                application_end: item.application_end,
+                days_left: item.days_left,
+              }}
+              variant="pill"
+            />
+            <QuickSummaryModal
+              type="opportunity"
+              opportunityData={item}
+              buttonLabel="Quick Summary"
+            />
             <SaveButton itemType="opportunity" slug={item.slug} title={item.title} initial={saved} />
             <ShareButton title={item.title} />
             <ReminderButton title={item.title} deadline={item.application_end} />
@@ -229,12 +270,29 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
             <span className="text-[11px] font-semibold text-teal/70 flex items-center gap-1">
               <IndianRupee className="size-3.5" /> Salary / Pay Scale
             </span>
-            <p className="mt-1 text-lg sm:text-xl font-extrabold text-teal truncate">
-              {item.posts[0]?.salary_text ||
-                (item.posts[0]?.salary_min
-                  ? `From ${formatCurrency(item.posts[0].salary_min)}`
-                  : 'As per norms')}
-            </p>
+            {(() => {
+              const est = estimateSalary(item.posts[0]?.pay_level || item.posts[0]?.salary_text);
+              if (est) {
+                return (
+                  <div>
+                    <p className="mt-1 text-sm sm:text-base font-extrabold text-teal truncate">
+                      {est.formatted}
+                    </p>
+                    <span className="text-[10px] text-teal/65 font-semibold">
+                      {item.posts[0]?.pay_level ? `Pay Level ${item.posts[0].pay_level} ` : ''}(7th CPC in-hand)
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <p className="mt-1 text-lg sm:text-xl font-extrabold text-teal truncate">
+                  {item.posts[0]?.salary_text ||
+                    (item.posts[0]?.salary_min
+                      ? `From ${formatCurrency(item.posts[0].salary_min)}`
+                      : 'As per norms')}
+                </p>
+              );
+            })()}
           </div>
 
           <div className="rounded-2xl bg-cream/70 p-3 shadow-clay">
@@ -258,6 +316,16 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
           </div>
         </div>
       </header>
+
+      {/* Visual Application Stepper */}
+      <div className="mt-6">
+        <OpportunityTimelineStepper
+          dates={item.dates}
+          applicationEnd={item.application_end}
+          publishedAt={item.published_at}
+          daysLeft={item.days_left}
+        />
+      </div>
 
       {/* Main Content Layout */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -401,7 +469,20 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
                           )}
                         </td>
                         <td className="px-3 py-3 text-teal/80">
-                          {post.salary_text || post.pay_level || 'As per 7th CPC'}
+                          <div>
+                            <span className="font-medium">{post.salary_text || (post.pay_level ? `Pay Level ${post.pay_level}` : 'As per 7th CPC')}</span>
+                            {(() => {
+                              const est = estimateSalary(post.pay_level || post.salary_text);
+                              if (est) {
+                                return (
+                                  <span className="block text-[11px] font-bold text-sea mt-0.5">
+                                    {est.formatted}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
                         </td>
                         <td className="px-3 py-3 text-right font-extrabold text-teal tabular-nums">
                           {post.vacancies_total !== null
@@ -413,6 +494,26 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
                   </tbody>
                 </table>
               </div>
+
+              {/* Vacancies by Category Donut Chart */}
+              {item.posts.some((p) => p.vacancies_by_category && Object.keys(p.vacancies_by_category).length > 1) && (
+                <div className="mt-5">
+                  <VacanciesDonutChart
+                    categories={
+                      item.posts.reduce<Record<string, number>>((acc, p) => {
+                        if (p.vacancies_by_category) {
+                          for (const [k, v] of Object.entries(p.vacancies_by_category)) {
+                            acc[k] = (acc[k] || 0) + v;
+                          }
+                        }
+                        return acc;
+                      }, {})
+                    }
+                    total={item.vacancies_total}
+                    title="Vacancies by Category Breakdown"
+                  />
+                </div>
+              )}
             </Card>
           )}
 
@@ -709,7 +810,7 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
                 title={
                   <div className="flex items-center gap-2 text-teal">
                     <Megaphone className="size-4" />
-                    <span>Admit Cards & Updates</span>
+                    <span>Admit Cards &amp; Updates</span>
                   </div>
                 }
               />
@@ -729,8 +830,66 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
               </div>
             </Card>
           )}
+
+          {/* Similar Opportunities */}
+          {similarItems.length > 0 && (
+            <Card className="p-5">
+              <SectionTitle
+                title={
+                  <div className="flex items-center gap-2 text-teal">
+                    <Layers className="size-4" />
+                    <span>Similar Opportunities</span>
+                  </div>
+                }
+              />
+              <div className="mt-3 space-y-2">
+                {similarItems.map((s) => {
+                  const href =
+                    s.type === 'govt_job' ? `/jobs/${s.slug}` :
+                    s.type === 'exam' ? `/exams/${s.slug}` :
+                    s.type === 'scholarship' ? `/scholarships/${s.slug}` :
+                    s.type === 'admission' ? `/admissions/${s.slug}` :
+                    `/services/${s.slug}`;
+                  return (
+                    <Link
+                      key={s.slug}
+                      href={href}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-line bg-canvas/40 p-3 hover:bg-canvas transition-colors group"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-teal line-clamp-1 group-hover:text-sea transition-colors">
+                          {s.title}
+                        </p>
+                        <p className="text-[11px] text-teal/60 mt-0.5 truncate">{s.organization}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {s.days_left != null && (
+                          <Badge tone={urgencyTone(s.days_left)} className="text-[10px]">
+                            {daysLeftLabel(s.days_left)}
+                          </Badge>
+                        )}
+                        <ChevronRight className="size-3.5 text-teal/40 group-hover:text-sea transition-colors" />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
         </div>
       </div>
+
+      {/* Sticky Bottom Action Bar for Mobile Viewports */}
+      <StickyMobileActionBar
+        title={item.title}
+        badgeText={item.days_left != null ? daysLeftLabel(item.days_left) : (item.application_end ? `Last date: ${item.application_end}` : undefined)}
+        primaryCtaLabel="Apply Online"
+        primaryCtaHref={item.links.apply_url || item.links.official_page_url || meta.base}
+        isExternal={Boolean(item.links.apply_url || item.links.official_page_url)}
+        slug={item.slug}
+        itemType="opportunity"
+        category={meta.label}
+      />
     </>
   );
 }

@@ -17,6 +17,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { apiGet } from '@/lib/api';
 import { SaveButton } from '@/components/save-button';
+import { Breadcrumbs } from '@/components/layout/breadcrumbs';
+import { PrintExportButton } from '@/components/print-export-button';
+import { ShareModal } from '@/components/share/share-modal';
+import { QuickSummaryModal } from '@/components/summary/quick-summary-modal';
+import { StickyMobileActionBar } from '@/components/layout/sticky-mobile-action-bar';
 
 interface CollegeDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -108,14 +113,32 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
       {/* Yellowish Header Section matching Career Mode in Screenshot */}
       <section className="border-y border-[#e5d0aa] bg-[#F4E8D1]">
         <div className="mx-auto max-w-[1360px] space-y-4 px-4 pt-6 pb-6 sm:pt-8 sm:pb-7 sm:px-6 lg:px-8">
-          {/* Back button */}
-          <div>
-            <Link
-              href="/career/colleges"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#76562d] hover:text-[#082046] transition-colors"
-            >
-              <ArrowLeft className="size-3.5" /> Back to colleges directory
-            </Link>
+          {/* Contextual Breadcrumbs Navigation & Export Action */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Breadcrumbs
+              items={[
+                { label: 'Career', href: '/career' },
+                { label: 'Colleges', href: '/career/colleges' },
+                {
+                  label: accreditation.nirf_category === 'Medical' ? 'Top 50 Medical' : 'Top 50 Engineering',
+                  href: `/career/colleges?stream=${accreditation.nirf_category === 'Medical' ? 'medical' : 'top-50-engg'}`,
+                },
+                { label: college.short_name || college.name },
+              ]}
+            />
+
+            <div className="flex items-center gap-2">
+              <PrintExportButton
+                label="Download Report / Print"
+                documentTitle={`${college.name} - Official College Profile & Cutoffs - ApplyFields`}
+              />
+              <Link
+                href="/career/colleges"
+                className="print:hidden inline-flex items-center gap-1.5 text-xs font-semibold text-[#76562d] hover:text-[#082046] transition-colors"
+              >
+                <ArrowLeft className="size-3.5" /> Back
+              </Link>
+            </div>
           </div>
 
           {/* Top Metadata Badges - Rectangular rounded, NO dark blue pills */}
@@ -139,7 +162,19 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <QuickSummaryModal
+                type="college"
+                collegeData={college}
+                buttonLabel="Executive Summary"
+              />
+
+              <ShareModal
+                title={college.name}
+                subtitle={`${rankDisplay ? rankDisplay + ' · ' : ''}${locationDisplay}`}
+                category={instituteType || 'College'}
+              />
+
               <SaveButton
                 itemType="institution"
                 slug={college.slug}
@@ -485,6 +520,18 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
           </div>
         </div>
       </div>
+
+      {/* Sticky Bottom Action Bar for Mobile Viewports */}
+      <StickyMobileActionBar
+        title={college.name}
+        badgeText={rankDisplay || locationDisplay}
+        primaryCtaLabel={college.website ? "Portal" : "Compare"}
+        primaryCtaHref={college.website || `/career/colleges/compare?slugs=${college.slug}`}
+        isExternal={Boolean(college.website)}
+        slug={college.slug}
+        itemType="institution"
+        category="College"
+      />
     </div>
   );
 }

@@ -20,6 +20,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiGet } from '@/lib/api';
 import { TOP_50_COLLEGES, getTop50CollegeBySlug } from '@/lib/top-50-colleges-data';
+import { Breadcrumbs } from '@/components/layout/breadcrumbs';
+import { PrintExportButton } from '@/components/print-export-button';
 
 export default function CollegeComparePage() {
   const searchParams = useSearchParams();
@@ -96,13 +98,26 @@ export default function CollegeComparePage() {
       {/* Yellowish Header Section matching Career Mode in Screenshot */}
       <section className="border-y border-[#e5d0aa] bg-[#F4E8D1]">
         <div className="mx-auto max-w-[1360px] space-y-4 px-4 pt-6 pb-6 sm:pt-8 sm:pb-7 sm:px-6 lg:px-8">
-          <div>
-            <Link
-              href="/career/colleges"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#76562d] hover:text-[#082046] transition-colors"
-            >
-              <ArrowLeft className="size-3.5" /> Back to colleges directory
-            </Link>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Breadcrumbs
+              items={[
+                { label: 'Career', href: '/career' },
+                { label: 'Colleges', href: '/career/colleges' },
+                { label: 'Compare Colleges' },
+              ]}
+            />
+            <div className="flex items-center gap-2">
+              <PrintExportButton
+                label="Print Comparison / PDF"
+                documentTitle="Colleges Side-by-Side Comparison Report - ApplyFields"
+              />
+              <Link
+                href="/career/colleges"
+                className="print:hidden inline-flex items-center gap-1.5 text-xs font-semibold text-[#76562d] hover:text-[#082046] transition-colors"
+              >
+                <ArrowLeft className="size-3.5" /> Back
+              </Link>
+            </div>
           </div>
 
           {/* Clean Title Typography - NO badge/icon beside title */}
@@ -200,6 +215,9 @@ export default function CollegeComparePage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                <span className="w-full text-[11px] font-bold text-[#76562d] uppercase tracking-wider mb-1">
+                  Engineering Presets:
+                </span>
                 {[
                   { slug: 'iit-madras', label: 'IIT Madras' },
                   { slug: 'iit-delhi', label: 'IIT Delhi' },
@@ -214,6 +232,28 @@ export default function CollegeComparePage() {
                     className="inline-flex items-center gap-1.5 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3 py-1.5 text-xs font-semibold text-[#082046] hover:bg-[#F4E8D1] transition-colors cursor-pointer"
                   >
                     <Plus className="size-3.5 text-[#76562d]" /> {item.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                <span className="w-full text-[11px] font-bold text-[#76562d] uppercase tracking-wider mb-1">
+                  Medical Presets:
+                </span>
+                {[
+                  { slug: 'aiims-new-delhi', label: 'AIIMS New Delhi' },
+                  { slug: 'cmc-vellore', label: 'CMC Vellore' },
+                  { slug: 'jipmer-puducherry', label: 'JIPMER Puducherry' },
+                  { slug: 'king-georges-medical-university', label: 'KGMU Lucknow' },
+                  { slug: 'kasturba-medical-college-manipal', label: 'KMC Manipal' },
+                ].map((item) => (
+                  <button
+                    key={item.slug}
+                    type="button"
+                    onClick={() => addSlug(item.slug)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3 py-1.5 text-xs font-semibold text-[#082046] hover:bg-[#F4E8D1] transition-colors cursor-pointer"
+                  >
+                    <Plus className="size-3.5 text-[#0e7bf4]" /> {item.label}
                   </button>
                 ))}
               </div>
