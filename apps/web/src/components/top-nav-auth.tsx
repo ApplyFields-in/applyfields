@@ -110,7 +110,7 @@ export function TopNavAuth() {
       window.dispatchEvent(new Event('auth-changed'));
     }
 
-    router.push('/login');
+    router.push('/account');
   }
 
   // Before client mount and initial check, render default buttons to avoid hydration mismatch
