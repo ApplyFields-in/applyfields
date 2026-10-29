@@ -32,6 +32,26 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       if (saved && (saved === 'en' || saved === 'te' || saved === 'hi')) {
         setLocaleState(saved);
       }
+
+      const handleLocaleEvent = (e: Event) => {
+        const custom = e as CustomEvent<SupportedLanguage>;
+        if (custom.detail && (custom.detail === 'en' || custom.detail === 'te' || custom.detail === 'hi')) {
+          setLocaleState(custom.detail);
+        } else {
+          const current = localStorage.getItem(STORAGE_KEY) as SupportedLanguage | null;
+          if (current && (current === 'en' || current === 'te' || current === 'hi')) {
+            setLocaleState(current);
+          }
+        }
+      };
+
+      window.addEventListener('locale-changed', handleLocaleEvent);
+      window.addEventListener('storage', handleLocaleEvent);
+
+      return () => {
+        window.removeEventListener('locale-changed', handleLocaleEvent);
+        window.removeEventListener('storage', handleLocaleEvent);
+      };
     }
   }, []);
 

@@ -241,6 +241,15 @@ export function FloatingCapsuleNavbar() {
             <Bookmark className="size-4.5 sm:size-5" />
           </Link>
 
+          {/* Settings & Preferences */}
+          <Link
+            href="/settings"
+            className="rounded-full p-2.5 sm:p-3 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            title={t('nav_settings', 'Settings & Preferences')}
+          >
+            <Settings className="size-4.5 sm:size-5" />
+          </Link>
+
           {/* User Profile Pill & Dropdown / Sign in & Register */}
           {user ? (
             <div className="relative" ref={menuRef}>
@@ -275,8 +284,11 @@ export function FloatingCapsuleNavbar() {
                   <Link href="/saved" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
                     <Bookmark className="size-4 text-[#536780]" /> {t('nav_saved', 'Saved Items')}
                   </Link>
+                  <Link href="/settings" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
+                    <Settings className="size-4 text-[#0e7bf4]" /> {t('nav_settings', 'Settings & Preferences')}
+                  </Link>
                   <Link href="/account" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
-                    <Settings className="size-4 text-[#536780]" /> Settings &amp; Security
+                    <Building2 className="size-4 text-[#536780]" /> Account &amp; Plans
                   </Link>
                   <a
                     href={PARTNER_PORTAL_URL}

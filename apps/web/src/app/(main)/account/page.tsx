@@ -96,6 +96,12 @@ function AccountContent() {
 
             <div className="pt-2 flex flex-wrap gap-3">
               <Link
+                href="/settings"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white hover:bg-[#0c6fdc] shadow-sm transition-colors"
+              >
+                <Settings className="size-3.5" /> Language &amp; Display Settings
+              </Link>
+              <Link
                 href="/profile"
                 className="inline-flex items-center gap-1.5 rounded-xl bg-[#F0F4F8] px-4 py-2 text-xs font-semibold text-[#082046] hover:bg-[#dce7f3]"
               >

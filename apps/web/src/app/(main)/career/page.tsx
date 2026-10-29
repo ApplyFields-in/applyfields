@@ -6,8 +6,10 @@ import { BookOpen, Briefcase, Route } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import { CareerCollegesHoverMenu } from '@/components/career-colleges-hover-menu';
 import type { CareerCategory, CareerDetail, CareerSummary } from '@applyfields/types';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 export default function CareerPage() {
+  const { t } = useLanguage();
   const [categories, setCategories] = useState<CareerCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [careers, setCareers] = useState<CareerSummary[]>([]);
@@ -66,14 +68,14 @@ export default function CareerPage() {
       <section className="border-y border-[#e5d0aa] bg-[#F4E8D1]">
           <div className="mx-auto max-w-[1360px] space-y-4 px-4 pt-8 pb-6 sm:pt-10 sm:pb-7 sm:px-6 lg:px-8">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#76562d]">Career mode</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#082046] sm:text-3xl">Career</h1>
-              <p className="mt-1 text-sm text-[#435775]">Your first move starts here.</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#76562d]">{t('career_mode_tag')}</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#082046] sm:text-3xl">{t('career_page_title')}</h1>
+              <p className="mt-1 text-sm text-[#435775]">{t('career_page_subtitle')}</p>
             </div>
             <nav aria-label="Career resources" className="flex flex-wrap items-center gap-2">
-              <Link href="/career" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#082046] bg-[#082046] px-3.5 text-xs font-semibold text-[#ffffff]"><Briefcase className="size-4 text-amber-300" /> Career Mode</Link>
-              <Link href="/career/roadmaps" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"><Route className="size-4 text-[#0e7bf4]" /> Roadmaps</Link>
-              <Link href="/career/courses" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"><BookOpen className="size-4 text-[#0e7bf4]" /> Courses</Link>
+              <Link href="/career" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#082046] bg-[#082046] px-3.5 text-xs font-semibold text-[#ffffff]"><Briefcase className="size-4 text-amber-300" /> {t('career_nav_mode')}</Link>
+              <Link href="/career/roadmaps" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"><Route className="size-4 text-[#0e7bf4]" /> {t('career_nav_roadmaps')}</Link>
+              <Link href="/career/courses" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-medium text-[#082046] hover:bg-[#ffffff]"><BookOpen className="size-4 text-[#0e7bf4]" /> {t('career_nav_courses')}</Link>
               <CareerCollegesHoverMenu />
             </nav>
             {categories.length > 0 && (
