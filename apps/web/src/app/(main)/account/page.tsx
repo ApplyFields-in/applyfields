@@ -29,27 +29,44 @@ function AccountContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('currentUser');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setIsLoggedIn(true);
-        setUserEmail(parsed.email || '');
-        setUserName(parsed.full_name || '');
-      } catch {
-        // fallback
+    function syncAccount() {
+      const stored = localStorage.getItem('currentUser');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setIsLoggedIn(true);
+          setUserEmail(parsed.email || '');
+          setUserName(parsed.full_name || '');
+        } catch {
+          // fallback
+        }
+      } else {
+        setIsLoggedIn(false);
+        setUserEmail('');
+        setUserName('');
+      }
+
+      if (localStorage.getItem('accessToken') || stored) {
+        apiGet<MeResponse>('/me').then((res) => {
+          if (res?.user) {
+            setIsLoggedIn(true);
+            setUserEmail(res.user.email || '');
+            if (res.profile?.full_name) {
+              setUserName(res.profile.full_name);
+            }
+          }
+        });
       }
     }
 
-    apiGet<MeResponse>('/me').then((res) => {
-      if (res?.user) {
-        setIsLoggedIn(true);
-        setUserEmail(res.user.email || '');
-        if (res.profile?.full_name) {
-          setUserName(res.profile.full_name);
-        }
-      }
-    });
+    syncAccount();
+    window.addEventListener('auth-changed', syncAccount);
+    window.addEventListener('storage', syncAccount);
+
+    return () => {
+      window.removeEventListener('auth-changed', syncAccount);
+      window.removeEventListener('storage', syncAccount);
+    };
   }, []);
 
   return (
