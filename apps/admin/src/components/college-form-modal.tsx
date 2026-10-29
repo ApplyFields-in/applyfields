@@ -13,7 +13,6 @@ import {
   Info,
   MapPin,
   Save,
-  Sparkles,
   X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
