@@ -251,6 +251,30 @@ export default function RoadmapDetailPage({
       {/* Main Content Body - Soft Neutral Parchment Background */}
       <div className="bg-[#F2F1ED] min-h-screen">
         <div className="mx-auto max-w-[1360px] space-y-8 px-4 py-6 pb-24 sm:px-6 lg:px-8">
+          {/* Quick link to Curriculum Overlap Analyzer for exams & trajectories */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-[#dec9a5] bg-[#ffffff] p-4 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-lg bg-[#082046] text-[#ffffff] shrink-0">
+                <Compass className="size-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#082046]">
+                  Curriculum Overlap & Syllabus Trajectory Engine
+                </h3>
+                <p className="text-[11px] text-[#536780]">
+                  Analyze syllabus overlap across UPSC, State PSC, SSC CGL, and Banking to file multiple exams with zero duplicate effort.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/trajectories"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#082046] px-3.5 py-1.5 text-xs font-bold text-[#ffffff] hover:bg-[#133363] transition shrink-0 shadow-xs"
+            >
+              <span>Explore Overlap Analyzer</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+
           {/* Roadmap Stages & Steps Timeline */}
           <div className="space-y-8">
             {Object.entries(stagesMap).map(([stageName, stageSteps], stageIdx) => (
