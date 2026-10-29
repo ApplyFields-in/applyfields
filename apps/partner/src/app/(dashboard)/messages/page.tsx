@@ -10,7 +10,6 @@ import {
   Paperclip,
   CheckCheck,
   Clock,
-  Sparkles,
   User,
   ShieldCheck,
   FileText,
@@ -675,7 +674,7 @@ export default function PartnerMessagesPage() {
               {/* Quick-Reply Presets Bar */}
               <div className="px-4 py-2 bg-slate-900/60 border-t border-slate-800/80 overflow-x-auto whitespace-nowrap space-x-2">
                 <span className="text-[10px] font-bold uppercase text-slate-500 inline-flex items-center gap-1">
-                  <Sparkles className="h-3 w-3 text-cyan-400" /> Quick Replies:
+                  Quick Replies:
                 </span>
                 {QUICK_PRESETS.map((preset, idx) => (
                   <button

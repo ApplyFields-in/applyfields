@@ -15,7 +15,7 @@ import {
   HelpCircle,
   MessageSquare,
   Phone,
-  Sparkles,
+  ShieldCheck,
   TrendingUp,
   Users,
 } from 'lucide-react';
@@ -248,7 +248,7 @@ export default function InstitutionDashboardPage() {
 
           <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-blue-950/40 to-slate-900 p-6 text-xs text-slate-300 space-y-3">
             <div className="flex items-center gap-2 font-bold text-white">
-              <Sparkles className="h-4 w-4 text-blue-400" />
+              <ShieldCheck className="h-4 w-4 text-blue-400" />
               <span>ApplyFields Verification Guarantee</span>
             </div>
             <p className="leading-relaxed text-slate-400 text-[11px]">

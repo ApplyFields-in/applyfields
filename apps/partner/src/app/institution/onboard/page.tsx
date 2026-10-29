@@ -165,8 +165,8 @@ export default function InstitutionOnboardPage() {
 
         {/* Header Banner */}
         <div className="flex items-center gap-4 mb-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black shadow-xl shadow-blue-500/20 text-2xl">
-            🏛️
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black shadow-xl shadow-blue-500/20">
+            <Building2 className="h-7 w-7 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-2">

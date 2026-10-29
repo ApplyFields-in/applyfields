@@ -16,7 +16,6 @@ import {
   AlertCircle,
   User,
   Filter,
-  Sparkles,
   ArrowRight,
   ShieldCheck,
   ChevronRight,
@@ -341,8 +340,8 @@ export default function BookingsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-400 mb-2">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Session 20 · Citizen Booking & Walk-in Execution Desk</span>
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>Citizen Booking &amp; Walk-in Execution Desk</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Bookings Execution Desk
@@ -460,8 +459,8 @@ export default function BookingsPage() {
                     </span>
 
                     {booking.status === 'arrived' && (
-                      <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 animate-pulse">
-                        🟢 Arrived at Counter
+                      <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400">
+                        Arrived at Counter
                       </span>
                     )}
 
@@ -473,13 +472,13 @@ export default function BookingsPage() {
 
                     {booking.status === 'completed' && (
                       <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-[11px] font-bold text-slate-300">
-                        ✓ Completed
+                        Completed
                       </span>
                     )}
 
                     {booking.status === 'cancelled' && (
                       <span className="rounded-full bg-rose-500/20 px-2.5 py-0.5 text-[11px] font-bold text-rose-400">
-                        ✕ Cancelled
+                        Cancelled
                       </span>
                     )}
 
@@ -524,7 +523,7 @@ export default function BookingsPage() {
                           booking.isPaid ? 'text-emerald-400' : 'text-amber-400'
                         }`}
                       >
-                        {booking.isPaid ? '✓ Paid Online' : '⚠️ Pay ₹' + booking.fee + ' at Center'}
+                        {booking.isPaid ? 'Paid Online' : 'Pay ₹' + booking.fee + ' at Center'}
                       </span>
                     </div>
                     {booking.notes && (
@@ -653,7 +652,7 @@ export default function BookingsPage() {
                 onClick={() => setViewingDoc(null)}
                 className="text-slate-400 hover:text-white text-xs font-bold p-1"
               >
-                ✕ Close
+                Close
               </button>
             </div>
 
@@ -786,7 +785,7 @@ export default function BookingsPage() {
                   onClick={() => setFillingBooking(null)}
                   className="text-slate-400 hover:text-white text-xs font-bold p-1 rounded-lg hover:bg-slate-800"
                 >
-                  ✕ Close
+                  Close
                 </button>
               </div>
             </div>
