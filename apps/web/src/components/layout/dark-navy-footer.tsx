@@ -172,6 +172,11 @@ export function DarkNavyFooter() {
                 </Link>
               </li>
               <li>
+                <Link href="/settings" className="hover:text-white transition-colors">
+                  {t('footer_settings', 'Settings & Preferences')}
+                </Link>
+              </li>
+              <li>
                 <Link href="/privacy" className="hover:text-white transition-colors">
                   {t('footer_privacy')}
                 </Link>

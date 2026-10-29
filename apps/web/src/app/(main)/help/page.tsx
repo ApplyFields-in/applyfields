@@ -20,6 +20,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { apiPost } from '@/lib/api';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 interface FaqItem {
   question: string;
@@ -67,6 +68,7 @@ const FAQS: FaqItem[] = [
 ];
 
 export default function HelpPage() {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [openIdx, setOpenIdx] = useState<number | null>(0);
 
@@ -178,10 +180,10 @@ export default function HelpPage() {
           <span>Support &amp; Knowledge Base</span>
         </div>
         <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[#082046] sm:text-3xl">
-          Help Centre &amp; FAQs
+          {t('help_page_title', 'Help Centre & FAQs')}
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-[#435775]">
-          Clear answers about official application processes, eligibility verification rules, deadline alerts, and reporting inaccurate data.
+          {t('help_page_subtitle', 'Clear answers about official application processes, eligibility verification rules, deadline alerts, and reporting inaccurate data.')}
         </p>
       </div>
 
@@ -192,7 +194,7 @@ export default function HelpPage() {
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by topic: eligibility, official links, documents, Aadhaar..."
+          placeholder={t('help_search_placeholder', 'Search by topic: eligibility, official links, documents, Aadhaar...')}
           className="w-full rounded-2xl border border-[#c4d2e3] bg-white py-3 pl-11 pr-4 text-xs font-medium text-[#082046] shadow-sm outline-none placeholder:text-[#536780] focus:border-[#0e7bf4]"
         />
       </div>

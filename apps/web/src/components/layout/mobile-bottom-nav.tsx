@@ -2,20 +2,22 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bookmark, Briefcase, Compass, Home, User } from 'lucide-react';
+import { Bookmark, Briefcase, Compass, Home, Settings, User } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   const navItems = [
     {
-      label: 'Home',
+      label: t('nav_home', 'Home'),
       href: '/',
       icon: Home,
       isActive: pathname === '/',
     },
     {
-      label: 'Jobs & Exams',
+      label: t('nav_apply', 'Apply'),
       href: '/apply',
       icon: Briefcase,
       isActive:
@@ -26,22 +28,22 @@ export function MobileBottomNav() {
         pathname.startsWith('/admissions'),
     },
     {
-      label: 'Career',
+      label: t('nav_career', 'Career'),
       href: '/career',
       icon: Compass,
       isActive: pathname.startsWith('/career'),
     },
     {
-      label: 'Saved',
+      label: t('nav_saved', 'Saved'),
       href: '/saved',
       icon: Bookmark,
       isActive: pathname.startsWith('/saved'),
     },
     {
-      label: 'Profile',
-      href: '/profile',
-      icon: User,
-      isActive: pathname.startsWith('/profile') || pathname.startsWith('/account'),
+      label: t('nav_settings', 'Settings'),
+      href: '/settings',
+      icon: Settings,
+      isActive: pathname.startsWith('/settings') || pathname.startsWith('/account'),
     },
   ];
 
