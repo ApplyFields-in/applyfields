@@ -26,7 +26,7 @@ export function Hero({ popular, deadlines }: { popular: string[]; deadlines: Opp
               <span className="relative inline-flex size-2 rounded-full bg-red-500" />
             </span>
             <span>
-              Closing Today: {closingToday.length} {closingToday.length === 1 ? 'opportunity' : 'opportunities'} expire in &lt;24 hours — Apply immediately
+              {t('apply_badge_closing_today', 'Closing in <24 Hours')}: {closingToday.length} {closingToday.length === 1 ? 'opportunity' : 'opportunities'} — {t('btn_apply_now', 'Apply')}
             </span>
             <ArrowRight className="size-3" aria-hidden="true" />
           </Link>

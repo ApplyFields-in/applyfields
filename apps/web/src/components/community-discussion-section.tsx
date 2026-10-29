@@ -55,6 +55,15 @@ export function CommunityDiscussionSection({
   const [threads, setThreads] = useState<CommunityThread[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const categoryTabs = [
+    { id: 'all', label: t('community_tab_all', 'All Discussions') },
+    { id: 'admit_card', label: t('community_tab_admit_card', 'Admit Card & Centers') },
+    { id: 'exam_prep', label: t('community_tab_exam_prep', 'Exam Preparation') },
+    { id: 'syllabus', label: t('community_tab_syllabus', 'Syllabus & Pattern') },
+    { id: 'result', label: t('community_tab_result', 'Results & Cutoffs') },
+    { id: 'general', label: t('community_tab_general', 'General Q&A') },
+  ];
+
   // New Thread Modal
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -223,12 +232,12 @@ export function CommunityDiscussionSection({
         <div>
           <div className="flex items-center gap-2 text-teal">
             <MessageSquare className="size-5" />
-            <h2 className="text-lg font-bold text-teal">Candidate Community &amp; Q&amp;A</h2>
+            <h2 className="text-lg font-bold text-teal">{t('community_title', 'Candidate Community & Q&A')}</h2>
           </div>
           <p className="mt-1 text-xs text-teal/70">
             {opportunityTitle
               ? `Discussion, hall tickets, cutoff estimates, and center updates for ${opportunityTitle}`
-              : 'Official and candidate peer discussions on exam preparation, syllabus, admit cards, and results.'}
+              : t('community_desc', 'Official and candidate peer discussions on exam preparation, syllabus, admit cards, and results.')}
           </p>
         </div>
 
@@ -244,13 +253,13 @@ export function CommunityDiscussionSection({
             className: 'gap-1.5 shadow-clay shrink-0',
           })}
         >
-          <Plus className="size-3.5" /> Ask Question / Start Topic
+          <Plus className="size-3.5" /> {t('community_btn_new_thread', 'Ask Question / Start Topic')}
         </button>
       </div>
 
       {/* Category Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
-        {CATEGORY_TABS.map((tab) => {
+        {categoryTabs.map((tab) => {
           const isActive = activeCategory === tab.id;
           return (
             <button
