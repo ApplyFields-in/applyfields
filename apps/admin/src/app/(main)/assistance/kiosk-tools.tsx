@@ -891,3 +891,4 @@ export function KioskTools({ bookings, onSelectBookingForSlip }: KioskToolsProps
     </div>
   );
 }
+
