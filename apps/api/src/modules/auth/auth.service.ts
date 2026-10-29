@@ -563,6 +563,10 @@ export class AuthService {
     return { success: true };
   }
 
+  async logoutAllForUser(userId: string): Promise<void> {
+    await this.store.revokeAllSessionsForUser(userId);
+  }
+
   async resetPassword(
     dto: ResetPasswordDto,
   ): Promise<{ success: boolean; message: string }> {

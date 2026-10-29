@@ -33,6 +33,13 @@ function getStoredToken(): string | null {
 async function attemptTokenRefresh(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
 
+  // Never attempt silent refresh if the user has explicitly logged out (no token and no user in storage)
+  const storedToken = getStoredToken();
+  const storedUser = localStorage.getItem('currentUser');
+  if (!storedToken && !storedUser) {
+    return false;
+  }
+
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
   }
@@ -174,6 +181,8 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, _token?: s
     if (path.includes('/auth/logout') && typeof window !== 'undefined') {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('currentUser');
+      document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0;';
+      document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0;';
     }
 
     return { data: json as T, error: null, status: res.status };
