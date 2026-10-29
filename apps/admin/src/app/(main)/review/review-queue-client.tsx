@@ -87,6 +87,14 @@ export function ReviewQueueClient({
     showToast(`Selected ${ids.size} high-confidence (>90%) ready drafts.`);
   };
 
+  // Select all expired/stale notifications
+  const handleSelectExpired = () => {
+    const stale = items.filter((d) => d.needs_care || d.missing.length > 2);
+    const ids = new Set(stale.map((d) => d.id));
+    setSelectedIds(ids);
+    showToast(`Selected ${ids.size} stale/incomplete drafts for cleanup.`);
+  };
+
   // Select all drafts
   const handleSelectAll = () => {
     if (selectedIds.size === items.length) {
@@ -220,6 +228,16 @@ export function ReviewQueueClient({
       } else if (e.key === 'r') {
         e.preventDefault();
         if (currentItem) setRejectingItem(currentItem);
+      } else if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        if (currentItem) {
+          if (currentItem.source_url) {
+            window.open(currentItem.source_url, '_blank');
+            showToast(`Opened source document: "${currentItem.title.slice(0, 30)}..."`);
+          } else {
+            router.push(`/review/${currentItem.id}`);
+          }
+        }
       } else if (e.shiftKey && (e.key === 'A' || e.key === 'a')) {
         e.preventDefault();
         handleSelectHighConfidence();
@@ -232,6 +250,23 @@ export function ReviewQueueClient({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [items, focusedIndex, router, handleApproveSingle]);
+
+  // Rejection modal numerical shortcuts (1-5) and Escape
+  useEffect(() => {
+    if (!rejectingItem) return;
+    const handleModalKeyDown = (e: KeyboardEvent) => {
+      const num = parseInt(e.key, 10);
+      if (num >= 1 && num <= QUICK_REJECTION_REASONS.length) {
+        e.preventDefault();
+        setRejectionReason(QUICK_REJECTION_REASONS[num - 1]);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setRejectingItem(null);
+      }
+    };
+    window.addEventListener('keydown', handleModalKeyDown);
+    return () => window.removeEventListener('keydown', handleModalKeyDown);
+  }, [rejectingItem]);
 
   return (
     <div className="space-y-4">
@@ -272,6 +307,14 @@ export function ReviewQueueClient({
             Select High Confidence (&gt;90%)
           </button>
 
+          <button
+            type="button"
+            onClick={handleSelectExpired}
+            className="px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 font-semibold hover:bg-amber-100 transition-colors"
+          >
+            Select Stale / Incomplete
+          </button>
+
           {selectedIds.size > 0 && (
             <span className="font-bold text-teal bg-teal/10 px-2 py-0.5 rounded-md text-[11px]">
               {selectedIds.size} Selected
@@ -290,6 +333,9 @@ export function ReviewQueueClient({
             <span className="text-teal/30">·</span>
             <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">R</span>
             <span>Reject</span>
+            <span className="text-teal/30">·</span>
+            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">V</span>
+            <span>PDF</span>
             <span className="text-teal/30">·</span>
             <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">X</span>
             <span>Select</span>
@@ -499,18 +545,29 @@ export function ReviewQueueClient({
             </p>
 
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-teal">Rejection Reason</label>
-              <select
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                className="w-full rounded-xl border border-teal/20 bg-cream p-2.5 text-xs text-teal focus:outline-none"
-              >
-                {QUICK_REJECTION_REASONS.map((reason) => (
-                  <option key={reason} value={reason}>
-                    {reason}
-                  </option>
+              <label className="block text-xs font-semibold text-teal">
+                Select Rejection Reason (Press 1–5 or Click)
+              </label>
+              <div className="space-y-1.5">
+                {QUICK_REJECTION_REASONS.map((reason, idx) => (
+                  <button
+                    key={reason}
+                    type="button"
+                    onClick={() => setRejectionReason(reason)}
+                    className={cn(
+                      'w-full text-left p-2 rounded-xl border text-xs flex items-center gap-2.5 transition',
+                      rejectionReason === reason
+                        ? 'border-rose-500 bg-rose-50 font-bold text-rose-950 ring-1 ring-rose-500/30'
+                        : 'border-teal/15 bg-white text-teal hover:border-teal/40',
+                    )}
+                  >
+                    <span className="grid size-5 place-items-center rounded bg-slate-900 text-white font-mono text-[10px] font-bold shrink-0">
+                      {idx + 1}
+                    </span>
+                    <span className="flex-1">{reason}</span>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             <div className="pt-3 border-t border-teal/10 flex justify-end gap-2">
@@ -570,8 +627,16 @@ export function ReviewQueueClient({
                 <span className="font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">A</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-teal/5">
-                <span className="font-medium">Quick Reject with Reason</span>
+                <span className="font-medium">Quick Reject (Modal)</span>
                 <span className="font-mono bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">R</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-teal/5">
+                <span className="font-medium">Select Rejection Preset</span>
+                <span className="font-mono bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-bold">1 – 5</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-teal/5">
+                <span className="font-medium">Open Source PDF / Link</span>
+                <span className="font-mono bg-teal/10 px-2 py-0.5 rounded font-bold">V</span>
               </div>
               <div className="flex items-center justify-between py-1">
                 <span className="font-medium">Select All High Confidence (&gt;90%)</span>

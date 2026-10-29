@@ -146,3 +146,4 @@ export function DashboardCorrigendumBanner({ bulletins, className }: Props) {
     </div>
   );
 }
+

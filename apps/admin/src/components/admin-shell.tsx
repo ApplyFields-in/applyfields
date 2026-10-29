@@ -19,6 +19,7 @@ import {
   LogIn,
   Search,
   ShieldCheck,
+  ShieldAlert,
   Store,
   WifiOff,
   Zap,
@@ -102,6 +103,27 @@ export function AdminShell({
   const navGroups = useMemo(() => getNavForDepartment(activeDepartment), [activeDepartment]);
   const currentDeptMeta = DEPARTMENTS[activeDepartment] || DEPARTMENTS.super_admin;
 
+  // Departmental Route Access Guard for scoped staff
+  const userScopedDepartment: DepartmentType | null = useMemo(() => {
+    if (isSuperAdmin) return null;
+    if (staff?.roles?.some((r) => r.startsWith('partner'))) return 'partners';
+    if (staff?.roles?.some((r) => r.startsWith('services') || r === 'case_agent')) return 'services';
+    if (staff?.roles?.some((r) => r.startsWith('content') || r === 'reviewer' || r === 'scraper_lead')) return 'apply';
+    if (staff?.roles?.some((r) => r.startsWith('career') || r === 'institution_analyst')) return 'career';
+    return null;
+  }, [staff, isSuperAdmin]);
+
+  const isRestricted = useMemo(() => {
+    if (!userScopedDepartment) return false;
+    const allowed = [
+      ...(userScopedDepartment === 'partners' ? ['/partners', '/assistance'] : []),
+      ...(userScopedDepartment === 'services' ? ['/services', '/assistance'] : []),
+      ...(userScopedDepartment === 'apply' ? ['/review', '/opportunities', '/updates', '/scrapers', '/sources'] : []),
+      ...(userScopedDepartment === 'career' ? ['/colleges', '/careers'] : []),
+    ];
+    return !allowed.some((prefix) => pathname.startsWith(prefix));
+  }, [userScopedDepartment, pathname]);
+
   return (
     <Shell
       sidebar={
@@ -121,7 +143,35 @@ export function AdminShell({
       }
       footer={<Footer />}
     >
-      {children}
+      {isRestricted && userScopedDepartment ? (
+        <div className="mx-auto max-w-xl py-16 text-center space-y-5">
+          <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20">
+            <ShieldAlert className="size-8" />
+          </div>
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
+              <Lock className="size-3.5" /> Department Boundary Enforced
+            </div>
+            <h2 className="text-xl font-black text-olive-950">
+              Access Restricted to {DEPARTMENTS[userScopedDepartment].name} Staff
+            </h2>
+            <p className="text-xs text-olive-700/80 leading-relaxed max-w-md mx-auto">
+              Your staff credentials are scoped strictly to the <strong>{DEPARTMENTS[userScopedDepartment].name}</strong> department. 
+              You do not have administrative clearance to access operations outside your assigned department.
+            </p>
+          </div>
+          <div className="pt-2 flex justify-center">
+            <Link
+              href={DEPARTMENTS[userScopedDepartment].homePath}
+              className={buttonClass({ variant: 'primary', size: 'md' })}
+            >
+              Return to {DEPARTMENTS[userScopedDepartment].shortLabel} Cockpit
+            </Link>
+          </div>
+        </div>
+      ) : (
+        children
+      )}
     </Shell>
   );
 }

@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, Logo } from '@applyfields/ui';
+import { Card, Logo, cn } from '@applyfields/ui';
 import {
   ArrowRight,
   Briefcase,
@@ -22,6 +22,9 @@ import {
   ShieldAlert,
   ShieldCheck,
   Store,
+  Copy,
+  Download,
+  X,
 } from 'lucide-react';
 import { API_URL } from '@/lib/api';
 import { DEPARTMENTS, type DepartmentType } from '@/lib/nav';
@@ -94,6 +97,21 @@ function StaffLoginForm() {
 
   // Step 3 2FA States
   const [twoFaCode, setTwoFaCode] = useState('');
+  const [twoFaMethod, setTwoFaMethod] = useState<'totp' | 'recovery'>('totp');
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [recoveryModalOpen, setRecoveryModalOpen] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
+
+  const sampleRecoveryKeys = [
+    'AF-REC-9482-1049',
+    'AF-REC-3819-2041',
+    'AF-REC-7102-5819',
+    'AF-REC-5028-4912',
+    'AF-REC-6391-7240',
+    'AF-REC-1192-8402',
+    'AF-REC-8271-3940',
+    'AF-REC-4820-9182',
+  ];
 
   // Status & Progress
   const [loading, setLoading] = useState(false);
@@ -186,10 +204,18 @@ function StaffLoginForm() {
     setError(null);
     setSuccess(null);
 
-    const code = twoFaCode.trim().replace(/\s+/g, '');
-    if (code.length < 6) {
-      setError('Please enter the 6-digit verification code.');
-      return;
+    if (twoFaMethod === 'totp') {
+      const code = twoFaCode.trim().replace(/\s+/g, '');
+      if (code.length < 6) {
+        setError('Please enter the 6-digit authentication security token.');
+        return;
+      }
+    } else {
+      const code = recoveryCode.trim();
+      if (code.length < 8) {
+        setError('Please enter an emergency recovery code (e.g. AF-REC-9482-1049).');
+        return;
+      }
     }
 
     setLoading(true);
@@ -220,7 +246,7 @@ function StaffLoginForm() {
       );
     }
 
-    setSuccess(`2FA Verified! Launching ${activeDepartmentMeta.name} Cockpit...`);
+    setSuccess(`2FA Verified via ${twoFaMethod === 'totp' ? 'Authenticator App' : 'Emergency Recovery Key'}! Launching ${activeDepartmentMeta.name} Cockpit...`);
 
     setTimeout(() => {
       router.push(targetRedirect);
@@ -462,7 +488,7 @@ function StaffLoginForm() {
           )}
 
           {/* -------------------------------------------------------------
-              STEP 3: 2-STEP VERIFICATION (2FA)
+              STEP 3: 2-STEP VERIFICATION (2FA) HARDENED
           ------------------------------------------------------------- */}
           {step === 3 && (
             <form onSubmit={handleVerify2FA} className="space-y-4">
@@ -489,28 +515,88 @@ function StaffLoginForm() {
                   Two-Step Security Verification (2FA)
                 </h2>
                 <p className="text-xs text-slate-300 mt-1 max-w-sm mx-auto">
-                  Enter the 6-digit authentication security token from your Authenticator App or registered device.
+                  Verify your identity using an Authenticator App (TOTP) or your emergency backup recovery key.
                 </p>
               </div>
 
-              <div className="pt-2">
-                <label htmlFor="twoFaCode" className="block text-xs font-semibold text-slate-200 text-center mb-2">
-                  6-Digit Security Token
-                </label>
-                <div className="relative max-w-xs mx-auto">
-                  <input
-                    id="twoFaCode"
-                    type="text"
-                    maxLength={6}
-                    required
-                    autoFocus
-                    value={twoFaCode}
-                    onChange={(e) => setTwoFaCode(e.target.value)}
-                    placeholder="240812"
-                    className="h-12 w-full text-center tracking-[0.45em] text-lg font-mono font-bold rounded-xl border border-slate-700 bg-slate-900/90 text-white placeholder:text-slate-600 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all"
-                  />
-                </div>
+              {/* Method Switcher Tabs */}
+              <div className="flex rounded-xl bg-slate-900/90 p-1 border border-slate-700 max-w-xs mx-auto text-xs">
+                <button
+                  type="button"
+                  onClick={() => setTwoFaMethod('totp')}
+                  className={cn(
+                    'flex-1 py-1.5 rounded-lg font-bold transition-all text-[11px]',
+                    twoFaMethod === 'totp'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white',
+                  )}
+                >
+                  Authenticator (TOTP)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTwoFaMethod('recovery')}
+                  className={cn(
+                    'flex-1 py-1.5 rounded-lg font-bold transition-all text-[11px]',
+                    twoFaMethod === 'recovery'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white',
+                  )}
+                >
+                  Recovery Key
+                </button>
               </div>
+
+              {twoFaMethod === 'totp' ? (
+                <div className="pt-2">
+                  <label htmlFor="twoFaCode" className="block text-xs font-semibold text-slate-200 text-center mb-2">
+                    6-Digit Authenticator Code
+                  </label>
+                  <div className="relative max-w-xs mx-auto">
+                    <input
+                      id="twoFaCode"
+                      type="text"
+                      maxLength={6}
+                      required
+                      autoFocus
+                      value={twoFaCode}
+                      onChange={(e) => setTwoFaCode(e.target.value)}
+                      placeholder="240812"
+                      className="h-12 w-full text-center tracking-[0.45em] text-lg font-mono font-bold rounded-xl border border-slate-700 bg-slate-900/90 text-white placeholder:text-slate-600 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 text-center mt-1.5">
+                    Open Google Authenticator, Microsoft Authenticator, or 1Password
+                  </p>
+                </div>
+              ) : (
+                <div className="pt-2 space-y-2">
+                  <label htmlFor="recoveryCode" className="block text-xs font-semibold text-slate-200 text-center mb-1">
+                    Emergency Backup Recovery Code
+                  </label>
+                  <div className="relative max-w-xs mx-auto">
+                    <input
+                      id="recoveryCode"
+                      type="text"
+                      required
+                      autoFocus
+                      value={recoveryCode}
+                      onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
+                      placeholder="AF-REC-9482-1049"
+                      className="h-12 w-full text-center font-mono text-sm font-bold rounded-xl border border-slate-700 bg-slate-900/90 text-white placeholder:text-slate-600 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all"
+                    />
+                  </div>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => setRecoveryModalOpen(true)}
+                      className="text-[11px] font-semibold text-amber-400 hover:underline"
+                    >
+                      View / Generate My Recovery Keys
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -576,6 +662,73 @@ function StaffLoginForm() {
             </div>
           </div>
         </Card>
+
+        {/* Emergency Recovery Keys Modal */}
+        {recoveryModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs">
+            <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4 text-white">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <KeyRound className="size-4 text-amber-400" />
+                    Emergency Backup Recovery Keys
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Store these single-use recovery keys in a secure password manager.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRecoveryModalOpen(false)}
+                  className="p-1 text-slate-400 hover:text-white"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <div className="rounded-xl bg-slate-950 p-4 border border-slate-800 font-mono text-xs space-y-2 select-all">
+                <div className="grid grid-cols-2 gap-2 text-slate-200">
+                  {sampleRecoveryKeys.map((key, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setRecoveryCode(key);
+                        setRecoveryModalOpen(false);
+                      }}
+                      className="p-1.5 rounded bg-slate-900 border border-slate-800 hover:border-amber-400 cursor-pointer transition text-center"
+                      title="Click to insert key"
+                    >
+                      {key}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(sampleRecoveryKeys.join('\n'));
+                    setCopiedKey(true);
+                    setTimeout(() => setCopiedKey(false), 2000);
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-400 hover:text-amber-300"
+                >
+                  <Copy className="size-3.5" />
+                  {copiedKey ? 'Copied to Clipboard' : 'Copy All Keys'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRecoveryModalOpen(false)}
+                  className="rounded-lg bg-slate-800 hover:bg-slate-750 px-3 py-1.5 text-xs font-bold text-white transition"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
