@@ -19,6 +19,7 @@ import {
   FileText,
   Home,
   CheckCircle2,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
@@ -250,9 +251,9 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setShowLocationModal(false)}
-                className="text-slate-400 hover:text-[#082046] text-sm font-bold"
+                className="text-slate-400 hover:text-[#082046]"
               >
-                ✕
+                <X className="size-4" />
               </button>
             </div>
 

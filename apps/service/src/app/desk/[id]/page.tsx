@@ -24,3 +24,4 @@ export default async function WorkstationPage({
 
   return <WorkstationClient initialRequest={request} />;
 }
+

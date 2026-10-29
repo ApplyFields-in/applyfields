@@ -16,6 +16,7 @@ import {
   FileText,
   ShieldCheck,
   ArrowLeft,
+  X,
   ExternalLink,
 } from 'lucide-react';
 import {
@@ -525,9 +526,10 @@ export default function BookingDetailsPage() {
               <button
                 type="button"
                 onClick={() => setIsChatOpen(false)}
-                className="text-[#526987] hover:text-[#082046] text-xs font-bold p-1 rounded-lg hover:bg-[#edf2f8]"
+                className="flex items-center text-[#526987] hover:text-[#082046] text-xs font-bold p-1 rounded-lg hover:bg-[#edf2f8]"
               >
-                ✕ Close
+                <X className="size-3.5 inline mr-1" />
+                <span>Close</span>
               </button>
             </div>
 
