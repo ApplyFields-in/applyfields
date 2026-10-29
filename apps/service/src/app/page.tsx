@@ -12,7 +12,6 @@ import {
   ArrowRight,
   Filter,
   Search,
-  Sparkles,
   Calendar,
   CheckCircle2,
   AlertCircle,
@@ -738,7 +737,7 @@ export default function ServicesHomePage() {
                         )}
 
                         <span className="rounded-full bg-[#edf2f8] px-2 py-0.5 text-[10px] font-mono font-bold text-[#082046]">
-                          📍 {center.distanceKm} km
+                          {center.distanceKm} km away
                         </span>
                       </div>
                     </div>

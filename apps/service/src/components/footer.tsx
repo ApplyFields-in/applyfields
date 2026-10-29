@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Phone,
   Printer,
-  Sparkles,
   ArrowUpRight,
   ExternalLink,
 } from 'lucide-react';

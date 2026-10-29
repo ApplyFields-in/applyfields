@@ -11,12 +11,12 @@ import {
   ArrowUpRight,
   LogOut,
   ChevronDown,
-  Sparkles,
   LocateFixed,
   Search,
   Briefcase,
   Send,
   Printer,
+  FileText,
   Home,
   CheckCircle2,
 } from 'lucide-react';
@@ -147,6 +147,14 @@ export function Navbar() {
               >
                 <Printer className="size-3.5 text-[#0e7bf4]" />
                 <span>Services</span>
+              </Link>
+
+              <Link
+                href="/desk"
+                className="flex min-w-[76px] flex-col items-center gap-0.5 rounded-full px-3 py-2 text-[11px] font-bold text-[#082046] hover:text-[#0e7bf4] transition-all"
+              >
+                <FileText className="size-3.5 text-[#526987]" />
+                <span>Filing Desk</span>
               </Link>
             </div>
           </div>

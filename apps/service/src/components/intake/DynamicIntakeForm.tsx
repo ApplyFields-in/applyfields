@@ -5,7 +5,7 @@ import { PanCardIntakeForm, type PanIntakeData } from './PanCardIntakeForm';
 import { AadhaarIntakeForm, type AadhaarIntakeData } from './AadhaarIntakeForm';
 import { MeesevaIntakeForm, type MeesevaIntakeData } from './MeesevaIntakeForm';
 import { XeroxIntakeForm, type XeroxIntakeData } from './XeroxIntakeForm';
-import { FileCheck, Sparkles, AlertCircle } from 'lucide-react';
+import { FileCheck, AlertCircle } from 'lucide-react';
 import type { CartItem } from '@/lib/cart-context';
 
 export interface CombinedIntakePayload {
