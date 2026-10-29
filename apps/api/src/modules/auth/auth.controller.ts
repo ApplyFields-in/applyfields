@@ -8,7 +8,9 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import type { Request, Response } from 'express';
+import { jwtAccessSecret } from '../../common/jwt-secret.js';
 import { AuthService } from './auth.service.js';
 import { AuthGuard, type AuthenticatedRequest } from './auth.guard.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -44,7 +46,10 @@ function cookieOpts(rememberMe?: boolean) {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   @Post('register')
   async register(@Body() dto: RegisterDto, @Req() req: Request) {
@@ -193,20 +198,36 @@ export class AuthController {
   ) {
     const rawRefreshToken =
       req.cookies?.[REFRESH_COOKIE_NAME] || body?.refreshToken;
-    await this.authService.logout(rawRefreshToken);
+    if (rawRefreshToken) {
+      await this.authService.logout(rawRefreshToken);
+    }
 
-    res.clearCookie(REFRESH_COOKIE_NAME, {
+    // Also revoke session if authorization header or cookie is present
+    const authHeader = req.headers.authorization;
+    const token =
+      (authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null) ||
+      req.cookies?.[ACCESS_COOKIE_NAME] ||
+      req.cookies?.access_token;
+    if (token) {
+      try {
+        const payload = await this.jwtService.verifyAsync(token, {
+          secret: jwtAccessSecret(),
+        });
+        if (payload?.sub) {
+          await this.authService.logoutAllForUser(payload.sub);
+        }
+      } catch {}
+    }
+
+    const clearOpts = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: COOKIE_BASE.sameSite,
       path: '/',
-    });
-    res.clearCookie(ACCESS_COOKIE_NAME, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-    });
+    };
+    res.clearCookie(REFRESH_COOKIE_NAME, clearOpts);
+    res.clearCookie(ACCESS_COOKIE_NAME, clearOpts);
+    res.clearCookie('access_token', clearOpts);
 
     return { success: true };
   }

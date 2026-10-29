@@ -19,7 +19,15 @@ export function TopNavAuth() {
   const syncAuth = useCallback(async () => {
     if (typeof window === 'undefined') return;
 
+    const storedToken = localStorage.getItem('accessToken');
     const storedUserRaw = localStorage.getItem('currentUser');
+
+    // If both token and user are absent, the user is signed out — don't query /me
+    if (!storedToken && !storedUserRaw) {
+      setUser(null);
+      setDisplayName('');
+      return;
+    }
 
     if (storedUserRaw) {
       try {
@@ -82,15 +90,26 @@ export function TopNavAuth() {
   }, [syncAuth]);
 
   async function handleLogout() {
-    await apiPost('/auth/logout');
+    setUser(null);
+    setDisplayName('');
 
     if (typeof window !== 'undefined') {
       localStorage.removeItem('currentUser');
       localStorage.removeItem('accessToken');
+      document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0;';
+      document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0;';
+    }
+
+    try {
+      await apiPost('/auth/logout');
+    } catch {
+      // Ignore network failures on logout
+    }
+
+    if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('auth-changed'));
     }
 
-    setUser(null);
     router.push('/login');
   }
 
