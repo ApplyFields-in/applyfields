@@ -18,7 +18,6 @@ import {
   ShoppingBag,
   Building2,
   Navigation,
-  Sparkles,
   Compass,
   ExternalLink,
   LocateFixed,
@@ -450,11 +449,11 @@ export default function PartnerStorefrontPage() {
               </span>
               {distanceKm !== null ? (
                 <span className="rounded-full bg-[#edf2f8] px-3 py-1 text-xs font-mono font-bold text-[#082046]">
-                  📍 {distanceKm} km from you
+                  {distanceKm} km from you
                 </span>
               ) : (
                 <span className="rounded-full bg-[#edf2f8] px-3 py-1 text-xs font-mono font-bold text-[#526987]">
-                  📍 {partner.city}, {partner.district}
+                  {partner.city}, {partner.district}
                 </span>
               )}
             </div>
@@ -615,7 +614,7 @@ export default function PartnerStorefrontPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#d5deea] pb-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-[#082046] flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-[#0e7bf4]" />
+              <Building2 className="h-5 w-5 text-[#0e7bf4]" />
               Available Services &amp; Official Rate Card
             </h2>
             <p className="text-xs text-[#526987] mt-0.5">
@@ -690,7 +689,7 @@ export default function PartnerStorefrontPage() {
                             key={idx}
                             className="rounded-md bg-[#edf2f8] px-2 py-0.5 text-[10px] font-semibold text-[#082046]"
                           >
-                            📎 {doc}
+                            {doc}
                           </span>
                         ))}
                       </div>

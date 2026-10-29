@@ -181,7 +181,7 @@ export function OpenStreetMap({
               </span>
               {activePin.distanceKm !== undefined && (
                 <span className="font-mono text-[#0e7bf4] text-xs font-bold">
-                  📍 {activePin.distanceKm} km away
+                  {activePin.distanceKm} km away
                 </span>
               )}
             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ShieldCheck, Sparkles, User, FileText, Check, UploadCloud } from 'lucide-react';
+import { ShieldCheck, User, FileText, Check, UploadCloud } from 'lucide-react';
 
 export interface PanIntakeData {
   applicationType: 'new_pan_citizen' | 'pan_correction_update' | 'instant_epan' | 'reprint_lost_pan';
@@ -107,7 +107,7 @@ export function PanCardIntakeForm({
             </>
           ) : (
             <>
-              <Sparkles className="h-3.5 w-3.5" /> 1-Click Vault Autofill
+              <Check className="h-3.5 w-3.5" /> 1-Click Vault Autofill
             </>
           )}
         </button>

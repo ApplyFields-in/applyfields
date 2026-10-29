@@ -16,7 +16,6 @@ import {
   Phone,
   FileCheck2,
   AlertCircle,
-  Sparkles,
   Layers,
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
@@ -242,7 +241,7 @@ export default function CheckoutPage() {
                 2. Dynamic Service Requirements Intake
               </h2>
               <span className="cut-corner-badge rounded-md bg-[#e0edfb] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#0e7bf4] border border-[#38bdf8]/30 flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> Auto-Configured for Cart
+                <CheckCircle2 className="h-3 w-3" /> Auto-Configured for Cart
               </span>
             </div>
 
