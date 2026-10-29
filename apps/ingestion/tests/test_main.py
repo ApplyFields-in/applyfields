@@ -207,3 +207,67 @@ def test_scrape_continues_when_one_pdf_fails() -> None:
     assert body["failed_items"] == 1
     assert body["status"] == "partial"
     assert finish_mock.call_args.kwargs["status_value"] == "partial"
+
+
+def test_isro_scrape_fetches_detail_page_and_processes_pdf():
+    from app.scrapers.base import NoticeLink
+
+    source = {
+        **mock_source(),
+        "key": "isro",
+        "name": "Indian Space Research Organisation",
+        "list_url": "https://www.isro.gov.in/Careers.html",
+    }
+    detail = NoticeLink(
+        title="Recruitment to the post of Technical Assistant",
+        url="https://www.isro.gov.in/ICRB_Recruitment11.html",
+    )
+    pdf = NoticeLink(
+        title=detail.title,
+        url="https://www.isro.gov.in/media/advertisement.pdf",
+    )
+
+    with (
+        patch("app.main.settings.internal_service_token", "test-token"),
+        patch("app.main.get_active_source", return_value=source),
+        patch("app.main.start_scrape_run", return_value="run-test"),
+        patch("app.main.fetch") as fetch_mock,
+        patch(
+            "app.main.IsroScraper.find_notices",
+            return_value=[detail],
+        ),
+        patch(
+            "app.main.IsroScraper.find_pdf_notices",
+            return_value=[pdf],
+        ) as pdf_mock,
+        patch(
+            "app.main.process_pdf_notice",
+            return_value={
+                "url": pdf.url,
+                "title": pdf.title,
+                "content_hash": "d" * 64,
+                "inserted": True,
+                "status": "draft_created",
+            },
+        ) as process_mock,
+        patch("app.main.finish_scrape_run") as finish_mock,
+    ):
+        fetch_mock.return_value.text = "<html></html>"
+
+        response = client.post(
+            "/scrape/isro",
+            headers={"X-Internal-Token": "test-token"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["items_found"] == 1
+    assert body["new_items"] == 1
+    assert body["failed_items"] == 0
+
+    assert fetch_mock.call_count == 2
+    pdf_mock.assert_called_once()
+    assert pdf_mock.call_args.kwargs["detail_url"] == detail.url
+    process_mock.assert_called_once()
+    assert process_mock.call_args.kwargs["url"] == pdf.url
+    finish_mock.assert_called_once()

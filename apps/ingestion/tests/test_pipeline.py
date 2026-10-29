@@ -85,6 +85,10 @@ def test_duplicate_pdf_skips_storage_upload() -> None:
     with (
         patch("app.pipeline.download_pdf", return_value=pdf),
         patch("app.pipeline.scraped_document_exists", return_value=True),
+        patch(
+            "app.pipeline.get_opportunity_id_for_scraped_document",
+            return_value="opportunity-existing-id",
+        ) as lookup,
         patch("app.pipeline.upload_pdf") as upload,
         patch("app.pipeline.save_scraped_document") as save,
         patch("app.pipeline.create_draft_for_document") as create_draft,
@@ -101,7 +105,12 @@ def test_duplicate_pdf_skips_storage_upload() -> None:
 
     assert result["status"] == "duplicate"
     assert result["inserted"] is False
-    assert result["opportunity_id"] is None
+    assert result["opportunity_id"] == "opportunity-existing-id"
+
+    lookup.assert_called_once_with(
+        pdf.url,
+        pdf.content_hash,
+    )
 
     upload.assert_not_called()
     save.assert_not_called()

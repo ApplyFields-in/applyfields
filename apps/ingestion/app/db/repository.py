@@ -165,7 +165,62 @@ def scraped_document_exists(url: str, content_hash: str) -> bool:
                 {"url": url, "content_hash": content_hash},
             ).scalar_one()
         )
+def get_opportunity_id_for_scraped_document(
+    url: str,
+    content_hash: str,
+) -> str | None:
+    """Return the linked opportunity ID for an existing scraped PDF."""
+    query = text(
+        """
+        SELECT opportunity_id
+        FROM scraped_documents
+        WHERE url = :url
+          AND content_hash = :content_hash
+        LIMIT 1
+        """
+    )
 
+    with get_engine().connect() as connection:
+        opportunity_id = connection.execute(
+            query,
+            {
+                "url": url,
+                "content_hash": content_hash,
+            },
+        ).scalar_one_or_none()
+
+    return str(opportunity_id) if opportunity_id is not None else None
+def update_opportunity_related_links(
+    *,
+    opportunity_id: str,
+    related_links: list[dict[str, str]],
+) -> None:
+    """Save official supporting-document links on an opportunity."""
+    import json
+
+    query = text(
+        """
+        UPDATE opportunities
+        SET related_links = CAST(:related_links AS jsonb),
+            updated_at = now()
+        WHERE id = CAST(:opportunity_id AS uuid)
+        RETURNING id
+        """
+    )
+
+    with get_engine().begin() as connection:
+        updated_id = connection.execute(
+            query,
+            {
+                "opportunity_id": opportunity_id,
+                "related_links": json.dumps(related_links),
+            },
+        ).scalar_one_or_none()
+
+        if updated_id is None:
+            raise ValueError(
+                f"Opportunity not found: {opportunity_id}"
+            )
 def create_draft_for_document(
     connection: Connection,
     *,
