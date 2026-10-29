@@ -46,7 +46,17 @@ export function FloatingCapsuleNavbar() {
   const syncAuth = useCallback(async () => {
     if (typeof window === 'undefined') return;
 
+    const storedToken = localStorage.getItem('accessToken');
     const storedUserRaw = localStorage.getItem('currentUser');
+
+    // If both token and user are absent, the user is signed out — don't query /me
+    if (!storedToken && !storedUserRaw) {
+      setUser(null);
+      setDisplayName('');
+      setInitials('');
+      return;
+    }
+
     if (storedUserRaw) {
       try {
         const parsed = JSON.parse(storedUserRaw) as UserSummary & { full_name?: string };
@@ -103,17 +113,29 @@ export function FloatingCapsuleNavbar() {
   }, [syncAuth]);
 
   async function handleLogout() {
-    await apiPost('/auth/logout');
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('accessToken');
-      window.dispatchEvent(new Event('auth-changed'));
-    }
     setUser(null);
     setDisplayName('');
     setInitials('');
     setDropdownOpen(false);
-    router.push('/');
+
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('accessToken');
+      document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0;';
+      document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0;';
+    }
+
+    try {
+      await apiPost('/auth/logout');
+    } catch {
+      // Ignore network errors during logout
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('auth-changed'));
+    }
+
+    router.push('/login');
   }
 
   function handleSearchSubmit(e: React.FormEvent) {
