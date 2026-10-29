@@ -22,7 +22,10 @@ import {
   ArrowRight,
   Timer,
   Building2,
+  Crop,
+  Printer,
 } from 'lucide-react';
+import { KioskTools } from './kiosk-tools';
 
 interface AssistanceClientProps {
   initialItems: BookingDetail[];
@@ -94,7 +97,7 @@ function getSlaInfo(createdAt: string, status: BookingRequestStatus) {
 
 export function AssistanceClient({ initialItems, total, currentStatus }: AssistanceClientProps) {
   const [items, setItems] = useState<BookingDetail[]>(initialItems);
-  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+  const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'kiosk_tools'>('kanban');
   const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(null);
 
   // Status Advancement Action
@@ -163,10 +166,24 @@ export function AssistanceClient({ initialItems, total, currentStatus }: Assista
           >
             <List className="size-3.5" /> Table View
           </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('kiosk_tools')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition',
+              viewMode === 'kiosk_tools'
+                ? 'bg-canvas text-teal shadow-xs'
+                : 'text-teal/60 hover:text-teal',
+            )}
+          >
+            <Crop className="size-3.5" /> Kiosk Tools & Slips
+          </button>
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {viewMode === 'kiosk_tools' ? (
+        <KioskTools bookings={items} />
+      ) : items.length === 0 ? (
         <Card className="p-12 text-center space-y-3">
           <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-teal/10 text-teal">
             <HandHelping className="size-6" />
@@ -531,7 +548,17 @@ export function AssistanceClient({ initialItems, total, currentStatus }: Assista
               </div>
             </div>
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-2 flex items-center justify-between gap-2 border-t border-teal/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('kiosk_tools');
+                  setSelectedBooking(null);
+                }}
+                className={cn(buttonClass({ variant: 'primary', size: 'sm' }), 'text-xs gap-1.5')}
+              >
+                <Printer className="size-3.5" /> Open Kiosk Slip Generator
+              </button>
               <button
                 type="button"
                 onClick={() => setSelectedBooking(null)}
