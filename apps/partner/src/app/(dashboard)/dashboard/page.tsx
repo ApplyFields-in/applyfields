@@ -20,7 +20,6 @@ import {
   Phone,
   Power,
   ShieldCheck,
-  Sparkles,
   TrendingUp,
   Users,
 } from 'lucide-react';
@@ -79,8 +78,8 @@ export default function PartnerDashboardPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Operator Command Workspace · Swiggy-Style Model</span>
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Operator Command Workspace</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Welcome back, {ownerName}!
@@ -175,7 +174,7 @@ export default function PartnerDashboardPage() {
             </div>
           </div>
           <div className="mt-3 text-3xl font-black text-amber-300">
-            {(partner?.rating_avg && partner.rating_avg > 0 ? partner.rating_avg : 5.0).toFixed(1)} ★
+            {(partner?.rating_avg && partner.rating_avg > 0 ? partner.rating_avg : 5.0).toFixed(1)} / 5.0
           </div>
           <div className="mt-1 text-[11px] text-slate-400">Verified Partner Badge active</div>
         </div>

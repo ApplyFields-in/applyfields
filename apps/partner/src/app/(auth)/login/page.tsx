@@ -13,7 +13,7 @@ import {
   Lock,
   Phone,
   ShieldCheck,
-  Sparkles,
+  Store,
 } from 'lucide-react';
 
 function LoginFormContent() {
@@ -194,7 +194,8 @@ function LoginFormContent() {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span>⚡ Service Kiosk</span>
+            <Store className="h-3.5 w-3.5" />
+            <span>Service Kiosk</span>
           </button>
           <button
             type="button"
@@ -221,7 +222,11 @@ function LoginFormContent() {
                 : 'bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-emerald-500/20'
             }`}
           >
-            {persona === 'institution' ? '🏛️' : '⚡'}
+            {persona === 'institution' ? (
+              <Building2 className="h-6 w-6 text-white" />
+            ) : (
+              <Store className="h-6 w-6 text-slate-950" />
+            )}
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white">

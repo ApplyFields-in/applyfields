@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import {
   Layers,
   Plus,
-  Sparkles,
   CheckCircle2,
   Trash2,
   Edit2,
@@ -450,8 +449,8 @@ export default function ServicesPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-semibold text-teal-400 mb-2">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Session 18 · Localized Center Rate Card & Service Menu</span>
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>Center Rate Card &amp; Service Menu</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Services & Rate Card Catalog
@@ -488,7 +487,7 @@ export default function ServicesPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-teal-400" />
+              <Layers className="h-5 w-5 text-teal-400" />
               1-Click Indian Kiosk Templates
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -628,7 +627,7 @@ export default function ServicesPage() {
                           service.isActive ? 'text-teal-400' : 'text-rose-400'
                         }`}
                       >
-                        {service.isActive ? '🟢 Active' : '⏸️ Paused'}
+                        {service.isActive ? 'Active' : 'Paused'}
                       </span>
                       <button
                         type="button"
@@ -659,7 +658,7 @@ export default function ServicesPage() {
                           key={i}
                           className="rounded-md bg-slate-900 border border-slate-800 px-2 py-0.5 text-[10px] text-slate-300"
                         >
-                          📎 {doc}
+                          {doc}
                         </span>
                       ))}
                     </div>
@@ -717,7 +716,7 @@ export default function ServicesPage() {
                 onClick={() => setShowCustomModal(false)}
                 className="text-slate-400 hover:text-white text-xs"
               >
-                ✕
+                <X className="size-4" />
               </button>
             </div>
 
@@ -772,11 +771,11 @@ export default function ServicesPage() {
                   onChange={(e) => setCustomTurnaround(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-teal-400 text-xs"
                 >
-                  <option value="Instant (10-15m)">⚡ Instant (10-15 mins)</option>
-                  <option value="1-2 Hours">⏱️ 1-2 Hours</option>
-                  <option value="Same Day">📅 Same Day</option>
-                  <option value="24-48 Hours">⏳ 24-48 Hours</option>
-                  <option value="3-5 Working Days">🗓️ 3-5 Working Days</option>
+                  <option value="Instant (10-15m)">Instant (10-15 mins)</option>
+                  <option value="1-2 Hours">1-2 Hours</option>
+                  <option value="Same Day">Same Day</option>
+                  <option value="24-48 Hours">24-48 Hours</option>
+                  <option value="3-5 Working Days">3-5 Working Days</option>
                 </select>
               </div>
 
@@ -826,7 +825,7 @@ export default function ServicesPage() {
                         onClick={() => setCustomDocs(customDocs.filter((_, i) => i !== idx))}
                         className="text-teal-400 hover:text-rose-400 ml-0.5"
                       >
-                        ✕
+                        <X className="size-4" />
                       </button>
                     </span>
                   ))}

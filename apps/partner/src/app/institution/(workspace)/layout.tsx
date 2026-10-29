@@ -22,7 +22,6 @@ import {
   Power,
   Settings,
   ShieldCheck,
-  Sparkles,
   Users,
   X,
 } from 'lucide-react';
@@ -97,8 +96,8 @@ export default function InstitutionWorkspaceLayout({
     setAdmissionsActive(status);
     setStatusToast(
       status
-        ? '🟢 Admissions Cycle marked OPEN. Students can submit inquiries.'
-        : '🔴 Admissions Cycle marked CLOSED for current academic session.',
+        ? 'Admissions Cycle marked OPEN. Students can submit inquiries.'
+        : 'Admissions Cycle marked CLOSED for current academic session.',
     );
     setTimeout(() => setStatusToast(null), 3000);
   }
@@ -112,8 +111,8 @@ export default function InstitutionWorkspaceLayout({
         {/* Brand Header */}
         <div className="border-b border-slate-800 p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black shadow-lg shadow-blue-500/20 text-lg">
-              🏛️
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black shadow-lg shadow-blue-500/20">
+              <Building2 className="size-5 text-white" />
             </div>
             <div className="overflow-hidden">
               <div className="flex items-center gap-1.5">
