@@ -576,7 +576,7 @@ export default function ServicesHomePage() {
                     {isLocating
                       ? 'Detecting GPS Location...'
                       : userLocation
-                        ? '✓ GPS Location Enabled (Recalibrate)'
+                        ? 'GPS Location Active (Recalibrate)'
                         : 'Enable Location to View Nearby Centers'}
                   </span>
                 </button>
