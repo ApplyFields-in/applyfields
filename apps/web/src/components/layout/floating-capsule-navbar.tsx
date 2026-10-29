@@ -135,7 +135,7 @@ export function FloatingCapsuleNavbar() {
       window.dispatchEvent(new Event('auth-changed'));
     }
 
-    router.push('/login');
+    router.push('/account');
   }
 
   function handleSearchSubmit(e: React.FormEvent) {
