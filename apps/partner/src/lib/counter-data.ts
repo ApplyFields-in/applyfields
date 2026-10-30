@@ -120,3 +120,4 @@ export interface WalkInTicket {
   paymentMode: 'Cash' | 'UPI';
   status: 'counter_registered' | 'scanning_pending' | 'dispatched_to_backoffice';
 }
+

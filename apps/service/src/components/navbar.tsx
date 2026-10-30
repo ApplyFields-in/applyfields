@@ -206,6 +206,15 @@ export function Navbar() {
                         <p className="text-[11px] text-slate-500 font-mono truncate">{user?.phone}</p>
                       </div>
                       <a
+                        href={`${MAIN_WEB_URL}/account`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold text-[#082046] hover:bg-[#F0F4F8]"
+                      >
+                        <User className="h-3.5 w-3.5 text-[#0e7bf4]" />
+                        <span>Citizen Profile ({user?.email || 'Account'})</span>
+                      </a>
+                      <a
                         href={PARTNER_URL}
                         target="_blank"
                         rel="noreferrer"
@@ -226,13 +235,12 @@ export function Navbar() {
                   )}
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={setDemoUser}
+                <Link
+                  href="/login"
                   className="rounded-2xl border border-[#d5deea] bg-white px-3 py-1.5 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
                 >
                   Sign In
-                </button>
+                </Link>
               )}
             </div>
           </div>

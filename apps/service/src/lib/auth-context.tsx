@@ -15,6 +15,7 @@ interface AuthContextType {
   user: CitizenUser | null;
   loading: boolean;
   isLoggedIn: boolean;
+  login: (user: CitizenUser, token?: string) => void;
   logout: () => Promise<void>;
   setDemoUser: () => void;
 }
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   isLoggedIn: false,
+  login: () => {},
   logout: async () => {},
   setDemoUser: () => {},
 });
@@ -89,9 +91,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
     if (typeof window !== 'undefined') {
       localStorage.removeItem('currentUser');
+      localStorage.removeItem('accessToken');
       window.dispatchEvent(new Event('auth-changed'));
     }
     setUser(null);
+  }
+
+  function login(u: CitizenUser, token?: string) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('currentUser', JSON.stringify(u));
+      if (token) {
+        localStorage.setItem('accessToken', token);
+      }
+      window.dispatchEvent(new Event('auth-changed'));
+    }
+    setUser(u);
   }
 
   function setDemoUser() {
@@ -101,11 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       full_name: 'Arvind Kumar',
       phone: '+91 98765 43210',
     };
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('currentUser', JSON.stringify(demo));
-      window.dispatchEvent(new Event('auth-changed'));
-    }
-    setUser(demo);
+    login(demo);
   }
 
   return (
@@ -114,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         isLoggedIn: !!user,
+        login,
         logout,
         setDemoUser,
       }}

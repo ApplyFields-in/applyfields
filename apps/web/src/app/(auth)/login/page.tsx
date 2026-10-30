@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiPost } from '@/lib/api';
-import { ArrowLeft, ArrowRight, KeyRound, Mail } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound, Mail } from 'lucide-react';
 import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
 import { OtpInput } from '@/components/otp-input';
 import { AuthDivider, PasskeyLoginButton, SocialAuthButtons } from '@/components/social-auth-buttons';
@@ -15,9 +15,11 @@ import {
   LABEL,
   Notice,
   PasswordInput,
+  PasswordRequirements,
   PRIMARY,
   SIDE_BTN,
   TEXT_BTN,
+  validatePassword,
 } from '@/components/auth-ui';
 import type { AuthResponse } from '@applyfields/types';
 
@@ -35,6 +37,7 @@ function LoginForm() {
   const [passwordPhone, setPasswordPhone] = useState('+91');
   const [passwordEmail, setPasswordEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // OTP mode states
   const [otpCredType, setOtpCredType] = useState<'phone' | 'email'>('phone');
@@ -51,6 +54,7 @@ function LoginForm() {
   const [forgotOtpSent, setForgotOtpSent] = useState(false);
   const [forgotOtp, setForgotOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -228,8 +232,11 @@ function LoginForm() {
   async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters long.');
+    const v = validatePassword(newPassword);
+    if (!v.isValid) {
+      setError(
+        'New password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special symbol.',
+      );
       return;
     }
 
@@ -325,17 +332,31 @@ function LoginForm() {
           </div>
 
           <div>
-            <label htmlFor="login-password" className={LABEL}>
-              Password
-            </label>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label htmlFor="login-password" className={LABEL}>
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-xs font-semibold text-sea hover:underline flex items-center gap-1 cursor-pointer"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                <span>{showPassword ? 'Hide password' : 'Show password'}</span>
+              </button>
+            </div>
             <PasswordInput
               id="login-password"
               autoComplete="current-password"
               value={password}
               onChange={setPassword}
+              show={showPassword}
+              onToggleShow={() => setShowPassword(!showPassword)}
               placeholder="Enter your password"
               required
             />
+            <PasswordRequirements password={password} />
           </div>
 
           <div className="flex items-center justify-between gap-3">
@@ -503,23 +524,37 @@ function LoginForm() {
               </div>
 
               <div>
-                <label htmlFor="new-password" className={LABEL}>
-                  New password
-                </label>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label htmlFor="new-password" className={LABEL}>
+                    New password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="text-xs font-semibold text-sea hover:underline flex items-center gap-1 cursor-pointer"
+                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showNewPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    <span>{showNewPassword ? 'Hide password' : 'Show password'}</span>
+                  </button>
+                </div>
                 <PasswordInput
                   id="new-password"
                   icon={KeyRound}
                   autoComplete="new-password"
                   value={newPassword}
                   onChange={setNewPassword}
-                  placeholder="At least 8 characters"
+                  show={showNewPassword}
+                  onToggleShow={() => setShowNewPassword(!showNewPassword)}
+                  placeholder="At least 8 characters with capital, small, digit & symbol"
                   required
                 />
+                <PasswordRequirements password={newPassword} />
               </div>
 
               <button
                 type="submit"
-                disabled={loading || forgotOtp.length !== 6 || newPassword.length < 8}
+                disabled={loading || forgotOtp.length !== 6 || !validatePassword(newPassword).isValid}
                 className={PRIMARY}
               >
                 {loading ? 'Saving...' : 'Set new password'}
