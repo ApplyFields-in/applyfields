@@ -16,7 +16,7 @@ import {
   FileText,
   ShieldCheck,
   ArrowLeft,
-  Sparkles,
+  X,
   ExternalLink,
 } from 'lucide-react';
 import {
@@ -477,7 +477,7 @@ export default function BookingDetailsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-[#38bdf8]/40 bg-[#e0edfb] p-4">
           <div className="space-y-0.5">
             <span className="text-xs font-black text-[#082046] flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-[#0e7bf4]" /> Direct Communication Desk
+              <MessageSquare className="h-3.5 w-3.5 text-[#0e7bf4]" /> Direct Communication Desk
             </span>
             <p className="text-[11px] text-[#526987] font-medium">
               Need to ask about parking, exact shop landmarks, custom paper, or update your arrival time?
@@ -526,9 +526,10 @@ export default function BookingDetailsPage() {
               <button
                 type="button"
                 onClick={() => setIsChatOpen(false)}
-                className="text-[#526987] hover:text-[#082046] text-xs font-bold p-1 rounded-lg hover:bg-[#edf2f8]"
+                className="flex items-center text-[#526987] hover:text-[#082046] text-xs font-bold p-1 rounded-lg hover:bg-[#edf2f8]"
               >
-                ✕ Close
+                <X className="size-3.5 inline mr-1" />
+                <span>Close</span>
               </button>
             </div>
 

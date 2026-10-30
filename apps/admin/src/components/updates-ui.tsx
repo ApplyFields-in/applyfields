@@ -42,14 +42,17 @@ import { Field, FormSection, TextArea, TextInput } from './review-ui';
 import { StatusBadge } from './opportunities-ui';
 
 export const UPDATE_KIND_LABEL: Record<UpdateKind, string> = {
-  admit_card: 'Admit Card',
-  result: 'Result',
-  answer_key: 'Answer Key',
-  date_change: 'Date Change',
-  correction_window: 'Correction Window',
-  extension: 'Deadline Extension',
+  admit_card: 'Admit Card Released',
+  result: 'Result Announced',
+  answer_key: 'Answer Key & Objections',
+  date_change: 'Exam Date Rescheduled',
+  correction_window: 'Correction Window Open',
+  extension: 'Application Deadline Extended',
+  vacancy_revision: 'Vacancy Revision / Quota Change',
+  syllabus_change: 'Syllabus / Pattern Change',
+  postponement: 'Exam Postponed',
   counselling: 'Counselling Schedule',
-  other: 'General Notice',
+  other: 'General Notice / Corrigendum',
 };
 
 export function UpdateKindBadge({ kind }: { kind: UpdateKind }) {
@@ -60,8 +63,14 @@ export function UpdateKindBadge({ kind }: { kind: UpdateKind }) {
       return <Badge tone="teal">Result</Badge>;
     case 'answer_key':
       return <Badge tone="teal">Answer Key</Badge>;
+    case 'extension':
+    case 'date_change':
+      return <Badge tone="tea">{UPDATE_KIND_LABEL[kind]}</Badge>;
+    case 'vacancy_revision':
+    case 'syllabus_change':
+      return <Badge tone="celadon">{UPDATE_KIND_LABEL[kind]}</Badge>;
     default:
-      return <Badge tone="tea">{UPDATE_KIND_LABEL[kind] ?? kind}</Badge>;
+      return <Badge tone="outline">{UPDATE_KIND_LABEL[kind] ?? kind}</Badge>;
   }
 }
 
@@ -145,6 +154,7 @@ export function UpdateForm({ initialData, mode }: UpdateFormProps) {
     initialData?.parent ? { id: initialData.parent.id, title: initialData.parent.title } : null,
   );
   const [sourceUrl, setSourceUrl] = useState(initialData?.source_url ?? '');
+  const [newDeadline, setNewDeadline] = useState(initialData?.new_deadline ?? '');
 
   // Opportunity Autocomplete search state
   const [searchOppQuery, setSearchOppQuery] = useState('');
@@ -203,6 +213,7 @@ export function UpdateForm({ initialData, mode }: UpdateFormProps) {
     summary: summary.trim() || null,
     opportunity_id: opportunityId.trim() || null,
     source_url: sourceUrl.trim() || null,
+    new_deadline: kind === 'extension' || kind === 'date_change' ? newDeadline || null : null,
   });
 
   const handleSave = () => {
@@ -337,6 +348,19 @@ export function UpdateForm({ initialData, mode }: UpdateFormProps) {
             <Field label="Effective / Release Date">
               <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
+
+            {(kind === 'extension' || kind === 'date_change') && (
+              <Field label="Revised Application Deadline Override" className="sm:col-span-2">
+                <TextInput
+                  type="date"
+                  value={newDeadline}
+                  onChange={(e) => setNewDeadline(e.target.value)}
+                />
+                <span className="text-[11px] text-teal/70 mt-1 block">
+                  Automatically updates countdown timers and application closing date across the live portal.
+                </span>
+              </Field>
+            )}
 
             <Field label="Direct Download / View URL * (Admit card or result link)" className="sm:col-span-2">
               <TextInput

@@ -1982,6 +1982,9 @@ enum update_kind {
   date_change
   extension
   counselling
+  vacancy_revision
+  syllabus_change
+  postponement
   other
 }
 

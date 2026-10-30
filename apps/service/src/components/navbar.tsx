@@ -11,25 +11,31 @@ import {
   ArrowUpRight,
   LogOut,
   ChevronDown,
-  Sparkles,
   LocateFixed,
   Search,
   Briefcase,
   Send,
   Printer,
+  FileText,
+  FileCheck2,
   Home,
   CheckCircle2,
+  Languages,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
+import { useLanguage, SUPPORTED_LOCALES } from '@/lib/i18n';
 
 export function Navbar() {
-  const { user, isLoggedIn, logout, setDemoUser } = useAuth();
+  const { user, isLoggedIn, logout } = useAuth();
   const { totalQuantity, subtotal, setIsCartOpen } = useCart();
+  const { locale, setLocale, t } = useLanguage();
 
   const [locationName, setLocationName] = useState('Enable Location');
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showLangMenu, setShowLangMenu] = useState(false);
   const [tempLocation, setTempLocation] = useState('');
 
   const MAIN_WEB_URL = process.env.NEXT_PUBLIC_MAIN_WEB_URL || 'http://localhost:3000';
@@ -148,6 +154,14 @@ export function Navbar() {
                 <Printer className="size-3.5 text-[#0e7bf4]" />
                 <span>Services</span>
               </Link>
+
+              <Link
+                href="/desk"
+                className="flex min-w-[76px] flex-col items-center gap-0.5 rounded-full px-3 py-2 text-[11px] font-bold text-[#082046] hover:text-[#0e7bf4] transition-all"
+              >
+                <FileText className="size-3.5 text-[#526987]" />
+                <span>Filing Desk</span>
+              </Link>
             </div>
           </div>
 
@@ -164,6 +178,54 @@ export function Navbar() {
               <span className="max-w-[110px] md:max-w-[140px] truncate">{locationName}</span>
             </button>
 
+            {/* My Bookings Nav Link */}
+            <Link
+              href="/my-bookings"
+              className="inline-flex items-center gap-1.5 rounded-2xl border border-[#d5deea] bg-white px-3 py-2 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
+            >
+              <FileCheck2 className="h-4 w-4 text-[#0e7bf4]" />
+              <span className="hidden md:inline">{t('myBookings')}</span>
+            </Link>
+
+            {/* Language Selector Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowLangMenu(!showLangMenu)}
+                className="inline-flex items-center gap-1 rounded-2xl border border-[#d5deea] bg-white px-2.5 py-2 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
+                title="Select Language"
+              >
+                <Languages className="h-4 w-4 text-[#0e7bf4]" />
+                <span className="text-[11px] uppercase font-mono">{locale}</span>
+                <ChevronDown className="h-3 w-3 text-slate-400" />
+              </button>
+              {showLangMenu && (
+                <div className="absolute right-0 top-12 z-50 w-44 rounded-2xl border border-white bg-white p-2 shadow-2xl animate-in fade-in space-y-1">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                    {t('languageSelect')}
+                  </div>
+                  {SUPPORTED_LOCALES.map((loc) => (
+                    <button
+                      key={loc.code}
+                      type="button"
+                      onClick={() => {
+                        setLocale(loc.code);
+                        setShowLangMenu(false);
+                      }}
+                      className={`flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-xs font-bold transition ${
+                        locale === loc.code
+                          ? 'bg-[#082046] text-white shadow-sm'
+                          : 'text-[#082046] hover:bg-[#F0F4F8]'
+                      }`}
+                    >
+                      <span>{loc.label}</span>
+                      <span className="text-[10px] font-mono opacity-70 uppercase">{loc.code}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Visit Cart Trigger Button */}
             <button
               type="button"
@@ -171,7 +233,7 @@ export function Navbar() {
               className="relative inline-flex items-center gap-2 rounded-2xl bg-[#0e7bf4] px-3.5 py-2 text-xs font-bold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95"
             >
               <ShoppingBag className="h-4 w-4" />
-              <span className="hidden sm:inline">Cart</span>
+              <span className="hidden sm:inline">{t('cart')}</span>
               {totalQuantity > 0 ? (
                 <span className="rounded-full bg-white px-1.5 py-0.2 text-[10px] font-black text-[#0e7bf4]">
                   {totalQuantity}
@@ -191,11 +253,28 @@ export function Navbar() {
                     {user?.full_name?.[0] || 'U'}
                   </button>
                   {showUserMenu && (
-                    <div className="absolute right-0 top-12 z-50 w-52 rounded-2xl border border-white bg-white p-3 shadow-2xl animate-in fade-in space-y-2">
+                    <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-white bg-white p-3 shadow-2xl animate-in fade-in space-y-2">
                       <div className="border-b border-slate-100 pb-2">
                         <p className="text-xs font-bold text-[#082046] truncate">{user?.full_name || 'Citizen User'}</p>
-                        <p className="text-[11px] text-slate-500 font-mono truncate">{user?.phone}</p>
+                        <p className="text-[11px] text-slate-500 font-mono truncate">{user?.phone || user?.email}</p>
                       </div>
+                      <Link
+                        href="/my-bookings"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold text-[#082046] hover:bg-[#F0F4F8]"
+                      >
+                        <FileCheck2 className="h-3.5 w-3.5 text-[#0e7bf4]" />
+                        <span>{t('myBookings')} &amp; Slips</span>
+                      </Link>
+                      <a
+                        href={`${MAIN_WEB_URL}/account`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold text-[#082046] hover:bg-[#F0F4F8]"
+                      >
+                        <User className="h-3.5 w-3.5 text-[#0e7bf4]" />
+                        <span>Citizen Profile</span>
+                      </a>
                       <a
                         href={PARTNER_URL}
                         target="_blank"
@@ -203,7 +282,7 @@ export function Navbar() {
                         className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold text-[#082046] hover:bg-[#F0F4F8]"
                       >
                         <Store className="h-3.5 w-3.5 text-[#0e7bf4]" />
-                        <span>Partner Desk Login</span>
+                        <span>{t('partnerDesk')}</span>
                       </a>
                       <button
                         type="button"
@@ -211,19 +290,18 @@ export function Navbar() {
                         className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50"
                       >
                         <LogOut className="h-3.5 w-3.5" />
-                        <span>Sign Out</span>
+                        <span>{t('signOut')}</span>
                       </button>
                     </div>
                   )}
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={setDemoUser}
+                <Link
+                  href="/login"
                   className="rounded-2xl border border-[#d5deea] bg-white px-3 py-1.5 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
                 >
-                  Sign In
-                </button>
+                  {t('signIn')}
+                </Link>
               )}
             </div>
           </div>
@@ -242,9 +320,9 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setShowLocationModal(false)}
-                className="text-slate-400 hover:text-[#082046] text-sm font-bold"
+                className="text-slate-400 hover:text-[#082046]"
               >
-                ✕
+                <X className="size-4" />
               </button>
             </div>
 

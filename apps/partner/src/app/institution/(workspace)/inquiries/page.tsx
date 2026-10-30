@@ -17,7 +17,6 @@ import {
   Phone,
   Search,
   Send,
-  Sparkles,
   User,
   X,
 } from 'lucide-react';
@@ -336,7 +335,7 @@ export default function InstitutionInquiriesPage() {
 
                       {enq.course_name && (
                         <div className="text-[11px] font-medium text-blue-300/90 truncate">
-                          🎯 {enq.course_name}
+                          Program: {enq.course_name}
                         </div>
                       )}
 
@@ -346,7 +345,7 @@ export default function InstitutionInquiriesPage() {
 
                       {enq.response && (
                         <div className="text-[10px] text-emerald-400/90 bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20 line-clamp-2">
-                          💬 Officer: {enq.response}
+                          Admissions Officer: {enq.response}
                         </div>
                       )}
 

@@ -48,6 +48,9 @@ export const UPDATE_LABEL: Record<UpdateKind, string> = {
   date_change: 'Date change',
   extension: 'Extended',
   counselling: 'Counselling',
+  vacancy_revision: 'Vacancy revision',
+  syllabus_change: 'Syllabus change',
+  postponement: 'Postponed',
   other: 'Update',
 };
 

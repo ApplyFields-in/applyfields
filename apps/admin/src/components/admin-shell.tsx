@@ -1,21 +1,38 @@
+'use client';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import type { AdminMeResponse } from '@applyfields/types';
 import { Badge, buttonClass, Card, ScrollToTopButton, Shell, Sidebar } from '@applyfields/ui';
 import {
   Activity,
   Bell,
+  Briefcase,
+  Building,
+  CheckCircle2,
+  Crown,
   ExternalLink,
   Globe,
+  HandHelping,
+  Inbox,
+  Layers,
+  Lock,
   LogIn,
   Search,
   ShieldCheck,
+  ShieldAlert,
   Store,
   WifiOff,
   Zap,
 } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { API_URL } from '@/lib/api';
-import { NAV } from '@/lib/nav';
+import {
+  DEPARTMENTS,
+  getNavForDepartment,
+  type DepartmentType,
+} from '@/lib/nav';
 import { StaffLogoutButton } from './staff-logout-button';
 import { ApiStatus } from './api-status';
 
@@ -26,32 +43,166 @@ export function AdminShell({
   children: ReactNode;
   staff?: AdminMeResponse | null;
 }) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Detect initial department based on user roles or URL path
+  const isSuperAdmin = Boolean(
+    !staff ||
+    staff.roles?.includes('super_admin') ||
+    staff.roles?.includes('admin')
+  );
+
+  const [activeDepartment, setActiveDepartment] = useState<DepartmentType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('currentDepartment') as DepartmentType;
+      if (saved && DEPARTMENTS[saved]) return saved;
+    }
+
+    // Auto-detect from pathname
+    if (pathname.startsWith('/partners')) return 'partners';
+    if (pathname.startsWith('/services') || pathname.startsWith('/assistance')) return 'services';
+    if (pathname.startsWith('/review') || pathname.startsWith('/scrapers') || pathname.startsWith('/opportunities')) return 'apply';
+    if (pathname.startsWith('/colleges') || pathname.startsWith('/careers')) return 'career';
+
+    // Default based on staff role
+    if (staff?.roles?.includes('partner_manager') || staff?.roles?.includes('partner_ops')) return 'partners';
+    if (staff?.roles?.includes('services_officer') || staff?.roles?.includes('case_agent')) return 'services';
+    if (staff?.roles?.includes('content_reviewer') || staff?.roles?.includes('scraper_lead')) return 'apply';
+    if (staff?.roles?.includes('career_curator') || staff?.roles?.includes('institution_analyst')) return 'career';
+
+    return 'super_admin';
+  });
+
+  // Keep department in sync with URL navigation
+  useEffect(() => {
+    if (isSuperAdmin) {
+      if (pathname.startsWith('/partners')) {
+        setActiveDepartment('partners');
+      } else if (pathname.startsWith('/services') || pathname.startsWith('/assistance')) {
+        setActiveDepartment('services');
+      } else if (pathname.startsWith('/review') || pathname.startsWith('/scrapers')) {
+        setActiveDepartment('apply');
+      } else if (pathname.startsWith('/colleges') || pathname.startsWith('/careers')) {
+        setActiveDepartment('career');
+      } else if (pathname === '/' || pathname.startsWith('/audit') || pathname.startsWith('/analytics') || pathname.startsWith('/settings')) {
+        setActiveDepartment('super_admin');
+      }
+    }
+  }, [pathname, isSuperAdmin]);
+
+  const handleSwitchDepartment = (dept: DepartmentType) => {
+    setActiveDepartment(dept);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('currentDepartment', dept);
+    }
+    const targetPath = DEPARTMENTS[dept].homePath;
+    router.push(targetPath);
+  };
+
+  const navGroups = useMemo(() => getNavForDepartment(activeDepartment), [activeDepartment]);
+  const currentDeptMeta = DEPARTMENTS[activeDepartment] || DEPARTMENTS.super_admin;
+
+  // Departmental Route Access Guard for scoped staff
+  const userScopedDepartment: DepartmentType | null = useMemo(() => {
+    if (isSuperAdmin) return null;
+    if (staff?.roles?.some((r) => r.startsWith('partner'))) return 'partners';
+    if (staff?.roles?.some((r) => r.startsWith('services') || r === 'case_agent')) return 'services';
+    if (staff?.roles?.some((r) => r.startsWith('content') || r === 'reviewer' || r === 'scraper_lead')) return 'apply';
+    if (staff?.roles?.some((r) => r.startsWith('career') || r === 'institution_analyst')) return 'career';
+    return null;
+  }, [staff, isSuperAdmin]);
+
+  const isRestricted = useMemo(() => {
+    if (!userScopedDepartment) return false;
+    const allowed = [
+      ...(userScopedDepartment === 'partners' ? ['/partners', '/assistance'] : []),
+      ...(userScopedDepartment === 'services' ? ['/services', '/assistance'] : []),
+      ...(userScopedDepartment === 'apply' ? ['/review', '/opportunities', '/updates', '/scrapers', '/sources'] : []),
+      ...(userScopedDepartment === 'career' ? ['/colleges', '/careers'] : []),
+    ];
+    return !allowed.some((prefix) => pathname.startsWith(prefix));
+  }, [userScopedDepartment, pathname]);
+
   return (
     <Shell
-      sidebar={<Sidebar groups={NAV} subtitle="Global Operations" footer={<SidebarFooter />} />}
-      topbar={<Topbar staff={staff} />}
+      sidebar={
+        <Sidebar
+          groups={navGroups}
+          subtitle={currentDeptMeta.name}
+          footer={<SidebarFooter department={currentDeptMeta} />}
+        />
+      }
+      topbar={
+        <Topbar
+          staff={staff}
+          activeDepartment={activeDepartment}
+          isSuperAdmin={isSuperAdmin}
+          onSwitchDepartment={handleSwitchDepartment}
+        />
+      }
       footer={<Footer />}
     >
-      {children}
+      {isRestricted && userScopedDepartment ? (
+        <div className="mx-auto max-w-xl py-16 text-center space-y-5">
+          <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20">
+            <ShieldAlert className="size-8" />
+          </div>
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
+              <Lock className="size-3.5" /> Department Boundary Enforced
+            </div>
+            <h2 className="text-xl font-black text-olive-950">
+              Access Restricted to {DEPARTMENTS[userScopedDepartment].name} Staff
+            </h2>
+            <p className="text-xs text-olive-700/80 leading-relaxed max-w-md mx-auto">
+              Your staff credentials are scoped strictly to the <strong>{DEPARTMENTS[userScopedDepartment].name}</strong> department. 
+              You do not have administrative clearance to access operations outside your assigned department.
+            </p>
+          </div>
+          <div className="pt-2 flex justify-center">
+            <Link
+              href={DEPARTMENTS[userScopedDepartment].homePath}
+              className={buttonClass({ variant: 'primary', size: 'md' })}
+            >
+              Return to {DEPARTMENTS[userScopedDepartment].shortLabel} Cockpit
+            </Link>
+          </div>
+        </div>
+      ) : (
+        children
+      )}
     </Shell>
   );
 }
 
-function SidebarFooter() {
+function SidebarFooter({ department }: { department: typeof DEPARTMENTS.super_admin }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl bg-white/10 p-3 text-xs text-cream/90 backdrop-blur-xs border border-white/10">
-      <div className="flex items-center gap-1.5 font-bold text-white">
-        <ShieldCheck className="size-4 shrink-0 text-emerald-400" aria-hidden="true" />
-        <span>Admin Core · Root Access</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 font-bold text-white">
+          <ShieldCheck className="size-4 shrink-0 text-emerald-400" aria-hidden="true" />
+          <span>{department.shortLabel}</span>
+        </div>
+        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/15 text-white/90">
+          {department.badge}
+        </span>
       </div>
       <p className="text-[11px] text-cream/75 leading-relaxed">
-        Governs Citizen Web (:3000), Services Hub (:3003), and Partner Network (:3002). Every action is audited.
+        {department.description}
       </p>
     </div>
   );
 }
 
-function Topbar({ staff }: { staff?: AdminMeResponse | null }) {
+interface TopbarProps {
+  staff?: AdminMeResponse | null;
+  activeDepartment: DepartmentType;
+  isSuperAdmin: boolean;
+  onSwitchDepartment: (dept: DepartmentType) => void;
+}
+
+function Topbar({ staff, activeDepartment, isSuperAdmin, onSwitchDepartment }: TopbarProps) {
   const primaryRole = staff?.roles?.[0]?.replace('_', ' ') ?? 'Global Administrator';
   const displayName = staff?.name || staff?.email || 'Admin';
   const initials = displayName
@@ -64,13 +215,13 @@ function Topbar({ staff }: { staff?: AdminMeResponse | null }) {
   return (
     <>
       {/* Search Input */}
-      <form action="/opportunities" role="search" className="relative hidden max-w-sm flex-1 sm:block">
+      <form action="/opportunities" role="search" className="relative hidden max-w-xs flex-1 md:block">
         <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-olive-700/60" aria-hidden="true" />
         <input
           name="q"
           type="search"
           aria-label="Search the portal"
-          placeholder="Search opportunities, users, colleges, IDs…"
+          placeholder="Search records, users, IDs…"
           className="h-9 w-full rounded-full border border-olive-200/80 bg-white/90 pl-9 pr-9 text-xs text-olive-950 placeholder:text-olive-700/50 outline-none transition-all focus:border-olive-600 focus:bg-white focus:ring-2 focus:ring-olive-600/15"
         />
         <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-olive-200 bg-olive-50/70 px-1.5 py-0.5 text-[10px] font-semibold text-olive-800/70">
@@ -78,12 +229,87 @@ function Topbar({ staff }: { staff?: AdminMeResponse | null }) {
         </kbd>
       </form>
 
-      {/* Multi-Portal Navigation Switcher (Clear Visual Separation of Portals) */}
-      <div className="hidden xl:flex items-center gap-1 rounded-full border border-olive-200/80 bg-white/80 p-1 shadow-xs backdrop-blur-md">
-        <div className="flex items-center gap-1.5 rounded-full bg-olive-800 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs">
-          <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-          Admin Core :3001
+      {/* DEPARTMENT SWITCHER OR LOCKED DEPARTMENT BADGE */}
+      {isSuperAdmin ? (
+        <div className="hidden lg:flex items-center gap-1 rounded-full border border-olive-200/80 bg-white/90 p-1 shadow-xs backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => onSwitchDepartment('super_admin')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${
+              activeDepartment === 'super_admin'
+                ? 'bg-olive-800 text-white shadow-xs'
+                : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
+            }`}
+          >
+            <Crown className="size-3.5 text-amber-300" />
+            <span>Master Cockpit</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSwitchDepartment('partners')}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+              activeDepartment === 'partners'
+                ? 'bg-olive-800 text-white shadow-xs'
+                : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
+            }`}
+          >
+            <Store className="size-3.5 text-emerald-400" />
+            <span>Partners</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSwitchDepartment('services')}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+              activeDepartment === 'services'
+                ? 'bg-olive-800 text-white shadow-xs'
+                : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
+            }`}
+          >
+            <HandHelping className="size-3.5 text-blue-400" />
+            <span>Citizen Services</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSwitchDepartment('apply')}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+              activeDepartment === 'apply'
+                ? 'bg-olive-800 text-white shadow-xs'
+                : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
+            }`}
+          >
+            <Inbox className="size-3.5 text-indigo-400" />
+            <span>Apply & Review</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSwitchDepartment('career')}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+              activeDepartment === 'career'
+                ? 'bg-olive-800 text-white shadow-xs'
+                : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
+            }`}
+          >
+            <Building className="size-3.5 text-rose-400" />
+            <span>Career & Colleges</span>
+          </button>
         </div>
+      ) : (
+        /* Department Locked Badge for Departmental Staff */
+        <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-olive-50 border border-olive-200 text-xs font-bold text-olive-900">
+          <ShieldCheck className="size-3.5 text-emerald-600" />
+          <span>{DEPARTMENTS[activeDepartment].name}</span>
+          <span className="text-[10px] font-mono text-olive-600 bg-white px-2 py-0.5 rounded border border-olive-200">
+            {DEPARTMENTS[activeDepartment].badge}
+          </span>
+        </div>
+      )}
+
+      {/* External Portals Switcher */}
+      <div className="hidden 2xl:flex items-center gap-1 rounded-full border border-olive-200/80 bg-white/80 p-1 shadow-xs backdrop-blur-md">
         <a
           href="http://localhost:3000"
           target="_blank"
@@ -161,12 +387,7 @@ function Footer() {
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-semibold text-olive-950">ApplyFields Operations Core (:3001)</span>
         <span className="text-olive-400">·</span>
-        <span>Ecosystem Control:</span>
-        <a href="http://localhost:3000" target="_blank" rel="noreferrer" className="text-olive-700 hover:underline">Citizen Web (:3000)</a>
-        <span className="text-olive-400">|</span>
-        <a href="http://localhost:3003" target="_blank" rel="noreferrer" className="text-olive-700 hover:underline">Services Hub (:3003)</a>
-        <span className="text-olive-400">|</span>
-        <a href="http://localhost:3002" target="_blank" rel="noreferrer" className="text-olive-700 hover:underline">Partner Network (:3002)</a>
+        <span>Departmental Cockpit System</span>
       </div>
       <div className="flex items-center gap-4">
         <ScrollToTopButton className="text-olive-700 hover:text-olive-950 border-olive-200/80 hover:border-olive-400" />

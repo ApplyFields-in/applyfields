@@ -23,9 +23,13 @@ import {
   Power,
   Settings,
   ShieldCheck,
-  Sparkles,
   User,
   X,
+  Camera,
+  Receipt,
+  ClipboardList,
+  Wallet,
+  Zap,
 } from 'lucide-react';
 
 export default function PartnerDashboardLayout({
@@ -56,8 +60,8 @@ export default function PartnerDashboardLayout({
       await updatePartner({ is_available: newState });
       setStatusToast(
         newState
-          ? '🟢 Center is now Online & accepting citizen bookings!'
-          : '🔴 Center marked as Offline / Closed for today.',
+          ? 'Center is now Online and accepting bookings.'
+          : 'Center marked as Offline / Closed for today.',
       );
       setTimeout(() => setStatusToast(null), 3000);
     } catch {
@@ -69,33 +73,53 @@ export default function PartnerDashboardLayout({
 
   const navItems = [
     {
+      name: 'Counter POS & Intake',
+      href: '/counter',
+      icon: Receipt,
+      badge: 'Walk-In',
+    },
+    {
+      name: 'Document Scanner & Resizer',
+      href: '/scanner',
+      icon: Camera,
+      badge: 'Assets',
+    },
+    {
+      name: 'Orders Pipeline & OTP',
+      href: '/orders',
+      icon: ClipboardList,
+      badge: 'Filing',
+    },
+    {
+      name: 'Cash Drawer & Settlement',
+      href: '/settlement',
+      icon: Wallet,
+      badge: 'Wallet',
+    },
+    {
       name: 'Overview Dashboard',
       href: '/dashboard',
       icon: LayoutDashboard,
     },
     {
-      name: 'Operating Schedule & Slots',
-      href: '/schedule',
-      icon: Calendar,
-      badge: 'Session 18',
+      name: 'Online Bookings Desk',
+      href: '/bookings',
+      icon: FileCheck2,
     },
     {
       name: 'Services & Rate Card',
       href: '/services',
       icon: Layers,
-      badge: 'Session 18',
     },
     {
-      name: 'Bookings Desk',
-      href: '/bookings',
-      icon: FileCheck2,
-      badge: 'Session 20',
+      name: 'Operating Schedule',
+      href: '/schedule',
+      icon: Calendar,
     },
     {
       name: 'Communication Desk',
       href: '/messages',
       icon: MessageSquare,
-      badge: 'Session 21',
     },
     {
       name: 'Center Settings & KYC',
@@ -111,8 +135,8 @@ export default function PartnerDashboardLayout({
         {/* Brand / Center Box */}
         <div className="border-b border-slate-800 p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 font-black shadow-lg shadow-emerald-500/20">
-              ⚡
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 shadow-lg shadow-emerald-500/20">
+              <Zap className="size-5 text-slate-950 fill-slate-950" />
             </div>
             <div className="overflow-hidden">
               <div className="flex items-center gap-1.5">

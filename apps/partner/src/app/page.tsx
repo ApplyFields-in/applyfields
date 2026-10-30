@@ -15,7 +15,6 @@ import {
   MapPin,
   Printer,
   ShieldCheck,
-  Sparkles,
   TrendingUp,
   Users,
 } from 'lucide-react';
@@ -32,7 +31,7 @@ export default function PartnerLandingPage() {
     <div className="min-h-screen bg-[#F0F4F8] text-[#082046] selection:bg-[#38bdf8] selection:text-[#082046]">
       {/* Top Announcement Bar */}
       <div className="bg-gradient-to-r from-[#082046] via-[#0e7bf4] to-[#082046] px-4 py-2 text-center text-xs font-semibold text-white tracking-wide">
-        🚀 ApplyFields Partner Network is now live across Telangana, Andhra Pradesh, Karnataka &amp; Maharashtra!
+        ApplyFields Partner Network is now live across Telangana, Andhra Pradesh, Karnataka &amp; Maharashtra!
       </div>
 
       {/* Navigation Header */}
@@ -153,7 +152,7 @@ export default function PartnerLandingPage() {
               <div className="text-xs text-[#526987] font-bold mt-1">Reserved Time Slots</div>
             </div>
             <div>
-              <div className="text-3xl font-black text-[#0e7bf4]">4.9 ★</div>
+              <div className="text-3xl font-black text-[#0e7bf4]">4.9 / 5.0</div>
               <div className="text-xs text-[#526987] font-bold mt-1">Operator Satisfaction</div>
             </div>
           </div>

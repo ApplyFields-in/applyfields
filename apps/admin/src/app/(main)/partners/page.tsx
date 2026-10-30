@@ -52,7 +52,7 @@ export default async function PartnersAdminPage({
   return (
     <>
       <PageHeader
-        eyebrow="Network"
+        eyebrow="Partners Department · Franchise Cockpit"
         title="Partner Centers & Verification"
         description="Verify citizen assistance centers, MeeSeva kiosks, cyber points, and college desks. Approve rate cards and enable public directory listings."
         icon={<Store />}

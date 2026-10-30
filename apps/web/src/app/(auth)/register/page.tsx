@@ -4,11 +4,22 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiPost } from '@/lib/api';
-import { ArrowLeft, ArrowRight, Check, Mail, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, Mail, User } from 'lucide-react';
 import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
 import { OtpInput } from '@/components/otp-input';
 import { AuthDivider, SocialAuthButtons } from '@/components/social-auth-buttons';
-import { Checkbox, DevCode, IconInput, LABEL, Notice, PasswordInput, PRIMARY, TEXT_BTN } from '@/components/auth-ui';
+import {
+  Checkbox,
+  DevCode,
+  IconInput,
+  LABEL,
+  Notice,
+  PasswordInput,
+  PasswordRequirements,
+  PRIMARY,
+  TEXT_BTN,
+  validatePassword,
+} from '@/components/auth-ui';
 import type { UserSummary } from '@applyfields/types';
 
 function Steps({ step }: { step: 'form' | 'verify' }) {
@@ -48,6 +59,8 @@ function RegisterForm() {
   const [phone, setPhone] = useState('+91');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
 
@@ -84,8 +97,11 @@ function RegisterForm() {
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    const v = validatePassword(password);
+    if (!v.isValid) {
+      setError(
+        'Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special symbol.',
+      );
       return;
     }
 
@@ -303,28 +319,55 @@ function RegisterForm() {
         </div>
 
         <div>
-          <label htmlFor="reg-password" className={LABEL}>
-            Create password
-          </label>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="reg-password" className={LABEL}>
+              Create password
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="text-xs font-semibold text-sea hover:underline flex items-center gap-1 cursor-pointer"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              <span>{showPassword ? 'Hide password' : 'Show password'}</span>
+            </button>
+          </div>
           <PasswordInput
             id="reg-password"
             autoComplete="new-password"
             value={password}
             onChange={setPassword}
-            placeholder="At least 8 characters"
+            show={showPassword}
+            onToggleShow={() => setShowPassword(!showPassword)}
+            placeholder="At least 8 characters with capital, small, digit & symbol"
             required
           />
+          <PasswordRequirements password={password} />
         </div>
 
         <div>
-          <label htmlFor="reg-confirm" className={LABEL}>
-            Confirm password
-          </label>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="reg-confirm" className={LABEL}>
+              Confirm password
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="text-xs font-semibold text-sea hover:underline flex items-center gap-1 cursor-pointer"
+              aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+            >
+              {showConfirmPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              <span>{showConfirmPassword ? 'Hide password' : 'Show password'}</span>
+            </button>
+          </div>
           <PasswordInput
             id="reg-confirm"
             autoComplete="new-password"
             value={confirmPassword}
             onChange={setConfirmPassword}
+            show={showConfirmPassword}
+            onToggleShow={() => setShowConfirmPassword(!showConfirmPassword)}
             placeholder="Re-enter your password"
             required
           />

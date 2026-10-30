@@ -15,7 +15,8 @@ import {
   ArrowLeft,
   Navigation,
   Layers,
-  Sparkles,
+  Star,
+  Check,
   ExternalLink,
   Users,
 } from 'lucide-react';
@@ -453,7 +454,10 @@ export default function AdminPartnerMapPage() {
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Citizen Rating:</span>
-                  <span className="font-bold text-amber-300">★ {selectedPin.rating} / 5.0</span>
+                  <span className="font-bold text-amber-300 flex items-center">
+                    <Star className="inline size-3.5 fill-amber-300 text-amber-300 mr-1" />
+                    {selectedPin.rating} / 5.0
+                  </span>
                 </div>
               </div>
 
@@ -486,7 +490,8 @@ export default function AdminPartnerMapPage() {
                     onClick={() => alert(`Approved ${selectedPin.name}! Verified badge granted.`)}
                     className="w-full rounded-xl bg-emerald-500 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
                   >
-                    ✓ Approve &amp; Issue Verified Badge
+                    <Check className="inline size-3.5 mr-1" />
+                    Approve &amp; Issue Verified Badge
                   </button>
                 ) : (
                   <button

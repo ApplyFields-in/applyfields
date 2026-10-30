@@ -21,7 +21,7 @@ import {
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
+  Zap,
 } from 'lucide-react';
 
 export default function UnderReviewPage() {
@@ -61,8 +61,8 @@ export default function UnderReviewPage() {
       <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 font-black shadow-md shadow-emerald-500/20">
-              ⚡
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 shadow-md shadow-emerald-500/20">
+              <Zap className="size-4 text-slate-950 fill-slate-950" />
             </div>
             <div>
               <span className="text-sm font-bold text-white">ApplyFields Partner Network</span>
@@ -246,7 +246,7 @@ export default function UnderReviewPage() {
               onClick={handleBypassForTesting}
               className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-5 py-2.5 text-xs font-semibold text-emerald-400 hover:bg-slate-700 hover:text-emerald-300 transition border border-emerald-500/20"
             >
-              <Sparkles className="h-3.5 w-3.5" /> Preview Operator Dashboard Workspace
+              <ShieldCheck className="h-3.5 w-3.5" /> Preview Operator Dashboard Workspace
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>

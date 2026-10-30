@@ -217,6 +217,9 @@ export type UpdateKind =
   | 'date_change'
   | 'extension'
   | 'counselling'
+  | 'vacancy_revision'
+  | 'syllabus_change'
+  | 'postponement'
   | 'other';
 
 export interface OpportunityUpdate {

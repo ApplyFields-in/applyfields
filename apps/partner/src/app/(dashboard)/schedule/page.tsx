@@ -16,10 +16,10 @@ import {
   Users,
   Info,
   CalendarX2,
-  Sparkles,
   ArrowRight,
   ShieldCheck,
   ChevronRight,
+  X,
 } from 'lucide-react';
 import { apiGet, apiPut, apiPost, getMyPartner, updatePartner } from '@/lib/api';
 
@@ -189,8 +189,8 @@ export default function SchedulePage() {
     setShowConfirmEmergency(false);
     showToast(
       nextState
-        ? '⚠️ Emergency pause active: Bookings paused for today.'
-        : '🟢 Center is back online! Accepting appointments.'
+        ? 'Emergency pause active: Bookings paused for today.'
+        : 'Center is back online! Accepting appointments.'
     );
   }
 
@@ -250,8 +250,8 @@ export default function SchedulePage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400 mb-2">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Session 18 · Partner Capacity & Operating Engine</span>
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>Partner Capacity &amp; Operating Engine</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Operating Hours & Slot Scheduling
@@ -274,7 +274,7 @@ export default function SchedulePage() {
           >
             <Power className="h-4 w-4" />
             <span>
-              {isEmergencyPaused ? '🔴 Bookings Paused for Today' : '⚡ Pause Bookings Today'}
+              {isEmergencyPaused ? 'Bookings Paused for Today' : 'Pause Bookings Today'}
             </span>
           </button>
 
@@ -616,7 +616,7 @@ export default function SchedulePage() {
                 onClick={() => setShowAddOverrideModal(false)}
                 className="text-slate-400 hover:text-white text-xs"
               >
-                ✕
+                <X className="size-4" />
               </button>
             </div>
 

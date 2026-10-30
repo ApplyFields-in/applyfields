@@ -9,11 +9,13 @@ import {
   ArrowLeft,
   ArrowRight,
   Building2,
+  Eye,
+  EyeOff,
   KeyRound,
   Lock,
   Phone,
   ShieldCheck,
-  Sparkles,
+  Store,
 } from 'lucide-react';
 
 function LoginFormContent() {
@@ -25,6 +27,7 @@ function LoginFormContent() {
   const [mode, setMode] = useState<'password' | 'otp'>('password');
   const [phoneOrEmail, setPhoneOrEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -194,7 +197,8 @@ function LoginFormContent() {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span>⚡ Service Kiosk</span>
+            <Store className="h-3.5 w-3.5" />
+            <span>Service Kiosk</span>
           </button>
           <button
             type="button"
@@ -221,7 +225,11 @@ function LoginFormContent() {
                 : 'bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-emerald-500/20'
             }`}
           >
-            {persona === 'institution' ? '🏛️' : '⚡'}
+            {persona === 'institution' ? (
+              <Building2 className="h-6 w-6 text-white" />
+            ) : (
+              <Store className="h-6 w-6 text-slate-950" />
+            )}
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white">
@@ -321,34 +329,82 @@ function LoginFormContent() {
                   <label className="block text-xs font-semibold text-slate-300">
                     {persona === 'institution' ? 'Admissions Desk Password' : 'Operator Password'}
                   </label>
-                  <button
-                    type="button"
-                    onClick={fillDemo}
-                    className={`text-[11px] font-medium transition ${
-                      persona === 'institution'
-                        ? 'text-blue-400 hover:text-blue-300'
-                        : 'text-emerald-400 hover:text-emerald-300'
-                    }`}
-                  >
-                    Use Sample Demo Login
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-white transition cursor-pointer"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      <span>{showPassword ? 'Hide' : 'Show'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={fillDemo}
+                      className={`text-[11px] font-medium transition ${
+                        persona === 'institution'
+                          ? 'text-blue-400 hover:text-blue-300'
+                          : 'text-emerald-400 hover:text-emerald-300'
+                      }`}
+                    >
+                      Use Sample Demo Login
+                    </button>
+                  </div>
                 </div>
                 <div className="relative mt-1">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
                     <Lock className="h-4 w-4" />
                   </div>
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className={`block w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 ${
+                    className={`block w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-10 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 ${
                       persona === 'institution'
                         ? 'focus:border-blue-500 focus:ring-blue-500'
                         : 'focus:border-emerald-500 focus:ring-emerald-500'
                     }`}
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:text-white transition"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {/* Password Requirements Notice */}
+                <div className="mt-2 rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 text-[11px] text-slate-400">
+                  <div className="flex items-center justify-between font-semibold text-slate-300">
+                    <span>Password requirements:</span>
+                    <span className="text-[10px] text-slate-500">8+ chars, capital, small, digit &amp; symbol</span>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {[
+                      { label: '8+ chars', met: password.length >= 8 },
+                      { label: 'A-Z', met: /[A-Z]/.test(password) },
+                      { label: 'a-z', met: /[a-z]/.test(password) },
+                      { label: '0-9', met: /[0-9]/.test(password) },
+                      { label: 'Symbol', met: /[^A-Za-z0-9]/.test(password) },
+                    ].map((r) => (
+                      <span
+                        key={r.label}
+                        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition ${
+                          r.met
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-slate-800 text-slate-500 border border-slate-700/50'
+                        }`}
+                      >
+                        <span className={`inline-block size-1 rounded-full ${r.met ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                        {r.label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
 
