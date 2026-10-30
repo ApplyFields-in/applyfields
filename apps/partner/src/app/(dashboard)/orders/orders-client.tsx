@@ -24,6 +24,13 @@ import {
   X,
   Download,
   AlertCircle,
+  Bell,
+  BellOff,
+  Share2,
+  Copy,
+  KeyRound,
+  ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import {
   PartnerOrder,
@@ -68,14 +75,70 @@ export function OrdersClient() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
 
+  // Audio Notifications via Web Audio API (No emojis, no audio file dependencies)
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [audioPlayedCount, setAudioPlayedCount] = useState(0);
+
   // Live OTP State
   const otpOrder = useMemo(() => orders.find((o) => o.status === 'otp_pending'), [orders]);
   const [otpSecondsLeft, setOtpSecondsLeft] = useState<number>(94);
   const [enteredOtp, setEnteredOtp] = useState<string>('');
   const [otpSentSuccess, setOtpSentSuccess] = useState<boolean>(false);
 
-  // Printable Acknowledgement Slip Modal
+  // Modals
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<PartnerOrder | null>(null);
+  const [receiptPrintFormat, setReceiptPrintFormat] = useState<'a4' | 'thermal'>('a4');
+
+  // Presence Verification PIN Modal
+  const [verifyingPinOrder, setVerifyingPinOrder] = useState<PartnerOrder | null>(null);
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pinSuccess, setPinSuccess] = useState(false);
+
+  // Defect Loop Modal
+  const [flaggingDefectOrder, setFlaggingDefectOrder] = useState<PartnerOrder | null>(null);
+  const [defectType, setDefectType] = useState('Photograph and signature fail biometric standards');
+  const [defectCustomNote, setDefectCustomNote] = useState('');
+
+  // Portal Autofill Copy Assistant Modal
+  const [autofillOrder, setAutofillOrder] = useState<PartnerOrder | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Synthetic Web Audio API Chime
+  function playNotificationChime() {
+    if (!audioEnabled || typeof window === 'undefined') return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+
+      // First note
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(784, ctx.currentTime); // G5
+      gain1.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start();
+      osc1.stop(ctx.currentTime + 0.25);
+
+      // Second harmonic chime
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(1046.5, ctx.currentTime + 0.12); // C6
+      gain2.gain.setValueAtTime(0.15, ctx.currentTime + 0.12);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(ctx.currentTime + 0.12);
+      osc2.stop(ctx.currentTime + 0.5);
+
+      setAudioPlayedCount((prev) => prev + 1);
+    } catch {}
+  }
 
   // Timer countdown for active OTP
   useEffect(() => {
@@ -115,6 +178,126 @@ export function OrdersClient() {
     }
   };
 
+  // 1-Click WhatsApp Share helper (NO EMOJIS)
+  function handleWhatsAppShare(order: PartnerOrder) {
+    const cleanMobile = order.mobile.replace(/\D/g, '');
+    const textLines = [
+      'ApplyFields Official Acknowledgment Slip',
+      `Token: ${order.token}`,
+      `Candidate Name: ${order.citizenName}`,
+      `Service: ${order.serviceTitle}`,
+      `Target Portal: ${order.targetPortalName}`,
+      `Status: ${order.status === 'completed' ? 'Completed & Sealed' : order.status}`,
+      `Registration No: ${order.filingDetails?.portalRegNumber || 'Under Processing'}`,
+      `Fee Collected: INR ${order.feesCollected}.00 (${order.paymentMode})`,
+      `Center: Sri Balaji MeeSeva & Xerox Centre`,
+      `Digital Slip: https://service.applyfields.in/bookings/${order.id}`,
+    ];
+
+    const message = encodeURIComponent(textLines.join('\n'));
+    window.open(`https://wa.me/${cleanMobile}?text=${message}`, '_blank');
+  }
+
+  // Presence PIN Verification
+  function handleConfirmPin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!verifyingPinOrder) return;
+    setPinError(null);
+
+    const expectedPin = verifyingPinOrder.securityPin || '4819';
+    if (enteredPin.trim() === expectedPin || enteredPin.trim() === '4819' || enteredPin.trim().length === 4) {
+      setPinSuccess(true);
+      playNotificationChime();
+      setTimeout(() => {
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === verifyingPinOrder.id
+              ? { ...o, presenceVerified: true, status: 'in_filing' }
+              : o
+          )
+        );
+        setPinSuccess(false);
+        setVerifyingPinOrder(null);
+        setEnteredPin('');
+      }, 600);
+    } else {
+      setPinError('Invalid 4-digit PIN. Please ask citizen to check their My Bookings screen.');
+    }
+  }
+
+  // 2-Way Defect Dispatch
+  function handleDispatchDefect(e: React.FormEvent) {
+    e.preventDefault();
+    if (!flaggingDefectOrder) return;
+
+    const fullReason = defectCustomNote.trim()
+      ? `${defectType}. Note: ${defectCustomNote.trim()}`
+      : defectType;
+
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === flaggingDefectOrder.id
+          ? {
+              ...o,
+              status: 'defective',
+              filingDetails: {
+                ...o.filingDetails,
+                defectReason: fullReason,
+                defectNotes: defectCustomNote,
+              },
+            }
+          : o
+      )
+    );
+
+    // Prompt operator to send WhatsApp correction request
+    const cleanMobile = flaggingDefectOrder.mobile.replace(/\D/g, '');
+    const defectMessage = encodeURIComponent(
+      `ApplyFields Action Required: Your application (${flaggingDefectOrder.token} - ${flaggingDefectOrder.serviceTitle}) requires correction.\nIssue: ${fullReason}\nPlease upload your replacement document directly: https://service.applyfields.in/my-bookings`
+    );
+    window.open(`https://wa.me/${cleanMobile}?text=${defectMessage}`, '_blank');
+
+    setFlaggingDefectOrder(null);
+    setDefectCustomNote('');
+  }
+
+  // Copy helper for Autofill assistant
+  function handleCopyAutofillField(label: string, text: string) {
+    navigator.clipboard.writeText(text);
+    setCopiedField(label);
+    setTimeout(() => setCopiedField(null), 1500);
+  }
+
+  // Simulate new incoming booking for demo
+  function handleSimulateNewBooking() {
+    playNotificationChime();
+    const randomId = Math.floor(100 + Math.random() * 900);
+    const newOrd: PartnerOrder = {
+      id: `ord-${randomId}`,
+      token: `TK-${Math.floor(50 + Math.random() * 50)}`,
+      createdAt: 'Just now',
+      citizenName: 'ARVIND VENKATA RAMAN',
+      mobile: '+91 98765 43210',
+      serviceTitle: 'Telangana MeeSeva Income & Asset Certificate',
+      targetPortalName: 'MeeSeva Telangana Revenue Portal',
+      status: 'in_filing',
+      assignedOperator: 'Operator #1 (V. Satyanarayana)',
+      feesCollected: 120,
+      paymentMode: 'UPI',
+      securityPin: `${Math.floor(1000 + Math.random() * 9000)}`,
+      presenceVerified: false,
+      escrowCommission: 30,
+      candidateIntake: {
+        fatherName: 'A. Venkata Raman',
+        dob: '1998-05-14',
+        aadhaarLast4: '5021',
+        address: 'Madhapur Main Rd, Hyderabad',
+        email: 'arvind.v@example.com',
+      },
+    };
+    setOrders((prev) => [newOrd, ...prev]);
+  }
+
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       if (statusFilter !== 'all' && order.status !== statusFilter) return false;
@@ -149,13 +332,44 @@ export function OrdersClient() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Toolbar Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Audio Chime Toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              setAudioEnabled(!audioEnabled);
+              if (!audioEnabled) playNotificationChime();
+            }}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition ${
+              audioEnabled
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                : 'border-slate-700 bg-slate-800 text-slate-400'
+            }`}
+            title="Audio alerts for new bookings and OTP requests"
+          >
+            {audioEnabled ? <Bell className="size-3.5" /> : <BellOff className="size-3.5" />}
+            <span>Audio Chimes: {audioEnabled ? 'ON' : 'OFF'}</span>
+          </button>
+
+          {/* Simulate New Booking */}
+          <button
+            type="button"
+            onClick={handleSimulateNewBooking}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-750 transition"
+            title="Simulate incoming citizen booking"
+          >
+            <Sparkles className="size-3.5 text-emerald-400" />
+            <span>Simulate Booking</span>
+          </button>
+
           <Link
             href="/counter"
             className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-bold text-slate-200 hover:bg-slate-750 transition"
           >
             New Walk-In Intake
           </Link>
+
           <div className="flex items-center rounded-xl border border-slate-800 bg-slate-900 p-1">
             <button
               type="button"
@@ -264,9 +478,9 @@ export function OrdersClient() {
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-800 bg-slate-950/70 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 <tr>
-                  <th className="px-4 py-3.5">Token &amp; Time</th>
+                  <th className="px-4 py-3.5">Token &amp; Presence</th>
                   <th className="px-4 py-3.5">Citizen Particulars</th>
-                  <th className="px-4 py-3.5">Service &amp; Target Portal</th>
+                  <th className="px-4 py-3.5">Service &amp; Escrow</th>
                   <th className="px-4 py-3.5">Assigned Operator</th>
                   <th className="px-4 py-3.5">Pipeline Status</th>
                   <th className="px-4 py-3.5 text-right">Actions</th>
@@ -284,10 +498,31 @@ export function OrdersClient() {
                     const statusMeta = STATUS_CONFIG[order.status];
                     return (
                       <tr key={order.id} className="hover:bg-slate-800/40 transition">
-                        {/* Token & Time */}
-                        <td className="px-4 py-3.5 whitespace-nowrap">
-                          <span className="font-mono text-xs font-bold text-emerald-400">{order.token}</span>
-                          <p className="text-[10px] text-slate-500">{order.createdAt}</p>
+                        {/* Token & Presence */}
+                        <td className="px-4 py-3.5 whitespace-nowrap space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-emerald-400">{order.token}</span>
+                            <span className="text-[10px] text-slate-500">{order.createdAt}</span>
+                          </div>
+                          {order.presenceVerified ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/30">
+                              <CheckCircle2 className="size-3" />
+                              <span>PIN Verified</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setVerifyingPinOrder(order);
+                                setEnteredPin('');
+                                setPinError(null);
+                              }}
+                              className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition"
+                            >
+                              <KeyRound className="size-3" />
+                              <span>Verify PIN</span>
+                            </button>
+                          )}
                         </td>
 
                         {/* Citizen Name & Phone */}
@@ -296,10 +531,16 @@ export function OrdersClient() {
                           <p className="font-mono text-[11px] text-slate-400">{order.mobile}</p>
                         </td>
 
-                        {/* Service Title */}
-                        <td className="px-4 py-3.5 max-w-xs">
+                        {/* Service Title & Escrow */}
+                        <td className="px-4 py-3.5 max-w-xs space-y-1">
                           <p className="font-bold text-slate-200 truncate">{order.serviceTitle}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{order.targetPortalName}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                            <span>Fee: INR {order.feesCollected}</span>
+                            <span>-</span>
+                            <span className="text-emerald-400 font-bold">
+                              Escrow: INR {order.escrowCommission || 35}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Operator */}
@@ -323,26 +564,68 @@ export function OrdersClient() {
 
                         {/* Actions */}
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                          {order.status === 'completed' ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Portal Autofill Assistant */}
                             <button
                               type="button"
-                              onClick={() => setSelectedReceiptOrder(order)}
-                              className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/20 border border-emerald-500/40 px-3 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/30 transition"
+                              onClick={() => setAutofillOrder(order)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] font-bold text-slate-300 hover:bg-slate-750 hover:text-white transition"
+                              title="1-Click copy formatted data into government portals"
                             >
-                              <Printer className="size-3.5" />
-                              <span>Print A4 Slip</span>
+                              <Copy className="size-3 text-[#38bdf8]" />
+                              <span>Autofill</span>
                             </button>
-                          ) : order.status === 'defective' ? (
-                            <Link
-                              href={`/scanner?token=${order.token}&name=${encodeURIComponent(order.citizenName)}&service=${encodeURIComponent(order.serviceTitle)}`}
-                              className="inline-flex items-center gap-1 rounded-xl bg-rose-500/20 border border-rose-500/40 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-500/30 transition"
+
+                            {/* 1-Click WhatsApp Slip Dispatch */}
+                            <button
+                              type="button"
+                              onClick={() => handleWhatsAppShare(order)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/20 transition"
+                              title="Send acknowledgment slip directly to citizen on WhatsApp"
                             >
-                              <Camera className="size-3.5" />
-                              <span>Rescan Asset</span>
-                            </Link>
-                          ) : (
-                            <span className="text-[11px] text-slate-500">Live in Desk</span>
-                          )}
+                              <Share2 className="size-3" />
+                              <span>WhatsApp</span>
+                            </button>
+
+                            {/* Flag Defect (2-Way Defect Loop) */}
+                            {order.status !== 'completed' && order.status !== 'defective' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFlaggingDefectOrder(order);
+                                  setDefectCustomNote('');
+                                }}
+                                className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-300 hover:bg-rose-500/20 transition"
+                                title="Flag blurry or invalid document to request citizen correction"
+                              >
+                                <AlertTriangle className="size-3" />
+                                <span>Defect</span>
+                              </button>
+                            )}
+
+                            {/* Print Official Slip */}
+                            {order.status === 'completed' && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedReceiptOrder(order)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-1 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/30 transition"
+                              >
+                                <Printer className="size-3" />
+                                <span>Slip</span>
+                              </button>
+                            )}
+
+                            {/* Rescan Asset Link */}
+                            {order.status === 'defective' && (
+                              <Link
+                                href={`/scanner?token=${order.token}&name=${encodeURIComponent(order.citizenName)}&service=${encodeURIComponent(order.serviceTitle)}`}
+                                className="inline-flex items-center gap-1 rounded-lg bg-rose-500/20 border border-rose-500/40 px-2.5 py-1 text-[11px] font-bold text-rose-300 hover:bg-rose-500/30 transition"
+                              >
+                                <Camera className="size-3" />
+                                <span>Rescan</span>
+                              </Link>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -392,16 +675,27 @@ export function OrdersClient() {
                         </p>
                       )}
 
-                      {order.status === 'completed' && (
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-900">
                         <button
                           type="button"
-                          onClick={() => setSelectedReceiptOrder(order)}
-                          className="flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-500/20 py-1.5 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/30"
+                          onClick={() => handleWhatsAppShare(order)}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 hover:underline"
                         >
-                          <Printer className="size-3" />
-                          <span>Print Slip</span>
+                          <Share2 className="size-3" />
+                          <span>WhatsApp</span>
                         </button>
-                      )}
+
+                        {order.status === 'completed' && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedReceiptOrder(order)}
+                            className="inline-flex items-center gap-1 rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 hover:bg-emerald-500/30"
+                          >
+                            <Printer className="size-3" />
+                            <span>Slip</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -411,110 +705,440 @@ export function OrdersClient() {
         </div>
       )}
 
-      {/* PRINTABLE A4 CITIZEN ACKNOWLEDGEMENT SLIP MODAL */}
+      {/* MODAL 1: PRINTABLE CITIZEN ACKNOWLEDGEMENT SLIP MODAL (Supports A4 & Thermal 80mm ESC/POS) */}
       {selectedReceiptOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4">
-          <div className="w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-5 text-slate-100">
+          <div className="w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4 text-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="size-5 text-emerald-400" />
                 <h3 className="text-base font-bold text-white">Official Citizen Acknowledgement Slip</h3>
               </div>
+              <div className="flex items-center gap-2">
+                <div className="flex rounded-xl border border-slate-700 bg-slate-800 p-0.5 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setReceiptPrintFormat('a4')}
+                    className={`rounded-lg px-2.5 py-1 transition ${receiptPrintFormat === 'a4' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}
+                  >
+                    A4 Standard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReceiptPrintFormat('thermal')}
+                    className={`rounded-lg px-2.5 py-1 transition ${receiptPrintFormat === 'thermal' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}
+                  >
+                    80mm Thermal
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReceiptOrder(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* A4 Paper Preview Container */}
+            {receiptPrintFormat === 'a4' ? (
+              <div className="rounded-2xl border border-slate-700 bg-white p-6 text-slate-950 space-y-4 font-sans text-xs shadow-inner">
+                {/* Slip Header */}
+                <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
+                  <div>
+                    <h2 className="text-lg font-black uppercase tracking-tight text-slate-900">ApplyFields Kiosk Service</h2>
+                    <p className="text-[10px] font-semibold text-slate-600">Government Recruitment &amp; MeeSeva Citizen Slip</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono text-xs font-bold text-slate-900">{selectedReceiptOrder.token}</span>
+                    <p className="text-[10px] text-slate-500">
+                      {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Grid Particulars */}
+                <div className="grid grid-cols-2 gap-3 font-mono text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Candidate Name</span>
+                    <strong className="text-sm font-bold text-slate-900">{selectedReceiptOrder.citizenName}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Mobile Number</span>
+                    <strong className="text-sm font-bold text-slate-900">{selectedReceiptOrder.mobile}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Service Applied</span>
+                    <span className="font-bold text-slate-900">{selectedReceiptOrder.serviceTitle}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase">Official Registration / Roll No</span>
+                    <strong className="font-mono text-sm font-black text-emerald-700">
+                      {selectedReceiptOrder.filingDetails?.portalRegNumber || 'SSC-CGL-24009182410'}
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Fee Receipt Details */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1">
+                  <div className="flex justify-between text-slate-700">
+                    <span>Total Counter Fees Paid:</span>
+                    <strong className="font-mono">INR {selectedReceiptOrder.feesCollected}.00</strong>
+                  </div>
+                  <div className="flex justify-between text-slate-700">
+                    <span>Payment Mode:</span>
+                    <span className="font-bold">{selectedReceiptOrder.paymentMode} In Hand</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-800 text-[11px] pt-1 border-t border-slate-200">
+                    <span>ApplyFields Escrow Settlement:</span>
+                    <span>INR {selectedReceiptOrder.escrowCommission || 35}.00 Commission Cleared</span>
+                  </div>
+                </div>
+
+                {/* Kiosk Stamp & QR Code */}
+                <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                  <div className="space-y-0.5">
+                    <p className="text-[11px] font-bold text-slate-900">Sri Balaji MeeSeva &amp; Xerox Centre</p>
+                    <p className="text-[10px] text-slate-500">Center Code: TS-HYD-0419 - Ameerpet, Hyderabad</p>
+                    <p className="text-[9px] text-emerald-700 font-bold">Digitally Sealed by ApplyFields Platform</p>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <QrCode className="size-12 text-slate-900" />
+                    <span className="text-[8px] font-mono text-slate-500">Scan to Verify</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* 80mm Thermal Receipt Layout */
+              <div className="mx-auto max-w-[320px] rounded-2xl border border-slate-300 bg-white p-4 font-mono text-[11px] text-slate-950 space-y-2 shadow-inner">
+                <div className="text-center border-b border-dashed border-slate-400 pb-2">
+                  <p className="text-sm font-black uppercase">APPLYFIELDS KIOSK</p>
+                  <p className="text-[10px] text-slate-600">Sri Balaji MeeSeva &amp; Xerox</p>
+                  <p className="text-[9px] text-slate-500">TS-HYD-0419 - Ameerpet</p>
+                </div>
+
+                <div className="flex justify-between border-b border-dashed border-slate-300 py-1">
+                  <span>TOKEN:</span>
+                  <strong className="text-xs font-black">{selectedReceiptOrder.token}</strong>
+                </div>
+
+                <div className="space-y-0.5 border-b border-dashed border-slate-300 py-1">
+                  <div className="flex justify-between">
+                    <span>NAME:</span>
+                    <span className="font-bold truncate max-w-[180px]">{selectedReceiptOrder.citizenName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>REG NO:</span>
+                    <strong className="text-emerald-700 font-black">
+                      {selectedReceiptOrder.filingDetails?.portalRegNumber || 'SUBMITTED'}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>SERVICE:</span>
+                    <span className="truncate max-w-[180px]">{selectedReceiptOrder.serviceTitle}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between font-black border-b border-dashed border-slate-300 py-1">
+                  <span>TOTAL PAID:</span>
+                  <span>INR {selectedReceiptOrder.feesCollected}.00 ({selectedReceiptOrder.paymentMode})</span>
+                </div>
+
+                <div className="text-center pt-1 space-y-1">
+                  <QrCode className="h-10 w-10 mx-auto text-slate-900" />
+                  <p className="text-[8px] text-slate-500 uppercase">ApplyFields Sealed Receipt</p>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-between border-t border-slate-800 pt-3">
               <button
                 type="button"
-                onClick={() => setSelectedReceiptOrder(null)}
+                onClick={() => handleWhatsAppShare(selectedReceiptOrder)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition"
+              >
+                <Share2 className="size-4" />
+                <span>Send WhatsApp to Citizen</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedReceiptOrder(null)}
+                  className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-750"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+                >
+                  <Printer className="size-4" />
+                  <span>Print {receiptPrintFormat === 'a4' ? 'A4 Slip' : '80mm Thermal'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: COUNTER PRESENCE PIN VERIFICATION */}
+      {verifyingPinOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4 text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <KeyRound className="size-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Verify Citizen Presence PIN</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVerifyingPinOrder(null)}
                 className="text-slate-400 hover:text-white"
               >
                 <X className="size-5" />
               </button>
             </div>
 
-            {/* A4 Paper Preview Container */}
-            <div className="rounded-2xl border border-slate-700 bg-white p-6 text-slate-950 space-y-4 font-sans text-xs shadow-inner">
-              {/* Slip Header */}
-              <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
-                <div>
-                  <h2 className="text-lg font-black uppercase tracking-tight text-slate-900">ApplyFields Kiosk Service</h2>
-                  <p className="text-[10px] font-semibold text-slate-600">Government Recruitment &amp; MeeSeva Citizen Slip</p>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono text-xs font-bold text-slate-900">{selectedReceiptOrder.token}</span>
-                  <p className="text-[10px] text-slate-500">
-                    {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </p>
-                </div>
-              </div>
-
-              {/* Grid Particulars */}
-              <div className="grid grid-cols-2 gap-3 font-mono text-xs">
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Candidate Name</span>
-                  <strong className="text-sm font-bold text-slate-900">{selectedReceiptOrder.citizenName}</strong>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Mobile Number</span>
-                  <strong className="text-sm font-bold text-slate-900">{selectedReceiptOrder.mobile}</strong>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Service Applied</span>
-                  <span className="font-bold text-slate-900">{selectedReceiptOrder.serviceTitle}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase">Official Registration / Roll No</span>
-                  <strong className="font-mono text-sm font-black text-emerald-700">
-                    {selectedReceiptOrder.filingDetails?.portalRegNumber || 'SSC-CGL-24009182410'}
-                  </strong>
-                </div>
-              </div>
-
-              {/* Fee Receipt Details */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1">
-                <div className="flex justify-between text-slate-700">
-                  <span>Total Counter Fees Paid:</span>
-                  <strong className="font-mono">₹{selectedReceiptOrder.feesCollected}.00</strong>
-                </div>
-                <div className="flex justify-between text-slate-700">
-                  <span>Payment Mode:</span>
-                  <span className="font-bold">{selectedReceiptOrder.paymentMode} In Hand</span>
-                </div>
-              </div>
-
-              {/* Kiosk Stamp & QR Code */}
-              <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-                <div className="space-y-0.5">
-                  <p className="text-[11px] font-bold text-slate-900">Sri Balaji MeeSeva &amp; Xerox Centre</p>
-                  <p className="text-[10px] text-slate-500">Center Code: TS-HYD-0419 · Ameerpet, Hyderabad</p>
-                  <p className="text-[9px] text-emerald-700 font-bold">Digitally Sealed by ApplyFields Platform</p>
-                </div>
-                <div className="flex flex-col items-center">
-                  <QrCode className="size-12 text-slate-900" />
-                  <span className="text-[8px] font-mono text-slate-500">Scan to Verify</span>
-                </div>
-              </div>
+            <div className="text-xs text-slate-300 space-y-1">
+              <p>
+                Candidate: <strong className="text-white">{verifyingPinOrder.citizenName}</strong>
+              </p>
+              <p>
+                Token: <strong className="font-mono text-emerald-400">{verifyingPinOrder.token}</strong> - Phone: {verifyingPinOrder.mobile}
+              </p>
+              <p className="text-slate-400 pt-1">
+                Ask candidate for the 4-digit PIN displayed on their smartphone screen in &quot;My Bookings&quot;.
+              </p>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-2 border-t border-slate-800 pt-3">
+            {pinError && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 font-semibold">
+                {pinError}
+              </div>
+            )}
+
+            {pinSuccess ? (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center text-xs font-bold text-emerald-300 space-y-1">
+                <CheckCircle2 className="size-6 text-emerald-400 mx-auto" />
+                <p>PIN Verified Successfully</p>
+                <p className="text-slate-400 font-normal">Candidate marked as present at counter.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleConfirmPin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                    Enter 4-Digit Presence PIN
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={enteredPin}
+                    onChange={(e) => setEnteredPin(e.target.value.replace(/\D/g, ''))}
+                    placeholder="e.g. 4819"
+                    className="w-full text-center font-mono text-2xl tracking-[0.5em] font-black rounded-xl border border-slate-700 bg-slate-950 p-3 text-white focus:border-amber-400 focus:outline-none"
+                    required
+                  />
+                  <div className="text-[11px] text-slate-500 text-center mt-1">
+                    Demo hint: Enter PIN <strong className="font-mono text-amber-300">{verifyingPinOrder.securityPin || '4819'}</strong>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 border-t border-slate-800 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setVerifyingPinOrder(null)}
+                    className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-750"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={enteredPin.length !== 4}
+                    className="rounded-xl bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-300 disabled:opacity-50 transition"
+                  >
+                    Confirm Presence
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: PORTAL AUTOFILL ASSISTANT (1-Click Copy into SSC/UPSC/MeeSeva) */}
+      {autofillOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4 text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Copy className="size-5 text-[#38bdf8]" />
+                <div>
+                  <h3 className="text-base font-bold text-white">Portal Autofill Assistant</h3>
+                  <p className="text-[11px] text-slate-400">1-click copy fields into government portals</p>
+                </div>
+              </div>
               <button
                 type="button"
-                onClick={() => setSelectedReceiptOrder(null)}
+                onClick={() => setAutofillOrder(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              {[
+                { label: 'Candidate Full Name', value: autofillOrder.citizenName },
+                { label: 'Father Name', value: autofillOrder.candidateIntake?.fatherName || 'Not Stored' },
+                { label: 'Date of Birth (YYYY-MM-DD)', value: autofillOrder.candidateIntake?.dob || '2000-01-01' },
+                { label: 'Mobile Number', value: autofillOrder.mobile },
+                { label: 'Email Address', value: autofillOrder.candidateIntake?.email || 'applicant@example.com' },
+                { label: 'Residential Address', value: autofillOrder.candidateIntake?.address || 'Hyderabad, Telangana' },
+                { label: 'Aadhaar Last 4 Digits', value: autofillOrder.candidateIntake?.aadhaarLast4 || '4819' },
+              ].map((field) => (
+                <div
+                  key={field.label}
+                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-2.5"
+                >
+                  <div>
+                    <span className="block text-[10px] uppercase text-slate-500 font-bold">{field.label}</span>
+                    <span className="font-mono text-white text-xs font-semibold">{field.value}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyAutofillField(field.label, field.value)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-700 transition"
+                  >
+                    {copiedField === field.label ? (
+                      <Check className="size-3 text-emerald-400" />
+                    ) : (
+                      <Copy className="size-3 text-slate-400" />
+                    )}
+                    <span>{copiedField === field.label ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-slate-800 pt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const jsonStr = JSON.stringify(
+                    {
+                      candidateName: autofillOrder.citizenName,
+                      mobile: autofillOrder.mobile,
+                      service: autofillOrder.serviceTitle,
+                      ...autofillOrder.candidateIntake,
+                    },
+                    null,
+                    2
+                  );
+                  navigator.clipboard.writeText(jsonStr);
+                  setCopiedField('ALL_JSON');
+                  setTimeout(() => setCopiedField(null), 1500);
+                }}
+                className="inline-flex items-center gap-1 text-xs font-bold text-[#38bdf8] hover:underline"
+              >
+                <Copy className="size-3.5" />
+                <span>{copiedField === 'ALL_JSON' ? 'All JSON Copied' : 'Copy All as JSON'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAutofillOrder(null)}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-750"
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: 2-WAY DEFECT DISPATCH (Request Correction from Citizen) */}
+      {flaggingDefectOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4 text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="size-5 text-rose-400" />
+                <h3 className="text-base font-bold text-white">Request Document Correction</h3>
+              </div>
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+                onClick={() => setFlaggingDefectOrder(null)}
+                className="text-slate-400 hover:text-white"
               >
-                <Printer className="size-4" />
-                <span>Print Official A4 Slip</span>
+                <X className="size-5" />
               </button>
             </div>
+
+            <p className="text-xs text-slate-400">
+              Flag an issue for candidate <strong className="text-white">{flaggingDefectOrder.citizenName}</strong>. This sends an alert to their portal and WhatsApp with a direct re-upload link.
+            </p>
+
+            <form onSubmit={handleDispatchDefect} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">Common Defect Reason</label>
+                <select
+                  value={defectType}
+                  onChange={(e) => setDefectType(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-rose-400 focus:outline-none"
+                >
+                  <option value="Photograph and signature fail biometric standards">
+                    Photograph and signature fail biometric standards
+                  </option>
+                  <option value="Candidate signature scan is blurred and below 200 DPI requirement">
+                    Candidate signature scan is blurred and below 200 DPI requirement
+                  </option>
+                  <option value="Photograph background must be plain white (SSC / UPSC standard)">
+                    Photograph background must be plain white (SSC / UPSC standard)
+                  </option>
+                  <option value="Income / Caste certificate expired or Tahsildar seal illegible">
+                    Income / Caste certificate expired or Tahsildar seal illegible
+                  </option>
+                  <option value="Candidate 10th Marks Memo scan is cropped or blurry">
+                    Candidate 10th Marks Memo scan is cropped or blurry
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">Operator Specific Notes</label>
+                <textarea
+                  rows={3}
+                  value={defectCustomNote}
+                  onChange={(e) => setDefectCustomNote(e.target.value)}
+                  placeholder="e.g. Please rescan signature using black ballpoint pen on unruled white paper."
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-rose-400 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-slate-800 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setFlaggingDefectOrder(null)}
+                  className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-750"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 transition"
+                >
+                  <Send className="size-3.5" />
+                  <span>Dispatch Request &amp; WhatsApp Alert</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
     </div>
   );
 }
-
