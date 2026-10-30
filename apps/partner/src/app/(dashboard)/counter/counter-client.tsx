@@ -523,3 +523,4 @@ export function CounterClient() {
     </div>
   );
 }
+

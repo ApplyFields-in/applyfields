@@ -29,31 +29,115 @@ export function PasswordInput({
   value,
   onChange,
   icon: Icon = Lock,
+  show: controlledShow,
+  onToggleShow,
   ...props
 }: {
   value: string;
   onChange: (value: string) => void;
   icon?: LucideIcon;
+  show?: boolean;
+  onToggleShow?: () => void;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'>) {
-  const [show, setShow] = useState(false);
+  const [internalShow, setInternalShow] = useState(false);
+  const isShow = controlledShow !== undefined ? controlledShow : internalShow;
+  const toggleShow = () => {
+    if (onToggleShow) {
+      onToggleShow();
+    } else {
+      setInternalShow(!internalShow);
+    }
+  };
+
   return (
     <div className="relative">
       <Icon className={ICON} aria-hidden="true" />
       <input
         {...props}
-        type={show ? 'text' : 'password'}
+        type={isShow ? 'text' : 'password'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={`${INPUT} pr-12`}
       />
       <button
         type="button"
-        onClick={() => setShow(!show)}
-        aria-label={show ? 'Hide password' : 'Show password'}
+        onClick={toggleShow}
+        aria-label={isShow ? 'Hide password' : 'Show password'}
+        title={isShow ? 'Hide password' : 'Show password'}
         className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-teal/45 transition hover:text-teal"
       >
-        {show ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}
+        {isShow ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}
       </button>
+    </div>
+  );
+}
+
+export interface PasswordValidation {
+  hasLength: boolean;
+  hasUpper: boolean;
+  hasLower: boolean;
+  hasDigit: boolean;
+  hasSymbol: boolean;
+  isValid: boolean;
+}
+
+export function validatePassword(password: string): PasswordValidation {
+  const hasLength = (password || '').length >= 8;
+  const hasUpper = /[A-Z]/.test(password || '');
+  const hasLower = /[a-z]/.test(password || '');
+  const hasDigit = /[0-9]/.test(password || '');
+  const hasSymbol = /[^A-Za-z0-9]/.test(password || '');
+  return {
+    hasLength,
+    hasUpper,
+    hasLower,
+    hasDigit,
+    hasSymbol,
+    isValid: hasLength && hasUpper && hasLower && hasDigit && hasSymbol,
+  };
+}
+
+export function PasswordRequirements({ password }: { password?: string }) {
+  const v = validatePassword(password || '');
+
+  const rules = [
+    { label: '8+ chars', met: v.hasLength },
+    { label: 'Capital (A-Z)', met: v.hasUpper },
+    { label: 'Small (a-z)', met: v.hasLower },
+    { label: 'Digit (0-9)', met: v.hasDigit },
+    { label: 'Symbol (!@#$...)', met: v.hasSymbol },
+  ];
+
+  return (
+    <div className="mt-2 rounded-xl border border-line/80 bg-paper/60 p-2.5 text-xs">
+      <div className="flex items-center justify-between font-semibold text-teal/80">
+        <span className="flex items-center gap-1.5">
+          <Lock className="size-3.5 text-sea" />
+          <span>Password Requirements</span>
+        </span>
+        <span className="text-[11px] font-normal text-teal/50">
+          8+ chars, capital, small, digit &amp; symbol
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {rules.map((rule) => (
+          <span
+            key={rule.label}
+            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+              rule.met
+                ? 'bg-sea/15 text-sea font-semibold'
+                : 'bg-cream text-teal/50 border border-line/60'
+            }`}
+          >
+            <span
+              className={`inline-block size-1.5 rounded-full ${
+                rule.met ? 'bg-sea' : 'bg-teal/30'
+              }`}
+            />
+            {rule.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

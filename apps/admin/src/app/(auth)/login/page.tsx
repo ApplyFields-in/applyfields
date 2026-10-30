@@ -461,10 +461,39 @@ function StaffLoginForm() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white transition-colors"
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
+                  </div>
+                  {/* Password requirements notice */}
+                  <div className="mt-2 rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 text-[11px] text-slate-400">
+                    <div className="flex items-center justify-between font-semibold text-slate-300">
+                      <span>Password requirements:</span>
+                      <span className="text-[10px] text-slate-500">8+ chars, capital, small, digit &amp; symbol</span>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {[
+                        { label: '8+ chars', met: password.length >= 8 },
+                        { label: 'A-Z', met: /[A-Z]/.test(password) },
+                        { label: 'a-z', met: /[a-z]/.test(password) },
+                        { label: '0-9', met: /[0-9]/.test(password) },
+                        { label: 'Symbol', met: /[^A-Za-z0-9]/.test(password) },
+                      ].map((r) => (
+                        <span
+                          key={r.label}
+                          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition ${
+                            r.met
+                              ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                              : 'bg-slate-800 text-slate-500 border border-slate-700/50'
+                          }`}
+                        >
+                          <span className={`inline-block size-1 rounded-full ${r.met ? 'bg-amber-400' : 'bg-slate-500'}`} />
+                          {r.label}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
