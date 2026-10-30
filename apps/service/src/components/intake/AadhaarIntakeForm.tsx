@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ShieldCheck, Sparkles, User, FileText, Check, AlertCircle } from 'lucide-react';
+import { ShieldCheck, User, FileText, Check, AlertCircle } from 'lucide-react';
 
 export interface AadhaarIntakeData {
   serviceSubtype:
@@ -109,7 +109,7 @@ export function AadhaarIntakeForm({
             </>
           ) : (
             <>
-              <Sparkles className="h-3.5 w-3.5" /> 1-Click Vault Autofill
+              <Check className="h-3.5 w-3.5" /> 1-Click Vault Autofill
             </>
           )}
         </button>

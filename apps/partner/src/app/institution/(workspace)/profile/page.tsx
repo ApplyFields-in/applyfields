@@ -13,7 +13,6 @@ import {
   Phone,
   Save,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import { getPartnerInstitutionDesk, updatePartnerInstitutionDesk } from '@/lib/api';
 import type { InstitutionPartnerProfile } from '@applyfields/types';

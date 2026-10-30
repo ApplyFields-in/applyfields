@@ -14,6 +14,7 @@ import {
   HorizontalOpportunityCard,
   type ExtendedOpportunityCard,
 } from '@/components/opportunity/horizontal-opportunity-card';
+import { DashboardCorrigendumBanner } from '@/components/dashboard-corrigendum-banner';
 import type {
   EducationLevel,
   EducationStatus,
@@ -1968,6 +1969,33 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
+
+        {/* Real-time Corrigenda & Official Exam Bulletins */}
+        <DashboardCorrigendumBanner
+          bulletins={[
+            {
+              id: 'corr-1',
+              category: 'date_extension',
+              title: 'Online Application Window Extended to 30 November',
+              opportunity_title: 'UPSC Civil Services Examination 2026',
+              opportunity_slug: 'upsc-civil-services-examination-2026',
+              summary: 'Union Public Service Commission has extended the online registration and fee deposit deadline by 15 days due to server maintenance.',
+              effective_date: '28 Oct 2026',
+              new_deadline: '30 Nov 2026',
+              official_pdf_url: 'https://upsc.gov.in',
+            },
+            {
+              id: 'corr-2',
+              category: 'admit_card',
+              title: 'GATE 2026 Admit Card Released for Download',
+              opportunity_title: 'Graduate Aptitude Test in Engineering 2026',
+              opportunity_slug: 'gate-2026',
+              summary: 'Candidates can now login with their enrollment ID and password to download the official examination hall ticket and verified center allocation.',
+              effective_date: '27 Oct 2026',
+              official_pdf_url: 'https://gate.iitr.ac.in',
+            },
+          ]}
+        />
 
         {/* TAB 1: Government Jobs & Opportunities */}
         {bottomTab === 'jobs' && (

@@ -158,6 +158,8 @@ export const updateInputSchema = z.object({
   date: optDate,
   url: optUrl,
   summary: optText(2000),
+  effective_date: optDate.optional(),
+  new_deadline: optDate.optional(),
   opportunity_id: z.uuid().nullable(),
   source_url: optUrl,
 });

@@ -76,7 +76,7 @@ export default async function ServicesAdminPage({
   return (
     <>
       <PageHeader
-        eyebrow="Content"
+        eyebrow="Citizen Services Department · Services Cockpit"
         title="Government Services"
         description="Create, verify and publish citizen services — PAN, passport, certificates, licenses with official links."
         icon={<Landmark />}

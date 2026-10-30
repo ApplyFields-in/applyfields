@@ -6,7 +6,6 @@ import {
   UploadCloud,
   FileCheck2,
   Trash2,
-  Sparkles,
   Calculator,
   Layers,
   FileText,

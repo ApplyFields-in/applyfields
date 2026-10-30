@@ -18,7 +18,6 @@ import {
   Phone,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 
 export default function InstitutionUnderReviewPage() {
@@ -60,8 +59,8 @@ export default function InstitutionUnderReviewPage() {
       <header className="border-b border-slate-800 bg-slate-900/80 px-4 py-4 sm:px-8 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black shadow-lg shadow-blue-500/20 text-lg">
-              🏛️
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black shadow-lg shadow-blue-500/20">
+              <Building2 className="h-5 w-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">

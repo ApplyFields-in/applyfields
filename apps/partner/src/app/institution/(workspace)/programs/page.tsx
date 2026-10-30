@@ -13,7 +13,6 @@ import {
   Plus,
   Save,
   Search,
-  Sparkles,
   Users,
 } from 'lucide-react';
 

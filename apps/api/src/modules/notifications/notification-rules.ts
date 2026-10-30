@@ -45,6 +45,9 @@ const UPDATE_TYPE: Record<UpdateKind, NotificationType> = {
   date_change: 'date_change',
   extension: 'date_change',
   counselling: 'saved_item_changed',
+  vacancy_revision: 'saved_item_changed',
+  syllabus_change: 'saved_item_changed',
+  postponement: 'date_change',
   other: 'saved_item_changed',
 };
 

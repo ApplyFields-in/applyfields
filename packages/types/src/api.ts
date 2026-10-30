@@ -531,6 +531,8 @@ export interface AdminUpdateList {
 export interface AdminUpdateDetail extends AdminUpdateListItem {
   url: string | null;
   summary: string | null;
+  effective_date?: string | null;
+  new_deadline?: string | null;
   published_at: string | null;
   updated_at: string;
   /** publish blockers — empty = ready */
@@ -545,11 +547,26 @@ export interface UpdateInput {
   summary: string | null;
   opportunity_id: string | null;
   source_url: string | null;
+  effective_date?: string | null;
+  new_deadline?: string | null;
 }
 
 // ---------- Internal Portal: Staff, Roles & Users ----------
 
-export type StaffRole = 'super_admin' | 'admin' | 'reviewer' | 'content_editor' | 'support';
+export type StaffRole =
+  | 'super_admin'
+  | 'admin'
+  | 'reviewer'
+  | 'content_editor'
+  | 'support'
+  | 'partner_manager'
+  | 'partner_ops'
+  | 'services_officer'
+  | 'case_agent'
+  | 'content_reviewer'
+  | 'scraper_lead'
+  | 'career_curator'
+  | 'institution_analyst';
 
 export interface StaffProfile {
   id: string;

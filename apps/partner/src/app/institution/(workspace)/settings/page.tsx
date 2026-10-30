@@ -12,7 +12,6 @@ import {
   Save,
   ShieldCheck,
   Smartphone,
-  Sparkles,
 } from 'lucide-react';
 
 export default function InstitutionSettingsPage() {

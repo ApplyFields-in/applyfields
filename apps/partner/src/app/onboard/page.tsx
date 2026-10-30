@@ -860,8 +860,9 @@ export default function OnboardWizardPage() {
                     </label>
                   </div>
                   {certFileName && (
-                    <div className="mt-2 text-[11px] text-emerald-400 font-medium truncate">
-                      ✓ {certFileName}
+                    <div className="mt-2 text-[11px] text-emerald-400 font-medium truncate flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      <span>{certFileName}</span>
                     </div>
                   )}
                 </div>
@@ -887,8 +888,9 @@ export default function OnboardWizardPage() {
                     </label>
                   </div>
                   {storefrontPreview && (
-                    <div className="mt-2 flex items-center justify-center gap-2 text-[11px] text-teal-300">
-                      ✓ Storefront image attached
+                    <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-teal-300 font-medium">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      <span>Storefront image attached</span>
                     </div>
                   )}
                 </div>
