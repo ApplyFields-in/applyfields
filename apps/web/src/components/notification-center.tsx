@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { API_URL, apiPost, apiPut } from '@/lib/api';
 import { useWebPush } from '@/lib/push/use-web-push';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 const TYPE_LABEL: Partial<Record<NotificationItem['type'], string>> = {
   closing_reminder: 'Reminder',
@@ -47,6 +48,7 @@ function timeAgo(iso: string): string {
 }
 
 export function NotificationInbox({ initial }: { initial: NotificationList }) {
+  const { t } = useLanguage();
   const [list, setList] = useState(initial);
 
   async function read(id?: string) {
@@ -63,11 +65,14 @@ export function NotificationInbox({ initial }: { initial: NotificationList }) {
     return (
       <EmptyState
         icon={<Bell />}
-        title="No notifications yet"
-        text="Save a job or exam and we’ll remind you before the last date, and tell you when its admit card or result is out."
+        title={t('notif_empty_title', 'No notifications yet')}
+        text={t(
+          'notif_empty_desc',
+          'Save a job or exam and we’ll remind you before the last date, and tell you when its admit card or result is out.',
+        )}
         action={
           <Link href="/jobs" className={buttonClass({ variant: 'secondary', size: 'sm' })}>
-            Browse government jobs
+            {t('saved_explore_btn', 'Browse government jobs')}
           </Link>
         }
       />
@@ -77,11 +82,11 @@ export function NotificationInbox({ initial }: { initial: NotificationList }) {
   return (
     <Card className="p-4 sm:p-5">
       <SectionTitle
-        title={list.unread ? `${list.unread} unread` : 'All caught up'}
+        title={list.unread ? `${list.unread} ${t('notif_unread', 'unread')}` : t('notif_all_caught_up', 'All caught up')}
         action={
           list.unread > 0 && (
             <button type="button" onClick={() => read()} className={buttonClass({ variant: 'secondary', size: 'sm' })}>
-              <CheckCheck className="size-4" aria-hidden="true" /> Mark all read
+              <CheckCheck className="size-4" aria-hidden="true" /> {t('notif_mark_all_read', 'Mark all read')}
             </button>
           )
         }
@@ -107,7 +112,7 @@ export function NotificationInbox({ initial }: { initial: NotificationList }) {
                 {timeAgo(n.created_at)}
                 {!n.read && (
                   <button type="button" onClick={() => read(n.id)} className="font-semibold underline">
-                    Mark read
+                    {t('notif_mark_read', 'Mark read')}
                   </button>
                 )}
               </div>
@@ -120,6 +125,7 @@ export function NotificationInbox({ initial }: { initial: NotificationList }) {
 }
 
 export function NotificationSettings({ initial }: { initial: NotificationPreferences }) {
+  const { t } = useLanguage();
   const [prefs, setPrefs] = useState(initial);
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const push = useWebPush();
@@ -157,10 +163,10 @@ export function NotificationSettings({ initial }: { initial: NotificationPrefere
   return (
     <Card id="preferences" className="scroll-mt-24 p-4 sm:p-5">
       <SectionTitle
-        title="Choose what you get"
+        title={t('notif_prefs_title', 'Choose what you get')}
         action={
           <span role="status" className="text-xs text-teal/80">
-            {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved' : state === 'error' ? 'Could not save — try again' : ''}
+            {state === 'saving' ? t('profile_btn_saving', 'Saving…') : state === 'saved' ? t('btn_saved', 'Saved') : state === 'error' ? 'Could not save — try again' : ''}
           </span>
         }
       />
