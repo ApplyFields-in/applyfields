@@ -10,13 +10,17 @@ import {
 
 interface LanguageContextType {
   locale: SupportedLanguage;
+  language: SupportedLanguage;
   setLocale: (lang: SupportedLanguage) => void;
+  setLanguage: (lang: SupportedLanguage) => void;
   t: (key: TranslationKey, fallback?: string) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
   locale: 'en',
+  language: 'en',
   setLocale: () => {},
+  setLanguage: () => {},
   t: (key: TranslationKey, fallback?: string) => fallback || key,
 });
 
@@ -72,7 +76,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <LanguageContext.Provider value={{ locale, setLocale, t }}>
+    <LanguageContext.Provider value={{ locale, language: locale, setLocale, setLanguage: setLocale, t }}>
       {children}
     </LanguageContext.Provider>
   );
