@@ -1,14 +1,19 @@
 import type { OpportunityType, SavedList } from '@applyfields/types';
-import { buttonClass, Card, cn, EmptyState, IconTile, PageHeader } from '@applyfields/ui';
-import { Bookmark, Landmark, LogIn } from 'lucide-react';
+import { Card, IconTile } from '@applyfields/ui';
+import { Landmark } from 'lucide-react';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline, OpportunityCardView } from '@/components/opportunity';
 import { ReminderToggle, SaveButton } from '@/components/save-button';
-import { PrintExportButton } from '@/components/print-export-button';
 import { TYPE_META } from '@/lib/format';
 import { apiGetAsUser } from '@/lib/server-api';
+import {
+  SavedEmptyState,
+  SavedLoginRequired,
+  SavedPageHeader,
+  SavedPageNav,
+} from '@/components/saved-client-components';
 
 export const metadata = { title: 'Saved' };
 
@@ -26,29 +31,12 @@ export default async function Page({ searchParams }: PageProps<'/saved'>) {
   await connection();
   const { type } = await searchParams;
   const filter = FILTERS.some((f) => f.key === type) ? (type as Filter) : null;
-  const header = (
-    <PageHeader
-      eyebrow="My space"
-      title="Saved"
-      description="Jobs, exams, scholarships, admissions and services you saved. We remind you before the last date and tell you when there’s an update."
-      icon={<Bookmark />}
-    />
-  );
 
   if (!(await cookies()).has('accessToken')) {
     return (
       <>
-        {header}
-        <EmptyState
-          icon={<LogIn />}
-          title="Log in to see what you saved"
-          text="Save opportunities and get reminders before the last date, plus admit cards and results as they come out."
-          action={
-            <Link href="/login" className={buttonClass({ size: 'sm' })}>
-              Log in
-            </Link>
-          }
-        />
+        <SavedPageHeader />
+        <SavedLoginRequired />
       </>
     );
   }
@@ -57,55 +45,27 @@ export default async function Page({ searchParams }: PageProps<'/saved'>) {
   if (data === null) {
     return (
       <>
-        {header}
+        <SavedPageHeader />
         <ApiOffline />
       </>
     );
   }
 
   const kindOf = (i: SavedList['items'][number]): Filter => i.card?.type ?? 'service';
-  const count = (f: Filter) => data.items.filter((i) => kindOf(i) === f).length;
   const items = filter ? data.items.filter((i) => kindOf(i) === filter) : data.items;
-  const chip = (active: boolean) =>
-    cn(
-      'clay-press shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold shadow-clay',
-      active ? 'bg-teal text-cream' : 'bg-cream',
-    );
 
   return (
     <>
-      {header}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label="Filter saved items" className="-mx-1 flex gap-2 overflow-x-auto px-1 py-1">
-          <Link href="/saved" className={chip(!filter)} aria-current={!filter ? 'page' : undefined}>
-            All ({data.total})
-          </Link>
-          {FILTERS.map((f) => (
-            <Link key={f.key} href={`/saved?type=${f.key}`} className={chip(filter === f.key)} aria-current={filter === f.key ? 'page' : undefined}>
-              {f.label} ({count(f.key)})
-            </Link>
-          ))}
-        </nav>
-
-        {items.length > 0 && (
-          <PrintExportButton
-            label="Export Saved Report / PDF"
-            documentTitle="My Saved Opportunities & Applications Report - ApplyFields"
-          />
-        )}
-      </div>
+      <SavedPageHeader />
+      <SavedPageNav
+        filters={FILTERS}
+        activeFilter={filter}
+        data={data}
+        itemsCount={items.length}
+      />
 
       {items.length === 0 ? (
-        <EmptyState
-          icon={<Bookmark />}
-          title={filter ? 'Nothing saved here yet' : 'Nothing saved yet'}
-          text="Tap the bookmark on any job, exam, scholarship or admission to save it and get reminders."
-          action={
-            <Link href="/jobs" className={buttonClass({ variant: 'secondary', size: 'sm' })}>
-              Browse government jobs
-            </Link>
-          }
-        />
+        <SavedEmptyState hasFilter={Boolean(filter)} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {items.map((i) =>
