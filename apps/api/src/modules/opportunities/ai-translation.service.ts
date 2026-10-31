@@ -27,7 +27,7 @@ export class AiTranslationService {
 
   /**
    * Main entrypoint: Translates an opportunity into Telugu and Hindi.
-   * Tries Gemini -> Claude -> OpenAI -> Fallback Indian Gov Lexicon.
+   * Tries Gemini -> Claude -> OpenAI -> Free Neural Engine (100% Free) -> Fallback Indian Gov Lexicon.
    */
   async translateOpportunity(
     item: TranslatableOpportunity,
@@ -57,12 +57,120 @@ export class AiTranslationService {
         const res = await this.translateWithOpenAI(item, openaiKey);
         if (res) return res;
       }
+
+      // 4. Free Neural Translation Engine (100% Free, zero config, no API key required)
+      const freeRes = await this.translateWithFreeEngine(item);
+      if (freeRes) return freeRes;
     } catch (err) {
       this.logger.warn(`AI API translation failed, using domain lexicon fallback: ${err}`);
     }
 
-    // 4. Fallback to specialized Indian Gov Recruitment & Education Lexicon Translator
+    // 5. Fallback to specialized Indian Gov Recruitment & Education Lexicon Translator
     return this.translateWithDomainLexicon(item);
+  }
+
+  /**
+   * 100% Free Neural Translation Engine (MyMemory)
+   * No API key, no account, zero cost.
+   */
+  async translateWithFreeEngine(
+    item: TranslatableOpportunity,
+  ): Promise<OpportunityTranslations | null> {
+    try {
+      const [titleTe, titleHi, summaryTe, summaryHi] = await Promise.all([
+        item.title ? this.fetchFreeTranslation(item.title, 'te') : Promise.resolve(undefined),
+        item.title ? this.fetchFreeTranslation(item.title, 'hi') : Promise.resolve(undefined),
+        item.summary ? this.fetchFreeTranslation(item.summary, 'te') : Promise.resolve(undefined),
+        item.summary ? this.fetchFreeTranslation(item.summary, 'hi') : Promise.resolve(undefined),
+      ]);
+
+      const [feeTe, feeHi, benTe, benHi] = await Promise.all([
+        item.fee_text ? this.fetchFreeTranslation(item.fee_text, 'te') : Promise.resolve(undefined),
+        item.fee_text ? this.fetchFreeTranslation(item.fee_text, 'hi') : Promise.resolve(undefined),
+        item.benefits_text ? this.fetchFreeTranslation(item.benefits_text, 'te') : Promise.resolve(undefined),
+        item.benefits_text ? this.fetchFreeTranslation(item.benefits_text, 'hi') : Promise.resolve(undefined),
+      ]);
+
+      const stepsTe = item.selection_process
+        ? await Promise.all(item.selection_process.map((s) => this.fetchFreeTranslation(s, 'te')))
+        : undefined;
+      const stepsHi = item.selection_process
+        ? await Promise.all(item.selection_process.map((s) => this.fetchFreeTranslation(s, 'hi')))
+        : undefined;
+
+      return {
+        te: {
+          title: titleTe || this.translateString(item.title, 'te'),
+          summary: summaryTe || (item.summary ? this.translateString(item.summary, 'te') : undefined),
+          fee_text: feeTe || (item.fee_text ? this.translateString(item.fee_text, 'te') : undefined),
+          benefits_text: benTe || (item.benefits_text ? this.translateString(item.benefits_text, 'te') : undefined),
+          selection_process: stepsTe,
+        },
+        hi: {
+          title: titleHi || this.translateString(item.title, 'hi'),
+          summary: summaryHi || (item.summary ? this.translateString(item.summary, 'hi') : undefined),
+          fee_text: feeHi || (item.fee_text ? this.translateString(item.fee_text, 'hi') : undefined),
+          benefits_text: benHi || (item.benefits_text ? this.translateString(item.benefits_text, 'hi') : undefined),
+          selection_process: stepsHi,
+        },
+      };
+    } catch (err) {
+      this.logger.warn(`Free neural translation failed: ${err}`);
+      return null;
+    }
+  }
+
+  /**
+   * Helper to fetch translation from the free translation endpoint
+   */
+  private async fetchFreeTranslation(
+    text: string,
+    targetLang: 'te' | 'hi',
+  ): Promise<string> {
+    if (!text || text.trim().length === 0) return text;
+
+    try {
+      if (text.length > 400) {
+        const sentences = text.match(/[^.!?]+[.!?]+|\s*[^.!?]+$/g) || [text];
+        const translatedParts = await Promise.all(
+          sentences.map((s) => this.fetchSingleFreeChunk(s.trim(), targetLang)),
+        );
+        return translatedParts.filter(Boolean).join(' ');
+      }
+      return await this.fetchSingleFreeChunk(text, targetLang);
+    } catch {
+      return this.translateString(text, targetLang);
+    }
+  }
+
+  private async fetchSingleFreeChunk(
+    chunk: string,
+    targetLang: 'te' | 'hi',
+  ): Promise<string> {
+    if (!chunk || chunk.trim().length === 0) return chunk;
+
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
+      chunk,
+    )}&langpair=en|${targetLang}`;
+
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!res.ok) {
+      return this.translateString(chunk, targetLang);
+    }
+
+    const data = await res.json();
+    const translated = data?.responseData?.translatedText;
+    if (
+      translated &&
+      typeof translated === 'string' &&
+      !translated.startsWith('MYMEMORY WARNING')
+    ) {
+      return translated;
+    }
+    return this.translateString(chunk, targetLang);
   }
 
   /**
