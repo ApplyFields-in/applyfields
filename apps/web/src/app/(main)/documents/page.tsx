@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Badge, Card } from '@applyfields/ui';
 import { apiGet, apiPost, apiDelete, API_URL } from '@/lib/api';
 import { convertFileToBase64 } from '@/lib/resume-parser';
@@ -33,6 +34,7 @@ import {
   ChevronRight,
   Sparkles,
   Copy,
+  X,
 } from 'lucide-react';
 import { DocumentPreviewExtractorModal } from '@/components/document-preview-extractor-modal';
 
@@ -122,11 +124,31 @@ const POPULAR_OPPORTUNITIES = [
 ];
 
 export default function DocumentsPage() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [documents, setDocuments] = useState<UserDocumentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const checkAuth = () => {
+      const storedToken = localStorage.getItem('accessToken');
+      const storedUser = localStorage.getItem('currentUser');
+      setIsAuthenticated(Boolean(storedToken || storedUser));
+    };
+
+    checkAuth();
+    window.addEventListener('auth-changed', checkAuth);
+    window.addEventListener('storage', checkAuth);
+    return () => {
+      window.removeEventListener('auth-changed', checkAuth);
+      window.removeEventListener('storage', checkAuth);
+    };
+  }, []);
 
   // Upload modal state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -194,6 +216,10 @@ export default function DocumentsPage() {
   }, [selectedOpportunitySlug, documents]);
 
   function openUploadModal(typeCode: string) {
+    if (isAuthenticated === false) {
+      router.push('/login?redirect=/documents');
+      return;
+    }
     const config = DOCUMENT_TYPES.find((d) => d.code === typeCode);
     setSelectedDocType(typeCode);
     setDocTitle(config?.label || '');
@@ -299,6 +325,38 @@ export default function DocumentsPage() {
         </p>
       </div>
 
+      {/* Sign In Required Notice Banner */}
+      {isAuthenticated === false && (
+        <div className="rounded-3xl border border-[#c4d2e3] bg-gradient-to-r from-blue-50/90 via-sky-50/70 to-white p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="size-5 text-[#0e7bf4]" />
+              <h2 className="text-base font-extrabold text-[#082046]">
+                Sign In to Proceed with Document Uploads
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-[#435775] leading-relaxed max-w-2xl">
+              You are currently viewing the Encrypted Citizen Locker in preview mode. To securely upload, encrypt, and link your 10th marksheet, degree certificate, or caste proof for 1-click government applications, please sign in to your ApplyFields account.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/login?redirect=/documents"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#0c6cd7] transition"
+            >
+              <Lock className="size-3.5" />
+              <span>Sign In to Proceed</span>
+            </Link>
+            <Link
+              href="/register?redirect=/documents"
+              className="inline-flex items-center justify-center rounded-xl border border-[#c4d2e3] bg-white px-4 py-2.5 text-xs font-bold text-[#082046] hover:bg-[#f4f7fb] transition"
+            >
+              <span>Create Account</span>
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       {message && (
         <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800">
@@ -401,13 +459,23 @@ export default function DocumentsPage() {
                     <span className="font-medium truncate">{item.name}</span>
                   </div>
                   {!item.matched && (
-                    <button
-                      type="button"
-                      onClick={() => openUploadModal('tenth_marksheet')}
-                      className="ml-2 shrink-0 rounded-lg bg-amber-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-700"
-                    >
-                      Upload
-                    </button>
+                    isAuthenticated ? (
+                      <button
+                        type="button"
+                        onClick={() => openUploadModal('tenth_marksheet')}
+                        className="ml-2 shrink-0 rounded-lg bg-amber-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-700"
+                      >
+                        Upload
+                      </button>
+                    ) : (
+                      <Link
+                        href="/login?redirect=/documents"
+                        className="ml-2 shrink-0 rounded-lg bg-[#082046] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#0e7bf4] transition flex items-center gap-1"
+                      >
+                        <Lock className="size-3" />
+                        <span>Sign In</span>
+                      </Link>
+                    )
                   )}
                 </div>
               ))}
@@ -553,15 +621,23 @@ export default function DocumentsPage() {
                         </button>
                       </div>
                     </>
-                  ) : (
+                  ) : isAuthenticated ? (
                     <button
                       type="button"
                       onClick={() => openUploadModal(typeConfig.code)}
-                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#082046] py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#061835]"
+                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#082046] py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#061835] transition"
                     >
                       <UploadCloud className="size-3.5" />
-                      Upload {typeConfig.label.split(' ')[0]}
+                      <span>Upload {typeConfig.label.split(' ')[0]}</span>
                     </button>
+                  ) : (
+                    <Link
+                      href="/login?redirect=/documents"
+                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#082046] py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#0e7bf4] transition"
+                    >
+                      <Lock className="size-3.5" />
+                      <span>Sign In to Upload {typeConfig.label.split(' ')[0]}</span>
+                    </Link>
                   )}
                 </div>
               </Card>
@@ -597,8 +673,9 @@ export default function DocumentsPage() {
                 type="button"
                 onClick={() => setIsUploadModalOpen(false)}
                 className="rounded-lg p-1 text-[#536780] hover:bg-[#F0F4F8]"
+                aria-label="Close"
               >
-                ✕
+                <X className="size-4" />
               </button>
             </div>
 

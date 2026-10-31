@@ -49,7 +49,7 @@ export function FloatingCapsuleNavbar() {
     const storedToken = localStorage.getItem('accessToken');
     const storedUserRaw = localStorage.getItem('currentUser');
 
-    // If both token and user are absent, the user is signed out — don't query /me
+    // If both token and user are absent, the user is signed out -- don't query /me
     if (!storedToken && !storedUserRaw) {
       setUser(null);
       setDisplayName('');
@@ -80,7 +80,7 @@ export function FloatingCapsuleNavbar() {
       const parts = name.trim().split(' ');
       setInitials(name === 'Account' ? '' : parts.length > 1 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : name.slice(0, 2).toUpperCase());
     } else {
-      // Session expired or unauthenticated — clear ghost user from navbar and storage
+      // Session expired or unauthenticated -- clear ghost user from navbar and storage
       setUser(null);
       setDisplayName('');
       setInitials('');
@@ -146,148 +146,148 @@ export function FloatingCapsuleNavbar() {
   }
 
   return (
-    <header className="sticky top-3 sm:top-5 z-50 mx-auto w-full max-w-[1460px] px-3 sm:px-6 mb-6 sm:mb-8">
-      <div className="flex items-center justify-between gap-2 sm:gap-3 lg:gap-4 w-full">
+    <header className="sticky top-3 sm:top-5 z-50 mx-auto w-full max-w-[1520px] px-3 sm:px-6 mb-6 sm:mb-8">
+      <div className="flex items-center justify-between gap-2.5 sm:gap-3.5 lg:gap-4 w-full">
         {/* Left: Brand + Home, Community, Resources */}
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3 rounded-full border border-white bg-[#F0F4F8] px-3 py-1.5 sm:px-4 sm:py-2 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
-          <Link href="/" className="flex items-center gap-2 group shrink-0">
+        <div className="flex shrink-0 items-center gap-2.5 sm:gap-3.5 rounded-full border border-white bg-[#F0F4F8] px-3.5 py-2 sm:px-5 sm:py-2.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
             {/* ApplyFields Logo */}
             <Image
               src="/logo-mark.png"
               alt="ApplyFields Logo"
-              width={36}
-              height={36}
+              width={40}
+              height={40}
               unoptimized
-              className="size-8 sm:size-9 shrink-0 object-contain transition-transform group-hover:scale-105"
+              className="size-8.5 sm:size-10 shrink-0 object-contain transition-transform group-hover:scale-105"
             />
-            <span className="whitespace-nowrap text-base sm:text-lg font-black tracking-tight text-[#082046]">
+            <span className="whitespace-nowrap text-base sm:text-xl font-black tracking-tight text-[#082046]">
               Apply<span className="text-[#0e7bf4]">Fields</span>
             </span>
           </Link>
 
           {/* Primary Navigation: Home, Community, Resources */}
-          <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 pl-2 sm:pl-2.5 border-l border-[#d3ddeb] text-xs sm:text-sm font-bold text-[#435775]">
+          <nav className="hidden md:flex items-center gap-1.5 sm:gap-2 pl-2.5 sm:pl-3.5 border-l border-[#d3ddeb] text-xs sm:text-[14px] font-bold text-[#435775]">
             <Link
               href="/"
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 sm:py-2 transition-colors ${
                 isHome ? 'text-[#0e7bf4] bg-white/80 shadow-xs font-black' : 'hover:bg-white hover:text-[#082046]'
               }`}
             >
-              <Home className="size-3.5 sm:size-4" />
+              <Home className="size-4 sm:size-4.5" />
               <span>{t('nav_home', 'Home')}</span>
             </Link>
             <Link
               href="/community"
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 sm:py-2 transition-colors ${
                 isCommunity ? 'text-[#0e7bf4] bg-white/80 shadow-xs font-black' : 'hover:bg-white hover:text-[#082046]'
               }`}
             >
-              <MessageSquare className="size-3.5 sm:size-4" />
+              <MessageSquare className="size-4 sm:size-4.5" />
               <span>{t('nav_community', 'Community')}</span>
             </Link>
             <Link
               href="/documents"
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition-colors hover:bg-white hover:text-[#082046]"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 sm:py-2 transition-colors hover:bg-white hover:text-[#082046]"
             >
-              <FolderOpen className="size-3.5 sm:size-4" />
+              <FolderOpen className="size-4 sm:size-4.5" />
               <span>{t('nav_documents', 'Resources')}</span>
             </Link>
           </nav>
         </div>
 
         {/* Center: Career / Apply / Services Mode Switcher Capsule */}
-        <div className="hidden md:flex shrink-0 items-center rounded-full border border-white bg-[#F0F4F8] p-1 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
-          <div className="flex items-center gap-1 rounded-full bg-[#edf2f8] p-1 shadow-[inset_2px_2px_5px_#d8e0eb,inset_-2px_-2px_5px_#ffffff]">
+        <div className="hidden md:flex shrink-0 items-center rounded-full border border-white bg-[#F0F4F8] p-1 sm:p-1.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+          <div className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-[#edf2f8] p-1 sm:p-1.5 shadow-[inset_2px_2px_5px_#d8e0eb,inset_-2px_-2px_5px_#ffffff]">
             <Link
               href="/career"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-extrabold transition-all ${
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm md:text-[14px] font-extrabold transition-all ${
                 isCareer
                   ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[2px_2px_6px_#d8e0eb,-2px_-2px_6px_#ffffff]'
                   : 'text-[#082046] hover:text-[#0e7bf4]'
               }`}
             >
-              <Briefcase className="size-3.5 sm:size-4 text-[#0e7bf4]" />
+              <Briefcase className="size-4 sm:size-4.5 text-[#0e7bf4]" />
               <span>{t('nav_career', 'Career')}</span>
             </Link>
             <Link
               href="/apply"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-extrabold transition-all ${
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm md:text-[14px] font-extrabold transition-all ${
                 isApply
                   ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[2px_2px_6px_#d8e0eb,-2px_-2px_6px_#ffffff]'
                   : 'text-[#082046] hover:text-[#0e7bf4]'
               }`}
             >
-              <Send className="size-3.5 sm:size-4 text-[#0e7bf4]" />
+              <Send className="size-4 sm:size-4.5 text-[#0e7bf4]" />
               <span>{t('nav_apply', 'Apply')}</span>
             </Link>
             <a
               href={SERVICE_PORTAL_URL}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-extrabold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
+              className="flex items-center gap-1.5 rounded-full px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm md:text-[14px] font-extrabold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
               title="Citizen Services: MeeSeva, CSC, PAN, Aadhaar & Xerox"
             >
-              <Printer className="size-3.5 sm:size-4 text-[#0e7bf4]" />
-              <span className="flex items-center gap-1">
+              <Printer className="size-4 sm:size-4.5 text-[#0e7bf4]" />
+              <span className="flex items-center gap-1.5">
                 <span>{t('nav_services', 'Services')}</span>
-                <span className="text-[9px] font-black uppercase text-[#0e7bf4] bg-[#e0edfb] px-1 py-0.2 rounded-full">{t('badge_new', 'New')}</span>
+                <span className="text-[10px] font-black uppercase text-[#0e7bf4] bg-[#e0edfb] px-1.5 py-0.2 rounded-full">{t('badge_new', 'New')}</span>
               </span>
             </a>
           </div>
         </div>
 
         {/* Right: Search + Notifications + Saved + Settings + User Avatar / Sign In */}
-        <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 rounded-full border border-white bg-[#F0F4F8] px-2.5 py-1.5 sm:px-3.5 sm:py-2 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
-          {/* Search Input Pill on xl+ */}
+        <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-2.5 rounded-full border border-white bg-[#F0F4F8] px-3 py-2 sm:px-4.5 sm:py-2.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+          {/* Search Input Pill on lg+ */}
           <button
             type="button"
             onClick={openCommandPalette}
-            className="relative hidden xl:flex items-center w-36 2xl:w-44 rounded-full bg-[#e8eef6] px-3 py-1.5 shadow-[inset_2px_2px_4px_#d5deea,inset_-2px_-2px_4px_#ffffff] transition-all hover:bg-[#dce7f3] text-left cursor-pointer"
+            className="relative hidden lg:flex items-center w-52 xl:w-72 2xl:w-80 rounded-full border border-[#cad7e7] bg-[#edf3f9] hover:bg-[#e2ecf7] px-3.5 py-2 sm:py-2.5 shadow-[inset_2px_2px_4px_#d4dfec,inset_-2px_-2px_4px_#ffffff] transition-all text-left cursor-pointer"
             title="Search everything (Ctrl + K)"
           >
-            <Search className="mr-1.5 size-3.5 shrink-0 text-[#526987]" />
-            <span className="w-full text-xs text-[#71839b] truncate">
-              {t('nav_search', 'Search...')}
+            <Search className="mr-2 size-4 shrink-0 text-[#0e7bf4]" />
+            <span className="w-full text-xs sm:text-[13px] font-medium text-[#486284] truncate">
+              {t('nav_explore', 'Search opportunities, exams, colleges...')}
             </span>
-            <kbd className="inline-flex items-center rounded border border-[#c4d2e3] bg-white px-1 py-0.2 text-[9px] font-mono font-bold text-[#526987]">
-              ⌘K
+            <kbd className="inline-flex items-center rounded-md border border-[#c4d2e3] bg-white px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#486284] shadow-2xs ml-1.5">
+              Ctrl+K
             </kbd>
           </button>
 
-          {/* Search icon button on < xl */}
+          {/* Search icon button on < lg */}
           <button
             type="button"
             onClick={openCommandPalette}
-            className="xl:hidden rounded-full p-2 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            className="lg:hidden rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
             title="Search (Ctrl + K)"
           >
-            <Search className="size-4" />
+            <Search className="size-4.5" />
           </button>
 
           {/* Notifications */}
           <Link
             href="/notifications"
-            className="relative rounded-full p-2 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            className="relative rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
             title={t('nav_notifications', 'Notifications')}
           >
-            <Bell className="size-4 sm:size-4.5" />
+            <Bell className="size-4.5 sm:size-5" />
             <span className="absolute top-1.5 right-1.5 size-2 bg-[#0e7bf4] rounded-full" />
           </Link>
 
           {/* Bookmarks / Saved */}
           <Link
             href="/saved"
-            className="hidden sm:block rounded-full p-2 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            className="hidden sm:block rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
             title={t('nav_saved', 'Saved Opportunities')}
           >
-            <Bookmark className="size-4 sm:size-4.5" />
+            <Bookmark className="size-4.5 sm:size-5" />
           </Link>
 
           {/* Settings & Preferences */}
           <Link
             href="/settings"
-            className="rounded-full p-2 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            className="rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
             title={t('nav_settings', 'Settings & Preferences')}
           >
-            <Settings className="size-4 sm:size-4.5" />
+            <Settings className="size-4.5 sm:size-5" />
           </Link>
 
           {/* User Profile Pill & Dropdown / Sign in & Register */}
@@ -297,12 +297,12 @@ export function FloatingCapsuleNavbar() {
                 type="button"
                 aria-label={`Account menu for ${displayName}`}
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-1.5 sm:gap-2 rounded-full pl-1 pr-2 py-1 transition-colors hover:bg-white"
+                className="flex items-center gap-1.5 sm:gap-2 rounded-full pl-1.5 pr-2.5 py-1.5 transition-colors hover:bg-white"
               >
-                <div className="flex size-7.5 sm:size-8 items-center justify-center rounded-full bg-[#0e7bf4] text-xs font-extrabold text-white shadow-xs">
-                  {initials || <User className="size-3.5" aria-hidden="true" />}
+                <div className="flex size-8 sm:size-8.5 items-center justify-center rounded-full bg-[#0e7bf4] text-xs font-extrabold text-white shadow-xs">
+                  {initials || <User className="size-4" aria-hidden="true" />}
                 </div>
-                <span className="hidden sm:inline max-w-[80px] lg:max-w-[110px] xl:max-w-[130px] truncate text-xs sm:text-sm font-bold text-[#082046]">
+                <span className="hidden sm:inline max-w-[80px] lg:max-w-[110px] xl:max-w-[140px] truncate text-xs sm:text-sm font-bold text-[#082046]">
                   {displayName}
                 </span>
                 <ChevronDown className="size-3 text-[#435775]" />
@@ -351,9 +351,9 @@ export function FloatingCapsuleNavbar() {
           ) : (
             <Link
               href="/login"
-              className="flex items-center gap-1.5 rounded-full bg-[#0e7bf4] px-3.5 py-1.5 text-xs sm:text-sm font-extrabold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95 whitespace-nowrap"
+              className="flex items-center gap-1.5 rounded-full bg-[#0e7bf4] px-4.5 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95 whitespace-nowrap"
             >
-              <User className="size-3.5 sm:size-4" />
+              <User className="size-4" />
               <span>{t('nav_sign_in', 'Sign in')}</span>
             </Link>
           )}

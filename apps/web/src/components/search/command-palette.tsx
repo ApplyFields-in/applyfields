@@ -34,7 +34,7 @@ const STATIC_JOBS_AND_EXAMS: PaletteItem[] = [
     categoryLabel: 'Live Jobs & Exams',
     categoryIcon: <Briefcase className="size-4 text-emerald-600" />,
     title: 'Staff Selection Commission - Combined Graduate Level (SSC CGL 2026)',
-    subtitle: 'Group B & C Central Govt Posts · 17,727 Vacancies',
+    subtitle: 'Group B & C Central Govt Posts - 17,727 Vacancies',
     href: '/jobs?q=SSC+CGL',
     badge: '17.7k Posts',
   },
@@ -44,7 +44,7 @@ const STATIC_JOBS_AND_EXAMS: PaletteItem[] = [
     categoryLabel: 'Live Jobs & Exams',
     categoryIcon: <Briefcase className="size-4 text-emerald-600" />,
     title: 'UPSC Civil Services Examination (IAS / IPS / IFS)',
-    subtitle: 'Union Public Service Commission · All India Merit',
+    subtitle: 'Union Public Service Commission - All India Merit',
     href: '/exams?q=UPSC+Civil+Services',
     badge: 'Premier Exam',
   },
@@ -54,7 +54,7 @@ const STATIC_JOBS_AND_EXAMS: PaletteItem[] = [
     categoryLabel: 'Live Jobs & Exams',
     categoryIcon: <Briefcase className="size-4 text-emerald-600" />,
     title: 'National Defence Academy & Naval Academy Exam (NDA / NA)',
-    subtitle: 'Indian Armed Forces · 10+2 Officers Cadre',
+    subtitle: 'Indian Armed Forces - 10+2 Officers Cadre',
     href: '/exams?q=NDA',
     badge: '10+2 Entry',
   },
@@ -64,7 +64,7 @@ const STATIC_JOBS_AND_EXAMS: PaletteItem[] = [
     categoryLabel: 'Live Jobs & Exams',
     categoryIcon: <Briefcase className="size-4 text-emerald-600" />,
     title: 'IBPS Probationary Officer (PO) & Management Trainee',
-    subtitle: 'Public Sector Banks · 3,955 Vacancies',
+    subtitle: 'Public Sector Banks - 3,955 Vacancies',
     href: '/jobs?q=IBPS+PO',
     badge: 'Banking',
   },
@@ -74,7 +74,7 @@ const STATIC_JOBS_AND_EXAMS: PaletteItem[] = [
     categoryLabel: 'Live Jobs & Exams',
     categoryIcon: <Briefcase className="size-4 text-emerald-600" />,
     title: 'Railway Recruitment Board - RRB NTPC Non-Technical Categories',
-    subtitle: 'Indian Railways · Station Master & Goods Guard',
+    subtitle: 'Indian Railways - Station Master & Goods Guard',
     href: '/jobs?q=RRB+NTPC',
     badge: 'Railways',
   },
@@ -84,7 +84,7 @@ const STATIC_JOBS_AND_EXAMS: PaletteItem[] = [
     categoryLabel: 'Live Jobs & Exams',
     categoryIcon: <Briefcase className="size-4 text-emerald-600" />,
     title: 'National Eligibility cum Entrance Test (NEET-UG)',
-    subtitle: 'NTA · National Medical Entrance for MBBS & BDS Admissions',
+    subtitle: 'NTA - National Medical Entrance for MBBS & BDS Admissions',
     href: '/exams?q=NEET',
     badge: 'Medical Entrance',
   },
@@ -107,7 +107,7 @@ const STATIC_ROADMAPS: PaletteItem[] = [
     categoryLabel: 'Roadmaps',
     categoryIcon: <Route className="size-4 text-[#0e7bf4]" />,
     title: 'Medical Specialist Trajectory (MBBS to MD / MS Specialist)',
-    subtitle: 'NEET-UG → MBBS 4.5 Yrs → 1 Yr Internship → NEET-PG → Residency',
+    subtitle: 'NEET-UG -> MBBS 4.5 Yrs -> 1 Yr Internship -> NEET-PG -> Residency',
     href: '/career/roadmaps/medical-doctor-trajectory',
     badge: 'Healthcare',
   },
@@ -117,7 +117,7 @@ const STATIC_ROADMAPS: PaletteItem[] = [
     categoryLabel: 'Roadmaps',
     categoryIcon: <Route className="size-4 text-[#0e7bf4]" />,
     title: 'Artificial Intelligence & Machine Learning Architect',
-    subtitle: 'Python & Linear Algebra → PyTorch → LLMs & RAG → Model Production',
+    subtitle: 'Python & Linear Algebra -> PyTorch -> LLMs & RAG -> Model Production',
     href: '/career/roadmaps/ai-machine-learning-engineer',
     badge: 'Tech',
   },
@@ -127,7 +127,7 @@ const STATIC_ROADMAPS: PaletteItem[] = [
     categoryLabel: 'Roadmaps',
     categoryIcon: <Route className="size-4 text-[#0e7bf4]" />,
     title: 'Full-Stack Cloud & Platform Engineer',
-    subtitle: 'TypeScript → Next.js & Node → Distributed SQL → Kubernetes & DevOps',
+    subtitle: 'TypeScript -> Next.js & Node -> Distributed SQL -> Kubernetes & DevOps',
     href: '/career/roadmaps/full-stack-cloud-engineer',
     badge: 'Software',
   },
@@ -137,7 +137,7 @@ const STATIC_ROADMAPS: PaletteItem[] = [
     categoryLabel: 'Roadmaps',
     categoryIcon: <Route className="size-4 text-[#0e7bf4]" />,
     title: 'Civil Services Officer (IAS / IPS)',
-    subtitle: 'NCERT Foundations → GS Mains & Optional → Answer Writing → Interview Board',
+    subtitle: 'NCERT Foundations -> GS Mains & Optional -> Answer Writing -> Interview Board',
     href: '/career/roadmaps/civil-services-ias-officer',
     badge: 'Public Service',
   },
@@ -150,7 +150,7 @@ const STATIC_COURSES: PaletteItem[] = [
     categoryLabel: 'Courses',
     categoryIcon: <BookOpen className="size-4 text-amber-700" />,
     title: 'Bachelor of Medicine, Bachelor of Surgery (MBBS)',
-    subtitle: 'Undergraduate · 66 Months · NEET-UG Merit',
+    subtitle: 'Undergraduate - 66 Months - NEET-UG Merit',
     href: '/career/courses/mbbs',
     badge: 'Medicine',
   },
@@ -160,7 +160,7 @@ const STATIC_COURSES: PaletteItem[] = [
     categoryLabel: 'Courses',
     categoryIcon: <BookOpen className="size-4 text-amber-700" />,
     title: 'Doctor of Medicine (MD) in General Medicine',
-    subtitle: 'Postgraduate · 36 Months · NEET-PG Merit',
+    subtitle: 'Postgraduate - 36 Months - NEET-PG Merit',
     href: '/career/courses/md-general-medicine',
     badge: 'PG Medical',
   },
@@ -170,7 +170,7 @@ const STATIC_COURSES: PaletteItem[] = [
     categoryLabel: 'Courses',
     categoryIcon: <BookOpen className="size-4 text-amber-700" />,
     title: 'B.Tech in Computer Science & Engineering',
-    subtitle: 'Undergraduate · 48 Months · JoSAA / State Counseling',
+    subtitle: 'Undergraduate - 48 Months - JoSAA / State Counseling',
     href: '/career/courses/btech-computer-science',
     badge: 'Engineering',
   },
@@ -180,7 +180,7 @@ const STATIC_COURSES: PaletteItem[] = [
     categoryLabel: 'Courses',
     categoryIcon: <BookOpen className="size-4 text-amber-700" />,
     title: 'B.Tech in Electronics & Communication Engineering',
-    subtitle: 'Undergraduate · 48 Months · VLSI & Embedded Systems',
+    subtitle: 'Undergraduate - 48 Months - VLSI & Embedded Systems',
     href: '/career/courses/btech-ece',
     badge: 'Engineering',
   },
@@ -190,7 +190,7 @@ const STATIC_COURSES: PaletteItem[] = [
     categoryLabel: 'Courses',
     categoryIcon: <BookOpen className="size-4 text-amber-700" />,
     title: 'Master of Business Administration (MBA)',
-    subtitle: 'Postgraduate · 24 Months · CAT, XAT, MAT',
+    subtitle: 'Postgraduate - 24 Months - CAT, XAT, MAT',
     href: '/career/courses/master-of-business-administration',
     badge: 'Management',
   },
@@ -200,7 +200,7 @@ const STATIC_COURSES: PaletteItem[] = [
     categoryLabel: 'Courses',
     categoryIcon: <BookOpen className="size-4 text-amber-700" />,
     title: 'Bachelor of Pharmacy (B.Pharm)',
-    subtitle: 'Undergraduate · 48 Months · PCI Approved',
+    subtitle: 'Undergraduate - 48 Months - PCI Approved',
     href: '/career/courses/bachelor-of-pharmacy',
     badge: 'Pharmacy',
   },
@@ -223,7 +223,7 @@ export function CommandPalette() {
         categoryLabel: 'Colleges',
         categoryIcon: <Building2 className="size-4 text-[#76562d]" />,
         title: c.name,
-        subtitle: `${c.city || 'India'}, ${c.state_code || ''} · ${c.accreditation?.nirf_rank ? `NIRF #${c.accreditation.nirf_rank}` : c.type}`,
+        subtitle: `${c.city || 'India'}, ${c.state_code || ''} - ${c.accreditation?.nirf_rank ? `NIRF #${c.accreditation.nirf_rank}` : c.type}`,
         href: `/career/colleges/${c.slug}`,
         badge: isMed ? 'Medical' : 'Engineering',
       };
@@ -284,10 +284,10 @@ export function CommandPalette() {
     const courses = STATIC_COURSES.filter(matches).slice(0, 4);
 
     return [
-      { key: 'colleges', label: '🏛️ Colleges & Universities', items: colleges },
-      { key: 'jobs', label: '💼 Live Jobs & Entrance Exams', items: jobs },
-      { key: 'roadmaps', label: '🗺️ Career Roadmaps', items: roadmaps },
-      { key: 'courses', label: '📚 Courses & Degrees', items: courses },
+      { key: 'colleges', label: 'Colleges and Universities', items: colleges },
+      { key: 'jobs', label: 'Live Jobs and Entrance Exams', items: jobs },
+      { key: 'roadmaps', label: 'Career Roadmaps', items: roadmaps },
+      { key: 'courses', label: 'Courses and Degrees', items: courses },
     ].filter((g) => g.items.length > 0);
   }, [query, collegeItems]);
 
@@ -436,12 +436,12 @@ export function CommandPalette() {
         <div className="border-t border-[#dec9a5] bg-[#f8f5ef] px-4 py-2.5 flex items-center justify-between text-[11px] text-[#536780] shrink-0">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
-              <kbd className="rounded border border-[#dec9a5] bg-[#ffffff] px-1.5 py-0.5 font-mono text-[10px] font-bold">↑</kbd>
-              <kbd className="rounded border border-[#dec9a5] bg-[#ffffff] px-1.5 py-0.5 font-mono text-[10px] font-bold">↓</kbd>
+              <kbd className="rounded border border-[#dec9a5] bg-[#ffffff] px-1.5 py-0.5 font-mono text-[10px] font-bold">Up</kbd>
+              <kbd className="rounded border border-[#dec9a5] bg-[#ffffff] px-1.5 py-0.5 font-mono text-[10px] font-bold">Down</kbd>
               <span>to navigate</span>
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="rounded border border-[#dec9a5] bg-[#ffffff] px-1.5 py-0.5 font-mono text-[10px] font-bold">↵</kbd>
+              <kbd className="rounded border border-[#dec9a5] bg-[#ffffff] px-1.5 py-0.5 font-mono text-[10px] font-bold">Enter</kbd>
               <span>to select</span>
             </span>
             <span className="flex items-center gap-1">

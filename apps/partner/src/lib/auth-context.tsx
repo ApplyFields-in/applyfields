@@ -19,11 +19,15 @@ export type PartnerAuthStatus =
   | 'verified'
   | 'rejected';
 
+export type PartnerRole = 'owner' | 'staff';
+
 interface PartnerAuthContextValue {
   user: UserSummary | null;
   partner: PartnerDetail | null;
   status: PartnerAuthStatus;
   loading: boolean;
+  activeRole: PartnerRole;
+  switchRole: (role: PartnerRole) => void;
   refreshSession: () => Promise<void>;
   setPartnerOptimistic: (updater: (prev: PartnerDetail | null) => PartnerDetail | null) => void;
   logout: () => Promise<void>;
@@ -34,6 +38,8 @@ const PartnerAuthContext = createContext<PartnerAuthContextValue>({
   partner: null,
   status: 'loading',
   loading: true,
+  activeRole: 'owner',
+  switchRole: () => {},
   refreshSession: async () => {},
   setPartnerOptimistic: () => {},
   logout: async () => {},
@@ -44,6 +50,23 @@ export function PartnerAuthProvider({ children }: { children: ReactNode }) {
   const [partner, setPartner] = useState<PartnerDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<PartnerAuthStatus>('loading');
+  const [activeRole, setActiveRole] = useState<PartnerRole>('owner');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedRole = localStorage.getItem('applyfields_partner_role') as PartnerRole | null;
+      if (storedRole === 'staff' || storedRole === 'owner') {
+        setActiveRole(storedRole);
+      }
+    }
+  }, []);
+
+  const switchRole = useCallback((newRole: PartnerRole) => {
+    setActiveRole(newRole);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('applyfields_partner_role', newRole);
+    }
+  }, []);
 
   const checkSession = useCallback(async () => {
     setLoading(true);
@@ -138,6 +161,8 @@ export function PartnerAuthProvider({ children }: { children: ReactNode }) {
         partner,
         status,
         loading,
+        activeRole,
+        switchRole,
         refreshSession: checkSession,
         setPartnerOptimistic,
         logout,
