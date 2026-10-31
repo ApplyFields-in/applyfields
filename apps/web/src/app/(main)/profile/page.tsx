@@ -75,6 +75,7 @@ import {
 } from '@/lib/top-50-colleges-data';
 import { SaveButton } from '@/components/save-button';
 import { ShareModal } from '@/components/share/share-modal';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 export const INDIAN_STATES: { code: string; name: string }[] = [
   { code: 'AP', name: 'Andhra Pradesh' },
@@ -156,6 +157,7 @@ function calculateAge(dobString: string | null): { years: number; months: number
 }
 
 export default function ProfilePage() {
+  const { t } = useLanguage();
   const router = useRouter();
 
   // Authentication & Data state
@@ -992,7 +994,7 @@ export default function ProfilePage() {
             {/* Profile Completion Bar */}
             <div className="mt-6 pt-5 border-t border-slate-100">
               <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-slate-600">Profile completion</span>
+                <span className="text-slate-600">{t('profile_completion')}</span>
                 <span className="text-[#0e7bf4] font-bold">{percentage}%</span>
               </div>
 
@@ -1005,17 +1007,17 @@ export default function ProfilePage() {
               </div>
 
               <p className="text-[11px] text-slate-400 mt-2 font-medium">
-                {filledCount} of {totalCount} details added
+                {filledCount} of {totalCount} {t('profile_details_added')}
               </p>
 
               {/* Shareable Public Candidate Card CTA */}
               <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    Candidate Registry
+                    {t('profile_candidate_registry')}
                   </span>
                   <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-semibold">
-                    Verified
+                    {t('profile_verified')}
                   </span>
                 </div>
                 <button
@@ -1024,7 +1026,7 @@ export default function ProfilePage() {
                   className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-[#dec9a5] bg-[#F4E8D1] hover:bg-[#ebd8b7] text-xs font-bold text-[#76562d] transition-colors shadow-xs"
                 >
                   <UserCheck className="size-4 text-[#76562d]" />
-                  <span>Shareable Candidate Card</span>
+                  <span>{t('profile_shareable_card')}</span>
                 </button>
               </div>
             </div>
@@ -1033,12 +1035,12 @@ export default function ProfilePage() {
           {/* Card 2: Section Navigation / Checklist Card */}
           <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-sm space-y-1">
             {[
-              { id: 'personal-details', label: 'Personal details', completed: sectionStatus.personal },
-              { id: 'address-domicile', label: 'Address & domicile', completed: sectionStatus.address },
-              { id: 'education', label: 'Education', completed: sectionStatus.education },
-              { id: 'exam-scores', label: 'Competitive exam scores', completed: sectionStatus.examScores },
-              { id: 'preferences', label: 'Preferences', completed: sectionStatus.preferences },
-              { id: 'skills', label: 'Skills', completed: sectionStatus.skills },
+              { id: 'personal-details', label: t('profile_sec_personal'), completed: sectionStatus.personal },
+              { id: 'address-domicile', label: t('profile_sec_address'), completed: sectionStatus.address },
+              { id: 'education', label: t('profile_sec_education'), completed: sectionStatus.education },
+              { id: 'exam-scores', label: t('profile_sec_exam_scores'), completed: sectionStatus.examScores },
+              { id: 'preferences', label: t('profile_sec_preferences'), completed: sectionStatus.preferences },
+              { id: 'skills', label: t('profile_sec_skills'), completed: sectionStatus.skills },
             ].map((sec) => (
               <button
                 key={sec.id}
@@ -1069,7 +1071,7 @@ export default function ProfilePage() {
             className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-sm transition-all"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Personal details</h3>
+              <h3 className="text-lg font-bold text-slate-900">{t('profile_sec_personal')}</h3>
               {editingPersonal ? (
                 <div className="flex items-center gap-2">
                   <button
@@ -1077,7 +1079,7 @@ export default function ProfilePage() {
                     onClick={() => setEditingPersonal(false)}
                     className="px-3 py-1 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
                   >
-                    Cancel
+                    {t('profile_btn_cancel')}
                   </button>
                   <button
                     type="button"
@@ -1085,7 +1087,7 @@ export default function ProfilePage() {
                     onClick={() => handleSavePersonal()}
                     className="px-3.5 py-1 text-xs font-semibold text-white bg-[#0e7bf4] hover:bg-blue-600 rounded-lg shadow-xs transition-colors"
                   >
-                    {saving ? 'Saving...' : 'Save'}
+                    {saving ? t('profile_btn_saving') : t('profile_btn_save')}
                   </button>
                 </div>
               ) : (
@@ -1094,7 +1096,7 @@ export default function ProfilePage() {
                   onClick={() => setEditingPersonal(true)}
                   className="px-3 py-1 text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg flex items-center gap-1.5 transition-all"
                 >
-                  <Pencil className="size-3 text-slate-400" /> Edit
+                  <Pencil className="size-3 text-slate-400" /> {t('profile_btn_edit')}
                 </button>
               )}
             </div>
@@ -1325,7 +1327,7 @@ export default function ProfilePage() {
             className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-sm transition-all"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Address & domicile</h3>
+              <h3 className="text-lg font-bold text-slate-900">{t('profile_sec_address')}</h3>
               {editingAddress ? (
                 <div className="flex items-center gap-2">
                   <button
@@ -1333,7 +1335,7 @@ export default function ProfilePage() {
                     onClick={() => setEditingAddress(false)}
                     className="px-3 py-1 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
                   >
-                    Cancel
+                    {t('profile_btn_cancel')}
                   </button>
                   <button
                     type="button"
@@ -1341,7 +1343,7 @@ export default function ProfilePage() {
                     onClick={() => handleSaveAddress()}
                     className="px-3.5 py-1 text-xs font-semibold text-white bg-[#0e7bf4] hover:bg-blue-600 rounded-lg shadow-xs transition-colors"
                   >
-                    {saving ? 'Saving...' : 'Save'}
+                    {saving ? t('profile_btn_saving') : t('profile_btn_save')}
                   </button>
                 </div>
               ) : (
@@ -1350,7 +1352,7 @@ export default function ProfilePage() {
                   onClick={() => setEditingAddress(true)}
                   className="px-3 py-1 text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg flex items-center gap-1.5 transition-all"
                 >
-                  <Pencil className="size-3 text-slate-400" /> Edit
+                  <Pencil className="size-3 text-slate-400" /> {t('profile_btn_edit')}
                 </button>
               )}
             </div>
@@ -1486,14 +1488,14 @@ export default function ProfilePage() {
             className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-sm transition-all space-y-6"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Education</h3>
+              <h3 className="text-lg font-bold text-slate-900">{t('profile_sec_education')}</h3>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={openAddEducation}
                   className="px-3 py-1 text-xs font-semibold text-[#0e7bf4] bg-blue-50 hover:bg-blue-100 border border-blue-200/60 rounded-lg flex items-center gap-1 transition-all"
                 >
-                  <Plus className="size-3" /> Add
+                  <Plus className="size-3" /> {t('profile_label_add_education', 'Add')}
                 </button>
                 <button
                   type="button"
@@ -1503,7 +1505,7 @@ export default function ProfilePage() {
                   }}
                   className="px-3 py-1 text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg flex items-center gap-1.5 transition-all"
                 >
-                  <Pencil className="size-3 text-slate-400" /> Edit
+                  <Pencil className="size-3 text-slate-400" /> {t('profile_btn_edit')}
                 </button>
               </div>
             </div>
@@ -1728,7 +1730,7 @@ export default function ProfilePage() {
             className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-sm transition-all"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Preferences</h3>
+              <h3 className="text-lg font-bold text-slate-900">{t('profile_sec_preferences')}</h3>
               {editingPreferences ? (
                 <div className="flex items-center gap-2">
                   <button
@@ -1736,7 +1738,7 @@ export default function ProfilePage() {
                     onClick={() => setEditingPreferences(false)}
                     className="px-3 py-1 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
                   >
-                    Cancel
+                    {t('profile_btn_cancel')}
                   </button>
                   <button
                     type="button"
@@ -1744,7 +1746,7 @@ export default function ProfilePage() {
                     onClick={() => handleSavePreferences()}
                     className="px-3.5 py-1 text-xs font-semibold text-white bg-[#0e7bf4] hover:bg-blue-600 rounded-lg shadow-xs transition-colors"
                   >
-                    {saving ? 'Saving...' : 'Save'}
+                    {saving ? t('profile_btn_saving') : t('profile_btn_save')}
                   </button>
                 </div>
               ) : (
@@ -1753,7 +1755,7 @@ export default function ProfilePage() {
                   onClick={() => setEditingPreferences(true)}
                   className="px-3 py-1 text-xs font-semibold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg flex items-center gap-1.5 transition-all"
                 >
-                  <Pencil className="size-3 text-slate-400" /> Edit
+                  <Pencil className="size-3 text-slate-400" /> {t('profile_btn_edit')}
                 </button>
               )}
             </div>
@@ -1865,7 +1867,7 @@ export default function ProfilePage() {
             id="skills"
             className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-sm transition-all"
           >
-            <h3 className="text-lg font-bold text-slate-900">Skills & languages</h3>
+            <h3 className="text-lg font-bold text-slate-900">{t('profile_sec_skills')}</h3>
 
             {/* Pill Tags with Delete Icons */}
             <div className="flex flex-wrap items-center gap-2 mt-4">
