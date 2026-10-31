@@ -227,8 +227,8 @@ export function FloatingCapsuleNavbar() {
             >
               <Printer className="size-3.5 sm:size-4 text-[#0e7bf4]" />
               <span className="flex items-center gap-1">
-                <span>Services</span>
-                <span className="text-[9px] font-black uppercase text-[#0e7bf4] bg-[#e0edfb] px-1 py-0.2 rounded-full">New</span>
+                <span>{t('nav_services', 'Services')}</span>
+                <span className="text-[9px] font-black uppercase text-[#0e7bf4] bg-[#e0edfb] px-1 py-0.2 rounded-full">{t('badge_new', 'New')}</span>
               </span>
             </a>
           </div>
@@ -324,13 +324,13 @@ export function FloatingCapsuleNavbar() {
                     <Send className="size-4 text-[#536780]" /> {t('nav_applications', 'My Applications')}
                   </Link>
                   <Link href="/saved" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
-                    <Bookmark className="size-4 text-[#536780]" /> {t('nav_saved', 'Saved Items')}
+                    <Bookmark className="size-4 text-[#536780]" /> {t('nav_saved_items', 'Saved Items')}
                   </Link>
                   <Link href="/settings" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
                     <Settings className="size-4 text-[#0e7bf4]" /> {t('nav_settings', 'Settings & Preferences')}
                   </Link>
                   <Link href="/account" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
-                    <Building2 className="size-4 text-[#536780]" /> Account &amp; Plans
+                    <Building2 className="size-4 text-[#536780]" /> {t('nav_account_plans', 'Account & Plans')}
                   </Link>
                   <a
                     href={PARTNER_PORTAL_URL}
@@ -339,11 +339,11 @@ export function FloatingCapsuleNavbar() {
                     onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-2.5 px-4 py-2 text-emerald-600 hover:bg-[#ecfdf5] font-semibold"
                   >
-                    <Building2 className="size-4 text-emerald-600" /> Partner Portal (MeeSeva/CSC)
+                    <Building2 className="size-4 text-emerald-600" /> {t('nav_partner_portal', 'Partner Portal (MeeSeva/CSC)')}
                   </a>
                   <div className="my-1 border-t border-[#e3eaf3]" />
                   <button onClick={handleLogout} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-[#be123c] hover:bg-[#fff1f2] font-semibold">
-                    <LogOut className="size-4" /> Sign out
+                    <LogOut className="size-4" /> {t('nav_sign_out', 'Sign out')}
                   </button>
                 </div>
               )}
@@ -354,7 +354,7 @@ export function FloatingCapsuleNavbar() {
               className="flex items-center gap-1.5 rounded-full bg-[#0e7bf4] px-3.5 py-1.5 text-xs sm:text-sm font-extrabold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95 whitespace-nowrap"
             >
               <User className="size-3.5 sm:size-4" />
-              <span>Sign in</span>
+              <span>{t('nav_sign_in', 'Sign in')}</span>
             </Link>
           )}
         </div>
