@@ -7,11 +7,17 @@ import { API_URL } from './api';
  * A stale token falls back to the anonymous response instead of an error page.
  */
 export async function apiGetAsUser<T>(path: string): Promise<T | null> {
-  const token = (await cookies()).get('accessToken')?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get('accessToken')?.value;
+  const locale = cookieStore.get('NEXT_LOCALE')?.value || 'en';
+
   const get = (auth?: string) =>
     fetch(`${API_URL}${path}`, {
       cache: 'no-store',
-      headers: auth ? { Authorization: `Bearer ${auth}` } : {},
+      headers: {
+        ...(auth ? { Authorization: `Bearer ${auth}` } : {}),
+        'Accept-Language': locale,
+      },
       signal: AbortSignal.timeout(6000),
     });
   try {
@@ -36,7 +42,11 @@ export async function isSaved(itemType: SavedItemType, slug: string): Promise<bo
  */
 export async function apiGetPublic<T>(path: string, revalidateSeconds = 60): Promise<T | null> {
   try {
+    const locale = (await cookies()).get('NEXT_LOCALE')?.value || 'en';
     const res = await fetch(`${API_URL}${path}`, {
+      headers: {
+        'Accept-Language': locale,
+      },
       next: { revalidate: revalidateSeconds },
       signal: AbortSignal.timeout(6000),
     });
