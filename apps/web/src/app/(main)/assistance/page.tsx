@@ -21,6 +21,7 @@ import {
 import type { PartnerDirectoryResponse, PartnerSummary } from '@applyfields/types';
 import { apiGet } from '@/lib/api';
 import { PARTNER_PORTAL_URL } from '@/lib/urls';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 const SERVICE_FILTERS = [
   { id: 'all', label: 'All Centers', type: undefined },
@@ -31,6 +32,7 @@ const SERVICE_FILTERS = [
 ];
 
 export default function AssistancePage() {
+  const { t } = useLanguage();
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchLocation, setSearchLocation] = useState('');
   const [loading, setLoading] = useState(true);
@@ -125,13 +127,16 @@ export default function AssistancePage() {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0e7bf4]">
             <HandHelping className="size-4" />
-            <span>Citizen Network · In-Person Help</span>
+            <span>{t('sec_verified_assistance', 'Citizen Network · In-Person Help')}</span>
           </div>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[#082046] sm:text-3xl">
-            Find Assistance
+            {t('nav_assistance', 'Find Assistance')}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-[#435775]">
-            Locate verified nearby MeeSeva, Common Service Centers (CSC), cyber points, and authorized counselors for hassle-free online form submission and certificate services.
+            {t(
+              'assistance_desc',
+              'Locate verified nearby MeeSeva, Common Service Centers (CSC), cyber points, and authorized counselors for hassle-free online form submission and certificate services.',
+            )}
           </p>
         </div>
 
@@ -142,7 +147,7 @@ export default function AssistancePage() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-xl border border-[#c4d2e3] bg-white px-4 py-2.5 text-xs font-semibold text-[#082046] shadow-sm transition hover:bg-[#F0F4F8]"
           >
-            <Store className="size-4 text-[#0e7bf4]" /> Register as a Center (Partner Portal)
+            <Store className="size-4 text-[#0e7bf4]" /> {t('account_btn_partner_portal', 'Register as a Center (Partner Portal)')}
           </a>
         </div>
       </div>
@@ -154,7 +159,7 @@ export default function AssistancePage() {
             <MapPin className="mr-3 size-4 text-[#536780]" />
             <input
               type="text"
-              placeholder="Search by city, district, locality, or pincode..."
+              placeholder={t('hero_search_placeholder', 'Search by city, district, locality, or pincode...')}
               value={searchLocation}
               onChange={(e) => setSearchLocation(e.target.value)}
               className="w-full bg-transparent text-sm text-[#082046] outline-none placeholder:text-[#71839b]"
@@ -162,20 +167,30 @@ export default function AssistancePage() {
           </div>
 
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
-            {SERVICE_FILTERS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setActiveFilter(f.id)}
-                className={`whitespace-nowrap rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${
-                  activeFilter === f.id
-                    ? 'bg-[#082046] text-white shadow-sm'
-                    : 'bg-[#F0F4F8] text-[#435775] hover:bg-[#e2eaf4] hover:text-[#082046]'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+            {SERVICE_FILTERS.map((f) => {
+              const filterLabel =
+                f.id === 'all'
+                  ? t('apps_all_filter', f.label)
+                  : f.id === 'assistance'
+                    ? t('apps_tab_assistance', f.label)
+                    : f.id === 'institution'
+                      ? t('stat_admissions', f.label)
+                      : f.label;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setActiveFilter(f.id)}
+                  className={`whitespace-nowrap rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${
+                    activeFilter === f.id
+                      ? 'bg-[#082046] text-white shadow-sm'
+                      : 'bg-[#F0F4F8] text-[#435775] hover:bg-[#e2eaf4] hover:text-[#082046]'
+                  }`}
+                >
+                  {filterLabel}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -223,12 +238,12 @@ export default function AssistancePage() {
             </div>
             <div className="max-w-md mx-auto space-y-1">
               <h2 className="text-base font-bold text-[#082046]">
-                No verified partner centers found
+                {t('apps_assistance_empty_title', 'No verified partner centers found')}
               </h2>
               <p className="text-xs text-[#536780]">
                 {searchLocation.trim()
                   ? `No verified centers found matching "${searchLocation}". Try searching a different district, state, or PIN code.`
-                  : 'There are currently no verified partner centers listed under this category.'}
+                  : t('apps_assistance_empty_desc', 'There are currently no verified partner centers listed under this category.')}
               </p>
             </div>
             <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
@@ -238,7 +253,7 @@ export default function AssistancePage() {
                   onClick={() => setSearchLocation('')}
                   className="rounded-xl border border-[#c4d2e3] bg-white px-4 py-2 text-xs font-semibold text-[#082046] hover:bg-[#F0F4F8]"
                 >
-                  Clear search
+                  {t('btn_clear', 'Clear search')}
                 </button>
               )}
               <a
@@ -413,14 +428,14 @@ export default function AssistancePage() {
                   onClick={() => setSelectedCenter(null)}
                   className="rounded-xl border border-[#c4d2e3] px-4 py-2 text-xs font-semibold text-[#435775]"
                 >
-                  Cancel
+                  {t('btn_cancel', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingBooking}
                   className="rounded-xl bg-[#082046] px-5 py-2 text-xs font-bold text-white hover:bg-[#061835] disabled:opacity-60"
                 >
-                  {isSubmittingBooking ? 'Submitting...' : 'Confirm Request'}
+                  {isSubmittingBooking ? t('profile_btn_saving', 'Submitting...') : t('btn_book_assistance', 'Confirm Request')}
                 </button>
               </div>
             </form>

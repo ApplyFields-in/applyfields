@@ -41,6 +41,7 @@ import type {
 import { Badge, Card, buttonClass } from '@applyfields/ui';
 import { formatDate } from '@/lib/format';
 import { MOCK_APPLICATIONS, MOCK_BOOKINGS, MOCK_ENQUIRIES } from '@/lib/mock-data';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 const PIPELINE_STAGES: { id: ApplicationTrackerStatus; label: string; step: number; color: string }[] = [
   { id: 'saved', label: 'Saved', step: 1, color: 'bg-slate-100 text-slate-700 border-slate-300' },
@@ -59,9 +60,31 @@ const MAIN_TABS = [
 ];
 
 export default function ApplicationsPage() {
+  const { t } = useLanguage();
   const [mainTab, setMainTab] = useState<'tracker' | 'assistance' | 'enquiries'>('tracker');
   const [pipelineFilter, setPipelineFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const getStageLabel = (status: ApplicationTrackerStatus, fallback: string) => {
+    switch (status) {
+      case 'saved':
+        return t('apps_stage_saved', fallback);
+      case 'planning':
+        return t('apps_stage_planning', fallback);
+      case 'applied':
+        return t('apps_stage_applied', fallback);
+      case 'exam_interview':
+        return t('apps_stage_exam', fallback);
+      case 'selected':
+        return t('apps_stage_selected', fallback);
+      case 'rejected':
+        return t('apps_stage_rejected', fallback);
+      case 'completed':
+        return t('apps_stage_completed', fallback);
+      default:
+        return fallback;
+    }
+  };
 
   // Tracker state
   const [applications, setApplications] = useState<ApplicationTrackerItem[]>([]);
@@ -246,48 +269,55 @@ export default function ApplicationsPage() {
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0e7bf4]">
           <ClipboardList className="size-4" />
-          <span>Application Management</span>
+          <span>{t('apps_pipeline_title', 'Application Management')}</span>
         </div>
         <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[#082046] sm:text-3xl">
-          My Applications
+          {t('nav_applications', 'My Applications')}
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-[#435775]">
-          Manage your personal recruitment journey from planning to selection. Track application numbers,
-          exam dates, and roll numbers in one place.
+          {t('apps_pipeline_desc', 'Manage your personal recruitment journey from planning to selection. Track application numbers, exam dates, and roll numbers in one place.')}
         </p>
       </div>
 
       {/* Main Tab Switcher */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[#c4d2e3] pb-3">
-        {MAIN_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setMainTab(tab.id as any)}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
-              mainTab === tab.id
-                ? 'bg-[#082046] text-white shadow-sm'
-                : 'text-[#435775] hover:bg-[#F0F4F8] hover:text-[#082046]'
-            }`}
-          >
-            {tab.label}
-            {tab.id === 'tracker' && applications.length > 0 && (
-              <span className="ml-2 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">
-                {applications.length}
-              </span>
-            )}
-            {tab.id === 'assistance' && bookings.length > 0 && (
-              <span className="ml-2 rounded-full bg-[#0e7bf4] px-1.5 py-0.5 text-[10px] text-white">
-                {bookings.length}
-              </span>
-            )}
-            {tab.id === 'enquiries' && enquiries.length > 0 && (
-              <span className="ml-2 rounded-full bg-[#0e7bf4] px-1.5 py-0.5 text-[10px] text-white">
-                {enquiries.length}
-              </span>
-            )}
-          </button>
-        ))}
+        {MAIN_TABS.map((tab) => {
+          const tabLabel =
+            tab.id === 'tracker'
+              ? t('apps_tab_tracker', tab.label)
+              : tab.id === 'assistance'
+                ? t('apps_tab_assistance', tab.label)
+                : t('apps_tab_enquiries', tab.label);
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setMainTab(tab.id as any)}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                mainTab === tab.id
+                  ? 'bg-[#082046] text-white shadow-sm'
+                  : 'text-[#435775] hover:bg-[#F0F4F8] hover:text-[#082046]'
+              }`}
+            >
+              {tabLabel}
+              {tab.id === 'tracker' && applications.length > 0 && (
+                <span className="ml-2 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">
+                  {applications.length}
+                </span>
+              )}
+              {tab.id === 'assistance' && bookings.length > 0 && (
+                <span className="ml-2 rounded-full bg-[#0e7bf4] px-1.5 py-0.5 text-[10px] text-white">
+                  {bookings.length}
+                </span>
+              )}
+              {tab.id === 'enquiries' && enquiries.length > 0 && (
+                <span className="ml-2 rounded-full bg-[#0e7bf4] px-1.5 py-0.5 text-[10px] text-white">
+                  {enquiries.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Feedback Message */}
@@ -324,10 +354,9 @@ export default function ApplicationsPage() {
           <div className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-900">
             <Info className="size-4.5 shrink-0 text-blue-600 mt-0.5" />
             <div className="space-y-0.5">
-              <strong className="font-bold">User-Entered Self-Tracked Pipeline:</strong>
+              <strong className="font-bold">{t('apps_banner_notice_title', 'User-Entered Self-Tracked Pipeline:')}</strong>
               <p className="text-blue-800 leading-relaxed">
-                Statuses and examination details displayed here are recorded by you for tracking and reminder purposes.
-                Official notifications, admit cards, and selection lists are released solely by the respective recruitment commissions.
+                {t('apps_banner_notice_desc', 'Statuses and examination details displayed here are recorded by you for tracking and reminder purposes. Official notifications, admit cards, and selection lists are released solely by the respective recruitment commissions.')}
               </p>
             </div>
           </div>
@@ -344,10 +373,11 @@ export default function ApplicationsPage() {
                     : 'bg-[#F0F4F8] text-[#435775] hover:bg-[#e4ebf3]'
                 }`}
               >
-                All ({applications.length})
+                {t('apps_all_filter', 'All')} ({applications.length})
               </button>
               {PIPELINE_STAGES.map((st) => {
                 const count = applications.filter((a) => a.status === st.id).length;
+                const stageLabel = getStageLabel(st.id, st.label);
                 return (
                   <button
                     key={st.id}
@@ -359,7 +389,7 @@ export default function ApplicationsPage() {
                         : 'bg-[#F0F4F8] text-[#435775] hover:bg-[#e4ebf3]'
                     }`}
                   >
-                    {st.label} {count > 0 && `(${count})`}
+                    {stageLabel} {count > 0 && `(${count})`}
                   </button>
                 );
               })}
@@ -371,7 +401,7 @@ export default function ApplicationsPage() {
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#0c6cd7] shrink-0"
             >
               <Plus className="size-4" />
-              Add Tracked Application
+              {t('apps_btn_add', 'Add Tracked Application')}
             </button>
           </div>
 
@@ -381,17 +411,16 @@ export default function ApplicationsPage() {
           ) : filteredApps.length === 0 ? (
             <Card className="rounded-3xl border border-[#c4d2e3] bg-white p-12 text-center shadow-sm">
               <ClipboardList className="mx-auto size-12 text-[#c4d2e3]" />
-              <h3 className="mt-3 text-base font-bold text-[#082046]">No applications tracked in this stage</h3>
+              <h3 className="mt-3 text-base font-bold text-[#082046]">{t('apps_empty_title', 'No applications tracked in this stage')}</h3>
               <p className="mt-1 text-xs text-[#536780] max-w-md mx-auto">
-                Keep your exam dates, roll numbers, and deadlines organized. Click "Add Tracked Application"
-                or browse jobs to save opportunities directly to your pipeline.
+                {t('apps_empty_desc', 'Keep your exam dates, roll numbers, and deadlines organized. Click "Add Tracked Application" or browse jobs to save opportunities directly to your pipeline.')}
               </p>
               <button
                 type="button"
                 onClick={openAddModal}
                 className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#082046] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#061835]"
               >
-                <Plus className="size-4" /> Add Application Now
+                <Plus className="size-4" /> {t('apps_btn_add', 'Add Application Now')}
               </button>
             </Card>
           ) : (
@@ -399,6 +428,7 @@ export default function ApplicationsPage() {
               {filteredApps.map((app) => {
                 const currentStageConfig =
                   PIPELINE_STAGES.find((s) => s.id === app.status) || PIPELINE_STAGES[0];
+                const activeStageName = getStageLabel(currentStageConfig.id, currentStageConfig.label);
 
                 return (
                   <Card
@@ -411,7 +441,7 @@ export default function ApplicationsPage() {
                           <span
                             className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${currentStageConfig.color}`}
                           >
-                            {currentStageConfig.label}
+                            {activeStageName}
                           </span>
                           <span className="text-xs font-bold uppercase tracking-wider text-[#0e7bf4]">
                             {app.organization}
@@ -429,13 +459,14 @@ export default function ApplicationsPage() {
                               const isCurrent = app.status === s.id;
                               const isPast =
                                 PIPELINE_STAGES.findIndex((x) => x.id === app.status) > idx;
+                              const sLabel = getStageLabel(s.id, s.label);
 
                               return (
                                 <button
                                   key={s.id}
                                   type="button"
                                   onClick={() => handleAdvanceStage(app, s.id)}
-                                  title={`Switch status to ${s.label}`}
+                                  title={`Switch status to ${sLabel}`}
                                   className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition ${
                                     isCurrent
                                       ? 'bg-[#082046] text-white'
@@ -445,7 +476,7 @@ export default function ApplicationsPage() {
                                   }`}
                                 >
                                   {isPast && <Check className="size-2.5" />}
-                                  {s.label}
+                                  {sLabel}
                                 </button>
                               );
                             })}
@@ -457,7 +488,7 @@ export default function ApplicationsPage() {
                           {app.application_number && (
                             <div className="rounded-xl bg-[#F8FBFF] p-2.5 border border-[#c4d2e3]/60">
                               <span className="text-[10px] font-bold uppercase text-[#536780]">
-                                App Number
+                                {t('apps_label_app_number', 'App Number')}
                               </span>
                               <p className="font-mono font-bold text-[#082046]">
                                 {app.application_number}
@@ -468,7 +499,7 @@ export default function ApplicationsPage() {
                           {app.roll_number && (
                             <div className="rounded-xl bg-[#F8FBFF] p-2.5 border border-[#c4d2e3]/60">
                               <span className="text-[10px] font-bold uppercase text-[#536780]">
-                                Roll Number
+                                {t('apps_label_roll_number', 'Roll Number')}
                               </span>
                               <p className="font-mono font-bold text-[#082046]">{app.roll_number}</p>
                             </div>
@@ -477,7 +508,7 @@ export default function ApplicationsPage() {
                           {app.exam_date && (
                             <div className="rounded-xl bg-[#F8FBFF] p-2.5 border border-[#c4d2e3]/60">
                               <span className="text-[10px] font-bold uppercase text-[#536780] flex items-center gap-1">
-                                <Calendar className="size-3 text-[#0e7bf4]" /> Exam Date
+                                <Calendar className="size-3 text-[#0e7bf4]" /> {t('apps_label_exam_date', 'Exam Date')}
                               </span>
                               <p className="font-bold text-[#082046]">{app.exam_date}</p>
                             </div>
@@ -486,7 +517,7 @@ export default function ApplicationsPage() {
                           {app.exam_center && (
                             <div className="rounded-xl bg-[#F8FBFF] p-2.5 border border-[#c4d2e3]/60">
                               <span className="text-[10px] font-bold uppercase text-[#536780] flex items-center gap-1">
-                                <MapPin className="size-3 text-[#0e7bf4]" /> Center
+                                <MapPin className="size-3 text-[#0e7bf4]" /> {t('apps_label_center', 'Center')}
                               </span>
                               <p className="font-bold text-[#082046] truncate">{app.exam_center}</p>
                             </div>
@@ -495,7 +526,7 @@ export default function ApplicationsPage() {
 
                         {app.notes && (
                           <div className="mt-2 rounded-xl bg-[#FFFDF0] p-2.5 border border-amber-200 text-xs text-amber-900">
-                            <span className="font-bold">Notes: </span>
+                            <span className="font-bold">{t('apps_label_notes', 'Notes')}: </span>
                             {app.notes}
                           </div>
                         )}
@@ -509,7 +540,7 @@ export default function ApplicationsPage() {
                           className="inline-flex items-center gap-1 rounded-xl border border-[#c4d2e3] bg-white px-3 py-1.5 text-xs font-bold text-[#082046] shadow-xs hover:bg-[#F0F4F8]"
                         >
                           <Edit2 className="size-3.5 text-[#0e7bf4]" />
-                          Edit Details
+                          {t('apps_btn_edit', 'Edit Details')}
                         </button>
 
                         <button
@@ -518,7 +549,7 @@ export default function ApplicationsPage() {
                           className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 shadow-xs hover:bg-rose-50"
                         >
                           <Trash2 className="size-3.5" />
-                          Delete
+                          {t('apps_btn_delete', 'Delete')}
                         </button>
                       </div>
                     </div>
@@ -534,21 +565,21 @@ export default function ApplicationsPage() {
       {mainTab === 'assistance' && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-[#c4d2e3] bg-[#F8FBFF] p-4 text-xs text-[#536780]">
-            In-person application form submission sessions booked with our network of digital centers.
+            {t('apps_assistance_desc', 'In-person application form submission sessions booked with our network of digital centers.')}
           </div>
 
           {bookings.length === 0 ? (
             <Card className="rounded-3xl border border-[#c4d2e3] bg-white p-12 text-center">
               <HandHelping className="mx-auto size-12 text-[#c4d2e3]" />
-              <h3 className="mt-3 text-base font-bold text-[#082046]">No center assistance bookings yet</h3>
+              <h3 className="mt-3 text-base font-bold text-[#082046]">{t('apps_assistance_empty_title', 'No center assistance bookings yet')}</h3>
               <p className="mt-1 text-xs text-[#536780]">
-                Need help uploading certificates or filling government forms? Visit our Assisted Apply centers.
+                {t('apps_assistance_empty_desc', 'Need help uploading certificates or filling government forms? Visit our Assisted Apply centers.')}
               </p>
               <Link
                 href="/services"
                 className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#082046] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#061835]"
               >
-                Browse Services &amp; Assistance
+                {t('apps_assistance_browse_btn', 'Browse Services & Assistance')}
               </Link>
             </Card>
           ) : (
@@ -580,21 +611,21 @@ export default function ApplicationsPage() {
       {mainTab === 'enquiries' && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-[#c4d2e3] bg-[#F8FBFF] p-4 text-xs text-[#536780]">
-            Official admission inquiries sent to accredited degree colleges and universities.
+            {t('apps_enquiries_desc', 'Official admission inquiries sent to accredited degree colleges and universities.')}
           </div>
 
           {enquiries.length === 0 ? (
             <Card className="rounded-3xl border border-[#c4d2e3] bg-white p-12 text-center">
               <GraduationCap className="mx-auto size-12 text-[#c4d2e3]" />
-              <h3 className="mt-3 text-base font-bold text-[#082046]">No college inquiries yet</h3>
+              <h3 className="mt-3 text-base font-bold text-[#082046]">{t('apps_enquiries_empty_title', 'No college inquiries yet')}</h3>
               <p className="mt-1 text-xs text-[#536780]">
-                Explore verified universities, engineering institutes, and degree colleges on ApplyFields.
+                {t('apps_enquiries_empty_desc', 'Explore verified universities, engineering institutes, and degree colleges on ApplyFields.')}
               </p>
               <Link
                 href="/career"
                 className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#082046] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#061835]"
               >
-                Explore Colleges &amp; Degrees
+                {t('apps_enquiries_browse_btn', 'Explore Colleges & Degrees')}
               </Link>
             </Card>
           ) : (
@@ -621,7 +652,7 @@ export default function ApplicationsPage() {
           <div className="w-full max-w-lg rounded-3xl border border-[#c4d2e3] bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#c4d2e3]/60 pb-3">
               <h3 className="text-base font-bold text-[#082046]">
-                {editingApp ? 'Edit Application Details' : 'Track New Application'}
+                {editingApp ? t('apps_modal_edit_title', 'Edit Application Details') : t('apps_modal_add_title', 'Track New Application')}
               </h3>
               <button
                 type="button"
@@ -638,7 +669,7 @@ export default function ApplicationsPage() {
             <form onSubmit={handleSaveApplication} className="mt-4 space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-[#082046]">
-                  Exam / Job Recruitment Title
+                  {t('apps_form_title', 'Exam / Job Recruitment Title')}
                 </label>
                 <input
                   type="text"
@@ -652,7 +683,7 @@ export default function ApplicationsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[#082046]">Commission / Org</label>
+                  <label className="block text-xs font-bold text-[#082046]">{t('apps_form_org', 'Commission / Org')}</label>
                   <input
                     type="text"
                     value={formOrg}
@@ -663,7 +694,7 @@ export default function ApplicationsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#082046]">Pipeline Stage</label>
+                  <label className="block text-xs font-bold text-[#082046]">{t('apps_form_stage', 'Pipeline Stage')}</label>
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value as any)}
@@ -671,7 +702,7 @@ export default function ApplicationsPage() {
                   >
                     {PIPELINE_STAGES.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.label}
+                        {getStageLabel(s.id, s.label)}
                       </option>
                     ))}
                   </select>
@@ -681,7 +712,7 @@ export default function ApplicationsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-[#082046]">
-                    Application / Registration Number
+                    {t('apps_form_app_num', 'Application / Registration Number')}
                   </label>
                   <input
                     type="text"
@@ -693,7 +724,7 @@ export default function ApplicationsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#082046]">Roll Number</label>
+                  <label className="block text-xs font-bold text-[#082046]">{t('apps_form_roll_num', 'Roll Number')}</label>
                   <input
                     type="text"
                     value={formRollNumber}
@@ -706,7 +737,7 @@ export default function ApplicationsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[#082046]">Exam Date</label>
+                  <label className="block text-xs font-bold text-[#082046]">{t('apps_form_exam_date', 'Exam Date')}</label>
                   <input
                     type="date"
                     value={formExamDate}
@@ -716,7 +747,7 @@ export default function ApplicationsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#082046]">Exam Center City</label>
+                  <label className="block text-xs font-bold text-[#082046]">{t('apps_form_exam_center', 'Exam Center City')}</label>
                   <input
                     type="text"
                     value={formExamCenter}
@@ -728,7 +759,7 @@ export default function ApplicationsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#082046]">Personal Notes</label>
+                <label className="block text-xs font-bold text-[#082046]">{t('apps_form_notes', 'Personal Notes')}</label>
                 <textarea
                   rows={2}
                   value={formNotes}
@@ -747,14 +778,14 @@ export default function ApplicationsPage() {
                   }}
                   className="rounded-xl border border-[#c4d2e3] px-4 py-2 text-xs font-semibold text-[#536780] hover:bg-[#F0F4F8]"
                 >
-                  Cancel
+                  {t('btn_cancel', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
                   className="rounded-xl bg-[#082046] px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#061835] disabled:opacity-50"
                 >
-                  {submitting ? 'Saving...' : editingApp ? 'Update Application' : 'Save to Pipeline'}
+                  {submitting ? t('profile_btn_saving', 'Saving...') : editingApp ? t('apps_btn_update', 'Update Application') : t('apps_btn_save_pipeline', 'Save to Pipeline')}
                 </button>
               </div>
             </form>

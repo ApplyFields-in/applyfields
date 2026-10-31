@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { showAppToast } from '@/components/toast-notification-provider';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 export type ExamType =
   | 'GATE'
@@ -95,6 +96,7 @@ interface CompetitiveExamScoresCardProps {
 }
 
 export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamScoresCardProps) {
+  const { t } = useLanguage();
   const [scores, setScores] = useState<CompetitiveExamScore[]>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -251,11 +253,11 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
           <div className="flex items-center gap-2">
             <Award className="size-5 text-[#0e7bf4]" />
             <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-              Competitive exam scores & ranks
+              {t('profile_exam_scores_title')}
             </h3>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Official records for GATE, JEE, NEET, CAT, and UGC-NET scores used for government PSU recruitment and college cutoffs.
+            {t('profile_exam_scores_desc')}
           </p>
         </div>
 
@@ -265,7 +267,7 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
           className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors shrink-0"
         >
           <Plus className="size-3.5 stroke-[2.5]" />
-          <span>Add Exam Score</span>
+          <span>{t('profile_btn_add_exam')}</span>
         </button>
       </div>
 
@@ -276,9 +278,9 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
             <GraduationCap className="size-6" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-slate-800">No competitive scores recorded</h4>
+            <h4 className="text-sm font-bold text-slate-800">{t('profile_no_exams')}</h4>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-              Adding your GATE Score, JEE/NEET Rank, or CAT percentile unlocks automatic eligibility matching for premier colleges and PSU vacancies.
+              {t('profile_no_exams_desc')}
             </p>
           </div>
           <button
@@ -286,7 +288,7 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
             onClick={handleOpenAddModal}
             className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
           >
-            Record Your First Score
+            {t('profile_btn_add_exam')}
           </button>
         </div>
       ) : (

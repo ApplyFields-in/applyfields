@@ -281,16 +281,16 @@ export function CommunityDiscussionSection({
       {/* Threads List or Empty State */}
       {loading ? (
         <div className="rounded-2xl border border-line/60 bg-cream/20 p-8 text-center text-xs text-teal/70">
-          Loading discussion threads...
+          {t('community_loading')}
         </div>
       ) : threads.length === 0 ? (
         <Card className="p-10 text-center space-y-3 bg-cream/20 border-line/60">
           <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-teal/10 text-teal">
             <MessageCircle className="size-6" />
           </div>
-          <h3 className="text-base font-bold text-teal">No discussion threads in this category yet</h3>
+          <h3 className="text-base font-bold text-teal">{t('community_empty_title')}</h3>
           <p className="text-xs text-teal/70 max-w-sm mx-auto">
-            Be the first candidate to start a discussion or ask about admit cards, syllabus, or exam centers!
+            {t('community_empty_desc')}
           </p>
           <div className="pt-2">
             <button
@@ -298,7 +298,7 @@ export function CommunityDiscussionSection({
               onClick={() => setIsNewModalOpen(true)}
               className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1.5' })}
             >
-              <Plus className="size-3.5" /> Post First Question
+              <Plus className="size-3.5" /> {t('community_btn_post_first')}
             </button>
           </div>
         </Card>
@@ -397,7 +397,7 @@ export function CommunityDiscussionSection({
                 {isExpanded && (
                   <div className="mt-4 pt-3 border-t border-line/60 space-y-3 animate-in fade-in duration-200">
                     <h4 className="text-xs font-bold text-teal uppercase tracking-wider">
-                      Replies &amp; Peer Answers ({tItem.comments?.length ?? 0})
+                      {t('community_replies_count')} ({tItem.comments?.length ?? 0})
                     </h4>
 
                     {tItem.comments && tItem.comments.length > 0 ? (
@@ -412,7 +412,7 @@ export function CommunityDiscussionSection({
                                 {comment.author_name}
                                 {comment.is_official_answer && (
                                   <Badge tone="celadon" className="text-[9px] font-bold py-0">
-                                    Official Answer
+                                    {t('community_official_answer')}
                                   </Badge>
                                 )}
                               </span>
@@ -423,7 +423,7 @@ export function CommunityDiscussionSection({
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-teal/60 italic">No replies yet. Be the first to reply!</p>
+                      <p className="text-xs text-teal/60 italic">{t('community_no_replies')}</p>
                     )}
 
                     {/* Add reply input */}
@@ -438,7 +438,7 @@ export function CommunityDiscussionSection({
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleAddComment(tItem.id);
                           }}
-                          placeholder="Write a helpful reply or update..."
+                          placeholder={t('community_reply_placeholder')}
                           className="flex-1 rounded-xl border border-line bg-canvas px-3 py-2 text-xs text-teal focus:border-teal focus:outline-none"
                         />
                         <button
@@ -456,7 +456,7 @@ export function CommunityDiscussionSection({
                           ) : (
                             <Send className="size-3" />
                           )}
-                          Reply
+                          {t('community_btn_reply')}
                         </button>
                       </div>
                     )}
@@ -483,11 +483,11 @@ export function CommunityDiscussionSection({
             <form onSubmit={handleCreateThread} className="space-y-4">
               <div>
                 <Badge tone="tea" className="text-[10px] font-bold uppercase">
-                  Community Q&amp;A
+                  {t('community_badge', 'Community Q&A')}
                 </Badge>
-                <h3 className="mt-1 text-base font-bold text-teal">Start a Discussion Topic</h3>
+                <h3 className="mt-1 text-base font-bold text-teal">{t('community_modal_title')}</h3>
                 <p className="text-xs text-teal/70">
-                  Ask a question or share verified updates with fellow candidates.
+                  {t('community_modal_subtitle')}
                 </p>
               </div>
 
@@ -499,51 +499,51 @@ export function CommunityDiscussionSection({
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="block font-semibold text-teal mb-1">Topic Category</label>
+                  <label className="block font-semibold text-teal mb-1">{t('community_form_category')}</label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value as CommunityThreadCategory)}
                     className="w-full rounded-xl border border-line bg-canvas px-3 py-2 text-xs text-teal focus:border-teal focus:outline-none"
                   >
-                    <option value="general">General Q&amp;A</option>
-                    <option value="admit_card">Admit Card &amp; Exam Center</option>
-                    <option value="exam_prep">Preparation &amp; Resources</option>
-                    <option value="syllabus">Syllabus &amp; Pattern</option>
-                    <option value="result">Results &amp; Cutoff Scores</option>
-                    <option value="counselling">Counseling &amp; Admission</option>
+                    <option value="general">{t('community_tab_general', 'General Q&A')}</option>
+                    <option value="admit_card">{t('community_tab_admit_card', 'Admit Card & Exam Center')}</option>
+                    <option value="exam_prep">{t('community_tab_exam_prep', 'Preparation & Resources')}</option>
+                    <option value="syllabus">{t('community_tab_syllabus', 'Syllabus & Pattern')}</option>
+                    <option value="result">{t('community_tab_result', 'Results & Cutoff Scores')}</option>
+                    <option value="counselling">{t('stat_admissions', 'Counseling & Admission')}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block font-semibold text-teal mb-1">
-                    Question / Discussion Title <span className="text-rose-500">*</span>
+                    {t('community_form_title')} <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="e.g. Has anyone received examination center details for Warangal zone?"
+                    placeholder={t('community_form_title_ph')}
                     className="w-full rounded-xl border border-line bg-canvas px-3 py-2 text-xs text-teal focus:border-teal focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-teal mb-1">
-                    Details / Message <span className="text-rose-500">*</span>
+                    {t('community_form_content')} <span className="text-rose-500">*</span>
                   </label>
                   <textarea
                     required
                     rows={4}
                     value={newContent}
                     onChange={(e) => setNewContent(e.target.value)}
-                    placeholder="Explain your query clearly so other candidates or mentors can provide accurate answers..."
+                    placeholder={t('community_form_content_ph')}
                     className="w-full rounded-xl border border-line bg-canvas p-3 text-xs text-teal focus:border-teal focus:outline-none leading-relaxed"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-teal mb-1">Display Name (Optional)</label>
+                  <label className="block font-semibold text-teal mb-1">{t('community_form_author')}</label>
                   <input
                     type="text"
                     value={newAuthor}
@@ -560,7 +560,7 @@ export function CommunityDiscussionSection({
                   onClick={() => setIsNewModalOpen(false)}
                   className={buttonClass({ variant: 'ghost', size: 'sm' })}
                 >
-                  Cancel
+                  {t('btn_cancel')}
                 </button>
                 <button
                   type="submit"
@@ -573,11 +573,11 @@ export function CommunityDiscussionSection({
                 >
                   {submittingThread ? (
                     <>
-                      <Loader2 className="size-3.5 animate-spin" /> Posting...
+                      <Loader2 className="size-3.5 animate-spin" /> {t('profile_btn_saving', 'Saving...')}
                     </>
                   ) : (
                     <>
-                      <Send className="size-3.5" /> Post Topic
+                      <Send className="size-3.5" /> {t('community_btn_submit_topic', 'Post Topic')}
                     </>
                   )}
                 </button>
