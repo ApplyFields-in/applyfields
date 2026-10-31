@@ -14,6 +14,7 @@ import {
   Stethoscope,
 } from 'lucide-react';
 import { cn } from '@applyfields/ui';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 export interface CollegeCategoryOption {
   title: string;
@@ -22,6 +23,37 @@ export interface CollegeCategoryOption {
   streamKey: string;
   icon: React.ComponentType<{ className?: string }>;
 }
+
+const STREAM_TRANSLATIONS: Record<string, { te: { title: string; subtitle: string }; hi: { title: string; subtitle: string } }> = {
+  '': {
+    te: { title: 'భారతదేశంలోని అన్ని కళాశాలలు', subtitle: '13,000+ ధృవీకరించబడిన విశ్వవిద్యాలయాలు & కళాశాలలు' },
+    hi: { title: 'भारत के सभी कॉलेज', subtitle: '13,000+ सत्यापित विश्वविद्यालय और कॉलेज' },
+  },
+  'top-50-engg': {
+    te: { title: 'టాప్ 50 ఇంజనీరింగ్ కళాశాలలు', subtitle: 'NIRF ర్యాంక్ పొందిన IITలు, NITలు, BITS & ప్రఖ్యాత సంస్థలు' },
+    hi: { title: 'शीर्ष 50 इंजीनियरिंग कॉलेज', subtitle: 'एनआईआरएफ रैंक वाले आईआईटी, एनआईटी और तकनीकी संस्थान' },
+  },
+  management: {
+    te: { title: 'మేనేజ్‌మెంట్ కళాశాలలు (MBA)', subtitle: 'MBA, PGDM, బిజినెస్ స్కూల్స్ & ఎగ్జిక్యూటివ్ మేనేజ్‌మెంట్' },
+    hi: { title: 'प्रबंधन कॉलेज (MBA)', subtitle: 'एमबीए, पीजीडीएम, बिजनेस स्कूल और प्रबंधन संस्थान' },
+  },
+  polytechnic: {
+    te: { title: 'పాలిటెక్నిక్ కళాశాలలు (డిప్లొమా)', subtitle: '3 సంవత్సరాల సాంకేతిక విద్య & ప్రాక్టికల్ డిప్లొమాలు' },
+    hi: { title: 'पॉलीटेक्निक कॉलेज (डिप्लोमा)', subtitle: '3-वर्षीय तकनीकी शिक्षा और इंजीनियरिंग डिप्लोमा' },
+  },
+  architecture: {
+    te: { title: 'ఆర్కిటెక్చర్ & టౌన్ ప్లానింగ్', subtitle: 'B.Arch, ప్లానింగ్, ఇంటీరియర్ & డిజైన్ సంస్థలు' },
+    hi: { title: 'आर्किटेक्चर और टाउन प्लानिंग', subtitle: 'बी.आर्क, प्लानिंग और डिजाइन संस्थान' },
+  },
+  pharmacy: {
+    te: { title: 'ఫార్మసీ కళాశాలలు', subtitle: 'B.Pharm, M.Pharm & ఫార్మాస్యూటికల్ సైన్స్ ఇన్‌స్టిట్యూట్‌లు' },
+    hi: { title: 'फार्मेसी कॉलेज', subtitle: 'बी.फार्मा, एम.फार्मा और फार्मास्युटिकल संस्थान' },
+  },
+  medical: {
+    te: { title: 'టాప్ 50 మెడికల్ కళాశాలలు', subtitle: 'NIRF ర్యాంక్ పొందిన AIIMS, JIPMER, CMC & వైద్య సంస్థలు' },
+    hi: { title: 'शीर्ष 50 मेडिकल कॉलेज', subtitle: 'एम्स, जिपमर, सीएमसी और शीर्ष मेडिकल संस्थान' },
+  },
+};
 
 export const COLLEGE_CATEGORIES: CollegeCategoryOption[] = [
   {
@@ -76,6 +108,7 @@ export const COLLEGE_CATEGORIES: CollegeCategoryOption[] = [
 ];
 
 export function CareerCollegesHoverMenu({ className }: { className?: string }) {
+  const { t, language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -114,7 +147,7 @@ export function CareerCollegesHoverMenu({ className }: { className?: string }) {
         onClick={handleToggleClick}
       >
         <Building2 className="size-4 text-[#0e7bf4]" />
-        <span>Colleges &amp; universities</span>
+        <span>{t('career_link_colleges', 'Colleges & universities')}</span>
         <ChevronDown
           className={cn(
             'size-3.5 text-[#082046]/60 transition-transform duration-200',
@@ -132,16 +165,19 @@ export function CareerCollegesHoverMenu({ className }: { className?: string }) {
         >
           <div className="px-3 py-2 border-b border-[#dec9a5]/50">
             <p className="text-[10px] font-bold uppercase tracking-wider text-[#76562d]">
-              Browse Higher Education in India
+              {t('career_colleges_menu_title', 'Browse Higher Education in India')}
             </p>
             <p className="text-xs font-semibold text-[#082046] mt-0.5">
-              Select stream or explore premier ranked institutions
+              {t('career_colleges_menu_subtitle', 'Select stream or explore premier ranked institutions')}
             </p>
           </div>
 
           <div className="space-y-1 pt-1.5 max-h-[460px] overflow-y-auto scrollbar-thin">
             {COLLEGE_CATEGORIES.map((cat) => {
               const Icon = cat.icon;
+              const streamLocale = language !== 'en' ? STREAM_TRANSLATIONS[cat.streamKey]?.[language as 'te' | 'hi'] : null;
+              const title = streamLocale?.title || cat.title;
+              const subtitle = streamLocale?.subtitle || cat.subtitle;
 
               return (
                 <Link
@@ -158,10 +194,10 @@ export function CareerCollegesHoverMenu({ className }: { className?: string }) {
 
                     <div className="min-w-0">
                       <span className="text-xs font-bold text-[#082046] group-hover/item:text-[#0e7bf4] transition-colors leading-snug">
-                        {cat.title}
+                        {title}
                       </span>
                       <p className="text-[11px] text-[#536780] leading-tight mt-0.5 line-clamp-1">
-                        {cat.subtitle}
+                        {subtitle}
                       </p>
                     </div>
                   </div>
@@ -173,13 +209,13 @@ export function CareerCollegesHoverMenu({ className }: { className?: string }) {
           </div>
 
           <div className="mt-2 pt-2 border-t border-[#dec9a5]/50 px-2 flex items-center justify-between text-[11px] font-semibold text-[#536780]">
-            <span>Direct Comparison Available</span>
+            <span>{language === 'te' ? 'పోలిక అందుబాటులో ఉంది' : language === 'hi' ? 'सीधी तुलना उपलब्ध है' : 'Direct Comparison Available'}</span>
             <Link
               href="/career/colleges/compare"
               onClick={() => setIsOpen(false)}
               className="text-[#0e7bf4] hover:underline flex items-center gap-1 font-bold"
             >
-              Compare Colleges Tool &rarr;
+              {t('career_colleges_compare_btn', 'Compare Colleges Tool →')}
             </Link>
           </div>
         </div>
