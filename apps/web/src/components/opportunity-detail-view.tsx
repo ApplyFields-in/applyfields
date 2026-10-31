@@ -334,6 +334,8 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
           {/* Section: Overview & Translated Summary (Source of Truth Disclaimer) */}
           <TranslatedSummary
             summaryEn={item.summary || item.title}
+            summaryTe={item.summary_te ?? item.translations?.te?.summary}
+            summaryHi={item.summary_hi ?? item.translations?.hi?.summary}
             officialNotificationUrl={item.links.notification_pdf_url}
           />
 
