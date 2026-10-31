@@ -53,11 +53,11 @@ const STATE_OPTIONS = [
 ];
 
 const QUALIFICATION_OPTIONS = [
-  { id: '10th', label: '10th / Secondary School' },
-  { id: '12th', label: '12th / Intermediate / PUC' },
-  { id: 'diploma', label: 'Polytechnic Diploma / ITI' },
-  { id: 'graduate', label: 'Bachelor’s Degree (Graduate)' },
-  { id: 'post_graduate', label: 'Master’s Degree (Post Graduate)' },
+  { id: '10th', translationKey: 'settings_qual_10th' as const, label: '10th / Secondary School' },
+  { id: '12th', translationKey: 'settings_qual_12th' as const, label: '12th / Intermediate / PUC' },
+  { id: 'diploma', translationKey: 'settings_qual_diploma' as const, label: 'Polytechnic Diploma / ITI' },
+  { id: 'graduate', translationKey: 'settings_qual_graduate' as const, label: 'Bachelor’s Degree (Graduate)' },
+  { id: 'post_graduate', translationKey: 'settings_qual_post_graduate' as const, label: 'Master’s Degree (Post Graduate)' },
 ];
 
 export default function SettingsPage() {
@@ -306,13 +306,15 @@ export default function SettingsPage() {
           onClick={() => setActiveTab('language')}
           className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-xs sm:text-sm font-black transition-all ${
             activeTab === 'language'
-              ? 'bg-[#082046] text-white shadow-md'
+              ? 'bg-[#0e7bf4] text-white shadow-md'
               : 'bg-white/80 text-[#526987] hover:bg-white hover:text-[#082046]'
           }`}
         >
-          <Globe className="size-4 text-[#0e7bf4]" />
+          <Globe className="size-4" />
           <span>{t('settings_tab_language')}</span>
-          <span className="ml-1 rounded-full bg-[#0e7bf4]/20 px-2 py-0.5 text-[10px] font-black uppercase text-[#0e7bf4]">
+          <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${
+            activeTab === 'language' ? 'bg-white/20 text-white' : 'bg-[#0e7bf4]/20 text-[#0e7bf4]'
+          }`}>
             {locale.toUpperCase()}
           </span>
         </button>
@@ -322,11 +324,11 @@ export default function SettingsPage() {
           onClick={() => setActiveTab('notifications')}
           className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-xs sm:text-sm font-black transition-all ${
             activeTab === 'notifications'
-              ? 'bg-[#082046] text-white shadow-md'
+              ? 'bg-[#0e7bf4] text-white shadow-md'
               : 'bg-white/80 text-[#526987] hover:bg-white hover:text-[#082046]'
           }`}
         >
-          <Bell className="size-4 text-[#0e7bf4]" />
+          <Bell className="size-4" />
           <span>{t('settings_tab_notifications')}</span>
         </button>
 
@@ -335,11 +337,11 @@ export default function SettingsPage() {
           onClick={() => setActiveTab('display')}
           className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-xs sm:text-sm font-black transition-all ${
             activeTab === 'display'
-              ? 'bg-[#082046] text-white shadow-md'
+              ? 'bg-[#0e7bf4] text-white shadow-md'
               : 'bg-white/80 text-[#526987] hover:bg-white hover:text-[#082046]'
           }`}
         >
-          <Palette className="size-4 text-[#0e7bf4]" />
+          <Palette className="size-4" />
           <span>{t('settings_tab_display')}</span>
         </button>
 
@@ -348,11 +350,11 @@ export default function SettingsPage() {
           onClick={() => setActiveTab('preferences')}
           className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-xs sm:text-sm font-black transition-all ${
             activeTab === 'preferences'
-              ? 'bg-[#082046] text-white shadow-md'
+              ? 'bg-[#0e7bf4] text-white shadow-md'
               : 'bg-white/80 text-[#526987] hover:bg-white hover:text-[#082046]'
           }`}
         >
-          <Filter className="size-4 text-[#0e7bf4]" />
+          <Filter className="size-4" />
           <span>{t('settings_tab_preferences')}</span>
         </button>
       </div>
@@ -479,7 +481,7 @@ export default function SettingsPage() {
                     </span>
                     <div>
                       <p className="text-sm font-black text-[#082046]">{t('settings_notif_email')}</p>
-                      <span className="text-[10px] text-emerald-600 font-bold uppercase">Verified Email</span>
+                      <span className="text-[10px] text-emerald-600 font-bold uppercase">{t('settings_channel_email_verified')}</span>
                     </div>
                   </div>
                   <button
@@ -510,7 +512,7 @@ export default function SettingsPage() {
                     </span>
                     <div>
                       <p className="text-sm font-black text-[#082046]">{t('settings_notif_whatsapp')}</p>
-                      <span className="text-[10px] text-emerald-600 font-bold uppercase">+91 Mobile Phone</span>
+                      <span className="text-[10px] text-emerald-600 font-bold uppercase">{t('settings_channel_mobile')}</span>
                     </div>
                   </div>
                   <button
@@ -541,7 +543,7 @@ export default function SettingsPage() {
                     </span>
                     <div>
                       <p className="text-sm font-black text-[#082046]">{t('settings_notif_push')}</p>
-                      <span className="text-[10px] text-[#526987] font-bold uppercase">Desktop &amp; Mobile Web</span>
+                      <span className="text-[10px] text-[#526987] font-bold uppercase">{t('settings_channel_web')}</span>
                     </div>
                   </div>
                   <button
@@ -636,26 +638,35 @@ export default function SettingsPage() {
                 {
                   id: 'default' as ReadingTheme,
                   label: t('settings_display_clean'),
-                  desc: 'Standard daylight interface',
+                  desc: t('settings_theme_clean_desc'),
                   icon: SunMedium,
+                  previewClass: 'theme-preview-card-light',
                   cardBg: 'bg-white',
                   textColor: 'text-[#082046]',
+                  iconColor: 'text-[#082046]',
+                  selectedBorder: 'border-[#0e7bf4] ring-2 ring-[#0e7bf4]/30 shadow-md',
                 },
                 {
                   id: 'sepia' as ReadingTheme,
                   label: t('settings_display_sepia'),
-                  desc: 'Warm paper tint for reading comfort',
+                  desc: t('settings_theme_sepia_desc'),
                   icon: Eye,
+                  previewClass: 'theme-preview-card-sepia',
                   cardBg: 'bg-[#f4ebd0]',
                   textColor: 'text-[#432c12]',
+                  iconColor: 'text-[#432c12]',
+                  selectedBorder: 'border-[#b45309] ring-2 ring-[#b45309]/30 shadow-md',
                 },
                 {
                   id: 'high-contrast' as ReadingTheme,
                   label: t('settings_display_contrast'),
-                  desc: 'Maximum legible night contrast',
+                  desc: t('settings_theme_dark_desc'),
                   icon: Moon,
-                  cardBg: 'bg-[#08182e]',
-                  textColor: 'text-[#ffffff]',
+                  previewClass: 'theme-preview-card-dark',
+                  cardBg: 'bg-[#06111f]',
+                  textColor: 'text-white',
+                  iconColor: 'text-[#38bdf8]',
+                  selectedBorder: 'border-[#38bdf8] ring-2 ring-[#38bdf8]/60 shadow-[0_0_15px_rgba(56,189,248,0.4)]',
                 },
               ].map((thm) => {
                 const Icon = thm.icon;
@@ -665,14 +676,14 @@ export default function SettingsPage() {
                     key={thm.id}
                     type="button"
                     onClick={() => handleThemeChange(thm.id)}
-                    className={`flex flex-col items-start p-5 rounded-2xl border text-left transition-all ${thm.cardBg} ${
+                    className={`theme-preview-card ${thm.previewClass} flex flex-col items-start p-5 rounded-2xl border-2 text-left transition-all ${thm.cardBg} ${
                       isSelected
-                        ? 'border-[#0e7bf4] shadow-md ring-2 ring-[#0e7bf4]'
+                        ? thm.selectedBorder
                         : 'border-[#c4d2e3] hover:shadow-sm'
                     }`}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <Icon className={`size-5 ${thm.textColor}`} />
+                      <Icon className={`size-5 ${thm.iconColor}`} />
                       {isSelected && (
                         <span className="flex size-5 items-center justify-center rounded-full bg-[#0e7bf4] text-white">
                           <Check className="size-3 stroke-[3]" />
@@ -680,7 +691,7 @@ export default function SettingsPage() {
                       )}
                     </div>
                     <p className={`mt-3 text-sm font-black ${thm.textColor}`}>{thm.label}</p>
-                    <p className="mt-1 text-[11px] opacity-80 leading-snug">{thm.desc}</p>
+                    <p className={`mt-1 text-[11px] leading-snug opacity-80 ${thm.textColor}`}>{thm.desc}</p>
                   </button>
                 );
               })}
@@ -723,8 +734,8 @@ export default function SettingsPage() {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { id: 'comfortable' as DensityMode, label: t('settings_display_comfortable'), desc: 'Spacious cards & generous margins' },
-                  { id: 'compact' as DensityMode, label: t('settings_display_compact'), desc: 'Condensed table & high-volume scanning' },
+                  { id: 'comfortable' as DensityMode, label: t('settings_display_comfortable'), desc: t('settings_density_comfortable_desc') },
+                  { id: 'compact' as DensityMode, label: t('settings_display_compact'), desc: t('settings_density_compact_desc') },
                 ].map((d) => (
                   <button
                     key={d.id}
@@ -805,7 +816,7 @@ export default function SettingsPage() {
                           : 'border-[#e2eaf4] bg-[#F8FAFC] text-[#526987] hover:bg-white'
                       }`}
                     >
-                      {q.label}
+                      {t(q.translationKey)}
                     </button>
                   );
                 })}

@@ -12,8 +12,11 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { SERVICE_PORTAL_URL, PARTNER_PORTAL_URL } from '@/lib/urls';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 export function ServicesQuickBridge() {
+  const { t } = useLanguage();
+
   return (
     <section className="my-10 grid gap-6 md:grid-cols-2">
       {/* Citizen Booking Callout */}
@@ -21,26 +24,26 @@ export function ServicesQuickBridge() {
         <div className="space-y-3">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-100/80 px-3 py-1 text-xs font-bold text-cyan-800">
             <Sparkles className="size-3.5 text-cyan-600" />
-            <span>ApplyFields Citizen Services Hub</span>
+            <span>{t('bridge_hub_badge')}</span>
           </div>
 
           <h3 className="text-xl font-bold tracking-tight text-[#082046]">
-            Need MeeSeva, PAN Card or Xerox?
+            {t('bridge_citizen_title')}
           </h3>
 
           <p className="text-xs leading-relaxed text-[#536780]">
-            Skip walk-in queues. Reserve guaranteed 15-to-30 minute time slots at verified digital centers near your home or college with pre-filled forms.
+            {t('bridge_citizen_desc')}
           </p>
 
           <div className="flex flex-wrap gap-2 pt-1 text-xs font-semibold text-[#082046]">
             <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
-              <span className="font-bold text-[#0e7bf4]">✓</span> Laser Xerox &amp; Spiral Binding
+              <span className="font-bold text-[#0e7bf4]">✓</span> {t('bridge_feat_xerox')}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
-              <span className="font-bold text-[#0e7bf4]">✓</span> Instant e-PAN &amp; NSDL
+              <span className="font-bold text-[#0e7bf4]">✓</span> {t('bridge_feat_pan')}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
-              <span className="font-bold text-[#0e7bf4]">✓</span> Caste &amp; Income Certificates
+              <span className="font-bold text-[#0e7bf4]">✓</span> {t('bridge_feat_certs')}
             </span>
           </div>
 
@@ -52,7 +55,7 @@ export function ServicesQuickBridge() {
               className="inline-flex items-center gap-2 rounded-2xl bg-[#082046] px-5 py-3 text-xs font-bold !text-white shadow-md transition hover:bg-[#0e7bf4] hover:shadow-lg active:scale-95"
               style={{ color: '#ffffff' }}
             >
-              <span className="font-bold !text-white" style={{ color: '#ffffff' }}>Explore Centers &amp; Book Slots</span>
+              <span className="font-bold !text-white" style={{ color: '#ffffff' }}>{t('bridge_book_slots')}</span>
               <ArrowRight className="size-4 text-cyan-300" />
             </a>
           </div>
@@ -64,26 +67,26 @@ export function ServicesQuickBridge() {
         <div className="space-y-3">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-xs font-bold text-emerald-800">
             <Store className="size-3.5 text-emerald-600" />
-            <span>For Local Shop &amp; Kiosk Owners</span>
+            <span>{t('bridge_partner_badge')}</span>
           </div>
 
           <h3 className="text-xl font-bold tracking-tight text-[#082046]">
-            Run a MeeSeva, CSC, or Xerox Shop?
+            {t('bridge_partner_title')}
           </h3>
 
           <p className="text-xs leading-relaxed text-[#536780]">
-            Join the ApplyFields Partner Network. Receive pre-scheduled citizen appointments, boost monthly revenue, and manage your shifts with zero software friction.
+            {t('bridge_partner_desc')}
           </p>
 
           <div className="flex flex-wrap gap-2 pt-1 text-xs font-semibold text-[#082046]">
             <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
-              <span className="font-bold text-emerald-600">✓</span> GPS Distance Discovery
+              <span className="font-bold text-emerald-600">✓</span> {t('bridge_feat_gps')}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
-              <span className="font-bold text-emerald-600">✓</span> Swiggy-Style Shift Scheduler
+              <span className="font-bold text-emerald-600">✓</span> {t('bridge_feat_shifts')}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 border border-[#c4d7ec] text-[#082046] shadow-xs">
-              <span className="font-bold text-emerald-600">✓</span> 1-Click Document Printing
+              <span className="font-bold text-emerald-600">✓</span> {t('bridge_feat_print')}
             </span>
           </div>
 
@@ -95,7 +98,7 @@ export function ServicesQuickBridge() {
               className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-bold !text-white shadow-md transition hover:bg-emerald-500 hover:shadow-lg active:scale-95"
               style={{ color: '#ffffff' }}
             >
-              <span className="font-bold !text-white" style={{ color: '#ffffff' }}>Register Your Center in 3 Mins</span>
+              <span className="font-bold !text-white" style={{ color: '#ffffff' }}>{t('bridge_register_partner')}</span>
               <ArrowRight className="size-4 text-emerald-200" />
             </a>
           </div>

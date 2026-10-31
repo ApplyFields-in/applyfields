@@ -6,6 +6,7 @@ import { Bookmark, ExternalLink } from 'lucide-react';
 import type { OpportunityCard, OpportunityType } from '@applyfields/types';
 import { formatDate } from '@/lib/format';
 import { apiPut, apiDelete } from '@/lib/api';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 export interface ExtendedOpportunityCard extends Omit<OpportunityCard, 'type'> {
   type: OpportunityType | 'service';
@@ -18,6 +19,7 @@ export function HorizontalOpportunityCard({
   item: ExtendedOpportunityCard;
   officialDomain?: string;
 }) {
+  const { t } = useLanguage();
   const [isSaved, setIsSaved] = useState(Boolean(item.saved));
 
   // Determine official domain from item or known patterns
@@ -42,26 +44,26 @@ export function HorizontalOpportunityCard({
   // Human-readable type label
   const typeLabel =
     item.type === 'govt_job'
-      ? 'Government Job'
+      ? t('card_type_govt_job')
       : item.type === 'exam'
-        ? 'Government Exam'
+        ? t('card_type_exam')
         : item.type === 'scholarship'
-          ? 'Scholarship'
+          ? t('card_type_scholarship')
           : item.type === 'admission'
-            ? 'Admission'
-            : 'Government Service';
+            ? t('card_type_admission')
+            : t('card_type_service');
 
   // Eligibility chips
   const eligibilityLabel =
     item.qualification?.toLowerCase().includes('graduate') || item.qualification?.toLowerCase().includes('bachelor')
-      ? "Bachelor's degree"
+      ? t('card_qual_graduate')
       : item.qualification?.toLowerCase().includes('12th')
-        ? 'Class 12th pass'
+        ? t('card_qual_12th')
         : item.type === 'scholarship'
-          ? 'Family Income < ₹2.5L'
+          ? t('card_qual_income')
           : item.type === 'service'
-            ? 'Indian citizen'
-            : item.qualification || 'Eligible';
+            ? t('card_qual_citizen')
+            : item.qualification || t('card_qual_eligible');
 
   const linkHref =
     item.type === 'govt_job'
@@ -86,12 +88,12 @@ export function HorizontalOpportunityCard({
     }
   }
 
-  const deadlineFormatted = item.last_date ? formatDate(item.last_date) : 'Rolling';
+  const deadlineFormatted = item.last_date ? formatDate(item.last_date) : t('card_rolling');
   const daysText =
     typeof item.days_left === 'number'
       ? item.days_left > 0
-        ? ` · ${item.days_left}d`
-        : ' · Closing today'
+        ? ` · ${item.days_left}${t('card_days_left_short')}`
+        : ` · ${t('card_closing_today')}`
       : '';
 
   return (
@@ -118,7 +120,7 @@ export function HorizontalOpportunityCard({
             {item.title}
           </Link>
           <p className="text-xs text-slate-500 mt-0.5 truncate">
-            Source: {item.organization || 'Official Portal'}
+            {t('card_source')}: {item.organization || 'Official Portal'}
           </p>
         </div>
       </div>
@@ -127,7 +129,7 @@ export function HorizontalOpportunityCard({
       <div className="flex items-center justify-between md:justify-end gap-6 sm:gap-8 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
         {/* Official Route */}
         <div className="text-left">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Official Route</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('card_official_route')}</p>
           <a
             href={`https://${domain}`}
             target="_blank"
@@ -141,7 +143,7 @@ export function HorizontalOpportunityCard({
 
         {/* Deadline */}
         <div className="text-left min-w-[100px]">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Deadline</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('card_deadline')}</p>
           <p className="text-xs font-semibold text-slate-800 mt-0.5">
             {deadlineFormatted}
             <span className="text-slate-500 font-normal">{daysText}</span>
@@ -152,7 +154,7 @@ export function HorizontalOpportunityCard({
         <button
           type="button"
           onClick={toggleSave}
-          aria-label={isSaved ? 'Remove from saved' : 'Save opportunity'}
+          aria-label={isSaved ? t('card_remove_saved') : t('card_save_item')}
           className={`p-2 rounded-xl transition-colors ${
             isSaved ? 'text-[#0e7bf4] bg-blue-50' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
           }`}
@@ -165,7 +167,7 @@ export function HorizontalOpportunityCard({
           href={linkHref}
           className="px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors shrink-0"
         >
-          View details
+          {t('card_view_details')}
         </Link>
       </div>
     </div>
