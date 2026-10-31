@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Headers,
   HttpCode,
   NotFoundException,
   Param,
@@ -56,11 +57,15 @@ export class OpportunitiesController {
     @Query('qualification') qualification?: string,
     @Query('deadline') deadline?: string,
     @Query('eligible') eligible?: string,
+    @Query('lang') lang?: string,
+    @Headers('accept-language') acceptLang?: string,
   ): Promise<OpportunityList> {
+    const effectiveLang =
+      lang || (acceptLang?.startsWith('te') ? 'te' : acceptLang?.startsWith('hi') ? 'hi' : 'en');
     if (type && !TYPES.includes(type as OpportunityType)) {
       throw new BadRequestException(`type must be one of: ${TYPES.join(', ')}`);
     }
-    const key = `opportunities:${type ?? 'all'}:${category ?? ''}:${state ?? ''}:${qualification ?? ''}:${deadline ?? ''}:${q ?? ''}`;
+    const key = `opportunities:${type ?? 'all'}:${category ?? ''}:${state ?? ''}:${qualification ?? ''}:${deadline ?? ''}:${q ?? ''}:${effectiveLang}`;
     const data = await this.cache.wrap<OpportunityList>(key, 30, async () => {
       const items = await this.opportunities.list({
         type: type as OpportunityType | undefined,
@@ -69,6 +74,7 @@ export class OpportunitiesController {
         state,
         qualification,
         deadline,
+        lang: effectiveLang,
       });
       return {
         type: (type as OpportunityType | undefined) ?? 'all',
@@ -101,12 +107,17 @@ export class OpportunitiesController {
   }
 
   /** GET /api/v1/opportunities/:slug — complete published detail page */
-
   @Get('opportunities/:slug')
-  async detail(@Param('slug') slug: string): Promise<OpportunityDetail> {
-    const key = `opportunity:slug:${slug}`;
+  async detail(
+    @Param('slug') slug: string,
+    @Query('lang') lang?: string,
+    @Headers('accept-language') acceptLang?: string,
+  ): Promise<OpportunityDetail> {
+    const effectiveLang =
+      lang || (acceptLang?.startsWith('te') ? 'te' : acceptLang?.startsWith('hi') ? 'hi' : 'en');
+    const key = `opportunity:slug:${slug}:${effectiveLang}`;
     const item = await this.cache.wrap(key, 30, async () => {
-      return this.opportunities.findBySlug(slug);
+      return this.opportunities.findBySlug(slug, effectiveLang);
     });
     if (!item) {
       throw new NotFoundException(`Opportunity with slug "${slug}" not found`);

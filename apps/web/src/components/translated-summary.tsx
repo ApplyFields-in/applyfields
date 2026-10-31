@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Badge, Card } from '@applyfields/ui';
-import { AlertCircle, Globe, ShieldAlert } from 'lucide-react';
+import { AlertCircle, Globe, ShieldAlert, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/language-context';
 import type { SupportedLanguage } from '@/lib/i18n/translations';
 
@@ -21,6 +21,12 @@ export function TranslatedSummary({
 }: TranslatedSummaryProps) {
   const { locale, t } = useLanguage();
   const [activeLang, setActiveLang] = useState<SupportedLanguage>(locale || 'en');
+
+  useEffect(() => {
+    if (locale) {
+      setActiveLang(locale);
+    }
+  }, [locale]);
 
   const currentText =
     activeLang === 'te'
@@ -74,6 +80,14 @@ export function TranslatedSummary({
           </button>
         </div>
       </div>
+
+      {/* AI Translation Badge */}
+      {activeLang !== 'en' && (
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#0e7bf4] bg-[#F0F7FF] px-2.5 py-1 rounded-lg w-fit border border-[#0e7bf4]/20">
+          <Sparkles className="size-3" />
+          <span>{activeLang === 'te' ? 'AI ధృవీకరించిన అనువాదం' : 'AI सत्यापित अनुवाद'}</span>
+        </div>
+      )}
 
       {/* Summary Content */}
       <div className="text-xs sm:text-sm text-[#334a69] leading-relaxed whitespace-pre-line">
