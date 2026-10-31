@@ -29,6 +29,11 @@ function getStoredToken(): string | null {
   return localStorage.getItem('accessToken');
 }
 
+function getStoredLocale(): string {
+  if (typeof window === 'undefined') return 'en';
+  return localStorage.getItem('applyfields_locale') || 'en';
+}
+
 /** Attempt to refresh access token using the httpOnly refreshToken cookie or existing token */
 async function attemptTokenRefresh(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
@@ -83,7 +88,9 @@ export async function apiGet<T>(
 ): Promise<T | null> {
   try {
     const token = _token || getStoredToken();
+    const locale = getStoredLocale();
     const headers: Record<string, string> = {
+      'Accept-Language': locale,
       ...((options?.headers as Record<string, string>) || {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };

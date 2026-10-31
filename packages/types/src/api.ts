@@ -27,6 +27,8 @@ export interface OpportunityCard {
   slug: string;
   type: OpportunityType;
   title: string;
+  title_te?: string;
+  title_hi?: string;
   organization: string;
   location: string;
   qualification: string;
@@ -293,6 +295,20 @@ export interface OpportunityDetail {
   };
   notification_number: string | null;
   summary: string | null;
+  summary_te?: string | null;
+  summary_hi?: string | null;
+  title_te?: string | null;
+  title_hi?: string | null;
+  translations?: Record<
+    string,
+    {
+      title?: string;
+      summary?: string;
+      fee_text?: string;
+      benefits_text?: string;
+      selection_process?: string[];
+    }
+  >;
   state_codes: string[];
   districts: string[];
   vacancies_total: number | null;
@@ -439,6 +455,20 @@ export interface OpportunityInput {
   organization_id: string;
   notification_number: string | null;
   summary: string | null;
+  summary_te?: string | null;
+  summary_hi?: string | null;
+  title_te?: string | null;
+  title_hi?: string | null;
+  translations?: Record<
+    string,
+    {
+      title?: string;
+      summary?: string;
+      fee_text?: string;
+      benefits_text?: string;
+      selection_process?: string[];
+    }
+  >;
   state_codes: string[];
   districts: string[];
   vacancies_total: number | null;
