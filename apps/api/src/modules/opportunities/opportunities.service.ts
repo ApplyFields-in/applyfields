@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type {
   AgeRelaxation,
   Fee,
@@ -11,6 +11,10 @@ import type {
 } from '@applyfields/types';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  AiTranslationService,
+  type OpportunityTranslations,
+} from './ai-translation.service.js';
 
 const DAY_MS = 86_400_000;
 const IST_OFFSET_MS = 5.5 * 3_600_000;
@@ -90,6 +94,7 @@ export const CARD_SELECT = {
   state_codes: true,
   vacancies_total: true,
   application_end: true,
+  field_status: true,
   organizations: { select: { name: true, short_name: true } },
   opportunity_eligibility: {
     where: { post_id: null },
@@ -110,15 +115,36 @@ export function openWhere(today: Date): Prisma.opportunitiesWhereInput {
 
 @Injectable()
 export class OpportunitiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(OpportunitiesService.name);
 
-  toCard(row: CardRow, today: Date): OpportunityCard {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiTranslation: AiTranslationService,
+  ) {}
+
+  toCard(row: CardRow, today: Date, lang?: string): OpportunityCard {
     const level = row.opportunity_eligibility[0]?.qualification_level;
     const org = row.organizations;
+    const fieldStatus = (row.field_status ?? {}) as Record<string, any>;
+    const translations = fieldStatus.translations as
+      | Record<string, { title?: string }>
+      | undefined;
+
+    const titleTe = translations?.te?.title;
+    const titleHi = translations?.hi?.title;
+    const localizedTitle =
+      lang === 'te' && titleTe
+        ? titleTe
+        : lang === 'hi' && titleHi
+          ? titleHi
+          : row.title;
+
     return {
       slug: row.slug,
       type: row.type,
-      title: row.title,
+      title: localizedTitle,
+      title_te: titleTe,
+      title_hi: titleHi,
       organization:
         org.short_name && !org.name.includes(org.short_name)
           ? `${org.name} (${org.short_name})`
@@ -145,6 +171,7 @@ export class OpportunitiesService {
     deadline?: string;
     q?: string;
     take?: number;
+    lang?: string;
   }): Promise<OpportunityCard[]> {
     const today = todayIst();
     const type = filters?.type;
@@ -302,11 +329,14 @@ export class OpportunitiesService {
       ],
       take,
     });
-    return rows.map((r) => this.toCard(r, today));
+    return rows.map((r) => this.toCard(r, today, filters?.lang));
   }
 
   /** Find complete published opportunity details by slug. */
-  async findBySlug(slug: string): Promise<OpportunityDetail | null> {
+  async findBySlug(
+    slug: string,
+    lang?: string,
+  ): Promise<OpportunityDetail | null> {
     const today = todayIst();
     const row = await this.prisma.opportunities.findFirst({
       where: {
@@ -340,22 +370,110 @@ export class OpportunitiesService {
       ? Math.round((row.application_end.getTime() - today.getTime()) / DAY_MS)
       : null;
 
+    // AI Translation resolving and on-demand DB caching
+    const fieldStatus = (row.field_status ?? {}) as Record<string, any>;
+    let translations = (fieldStatus.translations ?? {}) as OpportunityTranslations;
+
+    const needsTranslation =
+      !translations.te?.summary ||
+      !translations.hi?.summary ||
+      !translations.te?.title ||
+      !translations.hi?.title;
+
+    if (needsTranslation) {
+      try {
+        const generated = await this.aiTranslation.translateOpportunity({
+          title: row.title,
+          summary: row.summary,
+          fee_text: row.fee_text,
+          benefits_text: row.benefits_text,
+          selection_process: row.selection_process,
+        });
+
+        translations = {
+          te: { ...(translations.te ?? {}), ...(generated.te ?? {}) },
+          hi: { ...(translations.hi ?? {}), ...(generated.hi ?? {}) },
+        };
+
+        // Cache back to the DB asynchronously so subsequent queries are instantaneous
+        this.prisma.opportunities
+          .update({
+            where: { id: row.id },
+            data: {
+              field_status: {
+                ...fieldStatus,
+                translations: translations as unknown as Prisma.InputJsonValue,
+              } as Prisma.InputJsonValue,
+            },
+          })
+          .catch((err) =>
+            this.logger.warn(`Failed to persist translation cache for ${slug}: ${err}`),
+          );
+      } catch (err) {
+        this.logger.warn(`AI translation failed for ${slug}: ${err}`);
+      }
+    }
+
+    const titleTe = translations.te?.title;
+    const titleHi = translations.hi?.title;
+    const summaryTe = translations.te?.summary;
+    const summaryHi = translations.hi?.summary;
+
+    const displayTitle =
+      lang === 'te' && titleTe
+        ? titleTe
+        : lang === 'hi' && titleHi
+          ? titleHi
+          : row.title;
+
+    const displaySummary =
+      lang === 'te' && summaryTe
+        ? summaryTe
+        : lang === 'hi' && summaryHi
+          ? summaryHi
+          : row.summary;
+
+    const displayFeeText =
+      lang === 'te' && translations.te?.fee_text
+        ? translations.te.fee_text
+        : lang === 'hi' && translations.hi?.fee_text
+          ? translations.hi.fee_text
+          : row.fee_text;
+
+    const displayBenefits =
+      lang === 'te' && translations.te?.benefits_text
+        ? translations.te.benefits_text
+        : lang === 'hi' && translations.hi?.benefits_text
+          ? translations.hi.benefits_text
+          : row.benefits_text;
+
+    const displaySelection =
+      lang === 'te' && translations.te?.selection_process
+        ? translations.te.selection_process
+        : lang === 'hi' && translations.hi?.selection_process
+          ? translations.hi.selection_process
+          : row.selection_process;
+
     return {
       id: row.id,
       slug: row.slug,
       type: row.type,
       category: row.category,
-      title: row.title,
+      title: displayTitle,
+      title_te: titleTe,
+      title_hi: titleHi,
       organization: row.organizations,
       notification_number: row.notification_number,
-      summary: row.summary,
+      summary: displaySummary,
+      summary_te: summaryTe,
+      summary_hi: summaryHi,
       state_codes: row.state_codes,
       districts: row.districts,
       vacancies_total: row.vacancies_total,
       fees: (row.fees ?? []) as unknown as Fee[],
-      fee_text: row.fee_text,
+      fee_text: displayFeeText,
       payment_modes: row.payment_modes,
-      selection_process: row.selection_process,
+      selection_process: displaySelection,
       required_documents: (row.required_documents ??
         []) as unknown as RequiredDocument[],
       syllabus: row.syllabus as {
@@ -366,7 +484,8 @@ export class OpportunitiesService {
         title: string;
         url: string;
       }[],
-      benefits_text: row.benefits_text,
+      benefits_text: displayBenefits,
+      translations: translations as Record<string, any>,
       application_start: row.application_start
         ? isoDate(row.application_start)
         : null,
@@ -536,7 +655,11 @@ export class OpportunitiesService {
    * Similar opportunities: up to 5 published, open opportunities that share
    * the same type and category as the given slug, excluding that slug itself.
    */
-  async similar(slug: string, take = 5): Promise<OpportunityCard[]> {
+  async similar(
+    slug: string,
+    take = 5,
+    lang?: string,
+  ): Promise<OpportunityCard[]> {
     const today = todayIst();
     const source = await this.prisma.opportunities.findFirst({
       where: { slug, status: 'published' },
@@ -558,7 +681,7 @@ export class OpportunitiesService {
       ],
       take,
     });
-    return rows.map((r) => this.toCard(r, today));
+    return rows.map((r) => this.toCard(r, today, lang));
   }
 }
 
