@@ -70,6 +70,15 @@ export interface CitizenBookingItem {
   requiredDocuments: string[];
   portalRegNumber?: string;
   createdAt: string;
+  dispute?: {
+    id: string;
+    reason: string;
+    details: string;
+    refundClaim: number;
+    status: 'open' | 'refund_approved' | 'dismissed';
+    adminNote?: string;
+    openedAt: string;
+  };
 }
 
 const DEFAULT_SEED_BOOKINGS: CitizenBookingItem[] = [
@@ -134,6 +143,14 @@ const DEFAULT_SEED_BOOKINGS: CitizenBookingItem[] = [
     isPaid: false,
     requiredDocuments: ['Ration Card / Food Security Card', 'Salary Slip / Income Affidavit', 'Applicant Signature Scan'],
     createdAt: '2026-10-30T10:00:00Z',
+    dispute: {
+      id: 'DSP-8824',
+      reason: 'Partner Overcharged Above Rate Card',
+      details: 'Charged extra cash beyond the booked MeeSeva assistance fee.',
+      refundClaim: 40,
+      status: 'open',
+      openedAt: '30 Oct 2026',
+    },
   },
   {
     id: 'bk-7910',
@@ -184,6 +201,13 @@ export default function MyBookingsPage() {
   const [uploadFileName, setUploadFileName] = useState('');
   const [uploadSuccessMessage, setUploadSuccessMessage] = useState(false);
 
+  // Dispute & Refund Arbitration
+  const [disputingBooking, setDisputingBooking] = useState<CitizenBookingItem | null>(null);
+  const [disputeReason, setDisputeReason] = useState('Partner Overcharged Above Rate Card');
+  const [disputeDetails, setDisputeDetails] = useState('');
+  const [disputeClaimAmount, setDisputeClaimAmount] = useState<number>(0);
+  const [disputeSuccessToast, setDisputeSuccessToast] = useState<string | null>(null);
+
   // Load from localStorage or initialize defaults
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -219,6 +243,7 @@ export default function MyBookingsPage() {
             requiredDocuments: b.requiredDocuments || ['Aadhaar Card (Original)', 'Application Forms'],
             portalRegNumber: b.portalRegNumber,
             createdAt: b.createdAt || new Date().toISOString(),
+            dispute: b.dispute,
           }));
 
           setBookings([...mappedStored, ...complementary]);
@@ -282,6 +307,37 @@ export default function MyBookingsPage() {
       setCorrectingBooking(null);
       setUploadFileName('');
     }, 1200);
+  }
+
+  // Handle filing citizen grievance / dispute
+  function handleFileDispute(e: React.FormEvent) {
+    e.preventDefault();
+    if (!disputingBooking || !disputeDetails.trim()) return;
+
+    const newDispute = {
+      id: `DSP-${Math.floor(1000 + Math.random() * 9000)}`,
+      reason: disputeReason,
+      details: disputeDetails.trim(),
+      refundClaim: disputeClaimAmount || disputingBooking.total,
+      status: 'open' as const,
+      openedAt: 'Today',
+    };
+
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === disputingBooking.id
+          ? {
+              ...b,
+              dispute: newDispute,
+            }
+          : b,
+      ),
+    );
+
+    setDisputeSuccessToast(`Grievance Case #${newDispute.id} registered. Our Admin Arbitration Desk will review and arbitrate within 24 hours.`);
+    setDisputingBooking(null);
+    setDisputeDetails('');
+    setTimeout(() => setDisputeSuccessToast(null), 5000);
   }
 
   const filteredBookings = useMemo(() => {
@@ -624,6 +680,30 @@ export default function MyBookingsPage() {
                   </div>
                 )}
 
+                {/* Dispute / Grievance Status Banner */}
+                {b.dispute && (
+                  <div className={`my-3 rounded-2xl border p-3.5 text-xs space-y-1.5 ${
+                    b.dispute.status === 'open'
+                      ? 'border-amber-200 bg-amber-50 text-amber-900'
+                      : b.dispute.status === 'refund_approved'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                        : 'border-slate-200 bg-slate-50 text-slate-800'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold uppercase tracking-wider text-[10px]">
+                        Grievance Case #{b.dispute.id} - {b.dispute.status === 'open' ? 'Under Admin Arbitration' : b.dispute.status === 'refund_approved' ? 'Refund Credited' : 'Resolved'}
+                      </span>
+                      <span className="font-mono font-bold">Claim: INR {b.dispute.refundClaim}.00</span>
+                    </div>
+                    <p className="font-medium text-slate-700">{b.dispute.reason}: {b.dispute.details}</p>
+                    {b.dispute.adminNote && (
+                      <p className="pt-1 text-[11px] border-t border-slate-200 italic text-slate-600">
+                        Admin Verdict: {b.dispute.adminNote}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Center & Required Documents Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-600 mt-3 pt-3 border-t border-slate-100">
                   <div className="space-y-1">
@@ -696,6 +776,23 @@ export default function MyBookingsPage() {
                       <MessageSquare className="h-3.5 w-3.5 text-[#0e7bf4]" />
                       <span>Chat with Desk</span>
                     </Link>
+
+                    {/* Raise Grievance / Dispute Button */}
+                    {!b.dispute && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDisputingBooking(b);
+                          setDisputeReason('Partner Overcharged Above Rate Card');
+                          setDisputeDetails('');
+                          setDisputeClaimAmount(b.total);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition"
+                      >
+                        <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
+                        <span>Raise Grievance</span>
+                      </button>
+                    )}
 
                     {/* View Digital Token Slip */}
                     <button
@@ -967,6 +1064,116 @@ export default function MyBookingsPage() {
               </form>
             )}
           </div>
+        </div>
+      )}
+      {/* MODAL 3: GRIEVANCE & REFUND DISPUTE MODAL */}
+      {disputingBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-white bg-white p-6 sm:p-8 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-rose-600" />
+                <h3 className="text-base font-bold text-[#082046]">File Grievance / Refund Dispute</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDisputingBooking(null)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-600 space-y-1">
+              <div className="flex justify-between font-bold text-[#082046]">
+                <span>Token: {disputingBooking.token}</span>
+                <span>Center: {disputingBooking.partner.name}</span>
+              </div>
+              <p>Booking Fee Paid: INR {disputingBooking.total}.00 ({disputingBooking.paymentMode})</p>
+            </div>
+
+            <form onSubmit={handleFileDispute} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-xs font-bold text-[#082046] mb-1">
+                  Reason for Grievance
+                </label>
+                <select
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-800 focus:border-[#0e7bf4] focus:outline-none"
+                >
+                  <option value="Partner Overcharged Above Rate Card">Partner Overcharged Above Rate Card</option>
+                  <option value="Severe Service Delay / Slot Not Honored">Severe Service Delay / Slot Not Honored</option>
+                  <option value="Incorrect Application Details Submitted to Government Portal">Incorrect Application Details Submitted to Government Portal</option>
+                  <option value="Center Closed / Staff Unresponsive">Center Closed / Staff Unresponsive</option>
+                  <option value="Other Discrepancy">Other Discrepancy</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#082046] mb-1">
+                  Details & Evidence
+                </label>
+                <textarea
+                  rows={3}
+                  value={disputeDetails}
+                  onChange={(e) => setDisputeDetails(e.target.value)}
+                  placeholder="Describe exactly what happened at the counter, unauthorized extra charges, or filing errors..."
+                  required
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#0e7bf4] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#082046] mb-1">
+                  Claimed Refund Amount (INR)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={disputingBooking.total}
+                  value={disputeClaimAmount || disputingBooking.total}
+                  onChange={(e) => setDisputeClaimAmount(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-mono font-bold text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
+                />
+                <span className="text-[11px] text-slate-400 mt-0.5 block">
+                  Maximum refundable: INR {disputingBooking.total}.00 (held in escrow until arbitrated)
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-amber-900 space-y-0.5">
+                <p className="font-bold">Consumer Protection Notice:</p>
+                <p>
+                  Upon filing, the partner center's settlement payout for this order is paused in escrow. ApplyFields arbitration staff will review the counter logs and issue a binding decision within 24 hours.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setDisputingBooking(null)}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!disputeDetails.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50 transition shadow-sm"
+                >
+                  <span>Submit to Arbitration</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Grievance Filed Success Toast */}
+      {disputeSuccessToast && (
+        <div className="fixed bottom-6 right-6 z-50 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-xl text-xs font-bold text-emerald-900 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <span>{disputeSuccessToast}</span>
         </div>
       )}
     </div>

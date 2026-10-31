@@ -39,7 +39,7 @@ export default function PartnerDashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, partner, logout, setPartnerOptimistic } = usePartnerAuth();
+  const { user, partner, logout, setPartnerOptimistic, activeRole, switchRole } = usePartnerAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [updatingAvailability, setUpdatingAvailability] = useState(false);
@@ -91,10 +91,10 @@ export default function PartnerDashboardLayout({
       badge: 'Filing',
     },
     {
-      name: 'Cash Drawer & Settlement',
+      name: activeRole === 'staff' ? 'Cash Drawer (Owner Only)' : 'Cash Drawer & Settlement',
       href: '/settlement',
       icon: Wallet,
-      badge: 'Wallet',
+      badge: activeRole === 'staff' ? 'Locked' : 'Wallet',
     },
     {
       name: 'Overview Dashboard',
@@ -202,13 +202,34 @@ export default function PartnerDashboardLayout({
 
         {/* Footer info & Logout */}
         <div className="border-t border-slate-800 p-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-xs mb-3">
-            <div className="text-[11px] font-semibold text-slate-400">Operator Session</div>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-xs mb-3 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-400">Desk Session</span>
+              <span className={`rounded px-1.5 py-0.2 text-[10px] font-bold uppercase ${
+                activeRole === 'owner'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+              }`}>
+                {activeRole === 'owner' ? 'Owner Account' : 'Counter Operator'}
+              </span>
+            </div>
             <div className="text-white font-medium truncate mt-0.5">
               {partner?.owner_name || user?.email || 'Center Operator'}
             </div>
             <div className="text-[10px] text-slate-500 font-mono mt-0.5">
               {partner?.phone || user?.phone || '+91 9876543210'}
+            </div>
+
+            {/* Quick Role Switcher for Testing / Sub-account Simulation */}
+            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+              <span className="text-[10px] text-slate-500">Role View:</span>
+              <button
+                type="button"
+                onClick={() => switchRole(activeRole === 'owner' ? 'staff' : 'owner')}
+                className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 underline"
+              >
+                {activeRole === 'owner' ? 'Switch to Staff View' : 'Switch to Owner View'}
+              </button>
             </div>
           </div>
 
@@ -235,9 +256,18 @@ export default function PartnerDashboardLayout({
               <Menu className="h-5 w-5" />
             </button>
             <div className="hidden sm:block">
-              <h1 className="text-sm font-bold text-white tracking-tight">{centerName}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-bold text-white tracking-tight">{centerName}</h1>
+                <span className={`rounded px-1.5 py-0.2 text-[10px] font-bold uppercase ${
+                  activeRole === 'owner'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-amber-500/20 text-amber-400'
+                }`}>
+                  [{activeRole === 'owner' ? 'Owner' : 'Counter Staff'}]
+                </span>
+              </div>
               <p className="text-[11px] text-slate-400">
-                {partner?.city || 'Ameerpet'}, {partner?.state_code || 'TG'} ·{' '}
+                {partner?.city || 'Ameerpet'}, {partner?.state_code || 'TG'} -{' '}
                 <span className="font-mono text-emerald-400">{partner?.pincode || '500016'}</span>
               </p>
             </div>
@@ -350,7 +380,7 @@ export default function PartnerDashboardLayout({
         <main className="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
           <div className="flex-1">{children}</div>
           <footer className="mt-12 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-            <span>ApplyFields Partner Operator Desk · Real-time Workspace</span>
+            <span>ApplyFields Partner Operator Desk - Real-time Workspace</span>
           </footer>
         </main>
 

@@ -24,7 +24,22 @@ import {
   ZoomIn,
   ZoomOut,
   Navigation,
+  Users,
+  UserPlus,
+  Trash2,
+  Shield,
+  X,
 } from 'lucide-react';
+
+interface SubOperatorItem {
+  id: string;
+  name: string;
+  phone: string;
+  counterName: string;
+  role: 'staff';
+  status: 'active' | 'suspended';
+  addedOn: string;
+}
 
 export default function PartnerSettingsPage() {
   const { partner, user, refreshSession, setPartnerOptimistic } = usePartnerAuth();
@@ -45,6 +60,59 @@ export default function PartnerSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [staffList, setStaffList] = useState<SubOperatorItem[]>([
+    {
+      id: 'staff-1',
+      name: 'Ramesh Varma',
+      phone: '+91 98480 11223',
+      counterName: 'Counter 1 (Recruitment & Job Desk)',
+      role: 'staff',
+      status: 'active',
+      addedOn: '15 Oct 2026',
+    },
+    {
+      id: 'staff-2',
+      name: 'Priya Mudhiraj',
+      phone: '+91 98480 33445',
+      counterName: 'Counter 2 (Scanning & MeeSeva Desk)',
+      role: 'staff',
+      status: 'active',
+      addedOn: '22 Oct 2026',
+    },
+  ]);
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffPhone, setNewStaffPhone] = useState('');
+  const [newStaffCounter, setNewStaffCounter] = useState('Counter 1 (Intake Desk)');
+
+  const handleAddStaff = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStaffName.trim() || !newStaffPhone.trim()) return;
+
+    const newOperator: SubOperatorItem = {
+      id: `staff-${Date.now()}`,
+      name: newStaffName.trim(),
+      phone: newStaffPhone.trim(),
+      counterName: newStaffCounter,
+      role: 'staff',
+      status: 'active',
+      addedOn: 'Today',
+    };
+
+    setStaffList((prev) => [...prev, newOperator]);
+    setNewStaffName('');
+    setNewStaffPhone('');
+    setShowAddStaffModal(false);
+    setSuccess('New counter operator account created.');
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  const handleRemoveStaff = (id: string) => {
+    setStaffList((prev) => prev.filter((s) => s.id !== id));
+    setSuccess('Operator account removed.');
+    setTimeout(() => setSuccess(null), 3000);
+  };
 
   // Sync state if partner changes
   useEffect(() => {
@@ -392,7 +460,7 @@ export default function PartnerSettingsPage() {
                 <div className="pointer-events-auto flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/95 px-2.5 py-1 text-[11px] font-mono text-emerald-400 shadow backdrop-blur-md">
                   <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>
-                    {(latitude ?? 17.437462).toFixed(5)}° N, {(longitude ?? 78.448288).toFixed(5)}° E
+                    {(latitude ?? 17.437462).toFixed(5)} N, {(longitude ?? 78.448288).toFixed(5)} E
                   </span>
                 </div>
                 <div className="pointer-events-auto rounded-lg border border-slate-800 bg-slate-900/95 px-2.5 py-1 text-[10px] text-slate-300 shadow backdrop-blur-md">
@@ -432,6 +500,165 @@ export default function PartnerSettingsPage() {
               <span className="font-semibold text-emerald-400">Inspected</span>
             </div>
           </div>
+        </div>
+
+        {/* Staff & Counter Operator Permissions Section */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800 pb-4">
+            <div>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Users className="h-4 w-4 text-emerald-400" />
+                Staff Sub-Accounts & Counter Access
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Grant counter staff logins for walk-in POS, document scanning, and order filing without sharing wallet or settlement access.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddStaffModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 border border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700 transition shrink-0"
+            >
+              <UserPlus className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Add Counter Staff</span>
+            </button>
+          </div>
+
+          {/* Active Staff List */}
+          <div className="space-y-3">
+            {staffList.map((staff) => (
+              <div
+                key={staff.id}
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950 p-4 text-xs"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white text-sm">{staff.name}</span>
+                    <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400 uppercase">
+                      Counter Operator
+                    </span>
+                    <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 uppercase">
+                      {staff.status}
+                    </span>
+                  </div>
+                  <p className="text-slate-400 font-mono">
+                    {staff.phone} - Assigned to: <strong className="text-slate-200">{staff.counterName}</strong>
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-slate-500 font-mono">Added: {staff.addedOn}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveStaff(staff.id)}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                    title="Remove Operator"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Permissions Matrix */}
+          <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-4 space-y-3 text-xs">
+            <div className="flex items-center gap-2 font-bold text-slate-300">
+              <Shield className="size-4 text-emerald-400" />
+              <span>Role Permissions Breakdown</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+              <div className="space-y-1 text-slate-300">
+                <p className="font-semibold text-emerald-400">Center Owner (Current Account):</p>
+                <p className="text-slate-400">Full control over Cash Drawer, Bank IFSC/Account settings, Escrow payout withdrawals, and rate cards.</p>
+              </div>
+              <div className="space-y-1 text-slate-300">
+                <p className="font-semibold text-amber-400">Counter Staff / Sub-Operators:</p>
+                <p className="text-slate-400">Restricted to walk-in customer POS intake, camera/scanner tools, order filing, and customer WhatsApp dispatch.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Add Staff Modal */}
+          {showAddStaffModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <UserPlus className="size-4 text-emerald-400" />
+                    <span>Create Counter Operator Login</span>
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddStaffModal(false)}
+                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block font-semibold text-slate-300">Staff Full Name</label>
+                    <input
+                      type="text"
+                      value={newStaffName}
+                      onChange={(e) => setNewStaffName(e.target.value)}
+                      placeholder="e.g. Suresh Reddy"
+                      className="mt-1 block w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-300">Mobile Number (Login Identifier)</label>
+                    <input
+                      type="text"
+                      value={newStaffPhone}
+                      onChange={(e) => setNewStaffPhone(e.target.value)}
+                      placeholder="+91 98480 99887"
+                      className="mt-1 block w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-white font-mono placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-300">Assigned Desk / Counter</label>
+                    <select
+                      value={newStaffCounter}
+                      onChange={(e) => setNewStaffCounter(e.target.value)}
+                      className="mt-1 block w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-white focus:border-emerald-500 focus:outline-none"
+                    >
+                      <option value="Counter 1 (Intake & POS)">Counter 1 (Intake & POS)</option>
+                      <option value="Counter 2 (Govt Filing Desk)">Counter 2 (Govt Filing Desk)</option>
+                      <option value="Counter 3 (Scanning & Photo Desk)">Counter 3 (Scanning & Photo Desk)</option>
+                    </select>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-[11px] text-amber-300 space-y-1">
+                    <p className="font-bold">Security Constraint:</p>
+                    <p>This operator will not have access to your bank settlement ledger or wallet withdrawals.</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddStaffModal(false)}
+                    className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddStaff}
+                    disabled={!newStaffName.trim() || !newStaffPhone.trim()}
+                    className="rounded-xl bg-emerald-500 px-5 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                  >
+                    Create Account
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Save Button */}
