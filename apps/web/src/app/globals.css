@@ -90,6 +90,42 @@
   color: #ffffff !important;
 }
 
+[data-reading-theme="high-contrast"] .bg-white\/80,
+[data-reading-theme="high-contrast"] .bg-white\/95 {
+  background-color: #0b1d33 !important;
+  color: #ffffff !important;
+}
+
+/* Selected state: glowing dark azure with bright sky text so it never becomes white-on-white */
+[data-reading-theme="high-contrast"] .bg-\[\#edf4fd\] {
+  background-color: #0e3568 !important;
+  color: #38bdf8 !important;
+  border-color: #38bdf8 !important;
+}
+
+[data-reading-theme="high-contrast"] .bg-\[\#edf4fd\] * {
+  color: #38bdf8 !important;
+}
+
+/* Secondary cards and unselected option pills */
+[data-reading-theme="high-contrast"] .bg-\[\#F8FAFC\],
+[data-reading-theme="high-contrast"] .bg-\[\#F8FBFF\],
+[data-reading-theme="high-contrast"] .bg-\[\#F1F6FB\],
+[data-reading-theme="high-contrast"] .bg-\[\#F0F5FA\],
+[data-reading-theme="high-contrast"] .bg-\[\#f4f7fb\] {
+  background-color: #0c1e34 !important;
+  color: #cbd5e1 !important;
+  border-color: #1e3a5f !important;
+}
+
+[data-reading-theme="high-contrast"] .border-\[\#e2eaf4\],
+[data-reading-theme="high-contrast"] .border-\[\#c4d2e3\],
+[data-reading-theme="high-contrast"] .border-\[\#c4d7ec\],
+[data-reading-theme="high-contrast"] .border-slate-200,
+[data-reading-theme="high-contrast"] .border-white {
+  border-color: #1e3a5f !important;
+}
+
 [data-reading-theme="high-contrast"] h1,
 [data-reading-theme="high-contrast"] h2,
 [data-reading-theme="high-contrast"] h3,
@@ -98,8 +134,44 @@
 }
 
 [data-reading-theme="high-contrast"] .text-\[\#536780\],
-[data-reading-theme="high-contrast"] .text-\[\#435775\] {
+[data-reading-theme="high-contrast"] .text-\[\#526987\],
+[data-reading-theme="high-contrast"] .text-\[\#435775\],
+[data-reading-theme="high-contrast"] .text-slate-600,
+[data-reading-theme="high-contrast"] .text-slate-500 {
   color: #94a3b8 !important;
+}
+
+/* Theme preview cards must preserve their exact visual identities regardless of active theme */
+[data-reading-theme="high-contrast"] .theme-preview-card-light {
+  background-color: #ffffff !important;
+  border-color: #c4d2e3 !important;
+}
+[data-reading-theme="high-contrast"] .theme-preview-card-light p,
+[data-reading-theme="high-contrast"] .theme-preview-card-light span,
+[data-reading-theme="high-contrast"] .theme-preview-card-light svg {
+  color: #082046 !important;
+}
+
+[data-reading-theme="high-contrast"] .theme-preview-card-sepia {
+  background-color: #f4ebd0 !important;
+  border-color: #c4d2e3 !important;
+}
+[data-reading-theme="high-contrast"] .theme-preview-card-sepia p,
+[data-reading-theme="high-contrast"] .theme-preview-card-sepia span,
+[data-reading-theme="high-contrast"] .theme-preview-card-sepia svg {
+  color: #432c12 !important;
+}
+
+[data-reading-theme="high-contrast"] .theme-preview-card-dark {
+  background-color: #06111f !important;
+  border-color: #38bdf8 !important;
+}
+[data-reading-theme="high-contrast"] .theme-preview-card-dark p,
+[data-reading-theme="high-contrast"] .theme-preview-card-dark span {
+  color: #ffffff !important;
+}
+[data-reading-theme="high-contrast"] .theme-preview-card-dark svg {
+  color: #38bdf8 !important;
 }
 
 
