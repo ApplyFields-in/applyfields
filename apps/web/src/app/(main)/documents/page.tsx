@@ -35,6 +35,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { DocumentPreviewExtractorModal } from '@/components/document-preview-extractor-modal';
+import { useLanguage } from '@/lib/i18n/language-context';
 
 interface DocTypeConfig {
   code: string;
@@ -122,6 +123,50 @@ const POPULAR_OPPORTUNITIES = [
 ];
 
 export default function DocumentsPage() {
+  const { t } = useLanguage();
+
+  const getDocTypeLabel = (code: string, fallback: string) => {
+    switch (code) {
+      case 'tenth_marksheet':
+        return t('doc_type_tenth', fallback);
+      case 'degree_certificate':
+        return t('doc_type_degree', fallback);
+      case 'caste_certificate':
+        return t('doc_type_caste', fallback);
+      case 'photo':
+        return t('doc_type_photo', fallback);
+      case 'signature':
+        return t('doc_type_signature', fallback);
+      case 'resume':
+        return t('doc_type_resume', fallback);
+      case 'identity_proof':
+        return t('doc_type_identity', fallback);
+      default:
+        return fallback;
+    }
+  };
+
+  const getDocTypeDesc = (code: string, fallback: string) => {
+    switch (code) {
+      case 'tenth_marksheet':
+        return t('doc_type_tenth_desc', fallback);
+      case 'degree_certificate':
+        return t('doc_type_degree_desc', fallback);
+      case 'caste_certificate':
+        return t('doc_type_caste_desc', fallback);
+      case 'photo':
+        return t('doc_type_photo_desc', fallback);
+      case 'signature':
+        return t('doc_type_signature_desc', fallback);
+      case 'resume':
+        return t('doc_type_resume_desc', fallback);
+      case 'identity_proof':
+        return t('doc_type_identity_desc', fallback);
+      default:
+        return fallback;
+    }
+  };
+
   const [documents, setDocuments] = useState<UserDocumentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -196,7 +241,7 @@ export default function DocumentsPage() {
   function openUploadModal(typeCode: string) {
     const config = DOCUMENT_TYPES.find((d) => d.code === typeCode);
     setSelectedDocType(typeCode);
-    setDocTitle(config?.label || '');
+    setDocTitle(config ? getDocTypeLabel(config.code, config.label) : '');
     setDocIdentifier('');
     setSelectedFile(null);
     setError(null);
@@ -288,14 +333,13 @@ export default function DocumentsPage() {
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0e7bf4]">
           <FolderLock className="size-4" />
-          <span>Encrypted Citizen Locker</span>
+          <span>{t('doc_locker_tag', 'Encrypted Citizen Locker')}</span>
         </div>
         <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[#082046] sm:text-3xl">
-          My Documents
+          {t('doc_title', 'My Documents')}
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-[#435775]">
-          Securely store your educational marksheets, caste certificates, and application assets.
-          Files are encrypted and sensitive numbers like Aadhaar are masked automatically.
+          {t('doc_desc', 'Securely store your educational marksheets, caste certificates, and application assets. Files are encrypted and sensitive numbers like Aadhaar are masked automatically.')}
         </p>
       </div>
 
@@ -338,10 +382,10 @@ export default function DocumentsPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Sparkles className="size-4 text-[#0e7bf4]" />
-              <h2 className="text-base font-bold text-[#082046]">Opportunity Readiness Checker</h2>
+              <h2 className="text-base font-bold text-[#082046]">{t('doc_readiness_title', 'Opportunity Readiness Checker')}</h2>
             </div>
             <p className="text-xs text-[#536780]">
-              Verify if your uploaded certificates meet the mandatory requirements for upcoming recruitment drives.
+              {t('doc_readiness_desc', 'Verify if your uploaded certificates meet the mandatory requirements for upcoming recruitment drives.')}
             </p>
           </div>
 
@@ -365,7 +409,7 @@ export default function DocumentsPage() {
           <div className="mt-5 rounded-2xl border border-[#c4d2e3]/70 bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs font-semibold text-[#082046]">
-                Target:{' '}
+                {t('doc_target_label', 'Target')}:{' '}
                 <span className="font-extrabold text-[#0e7bf4]">
                   {readinessData.opportunity_title || selectedOpportunitySlug.toUpperCase()}
                 </span>
@@ -374,7 +418,7 @@ export default function DocumentsPage() {
                 tone={readinessData.ready_count === readinessData.required_count ? 'teal' : 'tea'}
                 className="text-xs font-bold"
               >
-                {readinessData.ready_count} of {readinessData.required_count} Documents Ready (
+                {readinessData.ready_count} of {readinessData.required_count} {t('doc_ready_label', 'Documents Ready')} (
                 {readinessData.required_count > 0
                   ? Math.round((readinessData.ready_count / readinessData.required_count) * 100)
                   : 100}
@@ -406,7 +450,7 @@ export default function DocumentsPage() {
                       onClick={() => openUploadModal('tenth_marksheet')}
                       className="ml-2 shrink-0 rounded-lg bg-amber-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-700"
                     >
-                      Upload
+                      {t('doc_btn_upload', 'Upload')}
                     </button>
                   )}
                 </div>
@@ -419,9 +463,9 @@ export default function DocumentsPage() {
       {/* Document Vault Grid */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-[#082046]">Required Applicant Documents</h2>
+          <h2 className="text-lg font-bold text-[#082046]">{t('doc_required_heading', 'Required Applicant Documents')}</h2>
           <span className="text-xs font-semibold text-[#536780]">
-            {uploadedCount} of {DOCUMENT_TYPES.length} slots filled
+            {uploadedCount} of {DOCUMENT_TYPES.length} {t('doc_slots_filled', 'slots filled')}
           </span>
         </div>
 
@@ -447,18 +491,18 @@ export default function DocumentsPage() {
                     {uploaded ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
                         <CheckCircle2 className="size-3" />
-                        Uploaded
+                        {t('doc_status_uploaded', 'Uploaded')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
-                        Empty Slot
+                        {t('doc_status_empty', 'Empty Slot')}
                       </span>
                     )}
                   </div>
 
-                  <h3 className="mt-3 text-sm font-bold text-[#082046]">{typeConfig.label}</h3>
+                  <h3 className="mt-3 text-sm font-bold text-[#082046]">{getDocTypeLabel(typeConfig.code, typeConfig.label)}</h3>
                   <p className="mt-1 text-xs text-[#536780] leading-relaxed">
-                    {typeConfig.description}
+                    {getDocTypeDesc(typeConfig.code, typeConfig.description)}
                   </p>
 
                   {uploaded && (
@@ -475,7 +519,7 @@ export default function DocumentsPage() {
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-100/70 rounded-lg px-2 py-0.5">
                           <Sparkles className="size-3 text-amber-600" />
-                          <span>{uploaded.details?.extracted_fields?.length || 6} Fields Extracted</span>
+                          <span>{uploaded.details?.extracted_fields?.length || 6} {t('doc_fields_extracted', 'Fields Extracted')}</span>
                         </span>
 
                         {uploaded.source === 'digilocker' && (
@@ -497,7 +541,7 @@ export default function DocumentsPage() {
                         <span>
                           {uploaded.size_bytes
                             ? `${(uploaded.size_bytes / 1024).toFixed(1)} KB`
-                            : 'Document verified'}
+                            : t('doc_verified', 'Document verified')}
                         </span>
                         <span>
                           {new Date(uploaded.updated_at || uploaded.created_at).toLocaleDateString('en-IN')}
@@ -520,7 +564,7 @@ export default function DocumentsPage() {
                         className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0e7bf4] py-2 px-3 text-xs font-bold text-white shadow-sm hover:bg-[#0c6cd7] transition"
                       >
                         <Eye className="size-3.5" />
-                        <span>Preview & Copy</span>
+                        <span>{t('doc_btn_preview_copy', 'Preview & Copy')}</span>
                         <Sparkles className="size-3 text-amber-300" />
                       </button>
 
@@ -560,7 +604,7 @@ export default function DocumentsPage() {
                       className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#082046] py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#061835]"
                     >
                       <UploadCloud className="size-3.5" />
-                      Upload {typeConfig.label.split(' ')[0]}
+                      {t('doc_btn_upload', 'Upload')} {getDocTypeLabel(typeConfig.code, typeConfig.label).split(' ')[0]}
                     </button>
                   )}
                 </div>
@@ -576,12 +620,10 @@ export default function DocumentsPage() {
           <ShieldCheck className="size-5 shrink-0 text-[#0e7bf4] mt-0.5" />
           <div className="space-y-1">
             <h4 className="text-xs font-bold text-[#082046] uppercase tracking-wider">
-              Citizen Data Privacy &amp; Masking Guarantee
+              {t('doc_privacy_guarantee_title', 'Citizen Data Privacy & Masking Guarantee')}
             </h4>
             <p className="text-xs text-[#536780] leading-relaxed">
-              Your certificates are stored strictly within our private, access-controlled Supabase
-              storage bucket and delivered via short-lived signed URLs. National identifiers (Aadhaar,
-              PAN) are automatically masked to the final 4 digits to prevent identity leakage.
+              {t('doc_privacy_guarantee_desc', 'Your certificates are stored strictly within our private, access-controlled Supabase storage bucket and delivered via short-lived signed URLs. National identifiers (Aadhaar, PAN) are automatically masked to the final 4 digits to prevent identity leakage.')}
             </p>
           </div>
         </div>
@@ -592,7 +634,7 @@ export default function DocumentsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-lg rounded-3xl border border-[#c4d2e3] bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#c4d2e3]/60 pb-3">
-              <h3 className="text-base font-bold text-[#082046]">Upload Document</h3>
+              <h3 className="text-base font-bold text-[#082046]">{t('doc_modal_upload_title', 'Upload Document')}</h3>
               <button
                 type="button"
                 onClick={() => setIsUploadModalOpen(false)}
@@ -604,26 +646,26 @@ export default function DocumentsPage() {
 
             <form onSubmit={handleUploadSubmit} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[#082046]">Document Type</label>
+                <label className="block text-xs font-bold text-[#082046]">{t('doc_modal_type', 'Document Type')}</label>
                 <select
                   value={selectedDocType}
                   onChange={(e) => {
                     setSelectedDocType(e.target.value);
                     const cfg = DOCUMENT_TYPES.find((d) => d.code === e.target.value);
-                    if (cfg) setDocTitle(cfg.label);
+                    if (cfg) setDocTitle(getDocTypeLabel(cfg.code, cfg.label));
                   }}
                   className="mt-1 w-full rounded-xl border border-[#c4d2e3] bg-white p-2.5 text-xs text-[#082046] outline-none focus:border-[#0e7bf4]"
                 >
                   {DOCUMENT_TYPES.map((cfg) => (
                     <option key={cfg.code} value={cfg.code}>
-                      {cfg.label}
+                      {getDocTypeLabel(cfg.code, cfg.label)}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#082046]">Document Title</label>
+                <label className="block text-xs font-bold text-[#082046]">{t('doc_modal_title', 'Document Title')}</label>
                 <input
                   type="text"
                   value={docTitle}
@@ -638,7 +680,7 @@ export default function DocumentsPage() {
                 <div>
                   <label className="block text-xs font-bold text-[#082046]">
                     {DOCUMENT_TYPES.find((d) => d.code === selectedDocType)?.identifierLabel ||
-                      'Certificate / ID Number'}
+                      t('doc_modal_id', 'Certificate / ID Number')}
                   </label>
                   <input
                     type="text"
@@ -686,14 +728,14 @@ export default function DocumentsPage() {
                   onClick={() => setIsUploadModalOpen(false)}
                   className="rounded-xl border border-[#c4d2e3] px-4 py-2 text-xs font-semibold text-[#536780] hover:bg-[#F0F4F8]"
                 >
-                  Cancel
+                  {t('btn_cancel', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={isUploading}
                   className="rounded-xl bg-[#082046] px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#061835] disabled:opacity-50"
                 >
-                  {isUploading ? 'Uploading...' : 'Save Document'}
+                  {isUploading ? t('profile_btn_saving', 'Uploading...') : t('doc_modal_btn_submit', 'Upload & Encrypt')}
                 </button>
               </div>
             </form>
