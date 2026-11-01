@@ -30,6 +30,9 @@ import {
 import { useLanguage } from '@/lib/i18n/language-context';
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/lib/i18n/translations';
 import { showAppToast } from '@/components/toast-notification-provider';
+import { useWebPush } from '@/lib/push/use-web-push';
+import { apiGet, apiPut } from '@/lib/api';
+import type { NotificationPreferences } from '@applyfields/types';
 
 type SettingsTab = 'language' | 'notifications' | 'display' | 'preferences';
 type ReadingTheme = 'default' | 'sepia' | 'high-contrast';
@@ -63,6 +66,7 @@ const QUALIFICATION_OPTIONS = [
 export default function SettingsPage() {
   const { locale, setLocale, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<SettingsTab>('language');
+  const push = useWebPush();
 
   // --- Notification Preferences ---
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -93,9 +97,22 @@ export default function SettingsPage() {
   });
   const [preferredQualification, setPreferredQualification] = useState('graduate');
 
-  // Load from localStorage on mount
+  // Sync push subscribed state
+  useEffect(() => {
+    if (push.isSubscribed) {
+      setPushEnabled(true);
+    }
+  }, [push.isSubscribed]);
+
+  // Load from localStorage on mount & sync backend preferences
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Direct tab routing (e.g. /settings?tab=notifications)
+    const tabParam = new URLSearchParams(window.location.search).get('tab');
+    if (tabParam === 'notifications' || tabParam === 'display' || tabParam === 'preferences' || tabParam === 'language') {
+      setActiveTab(tabParam as SettingsTab);
+    }
 
     // Load display preferences
     const savedTheme = (localStorage.getItem('applyfields_reading_theme') as ReadingTheme) || 'default';
@@ -107,7 +124,19 @@ export default function SettingsPage() {
     const savedDensity = (localStorage.getItem('applyfields_density') as DensityMode) || 'comfortable';
     setDensity(savedDensity);
 
-    // Load notification preferences
+    // Sync live notification preferences from API if logged in
+    apiGet<NotificationPreferences>('/notifications/preferences')
+      .then((res) => {
+        if (res) {
+          setEmailEnabled(res.email_enabled);
+          if (res.push_enabled && push.isSubscribed) {
+            setPushEnabled(true);
+          }
+        }
+      })
+      .catch(() => null);
+
+    // Load notification preferences from localStorage
     const savedNotifs = localStorage.getItem('applyfields_notification_preferences');
     if (savedNotifs) {
       try {
@@ -134,7 +163,7 @@ export default function SettingsPage() {
 
     const savedQual = localStorage.getItem('applyfields_pref_qualification');
     if (savedQual) setPreferredQualification(savedQual);
-  }, []);
+  }, [push.isSubscribed]);
 
   // Language Change Handler
   const handleLanguageChange = (lang: SupportedLanguage) => {
@@ -188,6 +217,12 @@ export default function SettingsPage() {
       localStorage.setItem('applyfields_pref_focus', JSON.stringify(focusCategories));
       localStorage.setItem('applyfields_pref_qualification', preferredQualification);
       window.dispatchEvent(new CustomEvent('preferences-changed'));
+
+      // Also sync to backend API if logged in
+      void apiPut<NotificationPreferences>('/notifications/preferences', {
+        email_enabled: emailEnabled,
+        push_enabled: pushEnabled,
+      }).catch(() => null);
     }
 
     showAppToast({
@@ -236,25 +271,49 @@ export default function SettingsPage() {
     });
   };
 
-  // Request Push Permission
-  const handleRequestPush = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      alert('Browser notifications are not supported on this device/browser.');
-      return;
-    }
-    const perm = await Notification.requestPermission();
-    if (perm === 'granted') {
-      setPushEnabled(true);
+  // Web Push Notification Toggle with Browser W3C Standard & Backend Sync
+  const handleTogglePush = async () => {
+    if (!push.isSupported) {
       showAppToast({
-        message: 'Browser push notifications active!',
-        type: 'success',
-      });
-    } else {
-      setPushEnabled(false);
-      showAppToast({
-        message: 'Push notifications permission was denied or blocked.',
+        message: 'Browser push notifications are not supported on this device/browser.',
         type: 'remove',
       });
+      return;
+    }
+
+    if (push.permission === 'denied') {
+      showAppToast({
+        message: 'Notifications are blocked in your browser settings. Unblock in site settings to receive alerts.',
+        type: 'remove',
+      });
+      return;
+    }
+
+    if (pushEnabled || push.isSubscribed) {
+      const res = await push.unsubscribe();
+      if (res.ok) {
+        setPushEnabled(false);
+        void apiPut('/notifications/preferences', { push_enabled: false }).catch(() => null);
+        showAppToast({
+          message: 'Browser push notifications turned off.',
+          type: 'remove',
+        });
+      }
+    } else {
+      const res = await push.subscribe();
+      if (res.ok) {
+        setPushEnabled(true);
+        void apiPut('/notifications/preferences', { push_enabled: true }).catch(() => null);
+        showAppToast({
+          message: 'Browser push notifications active! Deadline alerts enabled.',
+          type: 'success',
+        });
+      } else {
+        showAppToast({
+          message: res.error || 'Push notifications could not be enabled.',
+          type: 'remove',
+        });
+      }
     }
   };
 
@@ -542,16 +601,31 @@ export default function SettingsPage() {
                       <Bell className="size-4" />
                     </span>
                     <div>
-                      <p className="text-sm font-black text-[#082046]">{t('settings_notif_push')}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-black text-[#082046]">{t('settings_notif_push')}</p>
+                        {push.isSubscribed && pushEnabled && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Active
+                          </span>
+                        )}
+                        {push.permission === 'denied' && (
+                          <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">
+                            Blocked
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] text-[#526987] font-bold uppercase">{t('settings_channel_web')}</span>
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={handleRequestPush}
+                    onClick={handleTogglePush}
+                    disabled={push.isLoading || !push.isSupported}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                       pushEnabled ? 'bg-[#0e7bf4]' : 'bg-slate-300'
-                    }`}
+                    } ${push.isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    aria-label="Toggle push notifications"
                   >
                     <span
                       className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
@@ -561,8 +635,21 @@ export default function SettingsPage() {
                   </button>
                 </div>
                 <p className="text-xs text-[#526987] leading-relaxed">
-                  {t('settings_notif_push_desc')}
+                  {!push.isSupported
+                    ? 'Browser notifications are not supported in this browser window.'
+                    : push.permission === 'denied'
+                      ? 'Notifications are blocked in your browser settings. Click the tune/padlock icon in your URL bar to allow.'
+                      : t('settings_notif_push_desc')}
                 </p>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
+                  <span className="text-[#526987]">Granular rules & countdown intervals:</span>
+                  <Link
+                    href="/notifications#preferences"
+                    className="font-bold text-[#0e7bf4] hover:underline inline-flex items-center gap-1"
+                  >
+                    Notification Rules & Reminders →
+                  </Link>
+                </div>
               </div>
             </div>
 
