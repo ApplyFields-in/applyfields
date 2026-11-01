@@ -4,6 +4,8 @@ import '@fontsource-variable/plus-jakarta-sans';
 import './globals.css';
 import { LanguageProvider } from '@/lib/i18n/language-context';
 import { RealtimeNotificationToast } from '@/components/realtime-notification-toast';
+import { NotificationPermissionPrompt } from '@/components/notification-permission-prompt';
+import { FloatingAiAssistant } from '@/components/chat/floating-ai-assistant';
 import { ScrollToTop } from '@applyfields/ui';
 
 export const metadata: Metadata = {
@@ -30,6 +32,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>
           {children}
           <RealtimeNotificationToast />
+          <NotificationPermissionPrompt />
+          <FloatingAiAssistant />
           <ScrollToTop />
         </LanguageProvider>
       </body>
