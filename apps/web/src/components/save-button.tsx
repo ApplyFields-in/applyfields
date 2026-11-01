@@ -48,6 +48,13 @@ export function SaveButton({
           actionHref: '/saved',
           type: 'success',
         });
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+          window.dispatchEvent(
+            new CustomEvent('show-push-permission-prompt', {
+              detail: { title, slug },
+            }),
+          );
+        }
       } else {
         showAppToast({
           message: `Removed from saved items.`,

@@ -25,6 +25,7 @@ import { ReportsModule } from './modules/reports/reports.module.js';
 import { DigilockerModule } from './modules/digilocker/digilocker.module.js';
 import { AnalyticsModule } from './modules/analytics/analytics.module.js';
 import { MessagesModule } from './modules/messages/messages.module.js';
+import { ChatbotModule } from './modules/chatbot/chatbot.module.js';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { MessagesModule } from './modules/messages/messages.module.js';
     DigilockerModule,
     AnalyticsModule,
     MessagesModule,
+    ChatbotModule,
   ],
   controllers: [AppController],
   providers: [AppService],
