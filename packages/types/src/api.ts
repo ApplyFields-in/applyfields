@@ -2016,4 +2016,38 @@ export interface ConversationListResponse {
   threads: PartnerConversationThread[];
 }
 
+// -------------------------------------------------------------
+// Milestone v5: Hybrid AI Assistant & Query Router Types
+// -------------------------------------------------------------
+export interface ChatbotQueryInput {
+  query: string;
+  opportunity_slug?: string;
+  opportunity_id?: string;
+  page_type?: 'apply' | 'career' | 'general';
+  qualification?: string;
+  history?: { role: 'user' | 'assistant'; content: string }[];
+}
+
+export interface ChatbotAction {
+  label: string;
+  action: 'open_url' | 'save' | 'book_service' | 'navigate';
+  url?: string;
+  item_slug?: string;
+  item_type?: string;
+}
+
+export interface ChatbotQueryResponse {
+  mode: 'deterministic' | 'rag' | 'llm' | 'fallback' | 'limit_reached';
+  intent: string;
+  answer: string;
+  actions?: ChatbotAction[];
+  citations?: string[];
+  related_queries?: string[];
+  daily_limit?: number;
+  queries_used?: number;
+  queries_remaining?: number;
+  is_premium?: boolean;
+  limit_reached?: boolean;
+}
+
 export * from './schedule.js';

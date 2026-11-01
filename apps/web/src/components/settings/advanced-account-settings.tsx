@@ -410,6 +410,22 @@ export function AdvancedAccountSettings() {
             </label>
           </div>
         </div>
+
+        {/* Native Browser Push Quick Action */}
+        <div className="rounded-xl border border-blue-100 bg-[#F0F7FF] p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-[#082046]">
+            <Radio className="size-4 text-[#0e7bf4] shrink-0" />
+            <span>
+              <strong>Native Browser &amp; Device Push:</strong> Instant background notifications on your PC and mobile device.
+            </span>
+          </div>
+          <a
+            href="/settings?tab=notifications"
+            className="inline-flex items-center gap-1 font-bold text-[#0e7bf4] hover:underline shrink-0"
+          >
+            Configure Web Push in Settings →
+          </a>
+        </div>
       </div>
 
       {/* ------------------------------------------------------------- */}
