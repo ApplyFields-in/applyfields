@@ -164,6 +164,34 @@ export function UpdateForm({ initialData, mode }: UpdateFormProps) {
 
   // Search opportunities as user types
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const paramOppId = params.get('opportunity_id') || params.get('opportunityId');
+    const paramKind = params.get('kind') as UpdateKind | null;
+    const paramTitle = params.get('title');
+    const paramDiff = params.get('diff');
+    const paramDeadline = params.get('new_deadline');
+
+    if (mode === 'create') {
+      if (paramOppId) {
+        setOpportunityId(paramOppId);
+        apiGet<any>(`/admin/opportunities/${paramOppId}`)
+          .then((res) => {
+            if (res) {
+              setLinkedParent({ id: res.id, title: res.title });
+              if (!paramTitle) setTitle(`Corrigendum: ${res.title}`);
+            }
+          })
+          .catch(() => {});
+      }
+      if (paramKind) setKind(paramKind);
+      if (paramTitle) setTitle(paramTitle);
+      if (paramDiff) setSummary(paramDiff);
+      if (paramDeadline) setNewDeadline(paramDeadline);
+    }
+  }, [mode]);
+
+  useEffect(() => {
     if (!searchOppQuery.trim() || searchOppQuery.trim().length < 2) {
       setOppResults([]);
       return;

@@ -18,3 +18,14 @@ export const chatbotQuerySchema = z.object({
 
 export type ChatbotQueryDto = z.infer<typeof chatbotQuerySchema>;
 
+export const chatbotFeedbackSchema = z.object({
+  query: z.string().min(1).max(1000),
+  answer: z.string().min(1).max(5000),
+  rating: z.enum(['helpful', 'unhelpful']),
+  opportunity_slug: z.string().optional(),
+  comments: z.string().max(1000).optional(),
+});
+
+export type ChatbotFeedbackDto = z.infer<typeof chatbotFeedbackSchema>;
+
+

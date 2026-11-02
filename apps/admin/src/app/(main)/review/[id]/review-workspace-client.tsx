@@ -68,8 +68,8 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
   const mainEligibility = d.eligibility.filter((e) => e.post_id === null);
   const postEligibility = d.eligibility.filter((e) => e.post_id !== null);
 
-  // PDF / 1-Page Digest Viewer State
-  const [viewerMode, setViewerMode] = useState<'pdf' | 'digest'>('pdf');
+  // PDF / 1-Page Digest / Corrigendum Diff Viewer State
+  const [viewerMode, setViewerMode] = useState<'pdf' | 'digest' | 'diff'>('pdf');
   const [activeHighlight, setActiveHighlight] = useState<BoundingBoxHighlight | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pdfZoom, setPdfZoom] = useState<number>(100);
@@ -132,6 +132,13 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
                   className={`px-2 py-0.5 text-[11px] font-bold rounded transition ${viewerMode === 'digest' ? 'bg-teal text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'}`}
                 >
                   1-Page AI Digest
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewerMode('diff')}
+                  className={`px-2 py-0.5 text-[11px] font-bold rounded transition ${viewerMode === 'diff' ? 'bg-teal text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Corrigendum Diff
                 </button>
               </div>
             </div>
@@ -218,9 +225,99 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
             </div>
           )}
 
-          {/* PDF Canvas vs 1-Page AI Digest View */}
+          {/* PDF Canvas vs 1-Page AI Digest vs Corrigendum Diff View */}
           <div className="relative flex-1 rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 flex items-center justify-center">
-            {viewerMode === 'digest' ? (
+            {viewerMode === 'diff' ? (
+              <div className="relative w-full h-full flex flex-col overflow-y-auto p-5 text-xs text-slate-200 space-y-4">
+                <div className="border-b border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1">
+                      <Scale className="size-3" /> Automated Diff &amp; Corrigendum Inspector
+                    </span>
+                    <h3 className="text-base font-extrabold text-white mt-1">{d.title}</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Comparing scraped notification data against baseline registry values.
+                    </p>
+                  </div>
+                  <a
+                    href={`/updates/new?opportunity_id=${encodeURIComponent(d.id)}&kind=date_change&title=${encodeURIComponent('Corrigendum: ' + d.title)}&diff=${encodeURIComponent('Revised timeline and terms for ' + d.title)}`}
+                    className="shrink-0 rounded-lg bg-teal px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-teal/90 transition flex items-center gap-1.5 shadow-xs"
+                  >
+                    <span>Issue Corrigendum Notice</span>
+                    <ExternalLink className="size-3" />
+                  </a>
+                </div>
+
+                {/* Diff 1: Timeline & Deadline */}
+                <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-white flex items-center gap-1.5">
+                      <span>📅</span> Application Timeline Diff
+                    </h4>
+                    <span className="text-[10px] font-mono rounded bg-blue-900/40 text-blue-300 px-2 py-0.5 border border-blue-700/50">
+                      {isChronologyValid ? 'Chronology Valid' : 'Check Sequence'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="rounded-lg bg-slate-900 p-2 border border-slate-800/80">
+                      <span className="text-slate-400 block text-[10px]">Opening Date</span>
+                      <strong className="text-slate-200">
+                        {d.application_start ? new Date(d.application_start).toLocaleDateString('en-IN') : 'Not set'}
+                      </strong>
+                    </div>
+                    <div className="rounded-lg bg-slate-900 p-2 border border-slate-800/80">
+                      <span className="text-slate-400 block text-[10px]">Closing Date (Last Day)</span>
+                      <strong className="text-amber-400">
+                        {d.application_end ? new Date(d.application_end).toLocaleDateString('en-IN') : 'Check circular'}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Diff 2: Vacancies Reconciliation */}
+                <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-white flex items-center gap-1.5">
+                      <span>👥</span> Vacancy Count &amp; Quota Reconciliation
+                    </h4>
+                    {isQuotaSumMismatched ? (
+                      <span className="text-[10px] font-mono rounded bg-red-900/50 text-red-300 px-2 py-0.5 border border-red-700/50">
+                        Mismatch: {totalVacancies} vs {categorySum}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono rounded bg-emerald-900/40 text-emerald-300 px-2 py-0.5 border border-emerald-700/50">
+                        Reconciled (100%)
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-slate-300 space-y-1">
+                    <p>&bull; Total Stated Vacancies: <strong className="text-white">{d.vacancies_total ?? 'Open'}</strong></p>
+                    <p>&bull; Sum of Category Posts: <strong className="text-white">{categorySum > 0 ? categorySum : 'Not itemized'}</strong></p>
+                    <p>&bull; Posts Itemized: <strong className="text-white">{d.posts.length} distinct designations</strong></p>
+                  </div>
+                </div>
+
+                {/* Diff 3: Fees & Exemptions */}
+                <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800 space-y-2">
+                  <h4 className="font-bold text-white flex items-center gap-1.5">
+                    <span>💰</span> Fee Structure &amp; Concessions
+                  </h4>
+                  <div className="space-y-1 text-[11px] text-slate-300">
+                    {d.fees.map((f, idx) => (
+                      <div key={idx} className="flex items-center justify-between py-0.5 border-b border-slate-800/40">
+                        <span>{f.category}</span>
+                        <strong className={f.amount === 0 ? 'text-emerald-400' : 'text-slate-200'}>
+                          {f.amount === 0 ? 'Exempted (FREE)' : `₹${f.amount}`}
+                        </strong>
+                      </div>
+                    ))}
+                    {d.fees.length === 0 && (
+                      <p className="text-slate-400">{d.fee_text || 'Standard prescribed fees'}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : viewerMode === 'digest' ? (
               <div className="relative w-full h-full flex flex-col overflow-y-auto p-5 text-xs text-slate-200 space-y-4">
                 <div className="border-b border-slate-800 pb-3">
                   <span className="text-[10px] font-black uppercase tracking-wider text-teal">
