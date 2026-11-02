@@ -68,7 +68,8 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
   const mainEligibility = d.eligibility.filter((e) => e.post_id === null);
   const postEligibility = d.eligibility.filter((e) => e.post_id !== null);
 
-  // PDF Viewer State
+  // PDF / 1-Page Digest Viewer State
+  const [viewerMode, setViewerMode] = useState<'pdf' | 'digest'>('pdf');
   const [activeHighlight, setActiveHighlight] = useState<BoundingBoxHighlight | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pdfZoom, setPdfZoom] = useState<number>(100);
@@ -117,12 +118,22 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
           {/* Top PDF Controls Header */}
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2 px-1 text-xs">
             <div className="flex items-center gap-2">
-              <span className="font-bold flex items-center gap-1.5 text-teal">
-                <FileText className="size-4" /> Official Gazette Notification
-              </span>
-              <Badge tone="tea" className="text-[10px]">
-                {d.pdf.kind === 'signed' ? 'Archived Master' : 'Portal Copy'}
-              </Badge>
+              <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setViewerMode('pdf')}
+                  className={`px-2 py-0.5 text-[11px] font-bold rounded transition ${viewerMode === 'pdf' ? 'bg-teal text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                >
+                  PDF Stream
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewerMode('digest')}
+                  className={`px-2 py-0.5 text-[11px] font-bold rounded transition ${viewerMode === 'digest' ? 'bg-teal text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                >
+                  1-Page AI Digest
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-1.5 text-slate-300">
@@ -207,9 +218,94 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
             </div>
           )}
 
-          {/* PDF Canvas with Simulated Coordinate Highlighting Overlay */}
+          {/* PDF Canvas vs 1-Page AI Digest View */}
           <div className="relative flex-1 rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 flex items-center justify-center">
-            {d.pdf.url ? (
+            {viewerMode === 'digest' ? (
+              <div className="relative w-full h-full flex flex-col overflow-y-auto p-5 text-xs text-slate-200 space-y-4">
+                <div className="border-b border-slate-800 pb-3">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-teal">
+                    1-Page Official Circular Digest (Sub-20ms RAG)
+                  </span>
+                  <h3 className="text-base font-extrabold text-white mt-1">{d.title}</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {d.organization.name} &bull; Stated Vacancies:{' '}
+                    <strong className="text-white">{d.vacancies_total ?? 'Open'}</strong>
+                  </p>
+                </div>
+
+                {/* Section 1: Dates */}
+                <div className="rounded-xl bg-slate-950 p-3 border border-slate-800 space-y-1">
+                  <h4 className="font-bold text-teal flex items-center gap-1.5">
+                    <span>📅</span> Key Timeline &amp; Deadlines
+                  </h4>
+                  <p className="text-[11px]">
+                    &bull; Applications Open: <strong>{d.application_start ? new Date(d.application_start).toLocaleDateString('en-IN') : 'Not announced'}</strong>
+                  </p>
+                  <p className="text-[11px]">
+                    &bull; Last Date to Apply: <strong className="text-amber-400">{d.application_end ? new Date(d.application_end).toLocaleDateString('en-IN') : 'Check circular'}</strong>
+                  </p>
+                  {d.dates.map((dt, idx) => (
+                    <p key={idx} className="text-[11px] text-slate-300">
+                      &bull; {dt.kind.replace(/_/g, ' ').toUpperCase()}: {dt.date ? new Date(dt.date).toLocaleDateString('en-IN') : 'TBA'}
+                    </p>
+                  ))}
+                </div>
+
+                {/* Section 2: Eligibility */}
+                <div className="rounded-xl bg-slate-950 p-3 border border-slate-800 space-y-1">
+                  <h4 className="font-bold text-teal flex items-center gap-1.5">
+                    <span>🎓</span> Eligibility &amp; Age Criteria
+                  </h4>
+                  <p className="text-[11px]">
+                    &bull; Standard Age Limit: <strong>18 to 30 years</strong> (Central relaxations: +5 SC/ST, +3 OBC, +10 PwD)
+                  </p>
+                  {mainEligibility.map((e, idx) => (
+                    <p key={idx} className="text-[11px] text-slate-300">
+                      &bull; Minimum Qualification: {e.qualification_level ?? 'Graduate'}
+                    </p>
+                  ))}
+                </div>
+
+                {/* Section 3: Fees */}
+                <div className="rounded-xl bg-slate-950 p-3 border border-slate-800 space-y-1">
+                  <h4 className="font-bold text-teal flex items-center gap-1.5">
+                    <span>💰</span> Fee Structure &amp; Concessions
+                  </h4>
+                  {d.fees.length > 0 ? (
+                    d.fees.map((f, idx) => (
+                      <p key={idx} className="text-[11px] text-slate-300">
+                        &bull; {f.category}: {f.amount === 0 ? 'Exempted (FREE)' : `₹${f.amount}`}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-[11px] text-slate-400">
+                      {d.fee_text || 'Standard prescribed application fee'}
+                    </p>
+                  )}
+                </div>
+
+                {/* Section 4: Selection Process */}
+                <div className="rounded-xl bg-slate-950 p-3 border border-slate-800 space-y-1">
+                  <h4 className="font-bold text-teal flex items-center gap-1.5">
+                    <span>📝</span> Selection Stages &amp; Marking
+                  </h4>
+                  {d.selection_process.length > 0 ? (
+                    d.selection_process.map((stage, idx) => (
+                      <p key={idx} className="text-[11px] text-slate-300">
+                        Stage {idx + 1}: {stage}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-[11px] text-slate-400">
+                      Computer Based Test (CBT) &bull; Document Verification &bull; Medical Test
+                    </p>
+                  )}
+                  <p className="text-[10px] text-slate-500 pt-1">
+                    Standard 0.25 to 0.33 negative marking on incorrect objective questions.
+                  </p>
+                </div>
+              </div>
+            ) : d.pdf.url ? (
               <div className="relative w-full h-full flex flex-col items-center justify-center overflow-auto p-4">
                 <iframe
                   src={`${d.pdf.url}#page=${currentPage}&zoom=${pdfZoom}`}
