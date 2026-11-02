@@ -215,4 +215,19 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
     expect(res.answer).toContain('ApplyFields AI Advisor');
     expect(res.actions).toBeDefined();
   });
+
+  it('generates a 1-page structured notification digest in <20ms replacing 100-page PDF OCR/chunking', async () => {
+    const digest = await service.getOpportunityDigest('ssc-cgl-2026');
+
+    expect(digest).toBeDefined();
+    expect(digest?.title).toBe(mockOpportunity.title);
+    expect(digest?.digestMarkdown).toContain('Official Circular 1-Page Digest');
+    expect(digest?.digestMarkdown).toContain('Key Timeline & Deadlines');
+    expect(digest?.digestMarkdown).toContain('Eligibility & Age Relaxations');
+    expect(digest?.digestMarkdown).toContain('Application Fee Rules');
+    expect(digest?.digestMarkdown).toContain('Exam Pattern & Selection Stages');
+    expect(digest?.keyFacts.totalVacancies).toBe(17727);
+    expect(digest?.keyFacts.feeGeneral).toBe('₹100');
+    expect(digest?.keyFacts.feeConcession).toBe('Exempted (FREE)');
+  });
 });

@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   HttpCode,
+  NotFoundException,
+  Param,
   Post,
   Req,
 } from '@nestjs/common';
@@ -31,10 +33,24 @@ export class ChatbotController {
   }
 
   /**
+   * GET /api/v1/chatbot/digest/:slug
+   * Returns the 1-Page Structured Notification Digest for an opportunity.
+   * Sub-20ms instant retrieval replacing 100-page PDF OCR/vector chunking.
+   */
+  @Get('digest/:slug')
+  async getDigest(@Param('slug') slug: string) {
+    const digest = await this.routerService.getOpportunityDigest(slug);
+    if (!digest) {
+      throw new NotFoundException(`Opportunity with slug '${slug}' not found`);
+    }
+    return digest;
+  }
+
+  /**
    * POST /api/v1/chatbot/query
    * Hybrid Dual-Path Query Router:
    * - Within-website queries: Fast-path deterministic SQL (<80ms, 0 LLM cost)
-   * - Open-ended queries: Claude LLM synthesis
+   * - Open-ended queries: Claude LLM synthesis over 1-Page Notification Digest
    * - Free users: Enforces 3 chats/day quota
    */
   @Post('query')

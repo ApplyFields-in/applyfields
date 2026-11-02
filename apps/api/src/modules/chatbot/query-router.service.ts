@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { ChatbotAction, ChatbotQueryInput, ChatbotQueryResponse } from '@applyfields/types';
+import { NotificationDigestService, type OpportunityDigest } from './notification-digest.service.js';
 
 const logger = new Logger('QueryRouterService');
 
@@ -28,7 +29,10 @@ export class QueryRouterService {
   // In-memory daily usage tracking: key = "YYYY-MM-DD:identifier" -> count
   private readonly dailyUsage = new Map<string, number>();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly digestService: NotificationDigestService = new NotificationDigestService(),
+  ) {}
 
   /**
    * Returns today's date key in India Standard Time (IST, UTC+5:30)
@@ -116,10 +120,26 @@ export class QueryRouterService {
   }
 
   /**
+   * Retrieve structured 1-page notification digest for an opportunity
+   */
+  async getOpportunityDigest(slug: string): Promise<OpportunityDigest | null> {
+    const opp = await this.prisma.opportunities.findFirst({
+      where: { slug },
+      include: {
+        organizations: { select: { name: true, short_name: true, state_code: true } },
+        opportunity_posts: true,
+        opportunity_dates: { orderBy: { date: 'asc' } },
+      },
+    });
+    if (!opp) return null;
+    return this.digestService.generateDigest(opp);
+  }
+
+  /**
    * Hybrid AI Query Router:
    * 1. Enforces 3 chats/day limit for free users (resets at 12:00 AM IST)
-   * 2. Fast-Path (<80ms, 0 tokens) for within-website queries
-   * 3. Claude LLM synthesis for open-ended queries
+   * 2. Fast-Path (<80ms, 0 tokens) for deterministic queries
+   * 3. 1-Page Notification Digest RAG + Claude LLM synthesis for deep reasoning
    */
   async handleQuery(
     input: ChatbotQueryInput,
@@ -183,7 +203,7 @@ export class QueryRouterService {
     // 3. Dual-Path Dispatch:
     // PATH 1: Within-Website Deterministic Fast-Path (<80ms, 0 tokens)
     if (opportunity) {
-      response = await this.handleOpportunityIntent(opportunity, intent, q, userId);
+      response = await this.handleOpportunityIntent(opportunity, intent, input.query, userId, input.history);
     } else {
       switch (intent) {
         case 'deadline':
@@ -228,6 +248,17 @@ export class QueryRouterService {
    * Classify intent from prompt keywords
    */
   private classifyIntent(q: string): string {
+    if (
+      q.includes('digest') ||
+      q.includes('circular summary') ||
+      q.includes('1-page') ||
+      q.includes('full details') ||
+      q.includes('complete circular') ||
+      q.includes('one page')
+    ) {
+      return 'digest';
+    }
+
     if (
       q.includes('deadline') ||
       q.includes('last date') ||
@@ -367,15 +398,17 @@ export class QueryRouterService {
   }
 
   /**
-   * Fast-Path Intent Handler for a specific active opportunity (<80ms, 0 tokens)
+   * Fast-Path Intent Handler with 1-Page Structured Digest
    */
   private async handleOpportunityIntent(
     opp: any,
     intent: string,
-    q: string,
+    rawQuery: string,
     userId?: string | null,
+    history?: { role: 'user' | 'assistant'; content: string }[],
   ): Promise<ChatbotQueryResponse> {
-    const orgName = opp.organizations?.short_name || opp.organizations?.name || 'Authority';
+    const digest = this.digestService.generateDigest(opp);
+    const orgName = digest.organization;
     const actions: ChatbotAction[] = [];
 
     // Base actions
@@ -400,25 +433,37 @@ export class QueryRouterService {
       url: `/service/checkout?service=application-filing&ref=${opp.slug}`,
     });
 
+    // 0. Full 1-Page Digest Intent
+    if (intent === 'digest') {
+      return {
+        mode: 'deterministic',
+        intent: 'digest',
+        answer: digest.digestMarkdown,
+        actions,
+        citations: [
+          '1-Page Official Circular Digest',
+          opp.notification_pdf_url ? 'Official Notification PDF' : 'Authority Portal',
+        ],
+        related_queries: [
+          'When is the final deadline to apply?',
+          'What is the application fee for General / SC / ST / OBC?',
+          'Am I eligible with a B.Tech / Degree qualification?',
+          'Explain the exam pattern and selection stages',
+        ],
+      };
+    }
+
     // 1. Deadline Intent
     if (intent === 'deadline') {
       const days = daysUntil(opp.application_end);
       const isUrgent = days !== null && days <= 7;
-      const datesList = (opp.opportunity_dates || [])
-        .map(
-          (d: any) =>
-            `• **${d.kind.replace(/_/g, ' ').toUpperCase()}**: ${formatDate(d.date)}${d.is_tentative ? ' *(Tentative)*' : ''}`,
-        )
-        .join('\n');
 
       const answer = `### 📅 Application Timeline for **${opp.title}**
 
-• **Online Applications Open**: ${formatDate(opp.application_start)}
-• **Closing Date & Time**: **${formatDate(opp.application_end)}**
+${digest.sections.dates}
 ${days !== null ? `• **Status**: ⏳ **${days} day${days === 1 ? '' : 's'} remaining**${isUrgent ? ' (Closing Soon!)' : ''}` : ''}
 
-${datesList ? `#### Key Examination Schedule:\n${datesList}\n` : ''}
-> 💡 *Tip: Apply at least 48 hours before the last date to avoid server congestion and payment gateway timeouts.*`;
+> 💡 *Tip: Apply at least 48 hours before the deadline to avoid server congestion and payment gateway timeouts.*`;
 
       return {
         mode: 'deterministic',
@@ -436,25 +481,10 @@ ${datesList ? `#### Key Examination Schedule:\n${datesList}\n` : ''}
 
     // 2. Fee Intent
     if (intent === 'fee') {
-      let feeBreakdown = '';
-      if (Array.isArray(opp.fees) && opp.fees.length > 0) {
-        feeBreakdown = opp.fees
-          .map(
-            (f: any) =>
-              `• **${f.category || 'Standard'}**: ${Number(f.amount || 0) === 0 ? 'Exempted (FREE)' : `₹${f.amount}`}`,
-          )
-          .join('\n');
-      } else if (opp.fee_text) {
-        feeBreakdown = `• ${opp.fee_text}`;
-      } else {
-        feeBreakdown = '• General / OBC: Standard prescribed fee\n• SC / ST / PwD / Female: Concession or Exempted';
-      }
-
       const answer = `### 💰 Application Fee Breakdown for **${opp.title}**
 
-${feeBreakdown}
+${digest.sections.fees}
 
-• **Accepted Payment Modes**: Net Banking, UPI (GPay/PhonePe), Credit & Debit Cards, or SBI Challan.
 • **Processing Note**: Application fee is non-refundable once transaction ID is generated on the official gateway.`;
 
       return {
@@ -472,25 +502,10 @@ ${feeBreakdown}
 
     // 3. Eligibility Intent
     if (intent === 'eligibility') {
-      const posts = opp.opportunity_posts || [];
-      let postQualifications = '';
-      if (posts.length > 0) {
-        postQualifications = posts
-          .slice(0, 5)
-          .map(
-            (p: any) =>
-              `• **${p.name}**: ${p.salary_text ? `*(Pay: ${p.salary_text})*` : ''} — Open to eligible graduates / diploma holders`,
-          )
-          .join('\n');
-      }
-
       const answer = `### 🎓 Eligibility Criteria for **${opp.title}**
 
-• **Recruitment Body**: ${orgName}
-• **Minimum Educational Qualification**: Bachelor’s Degree / Diploma / Relevant Certification from a recognized University.
-• **Standard Age Bracket**: Typically 18 to 30 years *(Age relaxations: +5 years for SC/ST, +3 years for OBC, +10 years for PwD as per Government rules)*.
+${digest.sections.eligibility}
 
-${postQualifications ? `#### Key Positions & Pay Bands:\n${postQualifications}\n` : ''}
 > 🔍 *Use the ApplyFields [Eligibility Checker](/eligibility) on your profile to verify your specific degree, domicile state, and reservation category.*`;
 
       return {
@@ -508,19 +523,9 @@ ${postQualifications ? `#### Key Positions & Pay Bands:\n${postQualifications}\n
 
     // 4. Pattern / Selection Process Intent
     if (intent === 'pattern') {
-      let stages = '';
-      if (Array.isArray(opp.selection_process) && opp.selection_process.length > 0) {
-        stages = opp.selection_process.map((s: string, idx: number) => `**Stage ${idx + 1}**: ${s}`).join('\n\n');
-      } else {
-        stages = '• **Stage 1**: Computer Based Test (CBT / Prelims)\n• **Stage 2**: Main Examination / Descriptive Test\n• **Stage 3**: Document Verification & Medical Examination';
-      }
-
       const answer = `### 📝 Selection Stages & Exam Pattern for **${opp.title}**
 
-${stages}
-
-• **Negative Marking**: Usually 0.25 to 0.33 marks deducted per incorrect objective answer.
-• **Language of Examination**: Bilingual (English & Hindi) alongside regional languages where applicable.`;
+${digest.sections.examPattern}`;
 
       return {
         mode: 'deterministic',
@@ -537,20 +542,10 @@ ${stages}
 
     // 5. Vacancy Intent
     if (intent === 'vacancies') {
-      const total = opp.vacancies_total || 'Refer official circular';
-      const posts = (opp.opportunity_posts || [])
-        .map(
-          (p: any) =>
-            `• **${p.name}**: ${p.vacancies_total ? `${p.vacancies_total} vacancies` : 'Announced'}${p.pay_level ? ` · Pay Level ${p.pay_level}` : ''}`,
-        )
-        .join('\n');
-
       const answer = `### 📊 Vacancies for **${opp.title}**
 
-• **Total Sanctioned Posts**: **${total}** vacancies
-• **Recruiting Organization**: ${orgName}
+${digest.sections.vacancies}
 
-${posts ? `#### Position-wise Distribution:\n${posts}\n` : ''}
 > 📌 *Vertical reservations (SC/ST/OBC/EWS) and horizontal quotas (Ex-Servicemen/PwD) are allocated as per Government of India guidelines.*`;
 
       return {
@@ -570,10 +565,7 @@ ${posts ? `#### Position-wise Distribution:\n${posts}\n` : ''}
     if (intent === 'how_to_apply') {
       const answer = `### 🚀 How to Apply for **${opp.title}**
 
-1. **Step 1**: Visit the official website (${opp.official_website || 'official portal'}) or click the **Direct Official Apply Link** below.
-2. **Step 2**: Complete One-Time Registration (OTR) with your active email and mobile number.
-3. **Step 3**: Fill educational details, upload photo (20KB–50KB) and signature (10KB–20KB).
-4. **Step 4**: Pay the application fee online and download your confirmation slip.
+${digest.sections.howToApply}
 
 > 🏪 *Need someone to verify your certificates and fill the form accurately? You can book an assisted filing session at your local MeeSeva/CSC partner center below.*`;
 
@@ -590,12 +582,19 @@ ${posts ? `#### Position-wise Distribution:\n${posts}\n` : ''}
       };
     }
 
+    // If query is an open-ended question about this opportunity (e.g. comparison, deep advice, edge cases):
+    // Execute LLM Reasoning grounded strictly in this opportunity's 1-Page Digest!
+    const isDeepQuery = rawQuery.length > 25 && !rawQuery.startsWith('what is') && !rawQuery.startsWith('when is');
+    if (isDeepQuery) {
+      return this.executeLlmReasoning(rawQuery, history, undefined, digest.digestMarkdown);
+    }
+
     // Default overview for the opportunity
     const answer = `### 🏛️ **${opp.title}** (${orgName})
 
-• **Application Period**: ${formatDate(opp.application_start)} to **${formatDate(opp.application_end)}**
-• **Total Vacancies**: ${opp.vacancies_total || 'Check circular'}
-• **Summary**: ${opp.summary || 'Official notification published. Check details below.'}
+• **Application Period**: ${digest.keyFacts.applicationStart} to **${digest.keyFacts.applicationEnd}**
+• **Total Vacancies**: ${digest.keyFacts.totalVacancies}
+• **Fees**: ${digest.keyFacts.feeGeneral} (Gen/OBC) · ${digest.keyFacts.feeConcession} (SC/ST/Women)
 
 How can I help you regarding this opportunity? You can ask about **deadlines**, **fees**, **eligibility**, or **exam pattern**.`;
 
@@ -783,15 +782,13 @@ ApplyFields partners with certified CSC and MeeSeva kiosks across India to provi
   }
 
   /**
-   * PATH 2: Open-Ended LLM Reasoning
-   * When queries are outside deterministic within-website schemas (e.g. preparation strategy,
-   * comparisons, essay guidance, timetable planning), we invoke Anthropic Claude.
-   * If Claude API key is unavailable, we use our rich grounded career engine fallback.
+   * PATH 2: Grounded LLM Reasoning over 1-Page Digest
    */
   private async executeLlmReasoning(
     query: string,
     history?: { role: 'user' | 'assistant'; content: string }[],
     qualification?: string,
+    digestContext?: string,
   ): Promise<ChatbotQueryResponse> {
     const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
 
@@ -801,6 +798,8 @@ ApplyFields partners with certified CSC and MeeSeva kiosks across India to provi
 Your mission is to provide accurate, reassuring, highly structured guidance for government exams, competitive admissions, and career paths.
 Tagline: "Your first move starts here".
 
+${digestContext ? `OFFICIAL 1-PAGE NOTIFICATION DIGEST GROUND TRUTH:\n${digestContext}\n\nCRITICAL: Answer based STRICTLY on this verified official digest. Never invent fake dates, fees, or eligibility requirements.` : ''}
+
 CRITICAL GUIDELINES:
 1. Provide practical, step-by-step guidance formatted with bold headings (###) and bullet points (•).
 2. Ground all advice in real Indian competitive examinations (UPSC, SSC, Banking, Railways, State PSCs, GATE, CAT, NEET).
@@ -809,7 +808,7 @@ CRITICAL GUIDELINES:
    - [Exam Calendar](/apply/exams)
    - [Career Guidance Roadmaps](/career)
    - [Saved Workspace](/saved)
-4. Keep tone friendly, empowering, and concise. Never hallucinate fake exam dates or fee amounts.`;
+4. Keep tone friendly, empowering, and concise.`;
 
         const messagesPayload: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
