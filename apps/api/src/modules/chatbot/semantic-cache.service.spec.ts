@@ -49,3 +49,4 @@ describe('SemanticCacheService', () => {
     expect(metrics.total_hits).toBeGreaterThanOrEqual(1);
   });
 });
+
