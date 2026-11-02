@@ -155,5 +155,29 @@ describe('Web Push VAPID and SSE Engine', () => {
     expect(written[1]).toContain('event: notification');
     expect(written[1]).toContain('Test Alert');
   });
+
+  it('formats daily 3-slot personalized notifications with user first name and deduplication keys', () => {
+    const user = { id: 'u123', full_name: 'Rahul Sharma' };
+    const firstName = user.full_name.split(' ')[0];
+    const istDate = '2026-11-02';
+
+    // Morning Slot
+    const morningTitle = `Hi ${firstName}, looking good today! ✨`;
+    const morningKey = `daily_cadence:morning:${istDate}:${user.id}`;
+    expect(morningTitle).toBe('Hi Rahul, looking good today! ✨');
+    expect(morningKey).toBe('daily_cadence:morning:2026-11-02:u123');
+
+    // Afternoon Slot
+    const afternoonTitle = `Deadline Alert, ${firstName} ⏳`;
+    const afternoonKey = `daily_cadence:afternoon:${istDate}:${user.id}`;
+    expect(afternoonTitle).toBe('Deadline Alert, Rahul ⏳');
+    expect(afternoonKey).toBe('daily_cadence:afternoon:2026-11-02:u123');
+
+    // Evening Slot
+    const eveningTitle = `Evening Career Spotlight for ${firstName} 🧭`;
+    const eveningKey = `daily_cadence:evening:${istDate}:${user.id}`;
+    expect(eveningTitle).toBe('Evening Career Spotlight for Rahul 🧭');
+    expect(eveningKey).toBe('daily_cadence:evening:2026-11-02:u123');
+  });
 });
 

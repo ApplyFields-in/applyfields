@@ -73,4 +73,15 @@ export class NotificationsAdminController {
     await this.notifications.retry(id);
     return { retried: true };
   }
+
+  /** POST /admin/notifications/cadence/:slot — trigger daily 3-slot cadence (morning/afternoon/evening) */
+  @Post('notifications/cadence/:slot')
+  @Roles('admin')
+  @HttpCode(200)
+  async triggerCadence(
+    @Param('slot') slot: 'morning' | 'afternoon' | 'evening',
+  ): Promise<{ dispatched: number; slot: string }> {
+    const dispatched = await this.notifications.runDailyCadence(slot);
+    return { dispatched, slot };
+  }
 }

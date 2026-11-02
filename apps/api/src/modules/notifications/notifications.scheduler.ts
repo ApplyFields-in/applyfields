@@ -42,18 +42,27 @@ export class NotificationsScheduler implements OnApplicationBootstrap, OnApplica
       }
       this.notifications.kick();
 
-      // Check for 12-hour digest cycle (09:00 AM & 09:00 PM IST)
+      // Check for Daily 3-Slot Personalized Cadence (09:00 Morning, 14:00 Afternoon, 19:00 Evening IST)
       const now = new Date();
       const istHours = new Date(now.getTime() + IST_OFFSET_MS).getUTCHours();
       const istDate = new Date(now.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
-      const currentCycle = `${istDate}-${istHours < 15 ? 'morning' : 'evening'}`;
 
-      if (this.lastDigestCycle !== currentCycle) {
-        if ((istHours >= 9 && istHours < 12) || (istHours >= 20 && istHours < 23)) {
-          this.lastDigestCycle = currentCycle;
-          const digestCount = await this.notifications.runTwiceDailyDigest();
-          if (digestCount) {
-            this.logger.log(`Dispatched 12-hour digest to ${digestCount} active candidates`);
+      let activeSlot: 'morning' | 'afternoon' | 'evening' | null = null;
+      if (istHours >= 9 && istHours < 12) {
+        activeSlot = 'morning';
+      } else if (istHours >= 14 && istHours < 17) {
+        activeSlot = 'afternoon';
+      } else if (istHours >= 19 && istHours < 22) {
+        activeSlot = 'evening';
+      }
+
+      if (activeSlot) {
+        const slotKey = `${istDate}-${activeSlot}`;
+        if (this.lastDigestCycle !== slotKey) {
+          this.lastDigestCycle = slotKey;
+          const dispatched = await this.notifications.runDailyCadence(activeSlot);
+          if (dispatched) {
+            this.logger.log(`Dispatched ${activeSlot} cadence notifications to ${dispatched} candidates`);
           }
         }
       }
