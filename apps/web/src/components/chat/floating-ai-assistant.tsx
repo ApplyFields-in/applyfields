@@ -7,8 +7,10 @@ import { usePathname } from 'next/navigation';
 import {
   ArrowRight,
   Bot,
+  Copy,
   Crown,
   ExternalLink,
+  FileText,
   Lock,
   MessageSquare,
   RefreshCw,
@@ -21,6 +23,7 @@ import {
 } from 'lucide-react';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
 import { showAppToast } from '@/components/toast-notification-provider';
+import { usePipApply } from '@/context/pip-apply-context';
 import type {
   ChatbotAction,
   ChatbotQueryInput,
@@ -55,6 +58,13 @@ function renderMarkdown(content: string) {
   const lines = content.split('\n');
   return lines.map((line, idx) => {
     // Headers
+    if (line.startsWith('## ')) {
+      return (
+        <h3 key={idx} className="mt-3 mb-1.5 text-sm font-black text-[#082046] border-b border-blue-100 pb-1">
+          {line.replace('## ', '')}
+        </h3>
+      );
+    }
     if (line.startsWith('### ')) {
       return (
         <h4 key={idx} className="mt-2.5 mb-1 text-sm font-black text-[#082046]">
@@ -129,6 +139,7 @@ function renderMarkdown(content: string) {
 
 export function FloatingAiAssistant() {
   const pathname = usePathname();
+  const { openPip } = usePipApply();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputQuery, setInputQuery] = useState('');
@@ -201,6 +212,10 @@ export function FloatingAiAssistant() {
   // Quick Chips based on route context
   const quickChips = currentOpportunitySlug
     ? [
+        {
+          label: '📄 1-Page Official Digest',
+          query: 'Show the 1-page official circular digest',
+        },
         { label: '📅 When is the final deadline?', query: 'When is the final deadline to apply?' },
         {
           label: '💰 Fee for Gen / SC / ST / OBC?',
@@ -334,6 +349,19 @@ export function FloatingAiAssistant() {
 
   async function handleActionClick(action: ChatbotAction) {
     if (action.action === 'open_url' && action.url) {
+      if (
+        action.url.startsWith('http') &&
+        (action.label.toLowerCase().includes('apply') || Boolean(currentOpportunitySlug))
+      ) {
+        openPip({
+          title: currentOpportunitySlug
+            ? currentOpportunitySlug.replace(/-/g, ' ').toUpperCase()
+            : 'Official Application Portal',
+          applyUrl: action.url,
+          slug: currentOpportunitySlug,
+        });
+        return;
+      }
       window.open(action.url, '_blank', 'noopener,noreferrer');
     } else if (action.action === 'save' && action.item_slug) {
       try {
@@ -645,6 +673,24 @@ export function FloatingAiAssistant() {
                           ApplyFields Career Engine
                         </span>
                       )}
+
+                      {/* Copy Answer Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof navigator !== 'undefined') {
+                            navigator.clipboard.writeText(m.text);
+                            showAppToast({
+                              message: 'Copied answer to clipboard!',
+                              type: 'success',
+                            });
+                          }
+                        }}
+                        title="Copy answer"
+                        className="ml-auto text-slate-400 hover:text-[#082046] p-0.5 rounded transition cursor-pointer"
+                      >
+                        <Copy className="size-3" />
+                      </button>
                     </div>
                   )}
 

@@ -77,8 +77,8 @@ export async function sendWebPush(
     title: payload.title,
     body: payload.body ?? '',
     link: payload.link ?? '/notifications',
-    icon: payload.icon ?? '/icon.png',
-    badge: payload.badge ?? '/favicon.ico',
+    icon: payload.icon ?? '/logo-mark.png',
+    badge: payload.badge ?? '/logo-mark.png',
     tag: payload.tag ?? 'applyfields-alert',
     timestamp: payload.timestamp ?? Date.now(),
   });

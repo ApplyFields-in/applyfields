@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import '@fontsource-variable/plus-jakarta-sans';
 import './globals.css';
 import { LanguageProvider } from '@/lib/i18n/language-context';
+import { PipApplyProvider } from '@/context/pip-apply-context';
+import { PipApplyCompanion } from '@/components/apply/pip-apply-companion';
 import { RealtimeNotificationToast } from '@/components/realtime-notification-toast';
 import { NotificationPermissionPrompt } from '@/components/notification-permission-prompt';
 import { FloatingAiAssistant } from '@/components/chat/floating-ai-assistant';
@@ -30,11 +32,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full font-sans">
         <LanguageProvider>
-          {children}
-          <RealtimeNotificationToast />
-          <NotificationPermissionPrompt />
-          <FloatingAiAssistant />
-          <ScrollToTop />
+          <PipApplyProvider>
+            {children}
+            <RealtimeNotificationToast />
+            <NotificationPermissionPrompt />
+            <PipApplyCompanion />
+            <FloatingAiAssistant />
+            <ScrollToTop />
+          </PipApplyProvider>
         </LanguageProvider>
       </body>
     </html>

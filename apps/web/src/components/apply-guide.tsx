@@ -1,3 +1,5 @@
+'use client';
+
 import { Badge, Card } from '@applyfields/ui';
 import {
   ArrowRight,
@@ -7,9 +9,11 @@ import {
   FileCheck,
   FileText,
   Landmark,
+  PictureInPicture,
   ShieldCheck,
   UserPlus,
 } from 'lucide-react';
+import { PipApplyButton } from './apply/pip-apply-button';
 
 export interface ApplyStep {
   step: number;
@@ -165,7 +169,7 @@ export function ApplyGuide({
               )}
 
               {s.actionUrl && (
-                <div className="mt-3">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <a
                     href={s.actionUrl}
                     target="_blank"
@@ -175,6 +179,14 @@ export function ApplyGuide({
                     {s.actionLabel || 'Proceed'}
                     <ExternalLink className="size-3" aria-hidden="true" />
                   </a>
+                  {s.step === 2 && applyUrl && (
+                    <PipApplyButton
+                      title={opportunityTitle}
+                      applyUrl={applyUrl}
+                      pdfUrl={notificationPdfUrl}
+                      variant="secondary"
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -187,18 +199,30 @@ export function ApplyGuide({
           <div>
             <p className="font-bold text-sm text-teal">Ready to submit your application?</p>
             <p className="text-xs text-teal/70">
-              ApplyFields connects you directly to the official government recruitment authority.
+              ApplyFields connects you directly to the official government recruitment authority with concurrent profile copier.
             </p>
           </div>
-          <a
-            href={applyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="clay-press inline-flex shrink-0 items-center gap-2 rounded-full bg-teal px-5 py-2.5 text-xs font-bold text-cream shadow-clay hover:bg-teal/90"
-          >
-            Open Official Application Portal
-            <ExternalLink className="size-3.5" aria-hidden="true" />
-          </a>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <PipApplyButton
+              title={opportunityTitle}
+              applyUrl={applyUrl}
+              pdfUrl={notificationPdfUrl}
+              className="clay-press inline-flex shrink-0 items-center gap-2 rounded-full bg-[#082046] px-4 py-2.5 text-xs font-bold text-white shadow-clay hover:bg-[#0e7bf4] transition"
+            >
+              <PictureInPicture className="size-3.5" />
+              <span>Apply with PiP Copier</span>
+            </PipApplyButton>
+
+            <a
+              href={applyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="clay-press inline-flex shrink-0 items-center gap-2 rounded-full bg-teal px-4 py-2.5 text-xs font-bold text-cream shadow-clay hover:bg-teal/90"
+            >
+              <span>Open in New Tab</span>
+              <ExternalLink className="size-3.5" aria-hidden="true" />
+            </a>
+          </div>
         </div>
       )}
     </Card>
