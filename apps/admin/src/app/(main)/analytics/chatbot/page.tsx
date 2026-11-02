@@ -356,3 +356,4 @@ export default async function ChatbotAnalyticsPage() {
     </div>
   );
 }
+
