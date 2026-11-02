@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { ChatbotAction, ChatbotQueryInput, ChatbotQueryResponse } from '@applyfields/types';
 import { NotificationDigestService, type OpportunityDigest } from './notification-digest.service.js';
+import { SemanticCacheService } from './semantic-cache.service.js';
+import { ChatbotAnalyticsService } from './chatbot-analytics.service.js';
 
 const logger = new Logger('QueryRouterService');
 
@@ -32,7 +34,17 @@ export class QueryRouterService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly digestService: NotificationDigestService = new NotificationDigestService(),
+    private readonly cacheService: SemanticCacheService = new SemanticCacheService(),
+    private readonly analyticsService: ChatbotAnalyticsService = new ChatbotAnalyticsService(prisma),
   ) {}
+
+  getCacheService(): SemanticCacheService {
+    return this.cacheService;
+  }
+
+  getAnalyticsService(): ChatbotAnalyticsService {
+    return this.analyticsService;
+  }
 
   /**
    * Returns today's date key in India Standard Time (IST, UTC+5:30)
@@ -168,6 +180,32 @@ export class QueryRouterService {
       };
     }
 
+    const startTime = Date.now();
+
+    // Check semantic response cache first (<20ms, zero DB and zero LLM cost)
+    const cachedResponse = this.cacheService.get(input.opportunity_slug, input.query);
+    if (cachedResponse) {
+      const latency = Date.now() - startTime;
+      await this.analyticsService.logQuery({
+        query: input.query,
+        mode: cachedResponse.mode,
+        latency_ms: latency,
+        opportunity_slug: input.opportunity_slug,
+        is_unanswered: false,
+        is_cached: true,
+        user_id: userId,
+      });
+
+      return {
+        ...cachedResponse,
+        daily_limit: quota.daily_limit,
+        queries_used: quota.is_premium ? 0 : this.incrementUsage(identifier),
+        queries_remaining: quota.is_premium ? 9999 : Math.max(0, quota.queries_remaining - 1),
+        is_premium: quota.is_premium,
+        limit_reached: !quota.is_premium && quota.queries_used + 1 >= quota.daily_limit,
+      };
+    }
+
     const q = input.query.toLowerCase().trim();
     const intent = this.classifyIntent(q);
 
@@ -233,6 +271,28 @@ export class QueryRouterService {
     this.incrementUsage(identifier);
     const updatedUsed = quota.queries_used + 1;
     const updatedRemaining = Math.max(0, quota.queries_remaining - 1);
+
+    const latency = Date.now() - startTime;
+    const isUnanswered =
+      response.mode === 'fallback' ||
+      response.answer.toLowerCase().includes('does not mention') ||
+      response.answer.toLowerCase().includes('not available in the official');
+
+    // Store in semantic cache if solid answer (not limit reached or fallback)
+    if (response.mode !== 'limit_reached' && !isUnanswered) {
+      this.cacheService.set(opportunity?.slug || input.opportunity_slug, input.query, response);
+    }
+
+    // Log query telemetry for admin observability
+    await this.analyticsService.logQuery({
+      query: input.query,
+      mode: response.mode,
+      latency_ms: latency,
+      opportunity_slug: opportunity?.slug || input.opportunity_slug,
+      is_unanswered: isUnanswered,
+      is_cached: false,
+      user_id: userId,
+    });
 
     return {
       ...response,
@@ -432,6 +492,31 @@ export class QueryRouterService {
       action: 'book_service',
       url: `/service/checkout?service=application-filing&ref=${opp.slug}`,
     });
+
+    // Assisted CSC/MeeSeva Booking Intent
+    if (intent === 'csc_booking') {
+      return {
+        mode: 'deterministic',
+        intent: 'csc_booking',
+        answer: `### 🏪 Verified CSC & MeeSeva Assisted Filing for **${opp.title}**\n\nNeed help filing your application with zero errors?\n\nApplyFields connects you with certified **MeeSeva / CSC Kiosk Partners**:\n\n• **Standard CSC Assistance Fee**: ₹50 per application\n• **Document Resizing**: Guaranteed compliance with exact KB limits for photos and signatures\n• **OTR (One-Time Registration)**: Instant creation and credential verification\n• **Physical Receipt**: Official printed fee acknowledgement with barcode\n\n*Click below to reserve a priority assistance slot:*`,
+        actions: [
+          {
+            label: '🏪 Book Assisted CSC / MeeSeva Filing (₹50)',
+            action: 'book_service',
+            url: `/service/checkout?service=application-filing&opportunity=${opp.slug}`,
+            item_slug: opp.slug,
+            item_type: 'service',
+          },
+          ...actions.filter((a) => a.action !== 'book_service'),
+        ],
+        citations: ['Official Application Portal', 'ApplyFields Partner Network'],
+        related_queries: [
+          'What documents should I take to the center?',
+          'When is the final deadline to apply?',
+          'What is the application fee for General / SC / ST / OBC?',
+        ],
+      };
+    }
 
     // 0. Full 1-Page Digest Intent
     if (intent === 'digest') {

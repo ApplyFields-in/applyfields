@@ -25,6 +25,7 @@ import { ActorId, StaffMember, type StaffUser } from '../../common/actor.js';
 import { ReviewService } from './review.service.js';
 import { UsersAdminService } from './users.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { QueryRouterService } from '../chatbot/query-router.service.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -35,7 +36,33 @@ export class AdminController {
     private readonly review: ReviewService,
     private readonly usersService: UsersAdminService,
     private readonly prisma: PrismaService,
+    private readonly routerService?: QueryRouterService,
   ) {}
+
+  /** GET /api/v1/admin/analytics/chatbot — returns chatbot observability metrics */
+  @Get('analytics/chatbot')
+  @Roles('reviewer')
+  async getChatbotAnalytics() {
+    if (!this.routerService) {
+      return {
+        total_queries: 0,
+        fast_path_count: 0,
+        llm_count: 0,
+        cache_hits: 0,
+        fast_path_percentage: 0,
+        avg_latency_ms: 0,
+        estimated_cost_saved_usd: 0,
+        satisfaction_rate: 0,
+        ratings_count: 0,
+        helpful_count: 0,
+        unhelpful_count: 0,
+        top_unanswered_questions: [],
+        recent_queries: [],
+      };
+    }
+    const cacheMetrics = this.routerService.getCacheService().getMetrics();
+    return this.routerService.getAnalyticsService().getObservabilityMetrics(cacheMetrics.total_hits);
+  }
 
   /** GET /api/v1/admin/me — returns current staff user info { id, email, name, roles } */
   @Get('me')

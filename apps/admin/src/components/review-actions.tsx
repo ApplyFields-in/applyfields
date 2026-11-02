@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { buttonClass, Card, cn } from '@applyfields/ui';
-import { CircleAlert, CircleCheck, Edit, Send, TriangleAlert, X } from 'lucide-react';
+import { CircleAlert, CircleCheck, Edit, Megaphone, Send, TriangleAlert, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { publishOpportunityAction, setOpportunityStatusAction } from '@/lib/actions';
@@ -101,6 +101,14 @@ export function ReviewActions({ id, missing }: { id: string; missing: string[] }
             className={buttonClass({ variant: ready ? 'inverse' : 'secondary', size: 'sm' })}
           >
             <Edit aria-hidden="true" className="size-3.5" /> Full editor
+          </Link>
+
+          <Link
+            href={`/updates/new?opportunity_id=${encodeURIComponent(id)}&kind=date_change`}
+            className={buttonClass({ variant: ready ? 'inverse' : 'secondary', size: 'sm' })}
+            title="Issue Corrigendum or deadline extension update"
+          >
+            <Megaphone aria-hidden="true" className="size-3.5" /> Corrigendum
           </Link>
 
           <button
