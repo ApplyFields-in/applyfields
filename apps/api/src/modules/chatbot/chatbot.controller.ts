@@ -11,7 +11,12 @@ import {
 import type { ChatbotQueryResponse } from '@applyfields/types';
 import type { Request } from 'express';
 import { ZodPipe } from '../../common/zod.pipe.js';
-import { chatbotQuerySchema, type ChatbotQueryDto } from './chatbot.schemas.js';
+import {
+  chatbotQuerySchema,
+  type ChatbotQueryDto,
+  chatbotFeedbackSchema,
+  type ChatbotFeedbackDto,
+} from './chatbot.schemas.js';
 import { QueryRouterService } from './query-router.service.js';
 
 @Controller('chatbot')
@@ -44,6 +49,27 @@ export class ChatbotController {
       throw new NotFoundException(`Opportunity with slug '${slug}' not found`);
     }
     return digest;
+  }
+
+  /**
+   * POST /api/v1/chatbot/feedback
+   * Candidate rating feedback (helpful / unhelpful) with optional comments
+   */
+  @Post('feedback')
+  @HttpCode(200)
+  async recordFeedback(@Body(new ZodPipe(chatbotFeedbackSchema)) body: ChatbotFeedbackDto) {
+    await this.routerService.getAnalyticsService().recordFeedback(body);
+    return { ok: true, message: 'Feedback recorded successfully' };
+  }
+
+  /**
+   * GET /api/v1/chatbot/analytics
+   * Returns observability telemetry (total queries, fast-path ratio, latency, top unanswered, satisfaction)
+   */
+  @Get('analytics')
+  async getAnalytics() {
+    const cacheMetrics = this.routerService.getCacheService().getMetrics();
+    return this.routerService.getAnalyticsService().getObservabilityMetrics(cacheMetrics.total_hits);
   }
 
   /**

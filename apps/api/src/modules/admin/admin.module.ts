@@ -14,9 +14,10 @@ import { ScrapersAdminService } from './scrapers-admin.service.js';
 import { ScraperSchedulerService } from './scraper-scheduler.service.js';
 import { LinkHealthService } from './link-health.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { ChatbotModule } from '../chatbot/chatbot.module.js';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, ChatbotModule],
   controllers: [
     AdminController,
     OpportunitiesAdminController,

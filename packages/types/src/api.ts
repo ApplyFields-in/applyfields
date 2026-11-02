@@ -2050,4 +2050,43 @@ export interface ChatbotQueryResponse {
   limit_reached?: boolean;
 }
 
+export interface ChatbotObservabilityMetrics {
+  total_queries: number;
+  fast_path_count: number;
+  llm_count: number;
+  cache_hits: number;
+  fast_path_percentage: number;
+  avg_latency_ms: number;
+  estimated_cost_saved_usd: number;
+  satisfaction_rate: number;
+  ratings_count: number;
+  helpful_count: number;
+  unhelpful_count: number;
+  top_unanswered_questions: Array<{
+    query: string;
+    count: number;
+    opportunity_slug?: string;
+    last_asked_at: string;
+  }>;
+  recent_queries: Array<{
+    id: string;
+    query: string;
+    mode: 'deterministic' | 'rag' | 'llm' | 'fallback' | 'limit_reached';
+    latency_ms: number;
+    opportunity_slug?: string | null;
+    is_unanswered: boolean;
+    is_cached: boolean;
+    user_id?: string | null;
+    created_at: string;
+  }>;
+}
+
+export interface ChatbotFeedbackInput {
+  query: string;
+  answer: string;
+  rating: 'helpful' | 'unhelpful';
+  opportunity_slug?: string;
+  comments?: string;
+}
+
 export * from './schedule.js';

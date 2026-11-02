@@ -3,6 +3,7 @@ import { connection } from 'next/server';
 import type { AnalyticsFunnelSummary } from '@applyfields/types';
 import { apiGetWithStatus } from '@/lib/api';
 import { Badge, Card, PageHeader } from '@applyfields/ui';
+import Link from 'next/link';
 import {
   TrendingUp,
   Search,
@@ -15,6 +16,7 @@ import {
   ShieldCheck,
   BarChart3,
   ArrowRight,
+  Bot,
 } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -129,6 +131,13 @@ export default async function AnalyticsFunnelPage({
         />
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link
+            href="/analytics/chatbot"
+            className="rounded-full bg-[#082046] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#0e7bf4] transition flex items-center gap-1.5 shadow-xs mr-2"
+          >
+            <Bot className="size-3.5" />
+            <span>AI Chatbot Telemetry</span>
+          </Link>
           <span className="text-xs font-bold text-teal/70">Window:</span>
           {['7', '30', '90'].map((d) => (
             <a
