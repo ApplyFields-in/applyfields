@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, PictureInPicture } from 'lucide-react';
 import { SaveButton } from '@/components/save-button';
 import { ShareModal } from '@/components/share/share-modal';
+import { PipApplyButton } from '@/components/apply/pip-apply-button';
 
 export interface StickyMobileActionBarProps {
   title: string;
@@ -73,6 +74,18 @@ export function StickyMobileActionBar({
             slug={slug}
             title={title}
           />
+
+          {isExternal && (
+            <PipApplyButton
+              title={title}
+              applyUrl={primaryCtaHref}
+              slug={slug}
+              variant="secondary"
+              className="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-2 text-xs font-bold text-[#082046] hover:bg-slate-50 transition-colors shadow-xs"
+            >
+              <PictureInPicture className="size-3.5 text-[#0e7bf4]" />
+            </PipApplyButton>
+          )}
 
           {isExternal ? (
             <a

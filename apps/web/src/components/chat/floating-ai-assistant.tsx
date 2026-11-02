@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
 import { showAppToast } from '@/components/toast-notification-provider';
+import { usePipApply } from '@/context/pip-apply-context';
 import type {
   ChatbotAction,
   ChatbotQueryInput,
@@ -138,6 +139,7 @@ function renderMarkdown(content: string) {
 
 export function FloatingAiAssistant() {
   const pathname = usePathname();
+  const { openPip } = usePipApply();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputQuery, setInputQuery] = useState('');
@@ -347,6 +349,19 @@ export function FloatingAiAssistant() {
 
   async function handleActionClick(action: ChatbotAction) {
     if (action.action === 'open_url' && action.url) {
+      if (
+        action.url.startsWith('http') &&
+        (action.label.toLowerCase().includes('apply') || Boolean(currentOpportunitySlug))
+      ) {
+        openPip({
+          title: currentOpportunitySlug
+            ? currentOpportunitySlug.replace(/-/g, ' ').toUpperCase()
+            : 'Official Application Portal',
+          applyUrl: action.url,
+          slug: currentOpportunitySlug,
+        });
+        return;
+      }
       window.open(action.url, '_blank', 'noopener,noreferrer');
     } else if (action.action === 'save' && action.item_slug) {
       try {
