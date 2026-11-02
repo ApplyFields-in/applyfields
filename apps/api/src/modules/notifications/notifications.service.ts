@@ -47,7 +47,7 @@ const webUrl = () => (process.env.WEB_URL ?? 'http://localhost:3000').replace(/\
 const apiPublicUrl = () => (process.env.API_PUBLIC_URL ?? 'http://localhost:4000/api/v1').replace(/\/$/, '');
 /** A different secret from login tokens, so an unsubscribe link can never be used to log in. */
 const unsubscribeSecret = () => `${jwtAccessSecret()}:unsubscribe`;
-const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+const isoDate = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : '');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export interface NewNotification {
@@ -236,7 +236,23 @@ export class NotificationsService {
         : null;
     if (!parent) return 0;
 
-    const savers = await this.prisma.saved_items.findMany({ where: parent, select: { user_id: true } });
+    const [savers, subs] = await Promise.all([
+      this.prisma.saved_items.findMany({ where: parent, select: { user_id: true } }),
+      this.prisma.subscriptions.findMany({
+        where: {
+          status: 'active',
+          OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+        },
+        select: { user_id: true },
+      }),
+    ]);
+    const targetUserIds = [
+      ...new Set([
+        ...savers.map((s) => s.user_id),
+        ...subs.map((s) => s.user_id).filter((id): id is string => Boolean(id)),
+      ]),
+    ];
+
     const parentTitle = u.opportunities?.title ?? u.gov_services?.name ?? '';
     const link = u.opportunities
       ? opportunityPath(u.opportunities.type, u.opportunities.slug)
@@ -244,11 +260,11 @@ export class NotificationsService {
         ? `/services/${u.gov_services.slug}`
         : null;
     return this.notify(
-      savers.map((s) => s.user_id),
+      targetUserIds,
       {
         type: notificationTypeForUpdate(u.kind),
-        title: u.title,
-        body: [`New update for ${parentTitle}, which you saved.`, u.summary].filter(Boolean).join(' '),
+        title: `⚡ ${u.title}`,
+        body: [`Official update released for ${parentTitle}.`, u.summary].filter(Boolean).join(' '),
         link,
         ...parent,
       },
@@ -691,6 +707,102 @@ export class NotificationsService {
       },
       (userId) => `digest:${digestBucket}:${userId}`,
     );
+  }
+
+  /**
+   * Daily 3-Slot Personalized Cadence:
+   * - Slot 1 (Morning ~09:00 AM IST): Personalized greeting & career recommendation ("Hi {username}, looking good today! ✨ Have you seen this career option: ...")
+   * - Slot 2 (Afternoon ~02:00 PM IST): Countdown & Deadline urgency alert ("Deadline Alert, {username} ⏳ ...")
+   * - Slot 3 (Evening ~07:00 PM IST): Career roadmap & pathway spotlight ("Evening Career Spotlight for {username} 🧭 ...")
+   */
+  async runDailyCadence(slot: 'morning' | 'afternoon' | 'evening'): Promise<number> {
+    const today = todayIst();
+    const istDate = new Date().toISOString().slice(0, 10);
+
+    const [activeUsers, topOpp, closingOpp, careerSpotlight] = await Promise.all([
+      this.prisma.users.findMany({
+        where: { status: 'active', deleted_at: null },
+        select: {
+          id: true,
+          user_profiles: { select: { full_name: true } },
+        },
+      }),
+      this.prisma.opportunities.findFirst({
+        where: { status: 'published' },
+        orderBy: [{ published_at: 'desc' }, { vacancies_total: 'desc' }],
+        select: { id: true, title: true, slug: true, type: true, vacancies_total: true },
+      }),
+      this.prisma.opportunities.findFirst({
+        where: {
+          status: 'published',
+          application_end: { gte: today, lte: addDays(today, 7) },
+        },
+        orderBy: { application_end: 'asc' },
+        select: { id: true, title: true, slug: true, type: true, application_end: true },
+      }),
+      this.prisma.careers.findFirst({
+        orderBy: { title: 'asc' },
+        select: { id: true, title: true, slug: true },
+      }),
+    ]);
+
+    if (activeUsers.length === 0) return 0;
+
+    let totalDispatched = 0;
+
+    for (const u of activeUsers) {
+      const fullName = u.user_profiles?.full_name?.trim();
+      const firstName = fullName ? fullName.split(' ')[0] : 'Friend';
+
+      let title: string;
+      let body: string;
+      let link: string;
+      let notifType: NotificationType;
+      let itemId: string | undefined;
+
+      if (slot === 'morning') {
+        notifType = 'system';
+        title = `Hi ${firstName}, looking good today! ✨`;
+        body = topOpp
+          ? `Have you seen this career option: ${topOpp.title}? ${topOpp.vacancies_total ? `${topOpp.vacancies_total} posts announced.` : ''} Check eligibility & dates.`
+          : 'Explore top government recruitments and competitive admissions open today.';
+        link = topOpp ? opportunityPath(topOpp.type, topOpp.slug) : '/apply/jobs';
+        itemId = topOpp?.id;
+      } else if (slot === 'afternoon') {
+        notifType = 'closing_reminder';
+        title = `Deadline Alert, ${firstName} ⏳`;
+        body = closingOpp
+          ? `${closingOpp.title} closes on ${isoDate(closingOpp.application_end)}! Don't miss your chance to apply.`
+          : 'Important competitive exam applications close this week. Check your saved reminders.';
+        link = closingOpp ? opportunityPath(closingOpp.type, closingOpp.slug) : '/apply?sort=deadline';
+        itemId = closingOpp?.id;
+      } else {
+        notifType = 'system';
+        title = `Evening Career Spotlight for ${firstName} 🧭`;
+        body = careerSpotlight
+          ? `Your first move starts here! Explore verified career pathways and salary roadmaps for ${careerSpotlight.title}.`
+          : 'Your first move starts here! Explore verified career roadmaps, degree pathways, and exam syllabi.';
+        link = careerSpotlight ? `/career/${careerSpotlight.slug}` : '/career';
+        itemId = careerSpotlight?.id;
+      }
+
+      const dedupeKey = `daily_cadence:${slot}:${istDate}:${u.id}`;
+      const count = await this.notify(
+        [u.id],
+        {
+          type: notifType,
+          title,
+          body,
+          link,
+          item_type: topOpp ? 'opportunity' : undefined,
+          item_id: itemId,
+        },
+        () => dedupeKey,
+      );
+      totalDispatched += count;
+    }
+
+    return totalDispatched;
   }
 
   /* ------------------------------------------------------------------ Internal Portal */

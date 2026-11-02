@@ -22,8 +22,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'ApplyFields Notification';
   const options = {
     body: data.body || 'You have a new update regarding your saved opportunities.',
-    icon: data.icon || '/icon.png',
-    badge: data.badge || '/favicon.ico',
+    icon: data.icon || '/logo-mark.png',
+    badge: data.badge || '/logo-mark.png',
     tag: data.tag || 'applyfields-alert',
     renotify: true,
     data: {
