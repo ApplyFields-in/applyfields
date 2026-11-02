@@ -192,9 +192,9 @@ export function NotificationSettings({ initial }: { initial: NotificationPrefere
           <span className="text-sm">
             <span className="font-semibold flex items-center gap-2">
               Browser & Device Push Alerts
-              <Badge tone={prefs.is_subscribed ? 'teal' : 'outline'}>
-                {prefs.is_subscribed ? '⚡ Instant' : '12h Digest'}
-              </Badge>
+              <span className="text-xs font-medium text-slate-500">
+                {prefs.is_subscribed ? 'Instant Alerts' : 'Standard Digest'}
+              </span>
             </span>
             <span className="block text-teal/80 mt-0.5 text-xs">
               {!push.isSupported

@@ -43,6 +43,7 @@ import { ReportWrongInfoButton } from './report-wrong-info-modal';
 import { OpportunityAnalyticsTracker, ExternalApplyLink } from './analytics-tracker';
 import { OpportunityTimelineStepper } from './opportunity/opportunity-timeline-stepper';
 import { VacanciesDonutChart } from './opportunity/vacancies-donut-chart';
+import { PipApplyButton } from './apply/pip-apply-button';
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { PrintExportButton } from '@/components/print-export-button';
 import { QuickSummaryModal } from '@/components/summary/quick-summary-modal';
@@ -777,18 +778,28 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
               )}
 
               {item.links.apply_url && (
-                <ExternalApplyLink
-                  opportunityId={item.id}
-                  opportunitySlug={item.slug}
-                  href={item.links.apply_url}
-                  className="clay-press flex items-center justify-between rounded-xl border border-line bg-cream p-3 text-xs font-bold text-teal shadow-clay hover:bg-tea"
-                >
-                  <span className="flex items-center gap-2">
-                    <ExternalLink className="size-4" />
-                    Official Online Application Portal
-                  </span>
-                  <ChevronRight className="size-3.5" />
-                </ExternalApplyLink>
+                <>
+                  <PipApplyButton
+                    title={item.title}
+                    applyUrl={item.links.apply_url}
+                    slug={item.slug}
+                    pdfUrl={item.links.notification_pdf_url}
+                    variant="primary"
+                  />
+
+                  <ExternalApplyLink
+                    opportunityId={item.id}
+                    opportunitySlug={item.slug}
+                    href={item.links.apply_url}
+                    className="clay-press flex items-center justify-between rounded-xl border border-line bg-cream p-3 text-xs font-bold text-teal shadow-clay hover:bg-tea"
+                  >
+                    <span className="flex items-center gap-2">
+                      <ExternalLink className="size-4" />
+                      Official Online Application Portal (New Tab)
+                    </span>
+                    <ChevronRight className="size-3.5" />
+                  </ExternalApplyLink>
+                </>
               )}
 
               {item.links.official_website && (
