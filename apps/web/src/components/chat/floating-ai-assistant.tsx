@@ -18,6 +18,8 @@ import {
   Sparkles,
   Star,
   Store,
+  ThumbsDown,
+  ThumbsUp,
   X,
   Zap,
 } from 'lucide-react';
@@ -140,6 +142,7 @@ function renderMarkdown(content: string) {
 export function FloatingAiAssistant() {
   const pathname = usePathname();
   const { openPip } = usePipApply();
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, 'helpful' | 'unhelpful'>>({});
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputQuery, setInputQuery] = useState('');
@@ -391,6 +394,23 @@ export function FloatingAiAssistant() {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem(STORAGE_KEY);
     }
+  }
+
+  async function handleFeedback(messageId: string, answerText: string, rating: 'helpful' | 'unhelpful') {
+    setFeedbackMap((prev) => ({ ...prev, [messageId]: rating }));
+    showAppToast({
+      message: rating === 'helpful' ? 'Thank you for your feedback!' : 'Feedback noted. We will improve this answer.',
+      type: 'success',
+    });
+    try {
+      const lastUserMsg = messages.filter((m) => m.sender === 'user').pop();
+      await apiPost('/chatbot/feedback', {
+        query: lastUserMsg?.text || 'Opportunity inquiry',
+        answer: answerText,
+        rating,
+        opportunity_slug: currentOpportunitySlug,
+      });
+    } catch {}
   }
 
   return (
@@ -674,23 +694,49 @@ export function FloatingAiAssistant() {
                         </span>
                       )}
 
-                      {/* Copy Answer Button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (typeof navigator !== 'undefined') {
-                            navigator.clipboard.writeText(m.text);
-                            showAppToast({
-                              message: 'Copied answer to clipboard!',
-                              type: 'success',
-                            });
-                          }
-                        }}
-                        title="Copy answer"
-                        className="ml-auto text-slate-400 hover:text-[#082046] p-0.5 rounded transition cursor-pointer"
-                      >
-                        <Copy className="size-3" />
-                      </button>
+                      {/* Feedback & Copy Actions */}
+                      <div className="ml-auto flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleFeedback(m.id, m.text, 'helpful')}
+                          title="Helpful answer"
+                          className={`p-0.5 rounded transition ${
+                            feedbackMap[m.id] === 'helpful'
+                              ? 'text-emerald-600 bg-emerald-50'
+                              : 'text-slate-400 hover:text-emerald-600'
+                          }`}
+                        >
+                          <ThumbsUp className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFeedback(m.id, m.text, 'unhelpful')}
+                          title="Not helpful"
+                          className={`p-0.5 rounded transition ${
+                            feedbackMap[m.id] === 'unhelpful'
+                              ? 'text-red-500 bg-red-50'
+                              : 'text-slate-400 hover:text-red-500'
+                          }`}
+                        >
+                          <ThumbsDown className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (typeof navigator !== 'undefined') {
+                              navigator.clipboard.writeText(m.text);
+                              showAppToast({
+                                message: 'Copied answer to clipboard!',
+                                type: 'success',
+                              });
+                            }
+                          }}
+                          title="Copy answer"
+                          className="text-slate-400 hover:text-[#082046] p-0.5 rounded transition cursor-pointer"
+                        >
+                          <Copy className="size-3" />
+                        </button>
+                      </div>
                     </div>
                   )}
 
