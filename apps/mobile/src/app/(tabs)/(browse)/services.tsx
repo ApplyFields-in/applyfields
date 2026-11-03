@@ -22,6 +22,7 @@ import { useApi, useDebounced } from '@/lib/use-api';
 import { C, R, S, TAP, card, column } from '@/theme';
 
 export default function Services() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const q = useDebounced(search.trim(), 300);
   const path = useMemo(() => (q ? `/services?q=${encodeURIComponent(q)}` : '/services'), [q]);
@@ -52,6 +53,20 @@ export default function Services() {
           keyExtractor={(i) => i.slug}
           renderItem={({ item }) => <ServiceRow item={item} />}
           contentContainerStyle={[column, s.list]}
+          ListHeaderComponent={
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/centres')}
+              style={({ pressed }) => [s.near, pressed && { opacity: 0.9 }]}
+            >
+              <Ionicons name="map" size={20} color={C.white} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.nearTitle}>MeeSeva & CSC centres near you</Text>
+                <Text style={s.nearBody}>On a map, with walking and driving directions.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={C.ice} />
+            </Pressable>
+          }
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={C.blue} />
           }
@@ -145,4 +160,14 @@ const s = StyleSheet.create({
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: S.md, marginTop: 2 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { color: C.muted, fontSize: 12 },
+  near: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S.md,
+    padding: S.md,
+    backgroundColor: C.navy,
+    borderRadius: R.md,
+  },
+  nearTitle: { color: C.white, fontSize: 14, fontWeight: '800' },
+  nearBody: { color: C.ice, fontSize: 12.5, marginTop: 1 },
 });

@@ -3,6 +3,7 @@ import type { AuthResponse, MeResponse } from '@applyfields/types';
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api, setToken } from './api';
+import { clearPersonalOffline } from './offline';
 import { registerForPush, unregisterPush } from './push';
 
 interface AuthValue {
@@ -85,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await unregisterPush();
     await api.post('/auth/logout');
     await setToken(null);
+    clearPersonalOffline();
     setMe(null);
   }, []);
 

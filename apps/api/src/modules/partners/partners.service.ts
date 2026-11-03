@@ -41,9 +41,22 @@ export const partnerDirectoryQuerySchema = z.object({
   district: z.string().trim().optional(),
   pincode: z.string().trim().optional(),
   service: z.string().trim().optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
   limit: z.coerce.number().min(1).max(100).default(20),
   offset: z.coerce.number().min(0).default(0),
 });
+
+/** Great-circle distance in km (haversine). Straight line, not road distance. */
+export function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(a));
+}
 
 export const partnerRegisterSchema = z.object({
   business_name: z.string().trim().min(2).max(150),
@@ -332,7 +345,9 @@ export class PartnersService {
     };
 
     if (query.type) {
-      where.type = query.type as partner_type;
+      // 'meeseva,csc' → either kind, so the app finds the nearest centre of both in one call
+      const types = query.type.split(',').map((t) => t.trim()).filter(Boolean) as partner_type[];
+      where.type = types.length > 1 ? { in: types } : types[0];
     }
     if (query.state) {
       where.state_code = query.state.toUpperCase();
@@ -369,6 +384,10 @@ export class PartnersService {
       };
     }
 
+    if (query.lat !== undefined && query.lng !== undefined) {
+      return this.listNearest(where, query.lat, query.lng, query.limit ?? 20, query.offset ?? 0);
+    }
+
     const [total, rows] = await Promise.all([
       this.prisma.partners.count({ where }),
       this.prisma.partners.findMany({
@@ -388,6 +407,39 @@ export class PartnersService {
     const items: PartnerSummary[] = rows.map((p) => this.mapToSummary(p));
 
     return { total, items };
+  }
+
+  /**
+   * Nearest first. Ranks every matching centre that has coordinates, then loads one page.
+   * ponytail: ranks in memory over all matching centres' lat/lng (two numbers each). Fine
+   * into the tens of thousands; past that, a PostGIS / earthdistance index on (latitude, longitude).
+   */
+  private async listNearest(
+    where: any,
+    lat: number,
+    lng: number,
+    limit: number,
+    offset: number,
+  ): Promise<PartnerDirectoryResponse> {
+    const points = await this.prisma.partners.findMany({
+      where: { ...where, latitude: { not: null }, longitude: { not: null } },
+      select: { id: true, latitude: true, longitude: true },
+    });
+    const ranked = points
+      .map((p) => ({ id: p.id, km: distanceKm(lat, lng, Number(p.latitude), Number(p.longitude)) }))
+      .sort((a, b) => a.km - b.km);
+    const page = ranked.slice(offset, offset + limit);
+
+    const rows = await this.prisma.partners.findMany({
+      where: { id: { in: page.map((p) => p.id) } },
+      include: { partner_services: { where: { is_active: true }, take: 6 } },
+    });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const items = page.flatMap((p) => {
+      const row = byId.get(p.id);
+      return row ? [{ ...this.mapToSummary(row), distance_km: Math.round(p.km * 10) / 10 }] : [];
+    });
+    return { total: ranked.length, items };
   }
 
   async getBySlug(slug: string): Promise<PartnerDetail> {

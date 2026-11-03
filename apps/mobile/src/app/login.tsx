@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,9 +16,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, Muted } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { C, R, S, column } from '@/theme';
+
+const LOGO = require('../../assets/images/logo-mark.png');
 
 export default function Login() {
   const router = useRouter();
@@ -88,135 +91,268 @@ export default function Login() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={[column, s.page, { paddingBottom: S.xl + insets.bottom }]}
+        contentContainerStyle={[
+          column,
+          s.page,
+          { paddingTop: insets.top + S.lg, paddingBottom: S.xl + insets.bottom },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={s.h1}>Welcome back</Text>
-        <Muted>One account for ApplyFields on the web and on your phone.</Muted>
-
-        <View style={s.field}>
-          <Text style={s.label}>Email or mobile number</Text>
-          <TextInput
-            value={identifier}
-            onChangeText={setIdentifier}
-            placeholder="you@example.com or 98765 43210"
-            placeholderTextColor={C.muted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType={usesEmail ? 'email-address' : 'default'}
-            textContentType="username"
-            editable={!(mode === 'otp' && otpSent)}
-            style={s.input}
-          />
-        </View>
-
-        {mode === 'password' ? (
-          <View style={s.field}>
-            <Text style={s.label}>Password</Text>
-            <View style={s.passwordWrap}>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Your password"
-                placeholderTextColor={C.muted}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                textContentType="password"
-                onSubmitEditing={submit}
-                returnKeyType="go"
-                style={[s.input, s.passwordInput]}
-              />
-              <Pressable
-                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-                onPress={() => setShowPassword((v) => !v)}
-                hitSlop={13}
-                style={s.eye}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={18}
-                  color={C.muted}
-                />
-              </Pressable>
-            </View>
-          </View>
-        ) : otpSent ? (
-          <View style={s.field}>
-            <Text style={s.label}>6-digit code</Text>
-            <TextInput
-              value={code}
-              onChangeText={setCode}
-              placeholder="● ● ● ● ● ●"
-              placeholderTextColor={C.muted}
-              keyboardType="number-pad"
-              textContentType="oneTimeCode"
-              maxLength={6}
-              onSubmitEditing={verifyCode}
-              returnKeyType="go"
-              style={s.input}
-            />
-            <Pressable onPress={sendCode} disabled={busy} hitSlop={8}>
-              <Text style={[s.link, { textAlign: 'left', paddingVertical: 2 }]}>Resend code</Text>
+        {/* Same card as the website's /login: logo, heading, mode switcher, form. */}
+        <View style={s.card}>
+          <View style={s.brandRow}>
+            <Image source={LOGO} style={s.logo} resizeMode="contain" />
+            <Text style={s.wordmark}>
+              Apply<Text style={{ color: C.blue }}>Fields</Text>
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              onPress={() => router.back()}
+              hitSlop={10}
+              style={s.close}
+            >
+              <Ionicons name="close" size={20} color={C.navy} />
             </Pressable>
           </View>
-        ) : null}
 
-        {error ? <Text style={s.error}>{error}</Text> : null}
+          <Text style={s.h1}>Welcome back!</Text>
+          <Text style={s.sub}>Log in to explore opportunities tailored for you.</Text>
 
-        {mode === 'password' ? (
-          <Button label={busy ? 'Signing in…' : 'Sign in'} disabled={busy} onPress={submit} />
-        ) : otpSent ? (
-          <Button
-            label={busy ? 'Verifying…' : 'Verify & sign in'}
-            disabled={busy}
-            onPress={verifyCode}
-          />
-        ) : (
-          <Button label={busy ? 'Sending…' : 'Send me a code'} disabled={busy} onPress={sendCode} />
-        )}
+          <View style={s.tabs} accessibilityRole="tablist">
+            {(['password', 'otp'] as const).map((m) => (
+              <Pressable
+                key={m}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: mode === m }}
+                onPress={() => switchMode(m)}
+                style={[s.tab, mode === m && s.tabActive]}
+              >
+                <Text style={[s.tabText, mode === m && s.tabTextActive]}>
+                  {m === 'password' ? 'Password' : 'One-time code'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
-        <Pressable onPress={() => switchMode(mode === 'password' ? 'otp' : 'password')}>
-          <Text style={s.link}>
-            {mode === 'password' ? 'Sign in with a one-time code instead' : 'Sign in with a password instead'}
-          </Text>
-        </Pressable>
-        <Pressable onPress={() => WebBrowser.openBrowserAsync('https://applyfields.in/register')}>
-          <Text style={s.link}>New here? Create an account</Text>
-        </Pressable>
-        {mode === 'password' ? (
-          <Pressable onPress={() => WebBrowser.openBrowserAsync('https://applyfields.in/forgot')}>
-            <Text style={s.link}>Forgot your password?</Text>
-          </Pressable>
-        ) : null}
+          {error ? (
+            <View style={s.error}>
+              <Ionicons name="alert-circle-outline" size={16} color={C.bad} />
+              <Text style={s.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <View style={s.field}>
+            <Text style={s.label}>Email or mobile number</Text>
+            <View style={s.inputWrap}>
+              <Ionicons name="mail-outline" size={18} color={C.muted} style={s.inputIcon} />
+              <TextInput
+                value={identifier}
+                onChangeText={setIdentifier}
+                placeholder="you@example.com or 98765 43210"
+                placeholderTextColor={C.muted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType={usesEmail ? 'email-address' : 'default'}
+                textContentType="username"
+                editable={!(mode === 'otp' && otpSent)}
+                style={s.input}
+              />
+            </View>
+          </View>
+
+          {mode === 'password' ? (
+            <View style={s.field}>
+              <View style={s.labelRow}>
+                <Text style={s.label}>Password</Text>
+                <Pressable
+                  onPress={() => WebBrowser.openBrowserAsync('https://applyfields.in/forgot')}
+                  hitSlop={8}
+                >
+                  <Text style={s.smallLink}>Forgot password?</Text>
+                </Pressable>
+              </View>
+              <View style={s.inputWrap}>
+                <Ionicons name="key-outline" size={18} color={C.muted} style={s.inputIcon} />
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Your password"
+                  placeholderTextColor={C.muted}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  textContentType="password"
+                  onSubmitEditing={submit}
+                  returnKeyType="go"
+                  style={[s.input, { paddingRight: 44 }]}
+                />
+                <Pressable
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  onPress={() => setShowPassword((v) => !v)}
+                  hitSlop={13}
+                  style={s.eye}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={18}
+                    color={C.muted}
+                  />
+                </Pressable>
+              </View>
+            </View>
+          ) : otpSent ? (
+            <View style={s.field}>
+              <View style={s.labelRow}>
+                <Text style={s.label}>6-digit code</Text>
+                <Pressable onPress={sendCode} disabled={busy} hitSlop={8}>
+                  <Text style={s.smallLink}>Resend code</Text>
+                </Pressable>
+              </View>
+              <View style={s.inputWrap}>
+                <Ionicons name="keypad-outline" size={18} color={C.muted} style={s.inputIcon} />
+                <TextInput
+                  value={code}
+                  onChangeText={setCode}
+                  placeholder="● ● ● ● ● ●"
+                  placeholderTextColor={C.muted}
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  maxLength={6}
+                  onSubmitEditing={verifyCode}
+                  returnKeyType="go"
+                  style={s.input}
+                />
+              </View>
+            </View>
+          ) : null}
+
+          {mode === 'password' ? (
+            <Button
+              label={busy ? 'Signing in…' : 'Log in'}
+              icon="arrow-forward"
+              disabled={busy}
+              onPress={submit}
+              style={s.primary}
+            />
+          ) : otpSent ? (
+            <Button
+              label={busy ? 'Verifying…' : 'Verify & log in'}
+              disabled={busy}
+              onPress={verifyCode}
+              style={s.primary}
+            />
+          ) : (
+            <Button
+              label={busy ? 'Sending…' : 'Send me a code'}
+              disabled={busy}
+              onPress={sendCode}
+              style={s.primary}
+            />
+          )}
+
+          <View style={s.signupRow}>
+            <Text style={s.sub}>Don&apos;t have an account? </Text>
+            <Pressable
+              onPress={() => WebBrowser.openBrowserAsync('https://applyfields.in/register')}
+              hitSlop={8}
+            >
+              <Text style={s.smallLink}>Sign up</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <Text style={s.disclaimer}>
+          ApplyFields is not a government website. Always apply through the official link.
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
-  page: { padding: S.xl, gap: S.md },
-  h1: { color: C.navy, fontSize: 24, fontWeight: '800' },
-  field: { gap: 6, marginTop: S.sm },
-  label: { color: C.navy, fontSize: 12.5, fontWeight: '700' },
+  page: { flexGrow: 1, justifyContent: 'center', padding: S.md, gap: S.md },
+  card: {
+    backgroundColor: C.white,
+    borderRadius: 32,
+    padding: S.xl,
+    gap: S.md,
+    shadowColor: C.navy,
+    shadowOpacity: 0.18,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 20 },
+    elevation: 8,
+  },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm },
+  logo: { width: 44, height: 32 },
+  wordmark: { flex: 1, color: C.navy, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  close: {
+    width: 36,
+    height: 36,
+    borderRadius: R.pill,
+    backgroundColor: C.canvas,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  h1: { color: C.navy, fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  sub: { color: C.muted, fontSize: 14 },
+  // The website's Password / One-time code switcher.
+  tabs: {
+    flexDirection: 'row',
+    gap: 4,
+    padding: 4,
+    marginTop: S.sm,
+    borderRadius: R.md,
+    backgroundColor: C.canvas,
+  },
+  tab: { flex: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  tabActive: {
+    backgroundColor: C.white,
+    shadowColor: C.navy,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  tabText: { color: C.muted, fontSize: 14, fontWeight: '600' },
+  tabTextActive: { color: C.navy },
+  field: { gap: 6 },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  label: { color: C.navy, fontSize: 14, fontWeight: '600' },
+  smallLink: { color: C.blue, fontSize: 13, fontWeight: '600' },
+  inputWrap: { justifyContent: 'center' },
+  inputIcon: { position: 'absolute', left: S.lg, zIndex: 1 },
   input: {
+    height: 48,
     backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.line,
     borderRadius: R.md,
-    paddingHorizontal: S.md,
-    paddingVertical: S.md,
+    paddingLeft: 44,
+    paddingRight: S.md,
     color: C.navy,
     fontSize: 15,
   },
-  passwordWrap: { position: 'relative', justifyContent: 'center' },
-  passwordInput: { paddingRight: 44 },
   eye: { position: 'absolute', right: S.md },
-  error: { color: C.bad, fontSize: 13, fontWeight: '600' },
-  link: {
-    color: C.blue,
-    fontSize: 13.5,
-    fontWeight: '700',
-    textAlign: 'center',
-    paddingVertical: 6,
+  error: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: S.sm,
+    padding: S.md,
+    borderRadius: R.md,
+    borderWidth: 1,
+    borderColor: `${C.bad}33`,
+    backgroundColor: `${C.bad}0d`,
   },
+  errorText: { flex: 1, color: C.bad, fontSize: 13, fontWeight: '600' },
+  primary: {
+    minHeight: 48,
+    marginTop: S.sm,
+    shadowColor: C.blue,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  signupRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', marginTop: S.xs },
+  disclaimer: { color: C.muted, fontSize: 12, textAlign: 'center', paddingHorizontal: S.lg },
 });

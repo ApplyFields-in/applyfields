@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -32,6 +32,9 @@ function usePushDeepLinks() {
   }, [router]);
 }
 
+// Canvas behind every navigator, so the gaps around the floating tab bar match the page.
+const THEME = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: C.canvas } };
+
 export default function RootLayout() {
   usePushDeepLinks();
 
@@ -40,23 +43,28 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <LocaleProvider>
           <AuthProvider>
-            <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerStyle: { backgroundColor: C.navy },
-                headerTintColor: C.white,
-                headerTitleStyle: { fontWeight: '700' },
-                contentStyle: { backgroundColor: C.canvas },
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="opportunity/[slug]" options={{ title: '' }} />
-              <Stack.Screen name="service/[slug]" options={{ title: '' }} />
-              <Stack.Screen name="career/[slug]" options={{ title: '' }} />
-              <Stack.Screen name="apply" options={{ title: 'Official application' }} />
-              <Stack.Screen name="profile" options={{ title: 'Profile' }} />
-              <Stack.Screen name="login" options={{ title: 'Sign in', presentation: 'modal' }} />
-            </Stack>
+            <ThemeProvider value={THEME}>
+              <StatusBar style="dark" />
+              <Stack
+                screenOptions={{
+                  headerStyle: { backgroundColor: C.canvas },
+                  headerShadowVisible: false,
+                  headerTintColor: C.navy,
+                  headerTitleStyle: { fontWeight: '800' },
+                  contentStyle: { backgroundColor: C.canvas },
+                }}
+              >
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="opportunity/[slug]" options={{ title: '' }} />
+                <Stack.Screen name="service/[slug]" options={{ title: '' }} />
+                <Stack.Screen name="centres" options={{ title: 'Centres near you' }} />
+                <Stack.Screen name="career/[slug]" options={{ title: '' }} />
+                <Stack.Screen name="college/[slug]" options={{ title: '' }} />
+                <Stack.Screen name="apply" options={{ title: 'Official application' }} />
+                <Stack.Screen name="profile" options={{ title: 'Profile' }} />
+                <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
+              </Stack>
+            </ThemeProvider>
           </AuthProvider>
         </LocaleProvider>
       </SafeAreaProvider>

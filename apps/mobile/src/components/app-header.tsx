@@ -1,15 +1,18 @@
 /**
- * The navy bar at the top of every tab: wordmark on the left, the account
- * avatar on the right. The avatar is the way into Profile from anywhere,
- * which keeps the bottom bar for the things people open all day.
+ * The capsule at the top of every tab, same as the website's navbar: logo and
+ * wordmark on the left, the account avatar on the right. The avatar is the way
+ * into Profile from anywhere, which keeps the bottom bar for the things people
+ * open all day.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../lib/auth';
-import { C, CHROME_FONT_SCALE, R, S, TAP, column } from '../theme';
+import { C, CHROME_FONT_SCALE, R, S, TAP, capsule, column } from '../theme';
+
+const LOGO = require('../../assets/images/logo-mark.png');
 
 /** First letters of the signed-in person's name, or a person icon when signed out. */
 function initials(name: string): string {
@@ -27,9 +30,10 @@ export function AppHeader({ subtitle }: { subtitle?: string }) {
   return (
     <View style={[s.bar, { paddingTop: insets.top + S.sm }]}>
       <View style={s.inner}>
+        <Image source={LOGO} style={s.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
         <View style={{ flex: 1 }}>
           <Text style={s.wordmark} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
-            Apply<Text style={{ color: C.sky }}>Fields</Text>
+            Apply<Text style={{ color: C.blue }}>Fields</Text>
           </Text>
           <Text style={s.tagline} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
             {subtitle ?? 'Every opportunity. One place.'}
@@ -56,26 +60,29 @@ export function AppHeader({ subtitle }: { subtitle?: string }) {
 }
 
 const s = StyleSheet.create({
-  bar: { backgroundColor: C.navy, paddingBottom: S.md },
-  // Padding lives inside the column so the wordmark lines up with the cards below on tablets.
+  bar: { backgroundColor: C.canvas, paddingBottom: S.md, paddingHorizontal: S.md },
   inner: {
+    ...capsule,
     ...column,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: S.md,
-    paddingHorizontal: S.lg,
+    gap: S.sm,
+    paddingVertical: 6,
+    paddingLeft: S.md,
+    paddingRight: 6,
   },
-  wordmark: { color: C.white, fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
-  tagline: { color: C.ice, fontSize: 11, marginTop: 1 },
+  logo: { width: 38, height: 28 },
+  wordmark: { color: C.navy, fontSize: 19, fontWeight: '900', letterSpacing: -0.4 },
+  tagline: { color: C.muted, fontSize: 11, marginTop: 1 },
   avatar: {
     width: TAP,
     height: TAP,
     borderRadius: R.pill,
-    backgroundColor: C.blue,
+    backgroundColor: C.navy,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.35)',
+    borderWidth: 2,
+    borderColor: C.white,
   },
   avatarText: { color: C.white, fontSize: 14, fontWeight: '800' },
 });

@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { useEffect } from 'react';
-import { Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
 import { refreshUnread, useUnread } from '@/lib/unread';
-import { C, CHROME_FONT_SCALE } from '@/theme';
+import { C, CHROME_FONT_SCALE, R, S, capsule } from '@/theme';
 
 /**
  * The bottom bar. Apply/Career/Services are not here — they are the top navbar
@@ -22,6 +23,7 @@ const TABS = [
 export default function TabsLayout() {
   const { signedIn } = useAuth();
   const unread = useUnread();
+  const insets = useSafeAreaInsets();
 
   // Seed the badge before Alerts is ever opened, and clear it on sign-out.
   useEffect(() => {
@@ -32,7 +34,19 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { borderTopColor: C.line, backgroundColor: C.white },
+        // A floating capsule like the header, kept in the layout flow (not
+        // absolute) so lists never scroll underneath it.
+        tabBarStyle: {
+          ...capsule,
+          height: 64,
+          paddingTop: 6,
+          paddingBottom: 6,
+          paddingHorizontal: 6,
+          marginHorizontal: S.md,
+          marginBottom: insets.bottom + S.sm,
+          borderTopWidth: 1,
+          borderTopColor: C.white,
+        },
       }}
     >
       {TABS.map((tab) => (
@@ -42,8 +56,12 @@ export default function TabsLayout() {
           options={{
             title: tab.title,
             tabBarBadge: tab.name === 'alerts' && unread > 0 ? unread : undefined,
-            tabBarIcon: ({ focused, size }) => (
-              <Ionicons name={tab.icon} size={size} color={focused ? C.blue : C.muted} />
+            // The active tab sits in a raised white pill. Drawn here rather than
+            // with tabBarActiveBackgroundColor, which Android fills as a square.
+            tabBarIcon: ({ focused }) => (
+              <View style={[pill.base, focused && pill.active]}>
+                <Ionicons name={tab.icon} size={20} color={focused ? C.blue : C.muted} />
+              </View>
             ),
             // Own label so large system text scales a little but never pushes
             // "Documents" out of its quarter of a 320pt screen.
@@ -51,7 +69,7 @@ export default function TabsLayout() {
               <Text
                 numberOfLines={1}
                 maxFontSizeMultiplier={CHROME_FONT_SCALE}
-                style={{ fontSize: 11, fontWeight: '600', color: focused ? C.blue : C.muted }}
+                style={{ fontSize: 11, fontWeight: focused ? '800' : '600', color: focused ? C.blue : C.muted }}
               >
                 {tab.title}
               </Text>
@@ -62,3 +80,21 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const pill = StyleSheet.create({
+  base: {
+    width: 56,
+    height: 30,
+    borderRadius: R.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  active: {
+    backgroundColor: C.white,
+    shadowColor: C.navy,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 2, height: 2 },
+    elevation: 3,
+  },
+});

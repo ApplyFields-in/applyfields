@@ -36,6 +36,22 @@ export const column = { width: '100%', maxWidth: 720, alignSelf: 'center' } as c
  */
 export const CHROME_FONT_SCALE = 1.35;
 
+/**
+ * The website's floating capsule (floating-capsule-navbar.tsx): canvas fill,
+ * white rim, soft navy drop shadow.
+ */
+export const capsule = {
+  backgroundColor: C.canvas,
+  borderRadius: R.pill,
+  borderWidth: 1,
+  borderColor: C.white,
+  shadowColor: C.navy,
+  shadowOpacity: 0.16,
+  shadowRadius: 16,
+  shadowOffset: { width: 6, height: 10 },
+  elevation: 6,
+} as const;
+
 /** Soft card shadow that reads the same on both platforms. */
 export const card = {
   backgroundColor: C.white,

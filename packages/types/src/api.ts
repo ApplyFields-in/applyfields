@@ -1237,6 +1237,8 @@ export interface PartnerSummary {
   rating_avg: number;
   rating_count: number;
   services: PartnerServiceSummary[];
+  /** Straight-line km from the caller; only set when the directory was asked with lat/lng. */
+  distance_km?: number;
 }
 
 export interface PartnerDetail extends PartnerSummary {
@@ -1255,6 +1257,9 @@ export interface PartnerDirectoryQuery {
   district?: string;
   pincode?: string;
   service?: string;
+  /** With lng: nearest first, each item carries distance_km. */
+  lat?: number;
+  lng?: number;
   limit?: number;
   offset?: number;
 }
