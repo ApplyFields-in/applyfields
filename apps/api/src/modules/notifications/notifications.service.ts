@@ -7,6 +7,7 @@ import type {
   AdminBroadcastResult,
   AdminNotificationOverview,
   DeliveryStatus,
+  DeviceTokenInput,
   ManualAlertInput,
   ManualAlertResult,
   MutableNotificationType,
@@ -22,6 +23,7 @@ import { jwtAccessSecret } from '../../common/jwt-secret.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { addDays, todayIst } from '../opportunities/opportunities.service.js';
 import { renderEmail, sendWithResend } from './email.js';
+import { isExpoPushToken, sendExpoPush } from './expo-push.js';
 import { getVapidKeys, sendWebPush } from './web-push.js';
 import { SseService } from './sse.service.js';
 import {
@@ -166,15 +168,16 @@ export class NotificationsService {
 
       for (const sub of subs) {
         const notifId = itemByUser.get(sub.user_id);
-        const res = await sendWebPush(
-          { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
-          {
-            title: n.title,
-            body: n.body,
-            link: n.link,
-            tag: n.type,
-          },
-        );
+        const payload = { title: n.title, body: n.body, link: n.link, tag: n.type };
+
+        // Phones (apps/mobile) store an Expo token here; browsers store a W3C endpoint.
+        const toPhone = isExpoPushToken(sub.endpoint);
+        const res = toPhone
+          ? await sendExpoPush(sub.endpoint, payload)
+          : await sendWebPush(
+              { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+              payload,
+            );
 
         if (res.expired) {
           await this.prisma.push_subscriptions.delete({ where: { id: sub.id } }).catch(() => null);
@@ -186,7 +189,7 @@ export class NotificationsService {
               notification_id: notifId,
               channel: 'push',
               status: res.success ? 'sent' : 'failed',
-              provider: 'web-push',
+              provider: toPhone ? 'expo-push' : 'web-push',
               sent_at: res.success ? new Date() : null,
               last_error: res.error ?? null,
             },
@@ -623,6 +626,46 @@ export class NotificationsService {
       where: { user_id: userId },
       create: { user_id: userId, push_enabled: true },
       update: { push_enabled: true, updated_at: new Date() },
+    });
+  }
+
+  /**
+   * Registers an Android/iOS device for push. The Expo token takes the place of
+   * the W3C endpoint; `p256dh`/`auth` hold the platform instead of ECDH keys,
+   * which are meaningless for Expo. dispatchWebPush() tells the two apart with
+   * isExpoPushToken(), so no second table and no migration.
+   */
+  async registerDeviceToken(userId: string, input: DeviceTokenInput): Promise<void> {
+    const userAgent = `expo/${input.platform}${input.device_name ? ` ${input.device_name}` : ''}`;
+    await this.prisma.push_subscriptions.upsert({
+      where: { endpoint: input.token },
+      create: {
+        user_id: userId,
+        endpoint: input.token,
+        p256dh: input.platform,
+        auth: 'expo',
+        user_agent: userAgent.slice(0, 500),
+      },
+      update: {
+        user_id: userId,
+        p256dh: input.platform,
+        auth: 'expo',
+        user_agent: userAgent.slice(0, 500),
+        updated_at: new Date(),
+      },
+    });
+
+    await this.prisma.notification_preferences.upsert({
+      where: { user_id: userId },
+      create: { user_id: userId, push_enabled: true },
+      update: { push_enabled: true, updated_at: new Date() },
+    });
+  }
+
+  /** Drops one phone. Other devices and the browser keep getting push. */
+  async removeDeviceToken(userId: string, token: string): Promise<void> {
+    await this.prisma.push_subscriptions.deleteMany({
+      where: { user_id: userId, endpoint: token },
     });
   }
 
