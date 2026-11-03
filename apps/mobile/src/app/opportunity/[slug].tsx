@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -23,6 +23,7 @@ import {
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { ELIGIBILITY, TYPE_LABEL, deadline, formatDate, rupees } from '@/lib/format';
+import { openOffline, saveOffline, useOfflineFiles } from '@/lib/offline';
 import { useApi } from '@/lib/use-api';
 import { C, R, S, column } from '@/theme';
 
@@ -274,7 +275,14 @@ export default function OpportunityScreen() {
       <Card style={s.card}>
         <SectionTitle>Official links</SectionTitle>
         {data.links.notification_pdf_url ? (
-          <LinkRow label="Notification PDF" url={data.links.notification_pdf_url} />
+          <>
+            <LinkRow label="Notification PDF" url={data.links.notification_pdf_url} />
+            <KeepOffline
+              fileKey={`pdf:${data.slug}`}
+              title={`${data.title} — notification`}
+              url={data.links.notification_pdf_url}
+            />
+          </>
         ) : null}
         {data.links.official_page_url ? (
           <LinkRow label="Official page" url={data.links.official_page_url} />
@@ -344,6 +352,37 @@ function EligibilityRules({ rules }: { rules: ReviewEligibility }) {
         </Muted>
       ) : null}
     </Card>
+  );
+}
+
+/** Keep the notification PDF on the phone for the exam centre, where data is often jammed. */
+function KeepOffline({ fileKey, title, url }: { fileKey: string; title: string; url: string }) {
+  const saved = useOfflineFiles().find((f) => f.key === fileKey);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    try {
+      await saveOffline({ key: fileKey, title, url });
+    } catch (err) {
+      Alert.alert('Could not save to this phone', (err as Error).message);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <Button
+      variant="secondary"
+      icon={saved ? 'checkmark-circle' : 'cloud-download-outline'}
+      label={saved ? 'Open the copy on this phone' : busy ? 'Saving…' : 'Save PDF for offline'}
+      disabled={busy}
+      style={{ marginVertical: S.sm }}
+      onPress={() =>
+        saved
+          ? void openOffline(saved).catch((e: Error) => Alert.alert('Could not open', e.message))
+          : void save()
+      }
+    />
   );
 }
 

@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { C, CHROME_FONT_SCALE, S, TAP, column } from '../theme';
+import { C, CHROME_FONT_SCALE, R, S, TAP, capsule, column } from '../theme';
 import { useCompact } from './ui';
 
 const MODES = [
@@ -34,12 +34,10 @@ export function TopNav() {
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
               onPress={() => router.replace(m.href)}
-              style={s.item}
+              style={[s.item, active && s.itemActive]}
             >
               <View style={s.itemInner}>
-                {compact ? null : (
-                  <Ionicons name={m.icon} size={16} color={active ? C.blue : C.muted} />
-                )}
+                {compact ? null : <Ionicons name={m.icon} size={16} color={C.blue} />}
                 <Text
                   style={[s.label, active && s.labelActive]}
                   numberOfLines={1}
@@ -50,7 +48,6 @@ export function TopNav() {
                   {m.label}
                 </Text>
               </View>
-              <View style={[s.underline, active && s.underlineActive]} />
             </Pressable>
           );
         })}
@@ -59,23 +56,38 @@ export function TopNav() {
   );
 }
 
+// The website's Career / Apply / Services switcher: a sunken pill track with
+// the active mode raised out of it.
 const s = StyleSheet.create({
-  bar: {
-    backgroundColor: C.white,
-    borderBottomWidth: 1,
-    borderBottomColor: C.line,
+  bar: { backgroundColor: C.canvas, paddingHorizontal: S.md, paddingBottom: S.sm },
+  inner: {
+    ...capsule,
+    ...column,
+    flexDirection: 'row',
+    gap: 4,
+    padding: 5,
   },
-  inner: { ...column, flexDirection: 'row' },
-  item: { flex: 1, minHeight: TAP + 4, justifyContent: 'flex-end', paddingHorizontal: 4 },
+  item: {
+    flex: 1,
+    minHeight: TAP,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderRadius: R.pill,
+  },
+  itemActive: {
+    backgroundColor: C.white,
+    shadowColor: C.navy,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 2, height: 2 },
+    elevation: 3,
+  },
   itemInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingBottom: S.sm,
   },
-  label: { color: C.muted, fontSize: 14, fontWeight: '600', flexShrink: 1 },
-  labelActive: { color: C.navy, fontWeight: '800' },
-  underline: { height: 3, borderRadius: 3, backgroundColor: 'transparent' },
-  underlineActive: { backgroundColor: C.blue },
+  label: { color: C.navy, fontSize: 14, fontWeight: '800', flexShrink: 1 },
+  labelActive: { color: C.blue },
 });

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createSlotOverrideSchema,
   dayScheduleSchema,
+  distanceKm,
   formatSlotTimeRange,
   getPeriod,
   holidayOverrideSchema,
@@ -135,6 +136,37 @@ describe('Partner Schemas Validation', () => {
       });
       expect(parsed.verification_status).toBe('verified');
       expect(parsed.is_listed).toBe(true);
+    });
+  });
+});
+
+describe('Nearest centres', () => {
+  it('measures straight-line km (Hyderabad → Vijayawada ≈ 250 km)', () => {
+    expect(distanceKm(17.385, 78.4867, 17.385, 78.4867)).toBe(0);
+    const d = distanceKm(17.385, 78.4867, 16.5062, 80.648);
+    expect(d).toBeGreaterThan(245);
+    expect(d).toBeLessThan(255);
+  });
+
+  it('returns MeeSeva and CSC centres nearest first with distance_km', async () => {
+    const at = (id: string, lat: number, lng: number) => ({ id, latitude: lat, longitude: lng });
+    const row = (id: string) => ({ id, slug: id, type: 'meeseva', business_name: id, partner_services: [] });
+    const findMany = vi
+      .fn()
+      // 1st call: coordinates of every match; 2nd call: the page rows, in any order
+      .mockResolvedValueOnce([at('far', 16.5062, 80.648), at('near', 17.39, 78.49), at('mid', 17.6, 78.5)])
+      .mockResolvedValueOnce([row('mid'), row('far'), row('near')]);
+    const service = new PartnersService({ partners: { findMany } } as any);
+
+    const res = await service.listDirectory({ type: 'meeseva,csc', lat: 17.385, lng: 78.4867, limit: 2 });
+
+    expect(res.total).toBe(3);
+    expect(res.items.map((i) => i.slug)).toEqual(['near', 'mid']);
+    expect(res.items[0].distance_km).toBeLessThan(1);
+    expect(findMany.mock.calls[0][0].where).toMatchObject({
+      type: { in: ['meeseva', 'csc'] },
+      latitude: { not: null },
+      verification_status: 'verified',
     });
   });
 });

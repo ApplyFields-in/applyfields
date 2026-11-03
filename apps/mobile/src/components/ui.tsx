@@ -213,7 +213,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.line,
   },
-  chipActive: { backgroundColor: C.navy, borderColor: C.navy },
+  chipActive: { backgroundColor: C.blue, borderColor: C.blue },
   chipText: { color: C.navy, fontSize: 13, fontWeight: '600' },
   chipTextActive: { color: C.white },
   button: {

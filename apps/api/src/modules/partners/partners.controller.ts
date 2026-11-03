@@ -60,6 +60,10 @@ export class PartnersController {
     @Query(new ZodPipe(partnerDirectoryQuerySchema))
     query: PartnerDirectoryQuery,
   ): Promise<PartnerDirectoryResponse> {
+    // Every GPS fix is a new key and CacheService never sweeps, so "nearest" goes straight to the DB.
+    if (query.lat !== undefined && query.lng !== undefined) {
+      return this.partnersService.listDirectory(query);
+    }
     const key = `partners:dir:${JSON.stringify(query)}`;
     return this.cache.wrap(key, 30, async () => {
       return this.partnersService.listDirectory(query);
