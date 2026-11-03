@@ -1,4 +1,8 @@
-import type { ManualAlertInput, NotificationPreferencesInput } from '@applyfields/types';
+import type {
+  DeviceTokenInput,
+  ManualAlertInput,
+  NotificationPreferencesInput,
+} from '@applyfields/types';
 import { z } from 'zod';
 import { MAX_REMINDER_DAYS, MUTABLE_TYPES } from './notification-rules.js';
 
@@ -19,6 +23,20 @@ export const pushSubscriptionSchema = z.object({
   }),
   user_agent: z.string().max(500).optional().nullable(),
 });
+
+/** An Expo push token from the Android/iOS app — ExponentPushToken[xxxxxxxx]. */
+export const deviceTokenSchema = z.object({
+  token: z
+    .string()
+    .trim()
+    .max(200)
+    .regex(/^Exp(o|onent)PushToken\[[^\]\s]+\]$/, 'Not an Expo push token'),
+  platform: z.enum(['ios', 'android']),
+  device_name: z.string().trim().max(200).nullable().optional(),
+});
+
+const _deviceTokenSame: Same<z.output<typeof deviceTokenSchema>, DeviceTokenInput> = true;
+void _deviceTokenSame;
 
 /** A path on the website only (e.g. /jobs/ssc-cgl-2026) — never an outside or javascript: link. */
 const sitePath = z

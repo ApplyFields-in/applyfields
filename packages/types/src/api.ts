@@ -745,6 +745,22 @@ export interface PushPublicKeyResponse {
   publicKey: string;
 }
 
+/**
+ * A phone registering for push from apps/mobile. The Expo token is stored in
+ * the same push_subscriptions row shape as a browser subscription, so one
+ * dispatcher serves web and mobile.
+ */
+export interface DeviceTokenInput {
+  /** ExponentPushToken[xxxxxxxx] */
+  token: string;
+  platform: 'ios' | 'android';
+  device_name?: string | null;
+}
+
+export interface DeviceTokenResult {
+  registered: boolean;
+}
+
 export type BroadcastAudience =
   | { kind: 'all' }
   | { kind: 'subscribers' }
