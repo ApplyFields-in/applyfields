@@ -294,3 +294,13 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
     expect(res.answer).toContain('Fee Breakdown');
   });
 });
+
+describe('chatbot quota helpers', () => {
+  it('resets the free-chat day at 12:00 AM IST, not UTC', async () => {
+    const { istMidnight } = await import('./query-router.service.js');
+    // 2026-11-04 20:00 UTC = 2026-11-05 01:30 IST → day started 2026-11-04 18:30 UTC
+    expect(istMidnight(Date.parse('2026-11-04T20:00:00Z')).toISOString()).toBe('2026-11-04T18:30:00.000Z');
+    // 2026-11-04 10:00 UTC = 15:30 IST same day → day started 2026-11-03 18:30 UTC
+    expect(istMidnight(Date.parse('2026-11-04T10:00:00Z')).toISOString()).toBe('2026-11-03T18:30:00.000Z');
+  });
+});
