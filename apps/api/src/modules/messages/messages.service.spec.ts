@@ -37,7 +37,7 @@ describe('MessagesService', () => {
           created_at: new Date('2026-10-21T09:00:00Z'),
           partner_services: { name: 'SSC CGL Form Filing' },
           gov_services: null,
-          users: { full_name: 'K. Sai Ramesh', phone: '+91 98480 22338' },
+          users: { phone: '+91 98480 22338', user_profiles: { full_name: 'K. Sai Ramesh' } },
         },
       ]),
     },

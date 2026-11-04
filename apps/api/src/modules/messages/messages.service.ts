@@ -146,7 +146,8 @@ export class MessagesService {
       include: {
         partner_services: { select: { name: true } },
         gov_services: { select: { name: true } },
-        users: { select: { full_name: true, phone: true } },
+        // The name lives on user_profiles; users has no full_name column (selecting it threw a 500).
+        users: { select: { phone: true, user_profiles: { select: { full_name: true } } } },
       },
     });
 
@@ -180,8 +181,9 @@ export class MessagesService {
         return {
           booking_id: req.id,
           token,
-          citizen_name: req.users?.full_name || 'Citizen Applicant',
-          citizen_phone: req.users?.phone || '+91 98480 00000',
+          citizen_name: req.users?.user_profiles?.full_name || 'Citizen Applicant',
+          // Empty when unknown — a made-up number would look real on the partner desk.
+          citizen_phone: req.users?.phone || '',
           service_title:
             req.partner_services?.name ||
             req.gov_services?.name ||

@@ -16,6 +16,7 @@ import type {
   CreateSlotOverrideInput,
   HolidayOverride,
   PartnerDetail,
+  PartnerEarningsSummary,
   PartnerDirectoryQuery,
   PartnerDirectoryResponse,
   PartnerDocumentSummary,
@@ -88,6 +89,12 @@ export class PartnersController {
   @UseGuards(AuthGuard)
   async getMyPartner(@Req() req: AuthenticatedRequest): Promise<PartnerDetail> {
     return this.partnersService.getPartnerForUser(req.user.userId);
+  }
+
+  @Get('me/earnings')
+  @UseGuards(AuthGuard)
+  async getMyEarnings(@Req() req: AuthenticatedRequest): Promise<PartnerEarningsSummary> {
+    return this.partnersService.getEarnings(req.user.userId);
   }
 
   @Patch('me')

@@ -44,11 +44,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback<AuthValue['login']>(
     async (identifier, password) => {
-      const body = identifier.includes('@')
-        ? { email: identifier.trim().toLowerCase(), password }
-        : { phone: identifier.trim(), password };
+      // LoginDto takes one `identifier` (email or phone), same as the website.
+      const id = identifier.trim();
       const res = await api.post<AuthResponse & { accessToken?: string }>('/auth/login', {
-        ...body,
+        identifier: id.includes('@') ? id.toLowerCase() : id,
+        password,
         rememberMe: true,
       });
       if (res.error || !res.data) return res.error ?? 'Could not sign you in';

@@ -13,6 +13,7 @@ import type {
   DaySchedule,
   HolidayOverride,
   PartnerDetail,
+  PartnerEarningsSummary,
   PartnerDirectoryQuery,
   PartnerDirectoryResponse,
   PartnerDocumentSummary,
@@ -29,10 +30,12 @@ import type {
 } from '@applyfields/types';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
+
 import type {
   partner_type,
   verification_status,
 } from '../../generated/prisma/enums.js';
+const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
 
 export const partnerDirectoryQuerySchema = z.object({
   q: z.string().trim().optional(),
@@ -70,7 +73,8 @@ export const partnerRegisterSchema = z.object({
     'application_assistance',
     'consultant',
     'college',
-    'training_institution',
+    'university',
+    'training_institute',
     'other',
   ]),
   owner_name: z.string().trim().min(2).max(100),
@@ -530,6 +534,72 @@ export class PartnersService {
     });
 
     return this.mapToDetail({ ...partner, partner_services: [] });
+  }
+
+  /** Founder §20.6: completed services, earnings, commission, pending/paid amounts, payout history. Owner only. */
+  async getEarnings(userId: string): Promise<PartnerEarningsSummary> {
+    const membership = await this.requirePartnerOwner(userId);
+    if (membership.role !== 'owner') {
+      throw new ForbiddenException('Earnings are visible to the centre owner only.');
+    }
+    const partnerId = membership.partner_id;
+    const completed = { partner_id: partnerId, status: 'completed' as const };
+
+    const [totals, unpriced, payouts, recent] = await Promise.all([
+      this.prisma.service_requests.aggregate({ where: completed, _count: true, _sum: { final_paise: true } }),
+      this.prisma.service_requests.count({ where: { ...completed, final_paise: null } }),
+      this.prisma.partner_payouts.findMany({ where: { partner_id: partnerId }, orderBy: { period_end: 'desc' } }),
+      this.prisma.service_requests.findMany({
+        where: completed,
+        orderBy: { completed_at: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          final_paise: true,
+          completed_at: true,
+          partner_services: { select: { name: true } },
+          gov_services: { select: { name: true } },
+        },
+      }),
+    ]);
+
+    // Settled = covered by a payout period. Everything completed after the latest period is unsettled.
+    const lastEnd = payouts.find((p) => p.status !== 'failed')?.period_end ?? null;
+    const unsettled = await this.prisma.service_requests.aggregate({
+      where: { ...completed, ...(lastEnd ? { completed_at: { gte: addDays(lastEnd, 1) } } : {}) },
+      _sum: { final_paise: true },
+    });
+
+    const sum = (status: string[], key: 'net_paise' | 'commission_paise') =>
+      payouts.filter((p) => status.includes(p.status)).reduce((s, p) => s + p[key], 0);
+
+    return {
+      completed_count: totals._count,
+      unpriced_count: unpriced,
+      gross_paise: totals._sum.final_paise ?? 0,
+      commission_paise: sum(['pending', 'processing', 'paid'], 'commission_paise'),
+      paid_paise: sum(['paid'], 'net_paise'),
+      pending_payout_paise: sum(['pending', 'processing'], 'net_paise'),
+      unsettled_paise: unsettled._sum.final_paise ?? 0,
+      last_settled_until: lastEnd ? lastEnd.toISOString().slice(0, 10) : null,
+      recent: recent.map((r) => ({
+        id: r.id,
+        service_name: r.partner_services?.name ?? r.gov_services?.name ?? null,
+        final_paise: r.final_paise,
+        completed_at: r.completed_at?.toISOString() ?? null,
+      })),
+      payouts: payouts.map((p) => ({
+        id: p.id,
+        period_start: p.period_start.toISOString().slice(0, 10),
+        period_end: p.period_end.toISOString().slice(0, 10),
+        gross_paise: p.gross_paise,
+        commission_paise: p.commission_paise,
+        net_paise: p.net_paise,
+        status: p.status,
+        paid_at: p.paid_at?.toISOString() ?? null,
+        reference: p.reference,
+      })),
+    };
   }
 
   async getPartnerForUser(userId: string): Promise<PartnerDetail> {

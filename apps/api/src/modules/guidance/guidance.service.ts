@@ -7,7 +7,6 @@ import type {
   GuidanceSource,
 } from '@applyfields/types';
 import { z } from 'zod';
-import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 export const askGuidanceDtoSchema = z.object({
@@ -34,7 +33,8 @@ export class GuidanceService {
       return [];
     }
 
-    // Search search_index for top matching published resources
+    // Best-ranked active resources matching any word (words are [a-z0-9] only, safe for to_tsquery).
+    const tsq = words.join(' | ');
     const matches = await this.prisma.$queryRaw<
       Array<{
         title: string;
@@ -44,10 +44,8 @@ export class GuidanceService {
     >`
       select title, url_path, item_type::text
       from search_index
-      where ${Prisma.join(
-        words.map((w) => Prisma.sql`search_vector @@ plainto_tsquery('english', ${w})`),
-        ' or ',
-      )}
+      where is_active and search_vector @@ to_tsquery('english', ${tsq})
+      order by ts_rank(search_vector, to_tsquery('english', ${tsq})) desc
       limit 6
     `;
 
@@ -105,8 +103,9 @@ ${JSON.stringify(sources, null, 2)}
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-3-5-haiku-20241022',
+            model: 'claude-haiku-5-5',
             max_tokens: 1024,
+            output_config: { effort: 'low' },
             system: systemPrompt,
             messages: [{ role: 'user', content: question }],
           }),
@@ -114,7 +113,8 @@ ${JSON.stringify(sources, null, 2)}
 
         if (res.ok) {
           const data = await res.json();
-          answer = data.content?.[0]?.text || '';
+          // content[0] can be a thinking block; take the text block.
+          answer = data.content?.find((b: { type: string }) => b.type === 'text')?.text || '';
         } else {
           console.warn('[GuidanceService] Anthropic API returned status:', res.status);
           answer = this.generateGroundedResponse(question, sources);

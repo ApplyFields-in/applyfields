@@ -14,6 +14,7 @@
     "dev:service": "turbo run dev --filter=@applyfields/service",
     "dev:api": "turbo run dev --filter=@applyfields/api",
     "dev:mobile": "pnpm --filter @applyfields/mobile start",
+    "dev:partner-mobile": "pnpm --filter @applyfields/partner-mobile start",
     "db:studio": "pnpm --filter @applyfields/api db:studio",
     "build": "turbo run build",
     "build:partner": "turbo run build --filter=@applyfields/partner",

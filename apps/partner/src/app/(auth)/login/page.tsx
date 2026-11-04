@@ -39,7 +39,7 @@ function LoginFormContent() {
     const partnerRes = await getMyPartner();
     if (partnerRes.data) {
       const isInst =
-        partnerRes.data.type === 'college' || partnerRes.data.type === 'training_institution';
+        ['college', 'university', 'training_institute'].includes(partnerRes.data.type);
       if (partnerRes.data.verification_status === 'verified') {
         router.push(isInst ? '/institution/dashboard' : '/dashboard');
       } else {
