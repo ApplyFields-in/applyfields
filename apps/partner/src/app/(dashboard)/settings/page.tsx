@@ -51,7 +51,7 @@ export default function PartnerSettingsPage() {
   const [address, setAddress] = useState(partner?.address || '');
   const [city, setCity] = useState(partner?.city || '');
   const [district, setDistrict] = useState(partner?.district || '');
-  const [stateCode, setStateCode] = useState(partner?.state_code || 'TG');
+  const [stateCode, setStateCode] = useState(partner?.state_code || 'TS');
   const [pincode, setPincode] = useState(partner?.pincode || '');
   const [latitude, setLatitude] = useState<number | null>(partner?.latitude || null);
   const [longitude, setLongitude] = useState<number | null>(partner?.longitude || null);
@@ -124,7 +124,7 @@ export default function PartnerSettingsPage() {
       setAddress(partner.address || '');
       setCity(partner.city || '');
       setDistrict(partner.district || '');
-      setStateCode(partner.state_code || 'TG');
+      setStateCode(partner.state_code || 'TS');
       setPincode(partner.pincode || '');
       setLatitude(partner.latitude);
       setLongitude(partner.longitude);
@@ -340,7 +340,7 @@ export default function PartnerSettingsPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-300">
-                State Code (e.g. TG, AP, KA)
+                State Code (e.g. TS, AP, KA)
               </label>
               <input
                 type="text"

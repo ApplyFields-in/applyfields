@@ -69,7 +69,7 @@ describe('Partner Schemas Validation', () => {
     it('validates a complete partner registration and normalizes state_code', () => {
       const parsed = partnerRegisterSchema.parse(validRegistration);
       expect(parsed.business_name).toBe('Sri Sai MeeSeva Center');
-      expect(parsed.state_code).toBe('TG');
+      expect(parsed.state_code).toBe('TS');
       expect(parsed.pincode).toBe('500060');
       expect(parsed.type).toBe('meeseva');
     });

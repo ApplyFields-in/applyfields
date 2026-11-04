@@ -94,6 +94,36 @@ describe('MessagesService', () => {
     );
   });
 
+  it('enforces sender_type based on authenticated identity to prevent spoofing', async () => {
+    // Citizen claiming to be partner is forced to citizen
+    await service.sendMessage('bk-uuid-1', 'user-uuid-1', {
+      message: 'Spoofed message',
+      sender_type: 'partner',
+      sender_name: 'Fake Operator',
+    });
+    expect(mockPrisma.booking_messages.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sender_type: 'citizen',
+        }),
+      }),
+    );
+
+    // Verified partner member sending message is set to partner
+    await service.sendMessage('bk-uuid-1', 'partner-user-1', {
+      message: 'Legitimate operator reply',
+      sender_type: 'citizen',
+      sender_name: 'Verified Operator',
+    });
+    expect(mockPrisma.booking_messages.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sender_type: 'partner',
+        }),
+      }),
+    );
+  });
+
   it('marks messages as read by recipient type when authorized', async () => {
     const res = await service.markAsRead('bk-uuid-1', 'partner', 'partner-user-1');
     expect(res.count).toBe(1);

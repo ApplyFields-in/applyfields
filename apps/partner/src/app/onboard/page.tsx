@@ -101,7 +101,7 @@ const POPULAR_SERVICES = [
 ];
 
 const STATES = [
-  { code: 'TG', name: 'Telangana' },
+  { code: 'TS', name: 'Telangana' },
   { code: 'AP', name: 'Andhra Pradesh' },
   { code: 'KA', name: 'Karnataka' },
   { code: 'MH', name: 'Maharashtra' },
@@ -154,7 +154,7 @@ export default function OnboardWizardPage() {
 
   // Step 3: Location & GPS
   const [address, setAddress] = useState('');
-  const [stateCode, setStateCode] = useState('TG');
+  const [stateCode, setStateCode] = useState('TS');
   const [district, setDistrict] = useState('Hyderabad');
   const [city, setCity] = useState('Ameerpet');
   const [pincode, setPincode] = useState('500016');
