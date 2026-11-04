@@ -46,7 +46,60 @@ export class MessagesService {
   // MESSAGE STREAM (CITIZEN & PARTNER)
   // =========================================================================
 
-  async getMessages(bookingId: string): Promise<ChatMessageItem[]> {
+  /**
+   * Asserts that the caller is authorized to view or send messages on this booking:
+   * 1. Citizen who owns the booking (booking.user_id === userId)
+   * 2. Partner operator / staff of the booking's assigned partner center
+   * 3. System admin / staff
+   * 4. Guest applicant holding the unique appointment pass token
+   */
+  async assertBookingAccess(
+    bookingId: string,
+    userId?: string | null,
+    token?: string | null,
+  ): Promise<{ id: string; partner_id: string; user_id: string | null; token?: string }> {
+    const booking = await this.prisma.service_requests.findUnique({
+      where: { id: bookingId },
+      select: { id: true, partner_id: true, user_id: true, token: true },
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking "${bookingId}" not found`);
+    }
+
+    // 1. Citizen owner
+    if (userId && booking.user_id && booking.user_id === userId) {
+      return booking;
+    }
+
+    // 2. Partner operator / member
+    if (userId) {
+      const isPartnerStaff = await this.prisma.partner_members.findFirst({
+        where: { user_id: userId, partner_id: booking.partner_id, is_active: true },
+      });
+      if (isPartnerStaff) return booking;
+
+      // 3. System admin / staff
+      const isStaff = await this.prisma.user_roles.findFirst({
+        where: { user_id: userId, role: { in: ['admin', 'super_admin', 'support'] } },
+      });
+      if (isStaff) return booking;
+    }
+
+    // 4. Token-based access (appointment pass for guest check-in)
+    if (token && booking.token && token === booking.token) {
+      return booking;
+    }
+
+    throw new ForbiddenException('You are not authorized to access messages for this booking');
+  }
+
+  async getMessages(
+    bookingId: string,
+    userId?: string | null,
+    token?: string | null,
+  ): Promise<ChatMessageItem[]> {
+    await this.assertBookingAccess(bookingId, userId, token);
     const rows = await this.prisma.booking_messages.findMany({
       where: { request_id: bookingId },
       orderBy: { created_at: 'asc' },
@@ -70,15 +123,9 @@ export class MessagesService {
     bookingId: string,
     senderUserId: string | null,
     input: SendChatMessageInput,
+    token?: string | null,
   ): Promise<ChatMessageItem> {
-    const booking = await this.prisma.service_requests.findUnique({
-      where: { id: bookingId },
-      select: { id: true, partner_id: true, user_id: true },
-    });
-
-    if (!booking) {
-      throw new NotFoundException(`Booking "${bookingId}" not found`);
-    }
+    await this.assertBookingAccess(bookingId, senderUserId, token);
 
     const created = await this.prisma.booking_messages.create({
       data: {
@@ -109,7 +156,10 @@ export class MessagesService {
   async markAsRead(
     bookingId: string,
     readerType: 'citizen' | 'partner',
+    userId?: string | null,
+    token?: string | null,
   ): Promise<{ count: number }> {
+    await this.assertBookingAccess(bookingId, userId, token);
     const targetSenderType = readerType === 'partner' ? 'citizen' : 'partner';
     const updateRes = await this.prisma.booking_messages.updateMany({
       where: {

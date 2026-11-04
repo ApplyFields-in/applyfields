@@ -55,9 +55,15 @@ export class ChatbotAnalyticsService {
 
   /** Queries counted against the quota for this key since `since` (IST midnight). */
   async countQueriesSince(quotaKey: string, since: Date): Promise<number> {
-    return this.prisma.analytics_events.count({
-      where: { event_name: CHATBOT_QUERY_EVENT, session_id: quotaKey, created_at: { gte: since } },
-    });
+    try {
+      return await this.prisma.analytics_events.count({
+        where: { event_name: CHATBOT_QUERY_EVENT, session_id: quotaKey, created_at: { gte: since } },
+      });
+    } catch (err: any) {
+      // Fail open: a DB hiccup (or analytics_events not created yet) must not take the chatbot down.
+      this.logger.warn(`chatbot quota count failed, allowing the query: ${err.message}`);
+      return 0;
+    }
   }
 
   async recordFeedback(dto: ChatbotFeedbackDto): Promise<void> {

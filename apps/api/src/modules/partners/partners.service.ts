@@ -354,7 +354,8 @@ export class PartnersService {
       where.type = types.length > 1 ? { in: types } : types[0];
     }
     if (query.state) {
-      where.state_code = query.state.toUpperCase();
+      const st = query.state.toUpperCase().trim();
+      where.state_code = st === 'TG' ? 'TS' : st;
     }
     if (query.district) {
       where.district = { contains: query.district, mode: 'insensitive' };
