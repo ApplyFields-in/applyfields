@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { KycDocuments } from '@/components/kyc-documents';
 import { usePartnerAuth } from '@/lib/auth-context';
 import {
   AlertCircle,
@@ -219,6 +220,8 @@ export default function UnderReviewPage() {
               </div>
             )}
           </div>
+
+          {partner && <KycDocuments partner={partner} onUploaded={refreshSession} />}
 
           {/* Need help bar */}
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900 p-4 text-xs">

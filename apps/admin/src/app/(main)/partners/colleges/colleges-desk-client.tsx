@@ -44,155 +44,13 @@ interface CollegesDeskClientProps {
   currentQuery?: string;
 }
 
-const SAMPLE_DEMO_COLLEGES: AdminPartnerItem[] = [
-  {
-    id: 'part-cbit-01',
-    slug: 'cbit-hyderabad',
-    type: 'college',
-    business_name: 'Chaitanya Bharathi Institute of Technology (CBIT)',
-    description: 'Premier Autonomous Engineering Institution affiliated with Osmania University. NAAC A++ Accredited, NIRF ranked.',
-    logo_url: null,
-    owner_name: 'Dr. P. Ravinder Reddy (Admissions Dean)',
-    phone: '+91 98490 11223',
-    whatsapp: '+91 98490 11223',
-    email: 'admissions@cbit.ac.in',
-    address: 'Gandipet, Hyderabad, Telangana',
-    state_code: 'TS',
-    district: 'Ranga Reddy',
-    city: 'Hyderabad',
-    pincode: '500075',
-    latitude: 17.3916,
-    longitude: 78.3197,
-    service_areas: ['Hyderabad', 'Telangana State', 'All India Admissions'],
-    working_hours: { mon: ['09:00', '17:00'], sat: ['09:00', '13:00'] },
-    is_available: true,
-    verification_status: 'pending',
-    is_listed: false,
-    rating_avg: 4.8,
-    rating_count: 142,
-    documents_count: 3,
-    owner_user_email: 'admissions@cbit.ac.in',
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    services: [
-      {
-        id: 'svc-01',
-        partner_id: 'part-cbit-01',
-        service_id: null,
-        name: 'B.Tech Admissions Counselling',
-        description: 'Direct counseling desk for TS EAMCET & JEE Main Category B Seats.',
-        charge_paise: 0,
-        charge_text: 'Free Counselling',
-        estimated_time_text: 'Same Day',
-        is_active: true,
-      },
-    ],
-  },
-  {
-    id: 'part-vnr-02',
-    slug: 'vnr-vjiet-hyderabad',
-    type: 'college',
-    business_name: 'Vallurupalli Nageswara Rao Vignana Jyothi Institute of Engineering & Technology (VNR VJIET)',
-    description: 'UGC Autonomous Institute recognized by AICTE, Accredited by NBA & NAAC with A++ Grade.',
-    logo_url: null,
-    owner_name: 'Prof. K. Anuradha (Admissions Convener)',
-    phone: '+91 98665 44332',
-    whatsapp: '+91 98665 44332',
-    email: 'admissions@vnrvjiet.ac.in',
-    address: 'Bachupally, Nizampet (SO), Hyderabad',
-    state_code: 'TS',
-    district: 'Medchal-Malkajgiri',
-    city: 'Hyderabad',
-    pincode: '500090',
-    latitude: 17.5385,
-    longitude: 78.3854,
-    service_areas: ['Hyderabad', 'Telangana State'],
-    working_hours: { mon: ['09:00', '17:00'] },
-    is_available: true,
-    verification_status: 'verified',
-    is_listed: true,
-    rating_avg: 4.9,
-    rating_count: 210,
-    documents_count: 4,
-    owner_user_email: 'admissions@vnrvjiet.ac.in',
-    created_at: new Date(Date.now() - 3600000 * 120).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 48).toISOString(),
-    services: [],
-  },
-  {
-    id: 'part-ou-03',
-    slug: 'university-college-of-engineering-osmania',
-    type: 'college',
-    business_name: 'University College of Engineering, Osmania University (UCEOU)',
-    description: 'First engineering college in the erstwhile Hyderabad State. Constituent college of Osmania University.',
-    logo_url: null,
-    owner_name: 'Dr. M. Chandra Sekhar (Admissions Officer)',
-    phone: '+91 94401 98765',
-    whatsapp: '+91 94401 98765',
-    email: 'principal@uceou.edu',
-    address: 'Osmania University Campus, Amberpet, Hyderabad',
-    state_code: 'TS',
-    district: 'Hyderabad',
-    city: 'Hyderabad',
-    pincode: '500007',
-    latitude: 17.4138,
-    longitude: 78.5287,
-    service_areas: ['All India', 'Telangana'],
-    working_hours: { mon: ['10:00', '16:30'] },
-    is_available: true,
-    verification_status: 'verified',
-    is_listed: true,
-    rating_avg: 4.9,
-    rating_count: 430,
-    documents_count: 3,
-    owner_user_email: 'principal@uceou.edu',
-    created_at: new Date(Date.now() - 3600000 * 240).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 96).toISOString(),
-    services: [],
-  },
-  {
-    id: 'part-sri-04',
-    slug: 'sri-sai-educational-trust',
-    type: 'college',
-    business_name: 'Sri Sai Group of Professional Institutions',
-    description: 'Private engineering and pharmacy campus, claimed affiliation letter pending review.',
-    logo_url: null,
-    owner_name: 'R. Rajeshwar Rao',
-    phone: '+91 97000 12345',
-    whatsapp: '+91 97000 12345',
-    email: 'info@srisaigroup.in',
-    address: 'Near ORR Exit, Medchal Highway, Telangana',
-    state_code: 'TS',
-    district: 'Medchal',
-    city: 'Hyderabad',
-    pincode: '501401',
-    latitude: 17.62,
-    longitude: 78.48,
-    service_areas: ['Medchal'],
-    working_hours: { mon: ['09:00', '17:00'] },
-    is_available: false,
-    verification_status: 'rejected',
-    is_listed: false,
-    rating_avg: 3.2,
-    rating_count: 8,
-    documents_count: 1,
-    owner_user_email: 'info@srisaigroup.in',
-    created_at: new Date(Date.now() - 3600000 * 72).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-    services: [],
-  },
-];
-
 export function CollegesDeskClient({
   initialItems,
   total,
   currentStatus,
   currentQuery,
 }: CollegesDeskClientProps) {
-  // Use real backend data if present, otherwise populate realistic sample colleges for review testing
-  const [items, setItems] = useState<AdminPartnerItem[]>(
-    initialItems.length > 0 ? initialItems : SAMPLE_DEMO_COLLEGES,
-  );
+  const [items, setItems] = useState<AdminPartnerItem[]>(initialItems);
   const [searchQuery, setSearchQuery] = useState(currentQuery || '');
   const [statusFilter, setStatusFilter] = useState<string>(currentStatus || 'all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -215,52 +73,9 @@ export function CollegesDeskClient({
 
     try {
       const res = await apiGet<PartnerDetail>(`/admin/partners/${college.id}`);
-      if (res) {
-        setCollegeDetail(res);
-        setIsListedToggle(res.is_listed);
-      } else {
-        // Fallback mock documents for verification testing
-        setCollegeDetail({
-          ...college,
-          institution_id: `inst-${college.slug}`,
-          verified_at: college.verification_status === 'verified' ? college.updated_at : null,
-          created_at: college.created_at,
-          updated_at: college.updated_at,
-          services: college.services.map((s) => ({ ...s, created_at: '', updated_at: '' })),
-          documents: [
-            {
-              id: `doc-aicte-${college.id}`,
-              partner_id: college.id,
-              document_kind: 'aicte_approval_letter',
-              storage_path: `/accreditation/${college.slug}/aicte-approval-2026-27.pdf`,
-              status: college.verification_status === 'verified' ? 'verified' : 'pending',
-              reviewer_note: 'AICTE Extension of Approval for AY 2026-2027.',
-              reviewed_at: college.verification_status === 'verified' ? college.updated_at : null,
-              created_at: college.created_at,
-            },
-            {
-              id: `doc-naac-${college.id}`,
-              partner_id: college.id,
-              document_kind: 'naac_accreditation_certificate',
-              storage_path: `/accreditation/${college.slug}/naac-accreditation-grade-a-plus.pdf`,
-              status: college.verification_status === 'verified' ? 'verified' : 'pending',
-              reviewer_note: 'NAAC Peer Team Cycle 3 Certificate (Grade A++).',
-              reviewed_at: college.verification_status === 'verified' ? college.updated_at : null,
-              created_at: college.created_at,
-            },
-            {
-              id: `doc-auth-${college.id}`,
-              partner_id: college.id,
-              document_kind: 'principal_authorization_letter',
-              storage_path: `/accreditation/${college.slug}/admissions-nodal-officer-authorization.pdf`,
-              status: college.verification_status === 'verified' ? 'verified' : 'pending',
-              reviewer_note: 'Signed authorization by Principal on official letterhead with seal.',
-              reviewed_at: college.verification_status === 'verified' ? college.updated_at : null,
-              created_at: college.created_at,
-            },
-          ],
-        });
-      }
+      setCollegeDetail(res);
+      if (res) setIsListedToggle(res.is_listed);
+      else setFeedback({ text: 'Could not load this college from the API.', success: false });
     } catch {
       setCollegeDetail(null);
     } finally {
@@ -302,7 +117,11 @@ export function CollegesDeskClient({
         payload,
       );
 
-      // Local optimistic update
+      if (!res.ok) {
+        setFeedback({ text: res.error || 'Could not update the college.', success: false });
+        return;
+      }
+
       setItems((prev) =>
         prev.map((item) =>
           item.id === collegeId
@@ -332,19 +151,8 @@ export function CollegesDeskClient({
             : 'Institution status updated.',
         success: true,
       });
-    } catch (err: any) {
-      // optimistic state for testing preview
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === collegeId
-            ? { ...item, verification_status: status, is_listed: isListed }
-            : item,
-        ),
-      );
-      setFeedback({
-        text: `Updated locally: ${status.toUpperCase()} (Listing: ${isListed ? 'Active' : 'Disabled'})`,
-        success: true,
-      });
+    } catch {
+      setFeedback({ text: 'Could not reach the API.', success: false });
     } finally {
       setUpdatingId(null);
     }
@@ -358,13 +166,18 @@ export function CollegesDeskClient({
   ) => {
     setDocUpdatingId(docId);
     try {
-      await apiPatch<PartnerDocumentSummary, { status: 'verified' | 'rejected'; reviewer_note?: string }>(
+      const res = await apiPatch<PartnerDocumentSummary, { status: 'verified' | 'rejected'; reviewer_note?: string }>(
         `/admin/partners/documents/${docId}/verify`,
         {
           status,
           reviewer_note: note || (status === 'verified' ? 'Accreditation document confirmed valid.' : 'Document invalid or expired.'),
         },
       );
+
+      if (!res.ok) {
+        setFeedback({ text: res.error || 'Could not update the document.', success: false });
+        return;
+      }
 
       setCollegeDetail((prev) => {
         if (!prev) return null;
@@ -381,20 +194,7 @@ export function CollegesDeskClient({
         success: true,
       });
     } catch {
-      // optimistic fallback
-      setCollegeDetail((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          documents: prev.documents?.map((d) =>
-            d.id === docId ? { ...d, status, reviewer_note: note || d.reviewer_note } : d,
-          ),
-        };
-      });
-      setFeedback({
-        text: `Document status updated to ${status}.`,
-        success: true,
-      });
+      setFeedback({ text: 'Could not reach the API.', success: false });
     } finally {
       setDocUpdatingId(null);
     }
@@ -676,7 +476,7 @@ export function CollegesDeskClient({
                       <td className="px-3 py-3.5">
                         <div className="inline-flex items-center gap-1.5 rounded-lg border border-teal/15 bg-canvas px-2.5 py-1">
                           <FileCheck2 className="size-3.5 text-teal/70" />
-                          <span className="font-bold text-teal">{col.documents_count || 3} Files</span>
+                          <span className="font-bold text-teal">{col.documents_count} Files</span>
                         </div>
                         <span className="block text-[10px] text-teal/60 mt-1">
                           AICTE • NAAC • VC Letter
@@ -803,7 +603,7 @@ export function CollegesDeskClient({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xs font-black uppercase tracking-wider text-teal">
-                    Accreditation &amp; Affiliation Certificates ({collegeDetail?.documents?.length || 3})
+                    Accreditation &amp; Affiliation Certificates ({collegeDetail?.documents?.length ?? 0})
                   </h3>
                   <p className="text-[11px] text-teal/70">
                     Verify AICTE approval, NAAC grade cycle, and Principal/Registrar authorization letters.
@@ -841,9 +641,18 @@ export function CollegesDeskClient({
                               {doc.status}
                             </span>
                           </div>
-                          <span className="font-mono text-[10px] text-teal/60 block truncate max-w-sm mt-0.5">
-                            {doc.storage_path}
-                          </span>
+                          {doc.url ? (
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[11px] font-semibold text-teal underline block mt-0.5"
+                            >
+                              View file
+                            </a>
+                          ) : (
+                            <span className="text-[10px] text-teal/60 block mt-0.5">File could not be loaded</span>
+                          )}
                           {doc.reviewer_note && (
                             <span className="text-[10px] text-teal/70 italic block mt-0.5">
                               Note: {doc.reviewer_note}

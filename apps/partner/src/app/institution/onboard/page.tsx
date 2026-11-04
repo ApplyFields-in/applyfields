@@ -24,7 +24,7 @@ import {
 import {
   registerPartner,
   searchCollegesDirectory,
-  uploadPartnerDoc,
+  uploadPartnerFile,
 } from '@/lib/api';
 import type { InstitutionSummary } from '@applyfields/types';
 
@@ -55,8 +55,8 @@ export default function InstitutionOnboardPage() {
   const [campusAddress, setCampusAddress] = useState('');
 
   // Step 3: Verification Docs
-  const [authDocName, setAuthDocName] = useState('');
-  const [authDocPath, setAuthDocPath] = useState('');
+  const [authDoc, setAuthDoc] = useState<File | null>(null);
+  const authDocName = authDoc?.name ?? '';
   const [accreditationType, setAccreditationType] = useState('naac');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(true);
@@ -137,12 +137,7 @@ export default function InstitutionOnboardPage() {
       }
 
       // Upload authorization verification stub if provided
-      if (authDocName) {
-        await uploadPartnerDoc({
-          document_kind: 'official_authorization_letter',
-          storage_path: authDocPath || `institutions/${regRes.data.id}/authorization_${authDocName}`,
-        });
-      }
+      if (authDoc) await uploadPartnerFile('principal_authorization_letter', authDoc);
 
       router.push('/institution/under-review');
     } catch (err: any) {
@@ -547,10 +542,7 @@ export default function InstitutionOnboardPage() {
                         className="sr-only"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) {
-                            setAuthDocName(file.name);
-                            setAuthDocPath(`institutions/docs/${Date.now()}_${file.name}`);
-                          }
+                          if (file) setAuthDoc(file);
                         }}
                       />
                     </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { KycDocuments } from '@/components/kyc-documents';
 import { Badge, Button, Card, Muted, Page } from '@/components/ui';
 import { ago, typeLabel } from '@/lib/format';
 import { isInstitution, useSession } from '@/lib/session';
@@ -57,6 +58,8 @@ export default function UnderReview() {
             {note ? <Muted style={{ marginTop: S.sm }}>Reviewer note: {note}</Muted> : null}
           </Card>
         ) : null}
+
+        {partner ? <KycDocuments partner={partner} onUploaded={() => void reload()} /> : null}
 
         <Button label={checking ? 'Checking…' : 'Check status'} icon="refresh" disabled={checking} onPress={check} />
         <Button label="Sign out" variant="secondary" onPress={() => void logout()} />
