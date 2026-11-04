@@ -60,8 +60,7 @@ export class AdminController {
         recent_queries: [],
       };
     }
-    const cacheMetrics = this.routerService.getCacheService().getMetrics();
-    return this.routerService.getAnalyticsService().getObservabilityMetrics(cacheMetrics.total_hits);
+    return this.routerService.getAnalyticsService().getObservabilityMetrics();
   }
 
   /** GET /api/v1/admin/me — returns current staff user info { id, email, name, roles } */

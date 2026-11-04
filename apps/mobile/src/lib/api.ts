@@ -1,0 +1,154 @@
+/**
+ * The one HTTP client the app uses to talk to @applyfields/api (NestJS).
+ *
+ * Mirrors apps/web/src/lib/api.ts: bearer access token on every call, one
+ * silent /auth/refresh retry on 401. React Native keeps the httpOnly refresh
+ * cookie in its native cookie store, so refresh works without extra plumbing.
+ * The access token lives in SecureStore (Keychain / EncryptedSharedPreferences).
+ */
+import * as SecureStore from 'expo-secure-store';
+
+export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api/v1').replace(
+  /\/$/,
+  '',
+);
+
+const TOKEN_KEY = 'applyfields.accessToken';
+const LOCALE_KEY = 'applyfields.locale';
+
+let memoryToken: string | null = null;
+let refreshing: Promise<boolean> | null = null;
+
+// Kept in memory so the Accept-Language header is set synchronously on every
+// request; the Profile language picker updates it and persists to SecureStore.
+let currentLocale = 'en';
+
+export async function getToken(): Promise<string | null> {
+  if (memoryToken) return memoryToken;
+  memoryToken = await SecureStore.getItemAsync(TOKEN_KEY).catch(() => null);
+  return memoryToken;
+}
+
+export async function setToken(token: string | null): Promise<void> {
+  memoryToken = token;
+  if (token) await SecureStore.setItemAsync(TOKEN_KEY, token).catch(() => undefined);
+  else await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => undefined);
+}
+
+export function getLocale(): string {
+  return currentLocale;
+}
+
+/** Load the saved locale into memory on launch. */
+export async function loadLocale(): Promise<string> {
+  currentLocale = (await SecureStore.getItemAsync(LOCALE_KEY).catch(() => null)) || 'en';
+  return currentLocale;
+}
+
+export async function setLocale(locale: string): Promise<void> {
+  currentLocale = locale;
+  await SecureStore.setItemAsync(LOCALE_KEY, locale).catch(() => undefined);
+}
+
+export interface ApiResponse<T> {
+  data: T | null;
+  error: string | null;
+  status: number;
+}
+
+function message(err: unknown): string {
+  if (err instanceof Error) {
+    if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+      return 'The server took too long to answer. Check your connection and try again.';
+    }
+    if (err.message.toLowerCase().includes('network request failed')) {
+      return 'No connection to ApplyFields. Check your internet and try again.';
+    }
+    return err.message;
+  }
+  return 'Something went wrong. Please try again.';
+}
+
+/** POST /auth/refresh using the refresh cookie React Native stored at login. */
+async function refreshSession(): Promise<boolean> {
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) return false;
+      const json = (await res.json().catch(() => null)) as { accessToken?: string } | null;
+      if (!json?.accessToken) return false;
+      await setToken(json.accessToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+async function request<T>(
+  method: Method,
+  path: string,
+  body?: unknown,
+  timeoutMs = 25000,
+): Promise<ApiResponse<T>> {
+  const send = async (token: string | null) => {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Accept-Language': currentLocale,
+    };
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  };
+
+  try {
+    let res = await send(await getToken());
+
+    if (res.status === 401 && !path.startsWith('/auth/')) {
+      if (await refreshSession()) res = await send(await getToken());
+      else await setToken(null);
+    }
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      const raw = (json as { message?: string | string[] } | null)?.message;
+      return {
+        data: null,
+        error: Array.isArray(raw) ? raw.join(', ') : raw || 'Request failed',
+        status: res.status,
+      };
+    }
+    return { data: json as T, error: null, status: res.status };
+  } catch (err) {
+    return { data: null, error: message(err), status: 0 };
+  }
+}
+
+/** GET that returns the body or null — for screens that just render what they get. */
+export async function apiGet<T>(path: string): Promise<T | null> {
+  return (await request<T>('GET', path)).data;
+}
+
+export const api = {
+  get: <T>(path: string) => request<T>('GET', path),
+  post: <T>(path: string, body?: unknown, timeoutMs?: number) =>
+    request<T>('POST', path, body ?? {}, timeoutMs),
+  put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body ?? {}),
+  patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body ?? {}),
+  del: <T>(path: string) => request<T>('DELETE', path),
+};

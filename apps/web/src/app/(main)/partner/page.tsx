@@ -31,7 +31,7 @@ const PARTNER_CATEGORIES: { id: PartnerType; label: string; desc: string }[] = [
 ];
 
 const STATES = [
-  { code: 'TG', name: 'Telangana' },
+  { code: 'TS', name: 'Telangana' },
   { code: 'AP', name: 'Andhra Pradesh' },
   { code: 'KA', name: 'Karnataka' },
   { code: 'MH', name: 'Maharashtra' },
@@ -51,7 +51,7 @@ export default function PartnerPage() {
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
-  const [stateCode, setStateCode] = useState('TG');
+  const [stateCode, setStateCode] = useState('TS');
   const [district, setDistrict] = useState('');
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');

@@ -14,6 +14,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type {
+  DeviceTokenInput,
+  DeviceTokenResult,
   NotificationList,
   NotificationPreferences,
   NotificationPreferencesInput,
@@ -23,7 +25,11 @@ import type {
 import type { Response } from 'express';
 import { ZodPipe } from '../../common/zod.pipe.js';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard.js';
-import { preferencesSchema, pushSubscriptionSchema } from './notifications.schemas.js';
+import {
+  deviceTokenSchema,
+  preferencesSchema,
+  pushSubscriptionSchema,
+} from './notifications.schemas.js';
 import { NotificationsService } from './notifications.service.js';
 
 const page = (title: string, body: string) =>
@@ -52,6 +58,30 @@ export class NotificationsController {
   ): Promise<{ subscribed: true }> {
     await this.notifications.subscribePush(req.user.userId, input);
     return { subscribed: true };
+  }
+
+  /** POST /notifications/device-token — registers an Android/iOS device (apps/mobile) */
+  @Post('device-token')
+  @HttpCode(200)
+  @UseGuards(AuthGuard)
+  async registerDeviceToken(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodPipe(deviceTokenSchema)) input: DeviceTokenInput,
+  ): Promise<DeviceTokenResult> {
+    await this.notifications.registerDeviceToken(req.user.userId, input);
+    return { registered: true };
+  }
+
+  /** POST /notifications/device-token/remove — drops this phone on sign-out */
+  @Post('device-token/remove')
+  @HttpCode(200)
+  @UseGuards(AuthGuard)
+  async removeDeviceToken(
+    @Req() req: AuthenticatedRequest,
+    @Body('token') token?: string,
+  ): Promise<DeviceTokenResult> {
+    if (token) await this.notifications.removeDeviceToken(req.user.userId, token);
+    return { registered: false };
   }
 
   /** DELETE /notifications/push-unsubscribe — unregisters push subscription */

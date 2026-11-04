@@ -36,7 +36,22 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
     ],
   };
 
+  // In-memory analytics_events: quota is counted from these rows, like in Postgres.
+  const events: Array<{ event_name: string; session_id: string; created_at: Date }> = [];
   const mockPrisma = {
+    analytics_events: {
+      create: vi.fn(async ({ data }) => {
+        events.push({ ...data, created_at: new Date() });
+      }),
+      count: vi.fn(async ({ where }) =>
+        events.filter(
+          (e) =>
+            e.event_name === where.event_name &&
+            e.session_id === where.session_id &&
+            e.created_at >= where.created_at.gte,
+        ).length,
+      ),
+    },
     opportunities: {
       findFirst: vi.fn().mockImplementation(({ where }) => {
         if (where?.slug === 'ssc-cgl-2026' || where?.OR) {
@@ -211,7 +226,8 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
       query: 'How should I structure my 6-month study timetable for civil services?',
     });
 
-    expect(['llm', 'rag']).toContain(res.mode);
+    // 'fallback' when no ANTHROPIC_API_KEY: kept out of the cache so a restored key isn't masked for 12h.
+    expect(['llm', 'rag', 'fallback']).toContain(res.mode);
     expect(res.answer).toContain('ApplyFields AI Advisor');
     expect(res.actions).toBeDefined();
   });
@@ -229,5 +245,62 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
     expect(digest?.keyFacts.totalVacancies).toBe(17727);
     expect(digest?.keyFacts.feeGeneral).toBe('₹100');
     expect(digest?.keyFacts.feeConcession).toBe('Exempted (FREE)');
+  });
+
+  it('answers greetings and off-topic questions without the LLM and without using quota', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const userId = 'gate-user-1';
+
+    const hi = await service.handleQuery({ query: 'Hi!' }, userId);
+    expect(hi.intent).toBe('smalltalk');
+
+    const joke = await service.handleQuery({ query: 'Tell me a joke about cricket' }, userId);
+    expect(joke.intent).toBe('off_topic');
+
+    const noise = await service.handleQuery({ query: 'pizza' }, userId);
+    expect(noise.intent).toBe('off_topic');
+
+    expect(noise.queries_used).toBe(0);
+    expect(noise.queries_remaining).toBe(3);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it('matches whole words: "how much salary" is not a fee question', async () => {
+    const res = await service.handleQuery({
+      query: 'How much salary does this post get?',
+      opportunity_slug: 'ssc-cgl-2026',
+    });
+    expect(res.intent).not.toBe('fee');
+  });
+
+  it('never serves one user\'s cached workspace counts to another user', async () => {
+    await service.handleQuery({ query: 'Show my saved items' }, 'leak-user-a');
+    mockPrisma.saved_items.count.mockResolvedValueOnce(1);
+    const b = await service.handleQuery({ query: 'Show my saved items' }, 'leak-user-b');
+    expect(b.answer).toContain('1 item');
+  });
+
+  it('resolves follow-ups against the opportunity named earlier in the chat (zero LLM)', async () => {
+    const res = await service.handleQuery({
+      query: 'What is the application fee?',
+      history: [
+        { role: 'assistant', content: 'Hi! Ask me anything.' },
+        { role: 'user', content: 'Tell me about SSC CGL 2026' },
+      ],
+    });
+    expect(res.mode).toBe('deterministic');
+    expect(res.intent).toBe('fee');
+    expect(res.answer).toContain('Fee Breakdown');
+  });
+});
+
+describe('chatbot quota helpers', () => {
+  it('resets the free-chat day at 12:00 AM IST, not UTC', async () => {
+    const { istMidnight } = await import('./query-router.service.js');
+    // 2026-11-04 20:00 UTC = 2026-11-05 01:30 IST → day started 2026-11-04 18:30 UTC
+    expect(istMidnight(Date.parse('2026-11-04T20:00:00Z')).toISOString()).toBe('2026-11-04T18:30:00.000Z');
+    // 2026-11-04 10:00 UTC = 15:30 IST same day → day started 2026-11-03 18:30 UTC
+    expect(istMidnight(Date.parse('2026-11-04T10:00:00Z')).toISOString()).toBe('2026-11-03T18:30:00.000Z');
   });
 });

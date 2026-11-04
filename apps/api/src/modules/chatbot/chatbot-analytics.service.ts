@@ -1,243 +1,159 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { ChatbotObservabilityMetrics } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { ChatbotFeedbackDto } from './chatbot.schemas.js';
 
+/** Counted against the daily quota. Greetings/off-topic use CHATBOT_FREE_EVENT so they never count. */
+export const CHATBOT_QUERY_EVENT = 'chatbot_query';
+export const CHATBOT_FREE_EVENT = 'chatbot_free_reply';
+const FEEDBACK_EVENT = 'chatbot_feedback';
+const WINDOW_DAYS = 30;
+// ponytail: flat per-call estimate for claude-haiku-5-5 (~1.5k in / 300 out). Use logged usage tokens if cost matters.
+const EST_LLM_CALL_USD = 0.0003;
+
 export interface ChatbotQueryLog {
-  id: string;
   query: string;
   mode: 'deterministic' | 'rag' | 'llm' | 'fallback' | 'limit_reached';
   latency_ms: number;
   opportunity_slug?: string | null;
   is_unanswered: boolean;
   is_cached: boolean;
-  user_id?: string | null;
-  created_at: string;
+  /** userId, or a hashed IP for guests. Stored in analytics_events.session_id and used for the quota. */
+  quota_key: string;
+  counts_quota: boolean;
 }
 
-export interface ChatbotFeedbackLog {
-  id: string;
-  query: string;
-  answer: string;
-  rating: 'helpful' | 'unhelpful';
-  comments?: string;
-  opportunity_slug?: string | null;
-  created_at: string;
-}
-
-export interface ChatbotObservabilityMetrics {
-  total_queries: number;
-  fast_path_count: number;
-  llm_count: number;
-  cache_hits: number;
-  fast_path_percentage: number;
-  avg_latency_ms: number;
-  estimated_cost_saved_usd: number;
-  satisfaction_rate: number;
-  ratings_count: number;
-  helpful_count: number;
-  unhelpful_count: number;
-  top_unanswered_questions: Array<{
-    query: string;
-    count: number;
-    opportunity_slug?: string;
-    last_asked_at: string;
-  }>;
-  recent_queries: ChatbotQueryLog[];
-}
-
+/** All chatbot state lives in analytics_events, so it survives deploys and is shared by every API instance. */
 @Injectable()
 export class ChatbotAnalyticsService {
   private readonly logger = new Logger('ChatbotAnalyticsService');
 
-  // In-memory ring buffer of recent query logs (keeps up to 1,000 for high speed observability)
-  private readonly queryLogs: ChatbotQueryLog[] = [];
-  private readonly feedbackLogs: ChatbotFeedbackLog[] = [];
-
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Records a chatbot query event in telemetry memory and DB analytics_events
-   */
-  async logQuery(entry: Omit<ChatbotQueryLog, 'id' | 'created_at'>): Promise<void> {
-    const log: ChatbotQueryLog = {
-      id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      ...entry,
-      created_at: new Date().toISOString(),
-    };
-
-    if (this.queryLogs.length >= 1000) {
-      this.queryLogs.shift();
-    }
-    this.queryLogs.push(log);
-
-    // Asynchronously log to analytics_events table if available
+  async logQuery(entry: ChatbotQueryLog): Promise<void> {
     try {
-      if (this.prisma.analytics_events) {
-        await this.prisma.analytics_events.create({
-          data: {
-            event_name: 'chatbot_query',
-            entity_type: 'opportunity',
-            entity_id: entry.opportunity_slug || 'general',
-            metadata: {
-              query: entry.query.slice(0, 300),
-              mode: entry.mode,
-              latency_ms: entry.latency_ms,
-              is_unanswered: entry.is_unanswered,
-              is_cached: entry.is_cached,
-            },
+      await this.prisma.analytics_events.create({
+        data: {
+          session_id: entry.quota_key,
+          event_name: entry.counts_quota ? CHATBOT_QUERY_EVENT : CHATBOT_FREE_EVENT,
+          entity_type: 'opportunity',
+          entity_id: entry.opportunity_slug || 'general',
+          metadata: {
+            query: entry.query.slice(0, 300),
+            mode: entry.mode,
+            latency_ms: entry.latency_ms,
+            is_unanswered: entry.is_unanswered,
+            is_cached: entry.is_cached,
           },
-        });
-      }
-    } catch {
-      // Non-blocking telemetry
+        },
+      });
+    } catch (err: any) {
+      // Telemetry must never break a chat reply. Fails open: an unlogged query is not counted.
+      this.logger.warn(`chatbot_query log failed: ${err.message}`);
     }
   }
 
-  /**
-   * Records candidate satisfaction feedback (👍 / 👎)
-   */
+  /** Queries counted against the quota for this key since `since` (IST midnight). */
+  async countQueriesSince(quotaKey: string, since: Date): Promise<number> {
+    try {
+      return await this.prisma.analytics_events.count({
+        where: { event_name: CHATBOT_QUERY_EVENT, session_id: quotaKey, created_at: { gte: since } },
+      });
+    } catch (err: any) {
+      // Fail open: a DB hiccup (or analytics_events not created yet) must not take the chatbot down.
+      this.logger.warn(`chatbot quota count failed, allowing the query: ${err.message}`);
+      return 0;
+    }
+  }
+
   async recordFeedback(dto: ChatbotFeedbackDto): Promise<void> {
-    const feedback: ChatbotFeedbackLog = {
-      id: `fb-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      query: dto.query,
-      answer: dto.answer.slice(0, 1000),
-      rating: dto.rating,
-      comments: dto.comments,
-      opportunity_slug: dto.opportunity_slug,
-      created_at: new Date().toISOString(),
-    };
-
-    if (this.feedbackLogs.length >= 500) {
-      this.feedbackLogs.shift();
-    }
-    this.feedbackLogs.push(feedback);
-
     try {
-      if (this.prisma.analytics_events) {
-        await this.prisma.analytics_events.create({
-          data: {
-            event_name: 'chatbot_feedback',
-            entity_type: 'opportunity',
-            entity_id: dto.opportunity_slug || 'general',
-            metadata: {
-              query: dto.query.slice(0, 300),
-              rating: dto.rating,
-              comments: dto.comments || '',
-            },
-          },
-        });
-      }
-    } catch {
-      // Non-blocking
+      await this.prisma.analytics_events.create({
+        data: {
+          event_name: FEEDBACK_EVENT,
+          entity_type: 'opportunity',
+          entity_id: dto.opportunity_slug || 'general',
+          metadata: { query: dto.query.slice(0, 300), rating: dto.rating, comments: dto.comments || '' },
+        },
+      });
+    } catch (err: any) {
+      this.logger.warn(`chatbot_feedback log failed: ${err.message}`);
     }
-    this.logger.log(`[ChatbotAnalytics] Candidate rating: ${dto.rating} for: "${dto.query.slice(0, 60)}"`);
   }
 
-  /**
-   * Computes executive observability metrics for apps/admin
-   */
-  getObservabilityMetrics(cacheHits: number = 0): ChatbotObservabilityMetrics {
-    const total = this.queryLogs.length;
+  /** Real numbers only, last 30 days. An empty system shows zeros, never sample data. */
+  async getObservabilityMetrics(): Promise<ChatbotObservabilityMetrics> {
+    const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
 
-    // Seed realistic starter baseline if system is newly initialized so admin sees rich metrics
-    const sampleMultiplier = total > 0 ? 1 : 0;
+    const [totals, unanswered, feedback, recent] = await Promise.all([
+      this.prisma.$queryRaw<
+        Array<{ total: number; fast: number; llm: number; cached: number; avg_latency: number }>
+      >`
+        select count(*)::int as total,
+               count(*) filter (where metadata->>'mode' = 'deterministic' or (metadata->>'is_cached')::boolean)::int as fast,
+               count(*) filter (where metadata->>'mode' in ('llm', 'rag'))::int as llm,
+               count(*) filter (where (metadata->>'is_cached')::boolean)::int as cached,
+               coalesce(round(avg((metadata->>'latency_ms')::numeric)), 0)::int as avg_latency
+        from analytics_events
+        where event_name in (${CHATBOT_QUERY_EVENT}, ${CHATBOT_FREE_EVENT}) and created_at >= ${since}
+      `,
+      this.prisma.$queryRaw<Array<{ query: string; count: number; slug: string | null; last: Date }>>`
+        select lower(metadata->>'query') as query, count(*)::int as count,
+               max(entity_id) as slug, max(created_at) as last
+        from analytics_events
+        where event_name = ${CHATBOT_QUERY_EVENT} and (metadata->>'is_unanswered')::boolean
+          and created_at >= ${since}
+        group by 1 order by 2 desc, 4 desc limit 10
+      `,
+      this.prisma.$queryRaw<Array<{ helpful: number; unhelpful: number }>>`
+        select count(*) filter (where metadata->>'rating' = 'helpful')::int as helpful,
+               count(*) filter (where metadata->>'rating' = 'unhelpful')::int as unhelpful
+        from analytics_events
+        where event_name = ${FEEDBACK_EVENT} and created_at >= ${since}
+      `,
+      this.prisma.analytics_events.findMany({
+        where: { event_name: { in: [CHATBOT_QUERY_EVENT, CHATBOT_FREE_EVENT] } },
+        orderBy: { created_at: 'desc' },
+        take: 20,
+      }),
+    ]);
 
-    let fastPathCount = this.queryLogs.filter(
-      (q) => q.mode === 'deterministic' || q.is_cached,
-    ).length;
-    let llmCount = this.queryLogs.filter((q) => q.mode === 'llm' || q.mode === 'rag').length;
-    let fallbackCount = this.queryLogs.filter((q) => q.is_unanswered).length;
-
-    let totalLatency = this.queryLogs.reduce((acc, q) => acc + q.latency_ms, 0);
-    let avgLatency = total > 0 ? Math.round(totalLatency / total) : 62;
-
-    if (total === 0) {
-      fastPathCount = 142;
-      llmCount = 38;
-      fallbackCount = 9;
-    }
-
-    const effectiveTotal = total > 0 ? total : fastPathCount + llmCount;
-    const fastPathPercentage =
-      effectiveTotal > 0 ? Math.round((fastPathCount / effectiveTotal) * 100) : 79;
-
-    // Fast-path saves ~$0.0035 per query vs Claude 3.5 Sonnet / Haiku
-    const costSavedUsd = Number(((fastPathCount + cacheHits) * 0.0035).toFixed(2));
-
-    // Aggregate Top Unanswered Questions
-    const unansweredMap = new Map<string, { count: number; slug?: string; lastAsked: string }>();
-
-    for (const q of this.queryLogs.filter((l) => l.is_unanswered)) {
-      const norm = q.query.toLowerCase().replace(/[^\w\s]/g, '').trim();
-      const existing = unansweredMap.get(norm);
-      if (existing) {
-        existing.count += 1;
-        existing.lastAsked = q.created_at;
-      } else {
-        unansweredMap.set(norm, {
-          count: 1,
-          slug: q.opportunity_slug || undefined,
-          lastAsked: q.created_at,
-        });
-      }
-    }
-
-    // Default top unanswered queries if not enough live traffic yet
-    if (unansweredMap.size === 0) {
-      unansweredMap.set('is physical test mandatory for assistant audit officer role in ssc cgl', {
-        count: 14,
-        slug: 'ssc-cgl-2026',
-        lastAsked: new Date(Date.now() - 3600000).toISOString(),
-      });
-      unansweredMap.set('what is the refund procedure if double payment deducted', {
-        count: 11,
-        slug: 'rrb-ntpc-2026',
-        lastAsked: new Date(Date.now() - 7200000).toISOString(),
-      });
-      unansweredMap.set('are btech final semester results accepted before interview cutoff', {
-        count: 8,
-        slug: 'upsc-cse-2026',
-        lastAsked: new Date(Date.now() - 14400000).toISOString(),
-      });
-      unansweredMap.set('can sports quota certificate from state university be claimed for age relaxation', {
-        count: 6,
-        slug: 'ibps-po-2026',
-        lastAsked: new Date(Date.now() - 28800000).toISOString(),
-      });
-    }
-
-    const topUnanswered = Array.from(unansweredMap.entries())
-      .map(([query, data]) => ({
-        query,
-        count: data.count,
-        opportunity_slug: data.slug,
-        last_asked_at: data.lastAsked,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    // Feedback metrics
-    const helpfulCount = this.feedbackLogs.filter((f) => f.rating === 'helpful').length;
-    const unhelpfulCount = this.feedbackLogs.filter((f) => f.rating === 'unhelpful').length;
-    const totalRatings = helpfulCount + unhelpfulCount;
-    const satisfactionRate =
-      totalRatings > 0 ? Math.round((helpfulCount / totalRatings) * 100) : 94;
+    const t = totals[0] ?? { total: 0, fast: 0, llm: 0, cached: 0, avg_latency: 0 };
+    const f = feedback[0] ?? { helpful: 0, unhelpful: 0 };
+    const ratings = f.helpful + f.unhelpful;
+    const slug = (s: string | null) => (s && s !== 'general' ? s : undefined);
 
     return {
-      total_queries: effectiveTotal,
-      fast_path_count: fastPathCount,
-      llm_count: llmCount,
-      cache_hits: cacheHits || 26,
-      fast_path_percentage: fastPathPercentage,
-      avg_latency_ms: avgLatency,
-      estimated_cost_saved_usd: costSavedUsd > 0 ? costSavedUsd : 4.85,
-      satisfaction_rate: satisfactionRate,
-      ratings_count: totalRatings || 47,
-      helpful_count: helpfulCount || 44,
-      unhelpful_count: unhelpfulCount || 3,
-      top_unanswered_questions: topUnanswered,
-      recent_queries: this.queryLogs.slice(-20).reverse(),
+      total_queries: t.total,
+      fast_path_count: t.fast,
+      llm_count: t.llm,
+      cache_hits: t.cached,
+      fast_path_percentage: t.total ? Math.round((t.fast / t.total) * 100) : 0,
+      avg_latency_ms: t.avg_latency,
+      estimated_cost_saved_usd: Number((t.fast * EST_LLM_CALL_USD).toFixed(2)),
+      satisfaction_rate: ratings ? Math.round((f.helpful / ratings) * 100) : 0,
+      ratings_count: ratings,
+      helpful_count: f.helpful,
+      unhelpful_count: f.unhelpful,
+      top_unanswered_questions: unanswered.map((u) => ({
+        query: u.query,
+        count: u.count,
+        opportunity_slug: slug(u.slug),
+        last_asked_at: new Date(u.last).toISOString(),
+      })),
+      recent_queries: recent.map((r) => {
+        const m = (r.metadata ?? {}) as Record<string, any>;
+        return {
+          id: r.id,
+          query: String(m.query ?? ''),
+          mode: m.mode ?? 'deterministic',
+          latency_ms: Number(m.latency_ms ?? 0),
+          opportunity_slug: slug(r.entity_id),
+          is_unanswered: !!m.is_unanswered,
+          is_cached: !!m.is_cached,
+          created_at: r.created_at.toISOString(),
+        };
+      }),
     };
   }
 }
-

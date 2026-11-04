@@ -745,6 +745,22 @@ export interface PushPublicKeyResponse {
   publicKey: string;
 }
 
+/**
+ * A phone registering for push from apps/mobile. The Expo token is stored in
+ * the same push_subscriptions row shape as a browser subscription, so one
+ * dispatcher serves web and mobile.
+ */
+export interface DeviceTokenInput {
+  /** ExponentPushToken[xxxxxxxx] */
+  token: string;
+  platform: 'ios' | 'android';
+  device_name?: string | null;
+}
+
+export interface DeviceTokenResult {
+  registered: boolean;
+}
+
 export type BroadcastAudience =
   | { kind: 'all' }
   | { kind: 'subscribers' }
@@ -1156,7 +1172,8 @@ export type PartnerType =
   | 'application_assistance'
   | 'consultant'
   | 'college'
-  | 'training_institution'
+  | 'university'
+  | 'training_institute'
   | 'other';
 
 export type PartnerVerificationStatus = 'pending' | 'verified' | 'rejected';
@@ -1221,6 +1238,41 @@ export interface PartnerSummary {
   rating_avg: number;
   rating_count: number;
   services: PartnerServiceSummary[];
+  /** Straight-line km from the caller; only set when the directory was asked with lat/lng. */
+  distance_km?: number;
+}
+
+/** GET /partners/me/earnings — real ledger from completed bookings + ApplyFields payouts. Paise everywhere. */
+export interface PartnerEarningsSummary {
+  completed_count: number;
+  /** Completed bookings with no final amount recorded (not counted in earnings). */
+  unpriced_count: number;
+  gross_paise: number;
+  /** Commission ApplyFields recorded on payouts (no rate is assumed). */
+  commission_paise: number;
+  paid_paise: number;
+  /** Net on payouts that are pending/processing. */
+  pending_payout_paise: number;
+  /** Gross of completed bookings after the last payout period (not yet in any settlement). */
+  unsettled_paise: number;
+  last_settled_until: string | null;
+  recent: Array<{
+    id: string;
+    service_name: string | null;
+    final_paise: number | null;
+    completed_at: string | null;
+  }>;
+  payouts: Array<{
+    id: string;
+    period_start: string;
+    period_end: string;
+    gross_paise: number;
+    commission_paise: number;
+    net_paise: number;
+    status: 'pending' | 'processing' | 'paid' | 'failed';
+    paid_at: string | null;
+    reference: string | null;
+  }>;
 }
 
 export interface PartnerDetail extends PartnerSummary {
@@ -1239,6 +1291,9 @@ export interface PartnerDirectoryQuery {
   district?: string;
   pincode?: string;
   service?: string;
+  /** With lng: nearest first, each item carries distance_km. */
+  lat?: number;
+  lng?: number;
   limit?: number;
   offset?: number;
 }
