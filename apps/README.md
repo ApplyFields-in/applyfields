@@ -11,6 +11,7 @@ Each folder here is a separate app that runs and gets deployed on its own.
 | [`partner/`](partner/) | **Partner Portal** — centres, consultants and colleges take requests | Verified partners | Next.js | http://localhost:3002 | Likhith |
 | [`service/`](service/) | **Citizen Services Portal** — government services, intake forms, slot booking | Public users | Next.js | http://localhost:3003 | Likhith |
 | [`mobile/`](mobile/) | **Citizen app** — the citizen portal on Android + iOS | Public users | Expo / React Native | Expo Go or a dev build | Likhith |
+| [`partner-mobile/`](partner-mobile/) | **Partner app** — centres and colleges on Android + iOS | Verified partners | Expo / React Native | Expo Go or a dev build | Likhith |
 
 ## How they connect
 
@@ -19,7 +20,8 @@ Each folder here is a separate app that runs and gets deployed on its own.
  admin (3001) ───┤
  partner (3002) ─┼──►  api (4000)  ──►  Supabase Postgres  ◄──  ingestion (8000)
  service (3003) ─┤        │                                     writes DRAFT jobs only
- mobile (Expo) ──┘        └──► calls ingestion with the internal token (e.g. "re-run SSC scraper")
+ mobile (Expo) ──┤
+ partner-mobile ─┘        └──► calls ingestion with the internal token (e.g. "re-run SSC scraper")
 ```
 
 **Golden rule:** every front end only ever calls `api`. Nobody calls `ingestion` except `api`.

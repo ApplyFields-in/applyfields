@@ -545,3 +545,36 @@ describe('Session 18: Schedule & Slot Reservation Engine', () => {
     });
   });
 });
+
+describe('PartnersService.getEarnings (founder §20.6 ledger)', () => {
+  const payouts = [
+    { id: 'p2', period_start: new Date('2026-10-20'), period_end: new Date('2026-10-26'), gross_paise: 50000, commission_paise: 5000, net_paise: 45000, status: 'pending', paid_at: null, reference: null },
+    { id: 'p1', period_start: new Date('2026-10-13'), period_end: new Date('2026-10-19'), gross_paise: 30000, commission_paise: 3000, net_paise: 27000, status: 'paid', paid_at: new Date('2026-10-21'), reference: 'UTR1' },
+  ];
+  const aggregate = vi.fn()
+    .mockResolvedValueOnce({ _count: 5, _sum: { final_paise: 100000 } }) // totals
+    .mockResolvedValueOnce({ _sum: { final_paise: 20000 } }); // unsettled
+  const mockPrisma = {
+    partner_members: { findFirst: vi.fn().mockResolvedValue({ partner_id: 'partner-1', role: 'owner' }) },
+    service_requests: { aggregate, count: vi.fn().mockResolvedValue(1), findMany: vi.fn().mockResolvedValue([]) },
+    partner_payouts: { findMany: vi.fn().mockResolvedValue(payouts) },
+  } as any;
+
+  it('sums real bookings and payouts, and counts only bookings after the last period as unsettled', async () => {
+    const res = await new PartnersService(mockPrisma).getEarnings('owner-user');
+    expect(res.gross_paise).toBe(100000);
+    expect(res.paid_paise).toBe(27000);
+    expect(res.pending_payout_paise).toBe(45000);
+    expect(res.commission_paise).toBe(8000);
+    expect(res.unsettled_paise).toBe(20000);
+    expect(res.unpriced_count).toBe(1);
+    expect(res.last_settled_until).toBe('2026-10-26');
+    // unsettled window starts the day after the latest payout period
+    expect(aggregate.mock.calls[1][0].where.completed_at.gte.toISOString().slice(0, 10)).toBe('2026-10-27');
+  });
+
+  it('hides earnings from counter staff', async () => {
+    mockPrisma.partner_members.findFirst.mockResolvedValueOnce({ partner_id: 'partner-1', role: 'staff' });
+    await expect(new PartnersService(mockPrisma).getEarnings('staff-user')).rejects.toThrow('owner only');
+  });
+});

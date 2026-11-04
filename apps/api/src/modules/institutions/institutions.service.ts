@@ -490,9 +490,11 @@ export class InstitutionsService {
     const pRows = await this.prisma.$queryRaw<
       Array<{ partner_id: string; institution_id: string | null }>
     >`
-      select id::text as partner_id, institution_id::text
-      from partners
-      where user_id = ${userId}::uuid and type = 'college'
+      select p.id::text as partner_id, p.institution_id::text
+      from partners p
+      -- partners has no user_id column; owners/staff are linked through partner_members.
+      join partner_members m on m.partner_id = p.id
+      where m.user_id = ${userId}::uuid and p.type = 'college'
       limit 1
     `;
 
