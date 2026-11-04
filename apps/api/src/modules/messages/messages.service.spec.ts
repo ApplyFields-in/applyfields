@@ -64,11 +64,15 @@ describe('MessagesService', () => {
 
   const service = new MessagesService(mockPrisma);
 
-  it('fetches messages for a given booking', async () => {
-    const messages = await service.getMessages('bk-uuid-1');
+  it('fetches messages for a given booking when authorized', async () => {
+    const messages = await service.getMessages('bk-uuid-1', 'user-uuid-1');
     expect(messages).toHaveLength(1);
     expect(messages[0].message).toBe('Can I come 15 minutes before my slot?');
     expect(messages[0].sender_type).toBe('citizen');
+  });
+
+  it('rejects message access for unauthorized stranger', async () => {
+    await expect(service.getMessages('bk-uuid-1', 'stranger-uuid')).rejects.toThrow();
   });
 
   it('sends a new message if booking exists', async () => {
@@ -90,8 +94,8 @@ describe('MessagesService', () => {
     );
   });
 
-  it('marks messages as read by recipient type', async () => {
-    const res = await service.markAsRead('bk-uuid-1', 'partner');
+  it('marks messages as read by recipient type when authorized', async () => {
+    const res = await service.markAsRead('bk-uuid-1', 'partner', 'partner-user-1');
     expect(res.count).toBe(1);
     expect(mockPrisma.booking_messages.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -42,7 +42,7 @@ type AlertFrequency = 'instant' | 'daily' | 'weekly';
 
 const STATE_OPTIONS = [
   { code: 'ALL', name: 'All India & Central' },
-  { code: 'TG', name: 'Telangana (తెలంగాణ)' },
+  { code: 'TS', name: 'Telangana (తెలంగాణ)' },
   { code: 'AP', name: 'Andhra Pradesh (ఆంధ్రప్రదేశ్)' },
   { code: 'KA', name: 'Karnataka (ಕರ್ನಾಟಕ)' },
   { code: 'MH', name: 'Maharashtra (महाराष्ट्र)' },
