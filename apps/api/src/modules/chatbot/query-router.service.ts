@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { ChatbotAction, ChatbotQueryInput, ChatbotQueryResponse } from '@applyfields/types';
@@ -74,11 +75,16 @@ function daysUntil(d: Date | string | null | undefined): number | null {
   return diff >= 0 ? diff : null;
 }
 
+/** Start of today in IST (UTC+5:30): free chats reset at 12:00 AM IST. */
+export function istMidnight(now = Date.now()): Date {
+  const IST_MS = 5.5 * 3_600_000;
+  const d = new Date(now + IST_MS);
+  d.setUTCHours(0, 0, 0, 0);
+  return new Date(d.getTime() - IST_MS);
+}
+
 @Injectable()
 export class QueryRouterService {
-  // In-memory daily usage tracking: key = "YYYY-MM-DD:identifier" -> count
-  private readonly dailyUsage = new Map<string, number>();
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly digestService: NotificationDigestService = new NotificationDigestService(),
@@ -94,14 +100,12 @@ export class QueryRouterService {
     return this.analyticsService;
   }
 
-  /**
-   * Returns today's date key in India Standard Time (IST, UTC+5:30)
-   */
-  private getTodayIstKey(): string {
-    const now = new Date();
-    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-    const istDate = new Date(utc + 5.5 * 3600000);
-    return istDate.toISOString().slice(0, 10);
+  /** Who the quota belongs to: the user, or a hashed IP for guests (raw IPs are never stored). */
+  private quotaKey(userId?: string | null, clientIp?: string): string {
+    if (userId) return userId;
+    // Tests without an IP get a fresh key per call so anonymous cases don't share one quota.
+    const ip = clientIp || (process.env.VITEST === 'true' ? `vitest-${Math.random()}` : 'unknown');
+    return `ip:${createHash('sha256').update(ip).digest('hex').slice(0, 40)}`;
   }
 
   /**
@@ -128,7 +132,12 @@ export class QueryRouterService {
   /**
    * Get quota status for user or client IP
    */
-  async getQuota(userId?: string | null, clientIp?: string): Promise<{
+  async getQuota(userId?: string | null, clientIp?: string) {
+    return this.quotaFor(this.quotaKey(userId, clientIp), userId);
+  }
+
+  /** Counted from analytics_events, so it survives restarts and is shared by every API instance. */
+  private async quotaFor(key: string, userId?: string | null): Promise<{
     daily_limit: number;
     queries_used: number;
     queries_remaining: number;
@@ -146,10 +155,8 @@ export class QueryRouterService {
       };
     }
 
-    const isVitest = process.env.VITEST === 'true';
-    const identifier = userId || clientIp || (isVitest ? `vitest-anon-${Math.random()}` : 'anonymous');
-    const todayKey = `${this.getTodayIstKey()}:${identifier}`;
-    const used = this.dailyUsage.get(todayKey) || 0;
+    // ponytail: count-then-insert, so two parallel requests can both get the last free chat. Fine at 3/day.
+    const used = await this.analyticsService.countQueriesSince(key, istMidnight());
     const remaining = Math.max(0, FREE_DAILY_LIMIT - used);
 
     return {
@@ -159,24 +166,6 @@ export class QueryRouterService {
       is_premium: false,
       limit_reached: used >= FREE_DAILY_LIMIT,
     };
-  }
-
-  /**
-   * Increment daily query count for identifier
-   */
-  private incrementUsage(identifier: string): number {
-    const todayKey = `${this.getTodayIstKey()}:${identifier}`;
-    const current = this.dailyUsage.get(todayKey) || 0;
-    const updated = current + 1;
-    this.dailyUsage.set(todayKey, updated);
-    return updated;
-  }
-
-  /**
-   * Reset usage map (useful for test suites)
-   */
-  resetUsageForTesting(): void {
-    this.dailyUsage.clear();
   }
 
   /**
@@ -206,15 +195,14 @@ export class QueryRouterService {
     userId?: string | null,
     clientIp?: string,
   ): Promise<ChatbotQueryResponse> {
-    const isVitest = process.env.VITEST === 'true';
-    const identifier = userId || clientIp || (isVitest ? `vitest-anon-${Math.random()}` : 'anonymous');
+    const key = this.quotaKey(userId, clientIp);
     const q = input.query.toLowerCase().trim();
     const cacheScope = input.opportunity_slug || input.opportunity_id;
 
     // 0. Relevance gate: greetings / off-topic get a canned reply. Zero LLM cost, no quota used.
     const relevance = classifyRelevance(q, !!cacheScope);
     if (relevance !== 'relevant') {
-      const quota = await this.getQuota(userId, clientIp);
+      const quota = await this.quotaFor(key, userId);
       await this.analyticsService.logQuery({
         query: input.query,
         mode: 'deterministic',
@@ -222,13 +210,14 @@ export class QueryRouterService {
         opportunity_slug: input.opportunity_slug,
         is_unanswered: false,
         is_cached: false,
-        user_id: userId,
+        quota_key: key,
+        counts_quota: false,
       });
       return { ...this.cannedReply(relevance), ...quota };
     }
 
     // 1. Check user quota
-    const quota = await this.getQuota(userId, clientIp);
+    const quota = await this.quotaFor(key, userId);
     if (quota.limit_reached) {
       return {
         mode: 'limit_reached',
@@ -264,13 +253,14 @@ export class QueryRouterService {
         opportunity_slug: input.opportunity_slug,
         is_unanswered: false,
         is_cached: true,
-        user_id: userId,
+        quota_key: key,
+        counts_quota: true,
       });
 
       return {
         ...cachedResponse,
         daily_limit: quota.daily_limit,
-        queries_used: quota.is_premium ? 0 : this.incrementUsage(identifier),
+        queries_used: quota.is_premium ? 0 : quota.queries_used + 1,
         queries_remaining: quota.is_premium ? 9999 : Math.max(0, quota.queries_remaining - 1),
         is_premium: quota.is_premium,
         limit_reached: !quota.is_premium && quota.queries_used + 1 >= quota.daily_limit,
@@ -349,8 +339,7 @@ export class QueryRouterService {
       }
     }
 
-    // 4. Record query usage and attach quota metadata
-    this.incrementUsage(identifier);
+    // 4. Attach quota metadata (the logQuery row below is what counts this query)
     const updatedUsed = quota.queries_used + 1;
     const updatedRemaining = Math.max(0, quota.queries_remaining - 1);
 
@@ -373,7 +362,8 @@ export class QueryRouterService {
       opportunity_slug: opportunity?.slug || input.opportunity_slug,
       is_unanswered: isUnanswered,
       is_cached: false,
-      user_id: userId,
+      quota_key: key,
+      counts_quota: true,
     });
 
     return {
