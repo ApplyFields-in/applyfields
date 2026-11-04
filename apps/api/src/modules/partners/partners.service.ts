@@ -85,7 +85,7 @@ export const partnerRegisterSchema = z.object({
   whatsapp: z.string().trim().optional(),
   email: z.string().trim().email().optional(),
   address: z.string().trim().min(3).max(300),
-  state_code: z.string().trim().length(2).toUpperCase(),
+  state_code: z.string().trim().length(2).toUpperCase().transform((s) => (s === 'TG' ? 'TS' : s)),
   district: z.string().trim().min(2).max(100),
   city: z.string().trim().min(2).max(100),
   pincode: z
@@ -113,7 +113,7 @@ export const partnerUpdateSchema = z.object({
     .optional(),
   whatsapp: z.string().trim().optional(),
   address: z.string().trim().min(3).max(300).optional(),
-  state_code: z.string().trim().length(2).toUpperCase().optional(),
+  state_code: z.string().trim().length(2).toUpperCase().transform((s) => (s === 'TG' ? 'TS' : s)).optional(),
   district: z.string().trim().min(2).max(100).optional(),
   city: z.string().trim().min(2).max(100).optional(),
   pincode: z

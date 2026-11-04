@@ -125,13 +125,24 @@ export class MessagesService {
     input: SendChatMessageInput,
     token?: string | null,
   ): Promise<ChatMessageItem> {
-    await this.assertBookingAccess(bookingId, senderUserId, token);
+    const booking = await this.assertBookingAccess(bookingId, senderUserId, token);
+
+    // Determine sender_type securely from authenticated identity (prevents spoofing)
+    let senderType: ChatSenderType = 'citizen';
+    if (senderUserId) {
+      const isPartnerStaff = await this.prisma.partner_members.findFirst({
+        where: { user_id: senderUserId, partner_id: booking.partner_id, is_active: true },
+      });
+      if (isPartnerStaff) {
+        senderType = 'partner';
+      }
+    }
 
     const created = await this.prisma.booking_messages.create({
       data: {
         request_id: bookingId,
         sender_user_id: senderUserId,
-        sender_type: input.sender_type,
+        sender_type: senderType,
         sender_name: input.sender_name,
         message: input.message,
         attachments: (input.attachments as any) ?? [],

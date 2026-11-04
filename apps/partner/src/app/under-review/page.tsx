@@ -207,7 +207,7 @@ export default function UnderReviewPage() {
               <div>
                 <span className="text-slate-400">Location:</span>
                 <div className="text-slate-200 mt-0.5">
-                  {partner?.city || 'Ameerpet'}, {partner?.state_code || 'TG'} ({partner?.pincode || '500016'})
+                  {partner?.city || 'Ameerpet'}, {partner?.state_code || 'TS'} ({partner?.pincode || '500016'})
                 </div>
               </div>
             </div>

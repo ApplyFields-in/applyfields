@@ -267,7 +267,7 @@ export default function PartnerDashboardLayout({
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                {partner?.city || 'Ameerpet'}, {partner?.state_code || 'TG'} -{' '}
+                {partner?.city || 'Ameerpet'}, {partner?.state_code || 'TS'} -{' '}
                 <span className="font-mono text-emerald-400">{partner?.pincode || '500016'}</span>
               </p>
             </div>

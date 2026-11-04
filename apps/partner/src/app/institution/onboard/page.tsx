@@ -48,7 +48,7 @@ export default function InstitutionOnboardPage() {
   const [officialEmail, setOfficialEmail] = useState('');
   const [mobilePhone, setMobilePhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [stateCode, setStateCode] = useState('TG');
+  const [stateCode, setStateCode] = useState('TS');
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
   const [pincode, setPincode] = useState('500007');
@@ -86,7 +86,7 @@ export default function InstitutionOnboardPage() {
     setIsCustomCollege(false);
     setCity(inst.city || inst.district || '');
     setDistrict(inst.district || '');
-    setStateCode(inst.state_code || 'TG');
+    setStateCode(inst.state_code || 'TS');
   }
 
   function handleCustomToggle() {
@@ -369,7 +369,7 @@ export default function InstitutionOnboardPage() {
                         value={stateCode}
                         onChange={(e) => setStateCode(e.target.value.toUpperCase())}
                         maxLength={2}
-                        placeholder="TG / AP / KA / MH"
+                        placeholder="TS / AP / KA / MH"
                         className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white font-mono focus:border-blue-500 focus:outline-none"
                       />
                     </div>
