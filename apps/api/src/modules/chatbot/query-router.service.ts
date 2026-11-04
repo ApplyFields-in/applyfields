@@ -1,13 +1,62 @@
+import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { ChatbotAction, ChatbotQueryInput, ChatbotQueryResponse } from '@applyfields/types';
 import { NotificationDigestService, type OpportunityDigest } from './notification-digest.service.js';
 import { SemanticCacheService } from './semantic-cache.service.js';
 import { ChatbotAnalyticsService } from './chatbot-analytics.service.js';
+import { GuidanceService } from '../guidance/guidance.service.js';
 
 const logger = new Logger('QueryRouterService');
 
 export const FREE_DAILY_LIMIT = 3;
+const LLM_MODEL = 'claude-haiku-5-5';
+
+/** Whole-word/phrase match, so "fee" doesn't hit "coffee" and "cost" doesn't hit "costume". */
+function hasAny(q: string, terms: string[]): boolean {
+  return terms.some((t) =>
+    new RegExp(`(^|[^a-z0-9])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9])`).test(q),
+  );
+}
+
+const SMALLTALK =
+  /^(hi+|hello|hey|hlo|namaste|namaskar|good (morning|afternoon|evening|night)|thanks?( you)?|thank u|thx|ty|ok(ay)?|cool|nice|great|bye|good ?bye|who are you|what can you do|help)[\s!.?]*$/;
+
+// ponytail: keyword vocab, not an embedding classifier. Add terms when admin "unanswered" logs show misses.
+const DOMAIN_TERMS = [
+  'job', 'jobs', 'exam', 'exams', 'recruitment', 'vacancy', 'vacancies', 'notification', 'post', 'posts',
+  'govt', 'government', 'sarkari', 'apply', 'application', 'applications', 'admission', 'admissions',
+  'scholarship', 'scholarships', 'college', 'colleges', 'university', 'course', 'courses', 'degree',
+  'career', 'careers', 'roadmap', 'syllabus', 'eligible', 'eligibility', 'qualification', 'fee', 'fees',
+  'deadline', 'deadlines', 'last date', 'result', 'results', 'admit card', 'hall ticket', 'answer key',
+  'cutoff', 'cut off', 'salary', 'stipend', 'study', 'studies', 'prepare', 'preparation', 'coaching',
+  'interview', 'internship', 'apprentice', 'officer', 'clerk', 'teacher', 'engineer', 'doctor', 'nurse',
+  'upsc', 'ssc', 'rrb', 'ibps', 'sbi', 'rbi', 'lic', 'gate', 'cat', 'neet', 'jee', 'nda', 'cds', 'afcat',
+  'capf', 'cuet', 'psc', 'appsc', 'tspsc', 'tet', 'ctet', 'eamcet', 'ias', 'ips', 'railway', 'railways',
+  'bank', 'banking', 'police', 'defence', 'army', 'navy', 'air force', 'psu', 'pan', 'aadhaar', 'aadhar',
+  'passport', 'certificate', 'caste', 'income', 'ration card', 'voter', 'meeseva', 'csc', 'kiosk',
+  '10th', '12th', 'inter', 'intermediate', 'ssc board', 'b.tech', 'btech', 'b.sc', 'bsc', 'b.com', 'bcom',
+  'ba', 'ma', 'mba', 'mca', 'bca', 'mbbs', 'b.pharm', 'diploma', 'iti', 'polytechnic', 'graduate',
+  'graduation', 'engineering', 'medical', 'student', 'marks', 'rank', 'document', 'documents', 'saved',
+  'booking', 'age limit', 'pattern', 'selection', 'tier', 'mock test', 'previous papers',
+];
+
+const OFF_TOPIC_TERMS = [
+  'joke', 'jokes', 'poem', 'song', 'songs', 'lyrics', 'movie', 'movies', 'film', 'web series', 'recipe',
+  'cook', 'weather', 'cricket', 'ipl', 'football', 'match score', 'girlfriend', 'boyfriend', 'dating',
+  'horoscope', 'astrology', 'bitcoin', 'crypto', 'stock tip', 'write code', 'python code', 'javascript',
+  'program to', 'translate', 'story', 'game', 'games', 'meme', 'celebrity', 'actor', 'actress', 'riddle',
+];
+
+/** Questions that must never reach the LLM: greetings and clearly off-topic chatter. */
+export function classifyRelevance(q: string, hasPageContext: boolean): 'smalltalk' | 'off_topic' | 'relevant' {
+  if (SMALLTALK.test(q)) return 'smalltalk';
+  if (hasAny(q, DOMAIN_TERMS)) return 'relevant';
+  if (hasAny(q, OFF_TOPIC_TERMS)) return 'off_topic';
+  // Short context-free noise ("pizza", "asdf"). On an opportunity page, a short question is about that page.
+  if (!hasPageContext && q.split(/\s+/).length <= 3) return 'off_topic';
+  return 'relevant';
+}
 
 function formatDate(d: Date | string | null | undefined): string {
   if (!d) return 'Not announced yet';
@@ -26,11 +75,16 @@ function daysUntil(d: Date | string | null | undefined): number | null {
   return diff >= 0 ? diff : null;
 }
 
+/** Start of today in IST (UTC+5:30): free chats reset at 12:00 AM IST. */
+export function istMidnight(now = Date.now()): Date {
+  const IST_MS = 5.5 * 3_600_000;
+  const d = new Date(now + IST_MS);
+  d.setUTCHours(0, 0, 0, 0);
+  return new Date(d.getTime() - IST_MS);
+}
+
 @Injectable()
 export class QueryRouterService {
-  // In-memory daily usage tracking: key = "YYYY-MM-DD:identifier" -> count
-  private readonly dailyUsage = new Map<string, number>();
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly digestService: NotificationDigestService = new NotificationDigestService(),
@@ -46,14 +100,12 @@ export class QueryRouterService {
     return this.analyticsService;
   }
 
-  /**
-   * Returns today's date key in India Standard Time (IST, UTC+5:30)
-   */
-  private getTodayIstKey(): string {
-    const now = new Date();
-    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-    const istDate = new Date(utc + 5.5 * 3600000);
-    return istDate.toISOString().slice(0, 10);
+  /** Who the quota belongs to: the user, or a hashed IP for guests (raw IPs are never stored). */
+  private quotaKey(userId?: string | null, clientIp?: string): string {
+    if (userId) return userId;
+    // Tests without an IP get a fresh key per call so anonymous cases don't share one quota.
+    const ip = clientIp || (process.env.VITEST === 'true' ? `vitest-${Math.random()}` : 'unknown');
+    return `ip:${createHash('sha256').update(ip).digest('hex').slice(0, 40)}`;
   }
 
   /**
@@ -80,7 +132,12 @@ export class QueryRouterService {
   /**
    * Get quota status for user or client IP
    */
-  async getQuota(userId?: string | null, clientIp?: string): Promise<{
+  async getQuota(userId?: string | null, clientIp?: string) {
+    return this.quotaFor(this.quotaKey(userId, clientIp), userId);
+  }
+
+  /** Counted from analytics_events, so it survives restarts and is shared by every API instance. */
+  private async quotaFor(key: string, userId?: string | null): Promise<{
     daily_limit: number;
     queries_used: number;
     queries_remaining: number;
@@ -98,10 +155,8 @@ export class QueryRouterService {
       };
     }
 
-    const isVitest = process.env.VITEST === 'true';
-    const identifier = userId || clientIp || (isVitest ? `vitest-anon-${Math.random()}` : 'anonymous');
-    const todayKey = `${this.getTodayIstKey()}:${identifier}`;
-    const used = this.dailyUsage.get(todayKey) || 0;
+    // ponytail: count-then-insert, so two parallel requests can both get the last free chat. Fine at 3/day.
+    const used = await this.analyticsService.countQueriesSince(key, istMidnight());
     const remaining = Math.max(0, FREE_DAILY_LIMIT - used);
 
     return {
@@ -111,24 +166,6 @@ export class QueryRouterService {
       is_premium: false,
       limit_reached: used >= FREE_DAILY_LIMIT,
     };
-  }
-
-  /**
-   * Increment daily query count for identifier
-   */
-  private incrementUsage(identifier: string): number {
-    const todayKey = `${this.getTodayIstKey()}:${identifier}`;
-    const current = this.dailyUsage.get(todayKey) || 0;
-    const updated = current + 1;
-    this.dailyUsage.set(todayKey, updated);
-    return updated;
-  }
-
-  /**
-   * Reset usage map (useful for test suites)
-   */
-  resetUsageForTesting(): void {
-    this.dailyUsage.clear();
   }
 
   /**
@@ -158,11 +195,29 @@ export class QueryRouterService {
     userId?: string | null,
     clientIp?: string,
   ): Promise<ChatbotQueryResponse> {
-    const isVitest = process.env.VITEST === 'true';
-    const identifier = userId || clientIp || (isVitest ? `vitest-anon-${Math.random()}` : 'anonymous');
+    const key = this.quotaKey(userId, clientIp);
+    const q = input.query.toLowerCase().trim();
+    const cacheScope = input.opportunity_slug || input.opportunity_id;
+
+    // 0. Relevance gate: greetings / off-topic get a canned reply. Zero LLM cost, no quota used.
+    const relevance = classifyRelevance(q, !!cacheScope);
+    if (relevance !== 'relevant') {
+      const quota = await this.quotaFor(key, userId);
+      await this.analyticsService.logQuery({
+        query: input.query,
+        mode: 'deterministic',
+        latency_ms: 0,
+        opportunity_slug: input.opportunity_slug,
+        is_unanswered: false,
+        is_cached: false,
+        quota_key: key,
+        counts_quota: false,
+      });
+      return { ...this.cannedReply(relevance), ...quota };
+    }
 
     // 1. Check user quota
-    const quota = await this.getQuota(userId, clientIp);
+    const quota = await this.quotaFor(key, userId);
     if (quota.limit_reached) {
       return {
         mode: 'limit_reached',
@@ -182,8 +237,13 @@ export class QueryRouterService {
 
     const startTime = Date.now();
 
+    // Global follow-ups ("what's the fee?" after asking about SSC CGL) depend on history, so skip the cache for them.
+    const useCache = !input.history?.length || !!cacheScope;
+    // Global LLM answers are tailored to the student's qualification, so it is part of the key.
+    const cacheKey = cacheScope || (input.qualification ? `qual:${input.qualification}` : undefined);
+
     // Check semantic response cache first (<20ms, zero DB and zero LLM cost)
-    const cachedResponse = this.cacheService.get(input.opportunity_slug, input.query);
+    const cachedResponse = useCache ? this.cacheService.get(cacheKey, input.query) : null;
     if (cachedResponse) {
       const latency = Date.now() - startTime;
       await this.analyticsService.logQuery({
@@ -193,20 +253,20 @@ export class QueryRouterService {
         opportunity_slug: input.opportunity_slug,
         is_unanswered: false,
         is_cached: true,
-        user_id: userId,
+        quota_key: key,
+        counts_quota: true,
       });
 
       return {
         ...cachedResponse,
         daily_limit: quota.daily_limit,
-        queries_used: quota.is_premium ? 0 : this.incrementUsage(identifier),
+        queries_used: quota.is_premium ? 0 : quota.queries_used + 1,
         queries_remaining: quota.is_premium ? 9999 : Math.max(0, quota.queries_remaining - 1),
         is_premium: quota.is_premium,
         limit_reached: !quota.is_premium && quota.queries_used + 1 >= quota.daily_limit,
       };
     }
 
-    const q = input.query.toLowerCase().trim();
     const intent = this.classifyIntent(q);
 
     // 2. Resolve opportunity context if available
@@ -236,6 +296,12 @@ export class QueryRouterService {
       opportunity = await this.tryMatchOpportunity(q);
     }
 
+    // Follow-up: "what's the fee?" right after asking about SSC CGL → answer from the DB, not the LLM.
+    if (!opportunity && intent !== 'general' && intent !== 'user_status' && intent !== 'closing_soon') {
+      const lastUser = [...(input.history ?? [])].reverse().find((m) => m.role === 'user');
+      if (lastUser) opportunity = await this.tryMatchOpportunity(lastUser.content.toLowerCase());
+    }
+
     let response: ChatbotQueryResponse;
 
     // 3. Dual-Path Dispatch:
@@ -257,9 +323,15 @@ export class QueryRouterService {
         case 'csc_booking':
           response = this.handleCscBooking();
           break;
-        case 'career_advice':
-          response = await this.handleCareerAdvice(input.qualification, q);
+        case 'career_advice': {
+          // A bare "career" gets the free static map; a specific question deserves a real answer.
+          const staticAdvice = await this.handleCareerAdvice(input.qualification, q);
+          response =
+            q.split(/\s+/).length <= 3
+              ? staticAdvice
+              : await this.executeLlmReasoning(input.query, input.history, input.qualification, undefined, staticAdvice);
           break;
+        }
         default:
           // PATH 2: Open-ended / Non-website queries -> LLM reasoning
           response = await this.executeLlmReasoning(input.query, input.history, input.qualification);
@@ -267,8 +339,7 @@ export class QueryRouterService {
       }
     }
 
-    // 4. Record query usage and attach quota metadata
-    this.incrementUsage(identifier);
+    // 4. Attach quota metadata (the logQuery row below is what counts this query)
     const updatedUsed = quota.queries_used + 1;
     const updatedRemaining = Math.max(0, quota.queries_remaining - 1);
 
@@ -278,9 +349,9 @@ export class QueryRouterService {
       response.answer.toLowerCase().includes('does not mention') ||
       response.answer.toLowerCase().includes('not available in the official');
 
-    // Store in semantic cache if solid answer (not limit reached or fallback)
-    if (response.mode !== 'limit_reached' && !isUnanswered) {
-      this.cacheService.set(opportunity?.slug || input.opportunity_slug, input.query, response);
+    // Store in semantic cache if solid answer. Never cache per-user answers (would leak one user's counts to others).
+    if (useCache && response.mode !== 'limit_reached' && !isUnanswered && response.intent !== 'user_status') {
+      this.cacheService.set(cacheKey, input.query, response);
     }
 
     // Log query telemetry for admin observability
@@ -291,7 +362,8 @@ export class QueryRouterService {
       opportunity_slug: opportunity?.slug || input.opportunity_slug,
       is_unanswered: isUnanswered,
       is_cached: false,
-      user_id: userId,
+      quota_key: key,
+      counts_quota: true,
     });
 
     return {
@@ -308,153 +380,61 @@ export class QueryRouterService {
    * Classify intent from prompt keywords
    */
   private classifyIntent(q: string): string {
-    if (
-      q.includes('digest') ||
-      q.includes('circular summary') ||
-      q.includes('1-page') ||
-      q.includes('full details') ||
-      q.includes('complete circular') ||
-      q.includes('one page')
-    ) {
-      return 'digest';
-    }
-
-    if (
-      q.includes('deadline') ||
-      q.includes('last date') ||
-      q.includes('closing date') ||
-      q.includes('when to apply') ||
-      q.includes('start date') ||
-      q.includes('exam date') ||
-      q.includes('important date')
-    ) {
-      return 'deadline';
-    }
-
-    if (
-      q.includes('fee') ||
-      q.includes('cost') ||
-      q.includes('how much') ||
-      q.includes('price') ||
-      q.includes('payment') ||
-      q.includes('sc st') ||
-      q.includes('obc fee')
-    ) {
-      return 'fee';
-    }
-
-    if (
-      q.includes('eligible') ||
-      q.includes('qualification') ||
-      q.includes('b.tech') ||
-      q.includes('degree') ||
-      q.includes('diploma') ||
-      q.includes('10th') ||
-      q.includes('12th') ||
-      q.includes('age limit') ||
-      q.includes('can i apply') ||
-      q.includes('criteria')
-    ) {
-      return 'eligibility';
-    }
-
-    if (
-      q.includes('pattern') ||
-      q.includes('syllabus') ||
-      q.includes('selection process') ||
-      q.includes('stages') ||
-      q.includes('tier') ||
-      q.includes('interview') ||
-      q.includes('subjects')
-    ) {
-      return 'pattern';
-    }
-
-    if (
-      q.includes('vacancy') ||
-      q.includes('vacancies') ||
-      q.includes('posts count') ||
-      q.includes('how many jobs') ||
-      q.includes('seats')
-    ) {
-      return 'vacancies';
-    }
-
-    if (
-      q.includes('how to apply') ||
-      q.includes('where to apply') ||
-      q.includes('official link') ||
-      q.includes('direct apply') ||
-      q.includes('website')
-    ) {
-      return 'how_to_apply';
-    }
-
-    if (
-      q.includes('my application') ||
-      q.includes('my applications') ||
-      q.includes('my saved') ||
-      q.includes('saved application') ||
-      q.includes('saved item') ||
-      q.includes('saved items') ||
-      q.includes('did i apply') ||
-      q.includes('my booking')
-    ) {
-      return 'user_status';
-    }
-
-    if (q.includes('closing soon') || q.includes('this week') || q.includes('urgent')) {
-      return 'closing_soon';
-    }
-
-    if (q.includes('trending') || q.includes('popular') || q.includes('top jobs') || q.includes('sarkari')) {
-      return 'trending_jobs';
-    }
-
-    if (
-      q.includes('csc') ||
-      q.includes('meeseva') ||
-      q.includes('kiosk') ||
-      q.includes('assisted') ||
-      q.includes('offline filing') ||
-      q.includes('help desk')
-    ) {
-      return 'csc_booking';
-    }
-
-    if (q.includes('career') || q.includes('roadmap') || q.includes('salary') || q.includes('which job')) {
-      return 'career_advice';
-    }
-
-    return 'general';
+    const rules: Array<[string, string[]]> = [
+      ['digest', ['digest', 'circular summary', '1-page', 'one page', 'full details', 'complete circular']],
+      ['user_status', ['my application', 'my applications', 'my saved', 'saved application', 'saved applications', 'saved item', 'saved items', 'did i apply', 'my booking', 'my bookings']],
+      ['deadline', ['deadline', 'deadlines', 'last date', 'closing date', 'when to apply', 'start date', 'exam date', 'important date', 'important dates', 'dates']],
+      // Salary before fee: "how much salary" is not a fee question.
+      ['career_advice', ['salary', 'pay scale', 'in hand', 'in-hand', 'stipend', 'career', 'careers', 'roadmap', 'which job', 'scope']],
+      ['fee', ['fee', 'fees', 'cost', 'how much', 'price', 'payment', 'sc st', 'obc fee']],
+      ['eligibility', ['eligible', 'eligibility', 'qualification', 'qualifications', 'b.tech', 'btech', 'degree', 'diploma', '10th', '12th', 'age limit', 'age', 'can i apply', 'criteria']],
+      ['pattern', ['pattern', 'syllabus', 'selection process', 'stages', 'tier', 'interview', 'subjects', 'negative marking']],
+      ['vacancies', ['vacancy', 'vacancies', 'posts count', 'how many jobs', 'how many posts', 'seats']],
+      ['how_to_apply', ['how to apply', 'where to apply', 'official link', 'apply link', 'direct apply', 'website']],
+      ['closing_soon', ['closing soon', 'this week', 'urgent']],
+      ['trending_jobs', ['trending', 'popular', 'top jobs', 'sarkari', 'latest jobs']],
+      ['csc_booking', ['csc', 'meeseva', 'kiosk', 'assisted', 'offline filing', 'help desk']],
+    ];
+    return rules.find(([, terms]) => hasAny(q, terms))?.[0] ?? 'general';
   }
 
   /**
    * Try matching an opportunity by keyword search in title or short name
    */
   private async tryMatchOpportunity(q: string) {
-    const regex = /\b(ssc|upsc|rrb|ibps|gate|cat|neet|jee|nda|cds)\b/i;
+    const regex =
+      /\b(ssc|upsc|rrb|ibps|sbi|rbi|lic|gate|cat|neet|jee|nda|cds|afcat|capf|cuet|appsc|tspsc|ctet|tet|eamcet|ntpc|cgl|chsl)\b/i;
     const match = q.match(regex);
+    if (!match) return null;
 
-    if (match) {
-      const keyword = match[1].toLowerCase();
-      return this.prisma.opportunities.findFirst({
-        where: {
-          status: 'published',
-          OR: [
-            { title: { contains: keyword, mode: 'insensitive' } },
-            { slug: { contains: keyword, mode: 'insensitive' } },
-          ],
-        },
-        include: {
-          organizations: { select: { name: true, short_name: true, state_code: true } },
-          opportunity_posts: true,
-          opportunity_dates: { orderBy: { date: 'asc' } },
-        },
-      });
-    }
+    const keyword = match[1].toLowerCase();
+    const candidates = await this.prisma.opportunities.findMany({
+      where: {
+        status: 'published',
+        OR: [
+          { title: { contains: keyword, mode: 'insensitive' } },
+          { slug: { contains: keyword, mode: 'insensitive' } },
+        ],
+      },
+      orderBy: { application_end: 'desc' },
+      take: 10,
+      include: {
+        organizations: { select: { name: true, short_name: true, state_code: true } },
+        opportunity_posts: true,
+        opportunity_dates: { orderBy: { date: 'asc' } },
+      },
+    });
 
-    return null;
+    // "ssc chsl fee" must pick SSC CHSL, not whichever SSC row comes first: score by query words in title/slug.
+    const words = q.split(/[^a-z0-9]+/).filter((w) => w.length > 1);
+    const score = (o: { title: string; slug: string }) => {
+      const hay = `${o.title} ${o.slug}`.toLowerCase();
+      return words.filter((w) => hay.includes(w)).length;
+    };
+    return candidates.reduce<(typeof candidates)[number] | null>(
+      (best, o) => (!best || score(o) > score(best) ? o : best),
+      null,
+    );
   }
 
   /**
@@ -669,7 +649,10 @@ ${digest.sections.howToApply}
 
     // If query is an open-ended question about this opportunity (e.g. comparison, deep advice, edge cases):
     // Execute LLM Reasoning grounded strictly in this opportunity's 1-Page Digest!
-    const isDeepQuery = rawQuery.length > 25 && !rawQuery.startsWith('what is') && !rawQuery.startsWith('when is');
+    const lower = rawQuery.toLowerCase();
+    const isDeepQuery =
+      intent === 'career_advice' || // salary / scope questions: the digest has pay levels, let the LLM read it
+      (rawQuery.length > 25 && !lower.startsWith('what is') && !lower.startsWith('when is'));
     if (isDeepQuery) {
       return this.executeLlmReasoning(rawQuery, history, undefined, digest.digestMarkdown);
     }
@@ -866,49 +849,77 @@ ApplyFields partners with certified CSC and MeeSeva kiosks across India to provi
     };
   }
 
+  /** Zero-cost replies for greetings and off-topic questions (never hit the LLM, never use quota). */
+  private cannedReply(kind: 'smalltalk' | 'off_topic'): ChatbotQueryResponse {
+    const answer =
+      kind === 'smalltalk'
+        ? `Hi! I'm **Fieldy**, your ApplyFields assistant. 👋\n\nAsk me about **government jobs, exams, scholarships, admissions, careers** or **government services** (PAN, Aadhaar, certificates) — deadlines, fees, eligibility, syllabus and how to apply.`
+        : `I can only help with **government jobs, exams, scholarships, admissions, careers** and **government services** on ApplyFields.\n\nTry asking something like the suggestions below.`;
+    return {
+      mode: 'deterministic',
+      intent: kind,
+      answer,
+      actions: [
+        { label: 'Browse Jobs & Deadlines', action: 'navigate', url: '/apply/jobs' },
+        { label: 'Explore Careers', action: 'navigate', url: '/career' },
+      ],
+      related_queries: [
+        'Which government exams are closing this week?',
+        'What exams can I write after 12th?',
+        'SSC CGL eligibility and fees',
+      ],
+    };
+  }
+
   /**
-   * PATH 2: Grounded LLM Reasoning over 1-Page Digest
+   * PATH 2: Grounded LLM reasoning over the opportunity digest, or over matching ApplyFields pages.
    */
   private async executeLlmReasoning(
     query: string,
     history?: { role: 'user' | 'assistant'; content: string }[],
     qualification?: string,
     digestContext?: string,
+    fallback?: ChatbotQueryResponse,
   ): Promise<ChatbotQueryResponse> {
-    const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+    // Real ApplyFields pages matching the question: grounding for the LLM and relevant buttons for the user.
+    const sources = digestContext
+      ? []
+      : await new GuidanceService(this.prisma).retrieveContext(query).catch(() => []);
+    const sourceActions: ChatbotAction[] = sources
+      .slice(0, 3)
+      .map((s) => ({ label: s.title.slice(0, 60), action: 'navigate', url: s.url }));
+    const actions: ChatbotAction[] = sourceActions.length
+      ? sourceActions
+      : [
+          { label: 'Browse Jobs & Deadlines', action: 'navigate', url: '/apply/jobs' },
+          { label: 'Explore Career Roadmaps', action: 'navigate', url: '/career' },
+        ];
 
+    const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
     if (apiKey) {
       try {
-        const systemPrompt = `You are Fieldy, the ApplyFields AI Career Advisor for students and job aspirants across India.
-Your mission is to provide accurate, reassuring, highly structured guidance for government exams, competitive admissions, and career paths.
-Tagline: "Your first move starts here".
+        const context = digestContext
+          ? `OFFICIAL NOTIFICATION DIGEST (the only source of truth for this opportunity):\n${digestContext}`
+          : sources.length
+            ? `APPLYFIELDS PAGES MATCHING THE QUESTION (link them as [title](url) where useful):\n${sources.map((s) => `- [${s.title}](${s.url}) (${s.type})`).join('\n')}`
+            : 'No matching ApplyFields page was found. Point the user to /apply/jobs, /apply/exams or /career when useful.';
 
-${digestContext ? `OFFICIAL 1-PAGE NOTIFICATION DIGEST GROUND TRUTH:\n${digestContext}\n\nCRITICAL: Answer based STRICTLY on this verified official digest. Never invent fake dates, fees, or eligibility requirements.` : ''}
+        const systemPrompt = `You are Fieldy, the ApplyFields assistant for students and job aspirants in India.
 
-CRITICAL GUIDELINES:
-1. Provide practical, step-by-step guidance formatted with bold headings (###) and bullet points (•).
-2. Ground all advice in real Indian competitive examinations (UPSC, SSC, Banking, Railways, State PSCs, GATE, CAT, NEET).
-3. If relevant, encourage the user to explore ApplyFields tools:
-   - [Browse All Opportunities](/apply/jobs)
-   - [Exam Calendar](/apply/exams)
-   - [Career Guidance Roadmaps](/career)
-   - [Saved Workspace](/saved)
-4. Keep tone friendly, empowering, and concise.`;
+Scope: government jobs, competitive exams, scholarships, admissions, colleges, courses, careers, and government services (PAN, Aadhaar, passport, certificates, MeeSeva/CSC). If the question is outside this scope, reply with exactly one short sentence saying you can only help with these topics, and nothing else.
 
-        const messagesPayload: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+How to answer:
+- Answer the exact question first, in 1-2 sentences. Then add at most 5 short bullets only if they help.
+- Keep it under 180 words. Use **bold** for key facts and ### only for a heading when the answer has sections.
+- Never invent dates, fees, vacancies, age limits or eligibility rules. If the context below does not contain the fact, say "The official notification does not mention this" (for an opportunity) or tell the user to check the official website.
+- ApplyFields is a guide, not a government body: always send users to the official site to apply.
+${qualification ? `\nThe student's qualification: ${qualification}. Tailor the answer to it.` : ''}
 
-        // Include recent conversation context (last 3 turns)
-        if (Array.isArray(history) && history.length > 0) {
-          const recentHistory = history.slice(-4);
-          for (const msg of recentHistory) {
-            messagesPayload.push({
-              role: msg.role === 'user' ? 'user' : 'assistant',
-              content: msg.content.slice(0, 500),
-            });
-          }
-        }
+${context}`;
 
-        messagesPayload.push({ role: 'user', content: query });
+        // Last 4 turns; the API requires the first message to be from the user (the widget's welcome bubble is not).
+        const recent = (history ?? []).slice(-4).map((m) => ({ role: m.role, content: m.content.slice(0, 500) }));
+        while (recent.length && recent[0].role !== 'user') recent.shift();
 
         const res = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
@@ -918,42 +929,54 @@ CRITICAL GUIDELINES:
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-3-5-haiku-20241022',
-            max_tokens: 800,
+            model: LLM_MODEL,
+            max_tokens: 1024,
+            output_config: { effort: 'low' },
             system: systemPrompt,
-            messages: messagesPayload,
+            messages: [...recent, { role: 'user', content: query }],
           }),
         });
 
         if (res.ok) {
-          const data = (await res.json()) as any;
-          const text = data.content?.[0]?.text;
-          if (text) {
+          const data = (await res.json()) as {
+            stop_reason?: string;
+            content?: Array<{ type: string; text?: string }>;
+          };
+          // content[0] can be a thinking block; take the text block.
+          const text = data.content?.find((b) => b.type === 'text')?.text?.trim();
+          if (text && data.stop_reason !== 'refusal') {
             return {
               mode: 'llm',
               intent: 'general_ai',
               answer: text,
-              actions: [
-                { label: 'Explore Career Roadmaps', action: 'navigate', url: '/career' },
-                { label: 'Browse Jobs & Deadlines', action: 'navigate', url: '/apply/jobs' },
-              ],
-              related_queries: [
-                'When is the next major exam deadline?',
-                'What are the eligibility criteria for graduates?',
-              ],
+              actions,
+              related_queries: digestContext
+                ? ['When is the final deadline?', 'What is the application fee?', 'Am I eligible?']
+                : ['Which exams are closing this week?', 'What exams can I write after graduation?'],
             };
           }
         } else {
-          logger.warn(`Anthropic Claude API responded with status ${res.status}`);
+          logger.warn(`Anthropic API responded with status ${res.status}`);
         }
       } catch (err: any) {
-        logger.warn(`Anthropic Claude call failed, using grounded fallback: ${err.message}`);
+        logger.warn(`Anthropic call failed, using grounded fallback: ${err.message}`);
       }
     }
 
-    // High-quality grounded fallback synthesizer when ANTHROPIC_API_KEY is not configured
+    if (fallback) return fallback;
+
+    // No LLM available: matching ApplyFields pages beat a generic menu. mode 'fallback' keeps it out of the cache.
+    if (sources.length) {
+      return {
+        mode: 'fallback',
+        intent: 'general',
+        answer: `### ✦ Fieldy · ApplyFields AI Advisor\n\nHere is what I found on ApplyFields for your question:\n\n${sources.map((s) => `• [**${s.title}**](${s.url})`).join('\n')}`,
+        actions,
+      };
+    }
+
     return {
-      mode: 'rag',
+      mode: 'fallback',
       intent: 'general',
       answer: `### ✦ Fieldy · ApplyFields AI Advisor
 

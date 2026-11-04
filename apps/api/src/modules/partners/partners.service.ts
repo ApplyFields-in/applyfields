@@ -13,6 +13,7 @@ import type {
   DaySchedule,
   HolidayOverride,
   PartnerDetail,
+  PartnerEarningsSummary,
   PartnerDirectoryQuery,
   PartnerDirectoryResponse,
   PartnerDocumentSummary,
@@ -29,10 +30,12 @@ import type {
 } from '@applyfields/types';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
+
 import type {
   partner_type,
   verification_status,
 } from '../../generated/prisma/enums.js';
+const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
 
 export const partnerDirectoryQuerySchema = z.object({
   q: z.string().trim().optional(),
@@ -41,9 +44,22 @@ export const partnerDirectoryQuerySchema = z.object({
   district: z.string().trim().optional(),
   pincode: z.string().trim().optional(),
   service: z.string().trim().optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
   limit: z.coerce.number().min(1).max(100).default(20),
   offset: z.coerce.number().min(0).default(0),
 });
+
+/** Great-circle distance in km (haversine). Straight line, not road distance. */
+export function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(a));
+}
 
 export const partnerRegisterSchema = z.object({
   business_name: z.string().trim().min(2).max(150),
@@ -57,7 +73,8 @@ export const partnerRegisterSchema = z.object({
     'application_assistance',
     'consultant',
     'college',
-    'training_institution',
+    'university',
+    'training_institute',
     'other',
   ]),
   owner_name: z.string().trim().min(2).max(100),
@@ -332,10 +349,13 @@ export class PartnersService {
     };
 
     if (query.type) {
-      where.type = query.type as partner_type;
+      // 'meeseva,csc' → either kind, so the app finds the nearest centre of both in one call
+      const types = query.type.split(',').map((t) => t.trim()).filter(Boolean) as partner_type[];
+      where.type = types.length > 1 ? { in: types } : types[0];
     }
     if (query.state) {
-      where.state_code = query.state.toUpperCase();
+      const st = query.state.toUpperCase().trim();
+      where.state_code = st === 'TG' ? 'TS' : st;
     }
     if (query.district) {
       where.district = { contains: query.district, mode: 'insensitive' };
@@ -369,6 +389,10 @@ export class PartnersService {
       };
     }
 
+    if (query.lat !== undefined && query.lng !== undefined) {
+      return this.listNearest(where, query.lat, query.lng, query.limit ?? 20, query.offset ?? 0);
+    }
+
     const [total, rows] = await Promise.all([
       this.prisma.partners.count({ where }),
       this.prisma.partners.findMany({
@@ -388,6 +412,39 @@ export class PartnersService {
     const items: PartnerSummary[] = rows.map((p) => this.mapToSummary(p));
 
     return { total, items };
+  }
+
+  /**
+   * Nearest first. Ranks every matching centre that has coordinates, then loads one page.
+   * ponytail: ranks in memory over all matching centres' lat/lng (two numbers each). Fine
+   * into the tens of thousands; past that, a PostGIS / earthdistance index on (latitude, longitude).
+   */
+  private async listNearest(
+    where: any,
+    lat: number,
+    lng: number,
+    limit: number,
+    offset: number,
+  ): Promise<PartnerDirectoryResponse> {
+    const points = await this.prisma.partners.findMany({
+      where: { ...where, latitude: { not: null }, longitude: { not: null } },
+      select: { id: true, latitude: true, longitude: true },
+    });
+    const ranked = points
+      .map((p) => ({ id: p.id, km: distanceKm(lat, lng, Number(p.latitude), Number(p.longitude)) }))
+      .sort((a, b) => a.km - b.km);
+    const page = ranked.slice(offset, offset + limit);
+
+    const rows = await this.prisma.partners.findMany({
+      where: { id: { in: page.map((p) => p.id) } },
+      include: { partner_services: { where: { is_active: true }, take: 6 } },
+    });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const items = page.flatMap((p) => {
+      const row = byId.get(p.id);
+      return row ? [{ ...this.mapToSummary(row), distance_km: Math.round(p.km * 10) / 10 }] : [];
+    });
+    return { total: ranked.length, items };
   }
 
   async getBySlug(slug: string): Promise<PartnerDetail> {
@@ -478,6 +535,72 @@ export class PartnersService {
     });
 
     return this.mapToDetail({ ...partner, partner_services: [] });
+  }
+
+  /** Founder §20.6: completed services, earnings, commission, pending/paid amounts, payout history. Owner only. */
+  async getEarnings(userId: string): Promise<PartnerEarningsSummary> {
+    const membership = await this.requirePartnerOwner(userId);
+    if (membership.role !== 'owner') {
+      throw new ForbiddenException('Earnings are visible to the centre owner only.');
+    }
+    const partnerId = membership.partner_id;
+    const completed = { partner_id: partnerId, status: 'completed' as const };
+
+    const [totals, unpriced, payouts, recent] = await Promise.all([
+      this.prisma.service_requests.aggregate({ where: completed, _count: true, _sum: { final_paise: true } }),
+      this.prisma.service_requests.count({ where: { ...completed, final_paise: null } }),
+      this.prisma.partner_payouts.findMany({ where: { partner_id: partnerId }, orderBy: { period_end: 'desc' } }),
+      this.prisma.service_requests.findMany({
+        where: completed,
+        orderBy: { completed_at: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          final_paise: true,
+          completed_at: true,
+          partner_services: { select: { name: true } },
+          gov_services: { select: { name: true } },
+        },
+      }),
+    ]);
+
+    // Settled = covered by a payout period. Everything completed after the latest period is unsettled.
+    const lastEnd = payouts.find((p) => p.status !== 'failed')?.period_end ?? null;
+    const unsettled = await this.prisma.service_requests.aggregate({
+      where: { ...completed, ...(lastEnd ? { completed_at: { gte: addDays(lastEnd, 1) } } : {}) },
+      _sum: { final_paise: true },
+    });
+
+    const sum = (status: string[], key: 'net_paise' | 'commission_paise') =>
+      payouts.filter((p) => status.includes(p.status)).reduce((s, p) => s + p[key], 0);
+
+    return {
+      completed_count: totals._count,
+      unpriced_count: unpriced,
+      gross_paise: totals._sum.final_paise ?? 0,
+      commission_paise: sum(['pending', 'processing', 'paid'], 'commission_paise'),
+      paid_paise: sum(['paid'], 'net_paise'),
+      pending_payout_paise: sum(['pending', 'processing'], 'net_paise'),
+      unsettled_paise: unsettled._sum.final_paise ?? 0,
+      last_settled_until: lastEnd ? lastEnd.toISOString().slice(0, 10) : null,
+      recent: recent.map((r) => ({
+        id: r.id,
+        service_name: r.partner_services?.name ?? r.gov_services?.name ?? null,
+        final_paise: r.final_paise,
+        completed_at: r.completed_at?.toISOString() ?? null,
+      })),
+      payouts: payouts.map((p) => ({
+        id: p.id,
+        period_start: p.period_start.toISOString().slice(0, 10),
+        period_end: p.period_end.toISOString().slice(0, 10),
+        gross_paise: p.gross_paise,
+        commission_paise: p.commission_paise,
+        net_paise: p.net_paise,
+        status: p.status,
+        paid_at: p.paid_at?.toISOString() ?? null,
+        reference: p.reference,
+      })),
+    };
   }
 
   async getPartnerForUser(userId: string): Promise<PartnerDetail> {

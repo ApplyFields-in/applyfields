@@ -63,16 +63,6 @@ export class ChatbotController {
   }
 
   /**
-   * GET /api/v1/chatbot/analytics
-   * Returns observability telemetry (total queries, fast-path ratio, latency, top unanswered, satisfaction)
-   */
-  @Get('analytics')
-  async getAnalytics() {
-    const cacheMetrics = this.routerService.getCacheService().getMetrics();
-    return this.routerService.getAnalyticsService().getObservabilityMetrics(cacheMetrics.total_hits);
-  }
-
-  /**
    * POST /api/v1/chatbot/query
    * Hybrid Dual-Path Query Router:
    * - Within-website queries: Fast-path deterministic SQL (<80ms, 0 LLM cost)

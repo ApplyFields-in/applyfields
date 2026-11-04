@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import { SettlementClient } from './settlement-client';
 
 export const metadata: Metadata = {
-  title: 'Cash Drawer & Commission Settlement | Partner Desk',
-  description: 'Daily counter cash drawer reconciliation, 70% commission wallet, and instant bank disbursement ledger.',
+  title: 'Earnings & Settlements | Partner Desk',
+  description: 'Completed services, earnings, and payouts from ApplyFields.',
 };
 
 export default function SettlementPage() {

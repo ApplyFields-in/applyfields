@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -36,8 +37,12 @@ export class MessagesController {
 
   @Get('bookings/:id/messages')
   @UseGuards(OptionalAuthGuard)
-  async getMessages(@Param('id') bookingId: string): Promise<ChatMessageItem[]> {
-    return this.messagesService.getMessages(bookingId);
+  async getMessages(
+    @Param('id') bookingId: string,
+    @Req() req: MaybeUserRequest,
+    @Query('token') token?: string,
+  ): Promise<ChatMessageItem[]> {
+    return this.messagesService.getMessages(bookingId, req.user?.userId, token);
   }
 
   @Post('bookings/:id/messages')
@@ -45,19 +50,22 @@ export class MessagesController {
   async sendMessage(
     @Param('id') bookingId: string,
     @Req() req: MaybeUserRequest,
+    @Query('token') token: string | undefined,
     @Body(new ZodPipe(sendChatMessageSchema)) body: SendChatMessageInput,
   ): Promise<ChatMessageItem> {
     const senderUserId = req.user?.userId ?? null;
-    return this.messagesService.sendMessage(bookingId, senderUserId, body);
+    return this.messagesService.sendMessage(bookingId, senderUserId, body, token);
   }
 
   @Patch('bookings/:id/messages/read')
   @UseGuards(OptionalAuthGuard)
   async markRead(
     @Param('id') bookingId: string,
+    @Req() req: MaybeUserRequest,
+    @Query('token') token: string | undefined,
     @Body(new ZodPipe(markReadSchema)) body: { reader_type: 'citizen' | 'partner' },
   ): Promise<{ count: number }> {
-    return this.messagesService.markAsRead(bookingId, body.reader_type);
+    return this.messagesService.markAsRead(bookingId, body.reader_type, req.user?.userId, token);
   }
 
   // =========================================================================
