@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { apiPost, getMyPartner, registerPartner, uploadPartnerDoc } from '@/lib/api';
+import { apiPost, getMyPartner, registerPartner, uploadPartnerFile } from '@/lib/api';
 import { usePartnerAuth } from '@/lib/auth-context';
 import type { PartnerRegistrationInput, PartnerType } from '@applyfields/types';
 import {
@@ -164,10 +164,10 @@ export default function OnboardWizardPage() {
 
   // Step 4: KYC & Storefront Upload
   const [regCode, setRegCode] = useState('CSC-TG-HYD-8421');
-  const [certFileName, setCertFileName] = useState('Trade_License_Certificate.pdf');
-  const [storefrontPreview, setStorefrontPreview] = useState<string | null>(
-    'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=600&q=80',
-  );
+  const [certFile, setCertFile] = useState<File | null>(null);
+  const certFileName = certFile?.name ?? '';
+  const [storefrontFile, setStorefrontFile] = useState<File | null>(null);
+  const [storefrontPreview, setStorefrontPreview] = useState<string | null>(null);
 
   // Step 5: Terms Agreement
   const [agreeTerms, setAgreeTerms] = useState(true);
@@ -220,10 +220,10 @@ export default function OnboardWizardPage() {
     if (!file) return;
 
     if (type === 'cert') {
-      setCertFileName(file.name);
+      setCertFile(file);
     } else {
-      const url = URL.createObjectURL(file);
-      setStorefrontPreview(url);
+      setStorefrontFile(file);
+      setStorefrontPreview(URL.createObjectURL(file));
     }
   }
 
@@ -361,12 +361,10 @@ export default function OnboardWizardPage() {
         return;
       }
 
-      // 3. Upload KYC document record
+      // 3. Upload the KYC files (staff can't approve without them)
       try {
-        await uploadPartnerDoc({
-          document_kind: 'shop_license',
-          storage_path: `partners/kyc/${res.data.id}/${certFileName || 'license.pdf'}`,
-        });
+        if (certFile) await uploadPartnerFile('trade_license', certFile);
+        if (storefrontFile) await uploadPartnerFile('kiosk_photo', storefrontFile);
       } catch (docErr) {
         console.warn('KYC doc upload notice:', docErr);
       }

@@ -1206,6 +1206,8 @@ export interface PartnerDocumentSummary {
   partner_id: string;
   document_kind: string;
   storage_path: string;
+  /** Short-lived link to view the file (admin detail only). */
+  url?: string | null;
   status: PartnerVerificationStatus;
   reviewer_note: string | null;
   reviewed_at: string | null;

@@ -8,6 +8,7 @@ import {
   holidayOverrideSchema,
   minutesToTime,
   partnerDirectoryQuerySchema,
+  partnerDocumentUploadSchema,
   partnerRegisterSchema,
   partnerServiceInputSchema,
   PartnersService,
@@ -576,5 +577,41 @@ describe('PartnersService.getEarnings (founder §20.6 ledger)', () => {
   it('hides earnings from counter staff', async () => {
     mockPrisma.partner_members.findFirst.mockResolvedValueOnce({ partner_id: 'partner-1', role: 'staff' });
     await expect(new PartnersService(mockPrisma).getEarnings('staff-user')).rejects.toThrow('owner only');
+  });
+});
+
+describe('PartnersService.uploadDocument (KYC files)', () => {
+  const png = Buffer.from('fake-png-bytes').toString('base64');
+  const make = (uploadResult: string | null) => {
+    const create = vi.fn().mockImplementation(({ data }) => ({
+      id: 'doc-1', ...data, reviewer_note: null, reviewed_at: null, created_at: new Date('2026-11-04'),
+    }));
+    const prisma = {
+      partner_members: { findFirst: vi.fn().mockResolvedValue({ partner_id: 'p-1', role: 'owner' }) },
+      partner_documents: { create },
+    } as any;
+    const storage = { documentsBucket: 'documents', upload: vi.fn().mockResolvedValue(uploadResult) } as any;
+    return { service: new PartnersService(prisma, storage), create, storage };
+  };
+  const input = { document_kind: 'trade_license', file_name: 'my licence.png', mime_type: 'image/png', file_base64: `data:image/png;base64,${png}` } as const;
+
+  it('stores the file under partners/<id>/<kind>/ and records that path', async () => {
+    const { service, create, storage } = make('ok');
+    const res = await service.uploadDocument('u-1', input);
+    const path = storage.upload.mock.calls[0][1] as string;
+    expect(path).toMatch(/^partners\/p-1\/trade_license\/\d+_my_licence\.png$/);
+    expect(create.mock.calls[0][0].data.storage_path).toBe(path);
+    expect(res.status).toBe('pending');
+  });
+
+  it('creates no record when storage fails', async () => {
+    const { service, create } = make(null);
+    await expect(service.uploadDocument('u-1', input)).rejects.toThrow('Could not store the file');
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('accepts only known kinds and file types', () => {
+    expect(partnerDocumentUploadSchema.safeParse({ ...input, document_kind: 'selfie' }).success).toBe(false);
+    expect(partnerDocumentUploadSchema.safeParse({ ...input, mime_type: 'text/html' }).success).toBe(false);
   });
 });
