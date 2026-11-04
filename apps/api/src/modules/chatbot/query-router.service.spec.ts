@@ -36,7 +36,22 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
     ],
   };
 
+  // In-memory analytics_events: quota is counted from these rows, like in Postgres.
+  const events: Array<{ event_name: string; session_id: string; created_at: Date }> = [];
   const mockPrisma = {
+    analytics_events: {
+      create: vi.fn(async ({ data }) => {
+        events.push({ ...data, created_at: new Date() });
+      }),
+      count: vi.fn(async ({ where }) =>
+        events.filter(
+          (e) =>
+            e.event_name === where.event_name &&
+            e.session_id === where.session_id &&
+            e.created_at >= where.created_at.gte,
+        ).length,
+      ),
+    },
     opportunities: {
       findFirst: vi.fn().mockImplementation(({ where }) => {
         if (where?.slug === 'ssc-cgl-2026' || where?.OR) {
