@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
 import { refreshUnread, useUnread } from '@/lib/unread';
-import { C, CHROME_FONT_SCALE, R, S, capsule } from '@/theme';
+import { C, CHROME_FONT_SCALE, R } from '@/theme';
 
 /**
  * The bottom bar. Apply/Career/Services are not here — they are the top navbar
@@ -14,10 +14,10 @@ import { C, CHROME_FONT_SCALE, R, S, capsule } from '@/theme';
  * you are looking at rather than where you are. Profile is the header avatar.
  */
 const TABS = [
-  { name: '(browse)', title: 'Home', icon: 'home-outline' },
-  { name: 'saved', title: 'Saved', icon: 'bookmark-outline' },
-  { name: 'documents', title: 'Documents', icon: 'document-text-outline' },
-  { name: 'alerts', title: 'Alerts', icon: 'notifications-outline' },
+  { name: '(browse)', title: 'Home', icon: 'home-outline', activeIcon: 'home' },
+  { name: 'saved', title: 'Saved', icon: 'bookmark-outline', activeIcon: 'bookmark' },
+  { name: 'documents', title: 'Documents', icon: 'document-text-outline', activeIcon: 'document-text' },
+  { name: 'alerts', title: 'Alerts', icon: 'notifications-outline', activeIcon: 'notifications' },
 ] as const;
 
 export default function TabsLayout() {
@@ -34,18 +34,19 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        // A floating capsule like the header, kept in the layout flow (not
-        // absolute) so lists never scroll underneath it.
         tabBarStyle: {
-          ...capsule,
-          height: 64,
-          paddingTop: 6,
-          paddingBottom: 6,
-          paddingHorizontal: 6,
-          marginHorizontal: S.md,
-          marginBottom: insets.bottom + S.sm,
+          backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: C.white,
+          borderTopColor: 'rgba(8, 32, 70, 0.06)',
+          height: 60 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          paddingHorizontal: 8,
+          elevation: 4,
+          shadowColor: '#082046',
+          shadowOpacity: 0.04,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: -2 },
         },
       }}
     >
@@ -56,11 +57,14 @@ export default function TabsLayout() {
           options={{
             title: tab.title,
             tabBarBadge: tab.name === 'alerts' && unread > 0 ? unread : undefined,
-            // The active tab sits in a raised white pill. Drawn here rather than
-            // with tabBarActiveBackgroundColor, which Android fills as a square.
+            // The active tab sits in a soft ice blue pill indicator.
             tabBarIcon: ({ focused }) => (
               <View style={[pill.base, focused && pill.active]}>
-                <Ionicons name={tab.icon} size={20} color={focused ? C.blue : C.muted} />
+                <Ionicons
+                  name={focused ? tab.activeIcon : tab.icon}
+                  size={20}
+                  color={focused ? '#0E7BF4' : '#64748B'}
+                />
               </View>
             ),
             // Own label so large system text scales a little but never pushes
@@ -69,7 +73,11 @@ export default function TabsLayout() {
               <Text
                 numberOfLines={1}
                 maxFontSizeMultiplier={CHROME_FONT_SCALE}
-                style={{ fontSize: 11, fontWeight: focused ? '800' : '600', color: focused ? C.blue : C.muted }}
+                style={{
+                  fontSize: 11,
+                  fontWeight: focused ? '700' : '500',
+                  color: focused ? '#0E7BF4' : '#64748B',
+                }}
               >
                 {tab.title}
               </Text>
@@ -83,18 +91,14 @@ export default function TabsLayout() {
 
 const pill = StyleSheet.create({
   base: {
-    width: 56,
-    height: 30,
+    width: 48,
+    height: 28,
     borderRadius: R.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 2,
   },
   active: {
-    backgroundColor: C.white,
-    shadowColor: C.navy,
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 2, height: 2 },
-    elevation: 3,
+    backgroundColor: '#E0EDFB',
   },
 });

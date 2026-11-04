@@ -28,12 +28,12 @@ export function AppHeader({ subtitle }: { subtitle?: string }) {
   const mark = signedIn ? initials(name) : '';
 
   return (
-    <View style={[s.bar, { paddingTop: insets.top + S.sm }]}>
+    <View style={[s.bar, { paddingTop: insets.top + S.xs }]}>
       <View style={s.inner}>
         <Image source={LOGO} style={s.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
         <View style={{ flex: 1 }}>
           <Text style={s.wordmark} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
-            Apply<Text style={{ color: C.blue }}>Fields</Text>
+            Apply<Text style={s.fieldsText}>Fields</Text>
           </Text>
           <Text style={s.tagline} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
             {subtitle ?? 'Every opportunity. One place.'}
@@ -44,14 +44,14 @@ export function AppHeader({ subtitle }: { subtitle?: string }) {
           accessibilityRole="button"
           accessibilityLabel={signedIn ? 'Your profile' : 'Sign in'}
           onPress={() => router.push(signedIn ? '/profile' : '/login')}
-          style={({ pressed }) => [s.avatar, pressed && { opacity: 0.8 }]}
+          style={({ pressed }) => [s.avatar, pressed && { opacity: 0.85 }]}
         >
           {mark ? (
             <Text style={s.avatarText} maxFontSizeMultiplier={1}>
               {mark}
             </Text>
           ) : (
-            <Ionicons name="person-outline" size={20} color={C.white} />
+            <Ionicons name="person" size={17} color={C.blue} />
           )}
         </Pressable>
       </View>
@@ -60,29 +60,49 @@ export function AppHeader({ subtitle }: { subtitle?: string }) {
 }
 
 const s = StyleSheet.create({
-  bar: { backgroundColor: C.canvas, paddingBottom: S.md, paddingHorizontal: S.md },
+  bar: {
+    backgroundColor: C.canvas,
+    paddingBottom: S.sm,
+    paddingHorizontal: S.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(8, 32, 70, 0.06)',
+  },
   inner: {
-    ...capsule,
     ...column,
     flexDirection: 'row',
     alignItems: 'center',
     gap: S.sm,
-    paddingVertical: 6,
+    paddingVertical: 7,
     paddingLeft: S.md,
-    paddingRight: 6,
-  },
-  logo: { width: 38, height: 28 },
-  wordmark: { color: C.navy, fontSize: 19, fontWeight: '900', letterSpacing: -0.4 },
-  tagline: { color: C.muted, fontSize: 11, marginTop: 1 },
-  avatar: {
-    width: TAP,
-    height: TAP,
+    paddingRight: 7,
+    backgroundColor: C.white,
     borderRadius: R.pill,
-    backgroundColor: C.navy,
+    borderWidth: 1,
+    borderColor: 'rgba(8, 32, 70, 0.08)',
+    shadowColor: C.navy,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  logo: { width: 26, height: 26, marginRight: 2 },
+  wordmark: { color: C.navy, fontSize: 18, fontWeight: '900', letterSpacing: -0.4 },
+  fieldsText: { color: C.blue, fontWeight: '800' },
+  tagline: { color: C.muted, fontSize: 10.5, fontWeight: '500', marginTop: 1 },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: R.pill,
+    backgroundColor: C.white,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: C.white,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: C.navy,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
-  avatarText: { color: C.white, fontSize: 14, fontWeight: '800' },
+  avatarText: { color: C.navy, fontSize: 13, fontWeight: '800' },
 });

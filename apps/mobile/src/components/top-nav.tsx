@@ -37,7 +37,9 @@ export function TopNav() {
               style={[s.item, active && s.itemActive]}
             >
               <View style={s.itemInner}>
-                {compact ? null : <Ionicons name={m.icon} size={16} color={C.blue} />}
+                {compact ? null : (
+                  <Ionicons name={m.icon} size={16} color={active ? C.blue : C.mutedNavy} />
+                )}
                 <Text
                   style={[s.label, active && s.labelActive]}
                   numberOfLines={1}
@@ -56,31 +58,36 @@ export function TopNav() {
   );
 }
 
-// The website's Career / Apply / Services switcher: a sunken pill track with
-// the active mode raised out of it.
+// The website's Segmented Capsule Switcher: a sunken pill track with
+// the active mode as a floating white/ice pill.
 const s = StyleSheet.create({
-  bar: { backgroundColor: C.canvas, paddingHorizontal: S.md, paddingBottom: S.sm },
+  bar: { backgroundColor: C.canvas, paddingHorizontal: S.md, paddingBottom: S.xs, paddingTop: S.xs },
   inner: {
-    ...capsule,
     ...column,
     flexDirection: 'row',
+    backgroundColor: C.pillTrack,
+    borderRadius: R.pill,
+    padding: 4,
     gap: 4,
-    padding: 5,
+    borderWidth: 1,
+    borderColor: C.line,
   },
   item: {
     flex: 1,
-    minHeight: TAP,
+    minHeight: 38,
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     borderRadius: R.pill,
+    backgroundColor: 'transparent',
   },
   itemActive: {
     backgroundColor: C.white,
     shadowColor: C.navy,
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 2, height: 2 },
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   itemInner: {
     flexDirection: 'row',
@@ -88,6 +95,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  label: { color: C.navy, fontSize: 14, fontWeight: '800', flexShrink: 1 },
-  labelActive: { color: C.blue },
+  label: { color: C.mutedNavy, fontSize: 13, fontWeight: '600', flexShrink: 1 },
+  labelActive: { color: C.blue, fontWeight: '800' },
 });
