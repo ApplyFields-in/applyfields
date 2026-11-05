@@ -14,9 +14,35 @@ function getAuthHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+let refreshing: Promise<boolean> | null = null;
+
+/** One silent POST /auth/refresh (httpOnly refresh cookie) when the access token has expired. */
+function refreshSession(): Promise<boolean> {
+  refreshing ??= (async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
+      const json = res.ok ? await res.json().catch(() => null) : null;
+      if (json?.accessToken) localStorage.setItem('accessToken', json.accessToken);
+      return Boolean(json?.accessToken);
+    } catch {
+      return false;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+/** fetch + one retry after a silent refresh on 401. `init` is a function so the retry sends the new token. */
+async function send(url: string, init: () => RequestInit): Promise<Response> {
+  const res = await fetch(url, init());
+  if (res.status !== 401 || typeof window === 'undefined' || url.includes('/auth/')) return res;
+  return (await refreshSession()) ? fetch(url, init()) : res;
+}
+
 export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, {
+    const res = await send(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, () => ({
       method: 'GET',
       cache: 'no-store',
       credentials: 'include',
@@ -24,8 +50,7 @@ export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
         Accept: 'application/json',
         ...getAuthHeader(),
       },
-      signal: AbortSignal.timeout(20000),
-    });
+      signal: AbortSignal.timeout(20000),}));
 
     if (!res.ok) {
       let errText = `Request failed (${res.status})`;
@@ -51,7 +76,7 @@ export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
 
 export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, {
+    const res = await send(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, () => ({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,8 +85,7 @@ export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<A
       },
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',
-      signal: AbortSignal.timeout(30000),
-    });
+      signal: AbortSignal.timeout(30000),}));
 
     if (!res.ok) {
       let errText = `Request failed (${res.status})`;
@@ -87,16 +111,16 @@ export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<A
 
 export async function apiPatch<T, B = unknown>(path: string, body?: B): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, {
+    const res = await send(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, () => ({
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...getAuthHeader(),
       },
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',
-      signal: AbortSignal.timeout(30000),
-    });
+      signal: AbortSignal.timeout(30000),}));
 
     if (!res.ok) {
       let errText = `Request failed (${res.status})`;

@@ -27,7 +27,6 @@ import {
   X,
   Camera,
   Receipt,
-  ClipboardList,
   Wallet,
   Zap,
 } from 'lucide-react';
@@ -83,12 +82,6 @@ export default function PartnerDashboardLayout({
       href: '/scanner',
       icon: Camera,
       badge: 'Assets',
-    },
-    {
-      name: 'Orders Pipeline & OTP',
-      href: '/orders',
-      icon: ClipboardList,
-      badge: 'Filing',
     },
     {
       name: activeRole === 'staff' ? 'Cash Drawer (Owner Only)' : 'Cash Drawer & Settlement',

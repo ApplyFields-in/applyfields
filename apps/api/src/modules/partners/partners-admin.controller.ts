@@ -24,7 +24,7 @@ import {
 
 @Controller('admin/partners')
 @UseGuards(StaffGuard)
-@Roles('reviewer')
+@Roles('support')
 export class PartnersAdminController {
   constructor(private readonly partnersService: PartnersService) {}
 

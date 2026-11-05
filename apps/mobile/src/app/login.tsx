@@ -1,4 +1,4 @@
-/** Sign in with the same email/phone + password the website uses. POST /auth/login. */
+/** Sign in with the same email/phone + password the website uses. POST /auth/login (+ /auth/login/verify on a first sign-in). */
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -24,13 +24,15 @@ const LOGO = require('../../assets/images/logo-mark.png');
 
 export default function Login() {
   const router = useRouter();
-  const { login, sendLoginOtp, loginWithOtp } = useAuth();
+  const { startLogin, login, sendLoginOtp, loginWithOtp } = useAuth();
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<'password' | 'otp'>('password');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  // Set only on a first sign-in, when the account still has to confirm its email/phone once.
+  const [codeTo, setCodeTo] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,17 +45,35 @@ export default function Login() {
     setMode(next);
     setError(null);
     setOtpSent(false);
+    setCodeTo(null);
     setCode('');
   }
 
-  async function submit() {
+  async function submit(resend = false) {
     if (!identifier.trim() || !password) {
       setError('Enter your email or mobile number and your password.');
       return;
     }
+    if (codeTo && !resend && code.trim().length !== 6) {
+      setError('Enter the 6-digit code we sent you.');
+      return;
+    }
     setBusy(true);
     setError(null);
-    const failure = await login(identifier, password);
+    if (!codeTo || resend) {
+      const res = await startLogin(identifier, password);
+      setBusy(false);
+      if (res.error) setError(res.error);
+      else if (res.sentTo) {
+        // First sign-in of an account that never confirmed its email/phone: one code, then never again.
+        setCodeTo(res.sentTo);
+        setCode('');
+      } else {
+        router.back();
+      }
+      return;
+    }
+    const failure = await login(identifier, password, code);
     setBusy(false);
     if (failure) setError(failure);
     else router.back();
@@ -155,7 +175,7 @@ export default function Login() {
                 autoCorrect={false}
                 keyboardType={usesEmail ? 'email-address' : 'default'}
                 textContentType="username"
-                editable={!(mode === 'otp' && otpSent)}
+                editable={!(mode === 'otp' && otpSent) && !codeTo}
                 style={s.input}
               />
             </View>
@@ -182,7 +202,8 @@ export default function Login() {
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   textContentType="password"
-                  onSubmitEditing={submit}
+                  editable={!codeTo}
+                  onSubmitEditing={() => submit()}
                   returnKeyType="go"
                   style={[s.input, { paddingRight: 44 }]}
                 />
@@ -226,12 +247,50 @@ export default function Login() {
             </View>
           ) : null}
 
+          {mode === 'password' && codeTo ? (
+            <View style={s.field}>
+              <View style={s.labelRow}>
+                <Text style={[s.label, { flex: 1 }]}>First sign-in: code sent to {codeTo}</Text>
+                <Pressable onPress={() => submit(true)} disabled={busy} hitSlop={8}>
+                  <Text style={s.smallLink}>Resend code</Text>
+                </Pressable>
+              </View>
+              <View style={s.inputWrap}>
+                <Ionicons name="keypad-outline" size={18} color={C.muted} style={s.inputIcon} />
+                <TextInput
+                  value={code}
+                  onChangeText={setCode}
+                  placeholder="● ● ● ● ● ●"
+                  placeholderTextColor={C.muted}
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  autoFocus
+                  onSubmitEditing={() => submit()}
+                  returnKeyType="go"
+                  accessibilityLabel="6-digit code"
+                  style={s.input}
+                />
+              </View>
+              <Pressable
+                onPress={() => {
+                  setCodeTo(null);
+                  setCode('');
+                }}
+                hitSlop={8}
+              >
+                <Text style={s.smallLink}>Change email, number or password</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           {mode === 'password' ? (
             <Button
-              label={busy ? 'Signing in…' : 'Log in'}
+              label={busy ? 'Signing in…' : codeTo ? 'Verify & log in' : 'Log in'}
               icon="arrow-forward"
               disabled={busy}
-              onPress={submit}
+              onPress={() => submit()}
               style={s.primary}
             />
           ) : otpSent ? (

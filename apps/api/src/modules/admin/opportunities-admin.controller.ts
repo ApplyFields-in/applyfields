@@ -62,7 +62,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 /** Internal Portal → Opportunities: every job in any status. Reviewer and above. */
 @Controller('admin')
 @UseGuards(StaffGuard)
-@Roles('reviewer')
+@Roles('reviewer', 'content_editor')
 export class OpportunitiesAdminController {
   constructor(
     private readonly opportunities: OpportunitiesAdminService,
@@ -169,7 +169,7 @@ export class OpportunitiesAdminController {
 
   /** GET /admin/opportunities/:id/versions — view version history drawer */
   @Get('opportunities/:id/versions')
-  @Roles('reviewer')
+  @Roles('reviewer', 'content_editor')
   async listVersions(
     @Param('id', ParseUUIDPipe) id: string,
   ) {

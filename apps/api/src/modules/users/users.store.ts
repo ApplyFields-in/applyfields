@@ -726,6 +726,20 @@ export class UsersStore implements OnModuleInit {
     return otp;
   }
 
+  /** How many OTPs were issued to this target since `since` (send rate limit). */
+  async countOtpsSince(target: string, since: Date): Promise<number> {
+    const normalized = target.trim().toLowerCase();
+    if (this.prisma && !this.isTestEnv()) {
+      return this.prisma.otp_codes.count({
+        where: { target: normalized, created_at: { gt: since } },
+      });
+    }
+    const sinceIso = since.toISOString();
+    return Array.from(this.otps.values()).filter(
+      (o) => o.target === normalized && o.created_at > sinceIso,
+    ).length;
+  }
+
   async findLatestValidOtp(
     target: string,
     purpose: 'verify_email' | 'verify_phone' | 'login' | 'reset_password',

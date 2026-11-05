@@ -23,7 +23,7 @@ const resolveReportSchema = z.object({
 
 @Controller('admin/reports')
 @UseGuards(StaffGuard)
-@Roles('reviewer')
+@Roles('reviewer', 'support')
 export class ReportsAdminController {
   constructor(private readonly reportsService: ReportsService) {}
 

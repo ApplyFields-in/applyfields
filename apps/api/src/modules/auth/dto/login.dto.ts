@@ -1,4 +1,4 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
 
 export class LoginDto {
   @IsNotEmpty({ message: 'Email or phone number is required' })
@@ -12,6 +12,14 @@ export class LoginDto {
   @IsOptional()
   @IsBoolean()
   rememberMe?: boolean;
+}
+
+/** Step 2 of password + code login. */
+export class LoginVerifyDto extends LoginDto {
+  @IsNotEmpty({ message: 'Verification code is required' })
+  @IsString()
+  @Length(6, 6, { message: 'Verification code must be exactly 6 digits' })
+  code!: string;
 }
 
 export class LoginOtpDto {
@@ -40,6 +48,11 @@ export class SocialLoginDto {
   @IsNotEmpty({ message: 'Provider is required' })
   @IsString()
   provider!: 'google' | 'apple' | 'microsoft';
+
+  /** Admin portal: sign in an existing account only, never create one. */
+  @IsOptional()
+  @IsBoolean()
+  existingOnly?: boolean;
 
   @IsOptional()
   @IsString()

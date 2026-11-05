@@ -228,3 +228,37 @@ export function getNavForDepartment(dept: DepartmentType = 'super_admin'): NavGr
 
 /** Fallback legacy NAV export for backwards compatibility */
 export const NAV: NavGroup[] = SUPER_ADMIN_NAV;
+
+const ALL_DEPARTMENTS: DepartmentType[] = ['super_admin', 'partners', 'services', 'apply', 'career'];
+
+/**
+ * Which dashboards a staff member gets, from their DB roles (same mapping as the API's @Roles):
+ * super_admin/admin → all · support → Partners + Services · reviewer/content_editor → Apply + Career.
+ */
+export function departmentsForRoles(roles: readonly string[] = []): DepartmentType[] {
+  if (roles.includes('super_admin') || roles.includes('admin')) return ALL_DEPARTMENTS;
+  const out: DepartmentType[] = [];
+  if (roles.includes('support')) out.push('partners', 'services');
+  if (roles.includes('reviewer') || roles.includes('content_editor')) out.push('apply', 'career');
+  return out;
+}
+
+/** A path is open when it is in the sidebar of one of the user's departments. */
+export function canOpenPath(departments: DepartmentType[], pathname: string): boolean {
+  if (departments.includes('super_admin')) return true;
+  return departments.some((d) =>
+    getNavForDepartment(d).some((g) =>
+      g.items.some((item) => {
+        const base = item.href.split('?')[0];
+        return pathname === base || pathname.startsWith(`${base}/`);
+      }),
+    ),
+  );
+}
+
+/** The department a path belongs to, preferring the one the user is already in. */
+export function departmentForPath(departments: DepartmentType[], pathname: string, current: DepartmentType): DepartmentType {
+  const owns = (d: DepartmentType) => canOpenPath([d], pathname) && d !== 'super_admin';
+  if (owns(current)) return current;
+  return departments.find(owns) ?? (departments.includes('super_admin') ? 'super_admin' : departments[0] ?? current);
+}
