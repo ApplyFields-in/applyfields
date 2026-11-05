@@ -71,7 +71,7 @@ export interface PasskeyEntity {
   id: string;
   user_id: string;
   credential_id: string;
-  public_key: Uint8Array;
+  public_key: Uint8Array<ArrayBuffer>;
   counter: number;
   transports: string[];
   device_type: string | null;

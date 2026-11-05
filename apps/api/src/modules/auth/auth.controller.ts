@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Req,
   Res,
@@ -11,7 +14,9 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import type { Request, Response } from 'express';
 import { jwtAccessSecret } from '../../common/jwt-secret.js';
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server';
 import { AuthService, SESSION_DAYS } from './auth.service.js';
+import { PasskeysService } from './passkeys.service.js';
 import { AuthGuard, type AuthenticatedRequest } from './auth.guard.js';
 import { RegisterDto } from './dto/register.dto.js';
 import {
@@ -19,8 +24,7 @@ import {
   LoginOtpDto,
   LoginVerifyDto,
   SocialLoginDto,
-  PasskeyLoginDto,
-  PasskeyRegisterDto,
+  PasskeyVerifyDto,
 } from './dto/login.dto.js';
 import { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
 
@@ -59,6 +63,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
+    private readonly passkeys: PasskeysService,
   ) {}
 
   @Post('register')
@@ -169,34 +174,60 @@ export class AuthController {
     return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
-  @Post('passkey/login')
+  // ---------- Passkeys (WebAuthn) ----------
+
+  @Post('passkey/login/options')
+  @HttpCode(HttpStatus.OK)
+  passkeyLoginOptions() {
+    return this.passkeys.loginOptions();
+  }
+
+  @Post('passkey/login/verify')
   @HttpCode(HttpStatus.OK)
   async passkeyLogin(
-    @Body() dto: PasskeyLoginDto,
+    @Body() dto: PasskeyVerifyDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const meta = {
-      userAgent: req.headers['user-agent'],
-      ipAddress: req.ip || req.socket.remoteAddress,
-    };
-    const result = await this.authService.passkeyLogin(dto, meta);
-
-    const opts = cookieOpts(true);
+    const meta = { userAgent: req.headers['user-agent'], ipAddress: req.ip || req.socket.remoteAddress };
+    const result = await this.passkeys.verifyLogin(
+      { response: dto.response as unknown as AuthenticationResponseJSON, challengeToken: dto.challengeToken },
+      meta,
+    );
+    const opts = cookieOpts(dto.rememberMe ?? true);
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
-
-    return { user: result.user, accessToken: result.accessToken };
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
-  @Post('passkey/register')
+  @Post('passkey/register/options')
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
-  async registerPasskey(
-    @Body() dto: PasskeyRegisterDto,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return this.authService.registerPasskey(req.user.userId, dto);
+  passkeyRegisterOptions(@Req() req: AuthenticatedRequest) {
+    return this.passkeys.registerOptions(req.user.userId);
+  }
+
+  @Post('passkey/register/verify')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  passkeyRegister(@Body() dto: PasskeyVerifyDto, @Req() req: AuthenticatedRequest) {
+    return this.passkeys.verifyRegistration(req.user.userId, {
+      response: dto.response as unknown as RegistrationResponseJSON,
+      challengeToken: dto.challengeToken,
+      name: dto.name,
+    });
+  }
+
+  @Get('passkeys')
+  @UseGuards(AuthGuard)
+  listPasskeys(@Req() req: AuthenticatedRequest) {
+    return this.passkeys.list(req.user.userId);
+  }
+
+  @Delete('passkeys/:id')
+  @UseGuards(AuthGuard)
+  removePasskey(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.passkeys.remove(req.user.userId, id);
   }
 
   @Post('refresh')

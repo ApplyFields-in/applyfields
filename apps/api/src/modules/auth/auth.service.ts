@@ -20,8 +20,6 @@ import type {
   LoginDto,
   LoginOtpDto,
   SocialLoginDto,
-  PasskeyLoginDto,
-  PasskeyRegisterDto,
 } from './dto/login.dto.js';
 import type {
   ResetPasswordDto,
@@ -537,22 +535,6 @@ export class AuthService {
     };
   }
 
-  // ponytail: there is no real WebAuthn check yet; the old version signed anyone in from an email
-  // alone. Both stay off until passkeys verify a signed challenge against a stored public key.
-  async registerPasskey(
-    _userId: string,
-    _dto: PasskeyRegisterDto,
-  ): Promise<{ success: boolean; message: string; user: UserSummary }> {
-    throw new BadRequestException('Passkeys are not available yet.');
-  }
-
-  async passkeyLogin(
-    _dto: PasskeyLoginDto,
-    _meta: { userAgent?: string; ipAddress?: string } = {},
-  ): Promise<LoginResult> {
-    throw new BadRequestException('Passkey sign-in is not available yet. Please use your password or Google.');
-  }
-
   async refreshTokens(
     rawRefreshToken: string,
     meta: { userAgent?: string; ipAddress?: string } = {},
@@ -624,6 +606,23 @@ export class AuthService {
       message:
         'Password has been successfully reset. Please log in with your new password.',
     };
+  }
+
+  /** Session for a user another sign-in method has already proven (passkeys). Refuses inactive accounts. */
+  async sessionFor(
+    userId: string,
+    meta: { userAgent?: string; ipAddress?: string },
+    mfa: boolean,
+  ): Promise<LoginResult> {
+    const user = await this.store.findUserById(userId);
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('This account is not active. Contact ApplyFields support.');
+    }
+    const [, tokens] = await Promise.all([
+      this.store.updateUser(user.id, { last_login_at: new Date().toISOString() }),
+      this.issueTokens(user, meta, mfa),
+    ]);
+    return { user: this.store.toUserSummary(user), ...tokens };
   }
 
   /** `mfa` = signed in with password + code, or a verified Google account. StaffGuard requires it. */
