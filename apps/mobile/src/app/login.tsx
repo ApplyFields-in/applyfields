@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { C, R, S, column } from '@/theme';
 
@@ -34,6 +33,7 @@ export default function Login() {
   // Set only on a first sign-in, when the account still has to confirm its email/phone once.
   const [codeTo, setCodeTo] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [focusedField, setFocusedField] = useState<'identifier' | 'password' | 'code' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -110,33 +110,34 @@ export default function Login() {
       style={{ flex: 1, backgroundColor: C.canvas }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Transparent top bar with back arrow */}
+      <View style={[s.topBar, { paddingTop: insets.top + S.sm }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={s.backBtn}
+        >
+          <Ionicons name="arrow-back" size={24} color={C.navy} />
+        </Pressable>
+      </View>
+
       <ScrollView
         contentContainerStyle={[
           column,
           s.page,
-          { paddingTop: insets.top + S.lg, paddingBottom: S.xl + insets.bottom },
+          { paddingBottom: S.xl + insets.bottom },
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Same card as the website's /login: logo, heading, mode switcher, form. */}
         <View style={s.card}>
-          <View style={s.brandRow}>
+          {/* Centered official ApplyFields logo above Welcome back */}
+          <View style={s.logoWrap}>
             <Image source={LOGO} style={s.logo} resizeMode="contain" />
-            <Text style={s.wordmark}>
-              Apply<Text style={{ color: C.blue }}>Fields</Text>
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              onPress={() => router.back()}
-              hitSlop={10}
-              style={s.close}
-            >
-              <Ionicons name="close" size={20} color={C.navy} />
-            </Pressable>
           </View>
 
-          <Text style={s.h1}>Welcome back!</Text>
+          <Text style={s.h1}>Welcome back</Text>
           <Text style={s.sub}>Log in to explore opportunities tailored for you.</Text>
 
           <View style={s.tabs} accessibilityRole="tablist">
@@ -164,11 +165,23 @@ export default function Login() {
 
           <View style={s.field}>
             <Text style={s.label}>Email or mobile number</Text>
-            <View style={s.inputWrap}>
-              <Ionicons name="mail-outline" size={18} color={C.muted} style={s.inputIcon} />
+            <View
+              style={[
+                s.inputWrap,
+                focusedField === 'identifier' && s.inputWrapFocused,
+              ]}
+            >
+              <Ionicons
+                name="mail-outline"
+                size={18}
+                color={focusedField === 'identifier' ? C.blue : C.muted}
+                style={s.inputIcon}
+              />
               <TextInput
                 value={identifier}
                 onChangeText={setIdentifier}
+                onFocus={() => setFocusedField('identifier')}
+                onBlur={() => setFocusedField(null)}
                 placeholder="you@example.com or 98765 43210"
                 placeholderTextColor={C.muted}
                 autoCapitalize="none"
@@ -192,11 +205,23 @@ export default function Login() {
                   <Text style={s.smallLink}>Forgot password?</Text>
                 </Pressable>
               </View>
-              <View style={s.inputWrap}>
-                <Ionicons name="key-outline" size={18} color={C.muted} style={s.inputIcon} />
+              <View
+                style={[
+                  s.inputWrap,
+                  focusedField === 'password' && s.inputWrapFocused,
+                ]}
+              >
+                <Ionicons
+                  name="key-outline"
+                  size={18}
+                  color={focusedField === 'password' ? C.blue : C.muted}
+                  style={s.inputIcon}
+                />
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
                   placeholder="Your password"
                   placeholderTextColor={C.muted}
                   secureTextEntry={!showPassword}
@@ -216,7 +241,7 @@ export default function Login() {
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={18}
-                    color={C.muted}
+                    color={focusedField === 'password' ? C.blue : C.muted}
                   />
                 </Pressable>
               </View>
@@ -229,11 +254,23 @@ export default function Login() {
                   <Text style={s.smallLink}>Resend code</Text>
                 </Pressable>
               </View>
-              <View style={s.inputWrap}>
-                <Ionicons name="keypad-outline" size={18} color={C.muted} style={s.inputIcon} />
+              <View
+                style={[
+                  s.inputWrap,
+                  focusedField === 'code' && s.inputWrapFocused,
+                ]}
+              >
+                <Ionicons
+                  name="keypad-outline"
+                  size={18}
+                  color={focusedField === 'code' ? C.blue : C.muted}
+                  style={s.inputIcon}
+                />
                 <TextInput
                   value={code}
                   onChangeText={setCode}
+                  onFocus={() => setFocusedField('code')}
+                  onBlur={() => setFocusedField(null)}
                   placeholder="● ● ● ● ● ●"
                   placeholderTextColor={C.muted}
                   keyboardType="number-pad"
@@ -286,27 +323,40 @@ export default function Login() {
           ) : null}
 
           {mode === 'password' ? (
-            <Button
-              label={busy ? 'Signing in…' : codeTo ? 'Verify & log in' : 'Log in'}
-              icon="arrow-forward"
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: busy }}
               disabled={busy}
               onPress={() => submit()}
-              style={s.primary}
-            />
+              style={[s.primaryBtn, busy && s.btnDisabled]}
+            >
+              <Text style={s.primaryBtnText}>
+                {busy ? 'Signing in…' : codeTo ? 'Verify & log in' : 'Sign in'}
+              </Text>
+              <Ionicons name="arrow-forward" size={18} color={C.white} />
+            </Pressable>
           ) : otpSent ? (
-            <Button
-              label={busy ? 'Verifying…' : 'Verify & log in'}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: busy }}
               disabled={busy}
               onPress={verifyCode}
-              style={s.primary}
-            />
+              style={[s.primaryBtn, busy && s.btnDisabled]}
+            >
+              <Text style={s.primaryBtnText}>{busy ? 'Verifying…' : 'Verify & Sign in'}</Text>
+              <Ionicons name="arrow-forward" size={18} color={C.white} />
+            </Pressable>
           ) : (
-            <Button
-              label={busy ? 'Sending…' : 'Send me a code'}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: busy }}
               disabled={busy}
               onPress={sendCode}
-              style={s.primary}
-            />
+              style={[s.primaryBtn, busy && s.btnDisabled]}
+            >
+              <Text style={s.primaryBtnText}>{busy ? 'Sending…' : 'Send me a code'}</Text>
+              <Ionicons name="arrow-forward" size={18} color={C.white} />
+            </Pressable>
           )}
 
           <View style={s.signupRow}>
@@ -330,63 +380,95 @@ export default function Login() {
 
 const s = StyleSheet.create({
   page: { flexGrow: 1, justifyContent: 'center', padding: S.md, gap: S.md },
-  card: {
-    backgroundColor: C.white,
-    borderRadius: 32,
-    padding: S.xl,
-    gap: S.md,
-    shadowColor: C.navy,
-    shadowOpacity: 0.18,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 20 },
-    elevation: 8,
+  topBar: {
+    paddingHorizontal: S.lg,
+    paddingBottom: S.xs,
+    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm },
-  logo: { width: 44, height: 32 },
-  wordmark: { flex: 1, color: C.navy, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
-  close: {
-    width: 36,
-    height: 36,
+  backBtn: {
+    width: 40,
+    height: 40,
     borderRadius: R.pill,
-    backgroundColor: C.canvas,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  h1: { color: C.navy, fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  sub: { color: C.muted, fontSize: 14 },
-  // The website's Password / One-time code switcher.
-  tabs: {
-    flexDirection: 'row',
-    gap: 4,
-    padding: 4,
-    marginTop: S.sm,
-    borderRadius: R.md,
-    backgroundColor: C.canvas,
-  },
-  tab: { flex: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  tabActive: {
     backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     shadowColor: C.navy,
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  tabText: { color: C.muted, fontSize: 14, fontWeight: '600' },
-  tabTextActive: { color: C.navy },
+  card: {
+    backgroundColor: C.white,
+    borderRadius: 24,
+    padding: S.xl,
+    gap: S.md,
+    borderWidth: 1,
+    borderColor: 'rgba(8, 32, 70, 0.08)',
+    shadowColor: C.navy,
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  logoWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  logo: { width: 56, height: 42 },
+  h1: {
+    color: C.navy,
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  sub: { color: C.muted, fontSize: 14, textAlign: 'center' },
+  tabs: {
+    flexDirection: 'row',
+    gap: 4,
+    padding: 4,
+    borderRadius: R.pill,
+    backgroundColor: '#EDF2F8',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  tab: { flex: 1, height: 38, borderRadius: R.pill, alignItems: 'center', justifyContent: 'center' },
+  tabActive: {
+    backgroundColor: C.white,
+    shadowColor: C.navy,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  tabText: { color: '#435775', fontSize: 13, fontWeight: '600' },
+  tabTextActive: { color: C.blue, fontWeight: '700' },
   field: { gap: 6 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { color: C.navy, fontSize: 14, fontWeight: '600' },
   smallLink: { color: C.blue, fontSize: 13, fontWeight: '600' },
-  inputWrap: { justifyContent: 'center' },
-  inputIcon: { position: 'absolute', left: S.lg, zIndex: 1 },
-  input: {
-    height: 48,
+  inputWrap: {
+    position: 'relative',
+    justifyContent: 'center',
     backgroundColor: C.white,
     borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: R.md,
-    paddingLeft: 44,
+    borderColor: '#CAD7E7',
+    borderRadius: 14,
+  },
+  inputWrapFocused: {
+    borderColor: C.blue,
+    borderWidth: 1.5,
+  },
+  inputIcon: { position: 'absolute', left: S.md, zIndex: 1 },
+  input: {
+    height: 48,
+    paddingLeft: 42,
     paddingRight: S.md,
     color: C.navy,
     fontSize: 15,
@@ -403,14 +485,28 @@ const s = StyleSheet.create({
     backgroundColor: `${C.bad}0d`,
   },
   errorText: { flex: 1, color: C.bad, fontSize: 13, fontWeight: '600' },
-  primary: {
-    minHeight: 48,
+  primaryBtn: {
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: C.blue,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: S.xs,
     marginTop: S.sm,
     shadowColor: C.blue,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+  },
+  btnDisabled: {
+    opacity: 0.55,
+  },
+  primaryBtnText: {
+    color: C.white,
+    fontSize: 16,
+    fontWeight: '700',
   },
   signupRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', marginTop: S.xs },
   disclaimer: { color: C.muted, fontSize: 12, textAlign: 'center', paddingHorizontal: S.lg },
