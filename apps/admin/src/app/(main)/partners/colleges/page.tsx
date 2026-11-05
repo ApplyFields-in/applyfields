@@ -96,12 +96,7 @@ export default async function CollegesDeskAdminPage({
       </div>
 
       {data === null ? (
-        <CollegesDeskClient
-          initialItems={[]}
-          total={0}
-          currentStatus={status}
-          currentQuery={q}
-        />
+        <ApiOffline />
       ) : (
         <CollegesDeskClient
           initialItems={data.items}

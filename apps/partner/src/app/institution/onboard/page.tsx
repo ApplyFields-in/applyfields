@@ -24,7 +24,7 @@ import {
 import {
   registerPartner,
   searchCollegesDirectory,
-  uploadPartnerDoc,
+  uploadPartnerFile,
 } from '@/lib/api';
 import type { InstitutionSummary } from '@applyfields/types';
 
@@ -48,15 +48,15 @@ export default function InstitutionOnboardPage() {
   const [officialEmail, setOfficialEmail] = useState('');
   const [mobilePhone, setMobilePhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [stateCode, setStateCode] = useState('TG');
+  const [stateCode, setStateCode] = useState('TS');
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
   const [pincode, setPincode] = useState('500007');
   const [campusAddress, setCampusAddress] = useState('');
 
   // Step 3: Verification Docs
-  const [authDocName, setAuthDocName] = useState('');
-  const [authDocPath, setAuthDocPath] = useState('');
+  const [authDoc, setAuthDoc] = useState<File | null>(null);
+  const authDocName = authDoc?.name ?? '';
   const [accreditationType, setAccreditationType] = useState('naac');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(true);
@@ -86,7 +86,7 @@ export default function InstitutionOnboardPage() {
     setIsCustomCollege(false);
     setCity(inst.city || inst.district || '');
     setDistrict(inst.district || '');
-    setStateCode(inst.state_code || 'TG');
+    setStateCode(inst.state_code || 'TS');
   }
 
   function handleCustomToggle() {
@@ -137,12 +137,7 @@ export default function InstitutionOnboardPage() {
       }
 
       // Upload authorization verification stub if provided
-      if (authDocName) {
-        await uploadPartnerDoc({
-          document_kind: 'official_authorization_letter',
-          storage_path: authDocPath || `institutions/${regRes.data.id}/authorization_${authDocName}`,
-        });
-      }
+      if (authDoc) await uploadPartnerFile('principal_authorization_letter', authDoc);
 
       router.push('/institution/under-review');
     } catch (err: any) {
@@ -369,7 +364,7 @@ export default function InstitutionOnboardPage() {
                         value={stateCode}
                         onChange={(e) => setStateCode(e.target.value.toUpperCase())}
                         maxLength={2}
-                        placeholder="TG / AP / KA / MH"
+                        placeholder="TS / AP / KA / MH"
                         className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white font-mono focus:border-blue-500 focus:outline-none"
                       />
                     </div>
@@ -547,10 +542,7 @@ export default function InstitutionOnboardPage() {
                         className="sr-only"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) {
-                            setAuthDocName(file.name);
-                            setAuthDocPath(`institutions/docs/${Date.now()}_${file.name}`);
-                          }
+                          if (file) setAuthDoc(file);
                         }}
                       />
                     </div>

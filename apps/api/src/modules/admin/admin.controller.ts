@@ -76,7 +76,7 @@ export class AdminController {
 
   /** GET /api/v1/admin/review?source=ssc&careful=1 — drafts waiting for review, reviewer and above */
   @Get('review')
-  @Roles('reviewer')
+  @Roles('reviewer', 'content_editor')
   reviewQueue(
     @Query('source') source?: string,
     @Query('careful') careful?: string,
@@ -89,7 +89,7 @@ export class AdminController {
 
   /** GET /api/v1/admin/review/:id — one draft with posts, eligibility, dates and a signed PDF link */
   @Get('review/:id')
-  @Roles('reviewer')
+  @Roles('reviewer', 'content_editor')
   reviewDetail(@Param('id', ParseUUIDPipe) id: string): Promise<ReviewDetail> {
     return this.review.detail(id);
   }
@@ -270,7 +270,7 @@ export class AdminController {
 
   /** GET /api/v1/admin/audit — team view of recent staff actions, edits, status updates */
   @Get('audit')
-  @Roles('reviewer')
+  @Roles('reviewer', 'content_editor', 'support')
   async listAuditLogs(
     @Query('action') action?: string,
     @Query('target_type') targetType?: string,

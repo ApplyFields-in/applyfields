@@ -4,7 +4,6 @@ import { usePathname } from 'next/navigation';
 import { type ReactNode } from 'react';
 import { FloatingCapsuleNavbar } from '@/components/layout/floating-capsule-navbar';
 import { DarkNavyFooter } from '@/components/layout/dark-navy-footer';
-import { PasskeyEnrollModal } from '@/components/passkey-enroll-modal';
 import { CookieConsentBanner } from '@/components/cookie-banner';
 import { CompareProvider } from '@/components/opportunity-compare/compare-context';
 import { CompareFloatingBar } from '@/components/opportunity-compare/compare-bar';
@@ -33,7 +32,6 @@ export function SiteShell({ children }: { children: ReactNode }) {
           )}
         </main>
         <DarkNavyFooter />
-        <PasskeyEnrollModal />
         <CookieConsentBanner />
         <CompareFloatingBar />
         <MobileBottomNav />

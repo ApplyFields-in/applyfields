@@ -62,7 +62,7 @@ export default function PartnerDashboardPage() {
   const category = partner?.type || 'meeseva';
   const isAvailable = partner?.is_available ?? true;
   const isVerified = partner?.verification_status === 'verified';
-  const stateCode = partner?.state_code || 'TG';
+  const stateCode = partner?.state_code || 'TS';
   const district = partner?.district || 'Hyderabad';
   const city = partner?.city || 'Ameerpet';
   const pincode = partner?.pincode || '500016';

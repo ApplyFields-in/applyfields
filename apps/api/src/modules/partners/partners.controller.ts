@@ -38,6 +38,8 @@ import { CacheService } from '../../common/cache.service.js';
 import {
   createSlotOverrideSchema,
   partnerDirectoryQuerySchema,
+  partnerDocumentUploadSchema,
+  type PartnerDocumentUploadInput,
   partnerRegisterSchema,
   partnerServiceInputSchema,
   PartnersService,
@@ -147,7 +149,7 @@ export class PartnersController {
   @UseGuards(AuthGuard)
   async uploadDocument(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { document_kind: string; storage_path: string },
+    @Body(new ZodPipe(partnerDocumentUploadSchema)) body: PartnerDocumentUploadInput,
   ): Promise<PartnerDocumentSummary> {
     return this.partnersService.uploadDocument(req.user.userId, body);
   }

@@ -7,7 +7,7 @@ import { apiPost } from '@/lib/api';
 import { ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound, Mail } from 'lucide-react';
 import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
 import { OtpInput } from '@/components/otp-input';
-import { AuthDivider, PasskeyLoginButton, SocialAuthButtons } from '@/components/social-auth-buttons';
+import { AuthDivider, SocialAuthButtons } from '@/components/social-auth-buttons';
 import {
   Checkbox,
   DevCode,
@@ -38,6 +38,9 @@ function LoginForm() {
   const [passwordEmail, setPasswordEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // Set only when the account still has to confirm its email/phone once (first sign-in).
+  const [pwCodeTo, setPwCodeTo] = useState<string | null>(null);
+  const [pwCode, setPwCode] = useState('');
 
   // OTP mode states
   const [otpCredType, setOtpCredType] = useState<'phone' | 'email'>('phone');
@@ -63,8 +66,8 @@ function LoginForm() {
     verifiedNotice ? 'Email verified successfully! You can now log in.' : null,
   );
 
-  async function handlePasswordLogin(e: React.FormEvent) {
-    e.preventDefault();
+  async function handlePasswordLogin(e?: React.FormEvent, resend = false) {
+    e?.preventDefault();
     setError(null);
 
     const target = passwordCredType === 'phone' ? passwordPhone.trim() : passwordEmail.trim();
@@ -82,33 +85,30 @@ function LoginForm() {
     }
 
     setLoading(true);
-    const res = await apiPost<AuthResponse>('/auth/login', {
-      identifier: target,
-      password,
-      rememberMe,
-    });
+    // Verified accounts sign in with the password alone. Only an account that never confirmed its
+    // email/phone gets a one-time code (then never again).
+    const res = !pwCodeTo || resend
+      ? await apiPost<AuthResponse | { verificationRequired: true; sentTo: string }>('/auth/login', {
+          identifier: target,
+          password,
+          rememberMe,
+        })
+      : await apiPost<AuthResponse>('/auth/login/verify', {
+          identifier: target,
+          password,
+          code: pwCode.trim(),
+          rememberMe,
+        });
     setLoading(false);
 
     if (res.error || !res.data) {
-      if (password === 'Applyfields@2026' || password === 'studentAPPLY@123') {
-        const demoUser = {
-          id: 'usr-student-01',
-          email: target.includes('@') ? target : 'student@applyfields.in',
-          phone: target.startsWith('+') ? target : '+919876543210',
-          full_name: 'Rahul Sharma (Student)',
-          status: 'active',
-        };
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('currentUser', JSON.stringify(demoUser));
-          window.dispatchEvent(new Event('auth-changed'));
-        }
-        setSuccess('Signed in as Rahul Sharma');
-        setTimeout(() => {
-          router.push(redirectTarget);
-        }, 500);
-        return;
-      }
-      setError(res.error || 'Failed to log in. Please check your credentials.');
+      setError(res.error || (pwCodeTo ? 'That code did not work. Check it or send a new one.' : 'Failed to log in. Please check your credentials.'));
+      return;
+    }
+    if ('verificationRequired' in res.data) {
+      setPwCodeTo(res.data.sentTo);
+      setPwCode('');
+      setSuccess(`First sign-in: confirm it's you with the 6-digit code sent to ${res.data.sentTo}. You won't be asked again.`);
       return;
     }
 
@@ -368,8 +368,40 @@ function LoginForm() {
             </button>
           </div>
 
-          <button type="submit" disabled={loading} className={PRIMARY}>
-            {loading ? 'Signing in...' : 'Sign in'}
+          {pwCodeTo && (
+            <div>
+              <span className={LABEL}>Enter the 6-digit code sent to {pwCodeTo}</span>
+              <OtpInput value={pwCode} onChange={setPwCode} disabled={loading} length={6} />
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPwCodeTo(null);
+                    setPwCode('');
+                    setSuccess(null);
+                  }}
+                  className={TEXT_BTN}
+                >
+                  Change details
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => void handlePasswordLogin(undefined, true)}
+                  className={TEXT_BTN}
+                >
+                  Send a new code
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || (pwCodeTo !== null && pwCode.length !== 6)}
+            className={PRIMARY}
+          >
+            {loading ? 'Signing in...' : pwCodeTo ? 'Verify and sign in' : 'Sign in'}
             {!loading && <ArrowRight className="size-4" aria-hidden="true" />}
           </button>
         </form>
@@ -569,17 +601,12 @@ function LoginForm() {
         </form>
       )}
 
-      {mode !== 'forgot' && (
+      {mode !== 'forgot' && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
         <div className="mt-6 space-y-3">
           <AuthDivider label="or sign in with" />
           <SocialAuthButtons
             mode="login"
             redirectUrl={redirectTarget}
-            onError={setError}
-            onSuccess={setSuccess}
-          />
-          <PasskeyLoginButton
-            defaultEmail={passwordCredType === 'email' ? passwordEmail : undefined}
             onError={setError}
             onSuccess={setSuccess}
           />

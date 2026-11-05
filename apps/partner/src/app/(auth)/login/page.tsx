@@ -3,6 +3,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { GoogleButton } from '@applyfields/ui';
 import { apiPost, getMyPartner } from '@/lib/api';
 import { usePartnerAuth } from '@/lib/auth-context';
 import {
@@ -30,6 +31,11 @@ function LoginFormContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  // Set only when the account still has to confirm its email/phone once (first sign-in).
+  const [codeTo, setCodeTo] = useState<string | null>(null);
+  // Remember me: stay signed in across browser restarts until sign-out.
+  const [rememberMe, setRememberMe] = useState(true);
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -51,8 +57,30 @@ function LoginFormContent() {
   }
 
 
-  async function handlePasswordLogin(e: React.FormEvent) {
-    e.preventDefault();
+  /** Google sign-in: the API verifies the token with Google, then we route like any other login. */
+  async function handleGoogle(credential: string) {
+    setError(null);
+    setLoading(true);
+    const res = await apiPost<{ user: unknown }>('/auth/social-login', { provider: 'google', credential });
+    setLoading(false);
+    if (res.error || !res.data) {
+      setError(res.error || 'Google sign-in failed. Please try again.');
+      return;
+    }
+    localStorage.setItem('currentUser', JSON.stringify(res.data.user));
+    window.dispatchEvent(new Event('auth-changed'));
+    setSuccess('Signed in with Google! Loading workspace...');
+    setTimeout(() => routeAfterLogin(), 600);
+  }
+
+  /** Bare 10-digit numbers are Indian mobiles; emails pass through. */
+  const loginId = () => {
+    const v = phoneOrEmail.trim();
+    return /^\d{10}$/.test(v) ? `+91${v}` : v;
+  };
+
+  async function handlePasswordLogin(e?: React.FormEvent, resend = false) {
+    e?.preventDefault();
     setError(null);
     setSuccess(null);
 
@@ -66,34 +94,29 @@ function LoginFormContent() {
     }
 
     setLoading(true);
-    const res = await apiPost<{ user: any }>('/auth/login', {
-      identifier: phoneOrEmail.trim(),
-      password,
-      rememberMe: true,
-    });
+    // Verified accounts sign in with the password alone; a never-verified account gets one code, once.
+    const res = !codeTo || resend
+      ? await apiPost<{ user: unknown } | { verificationRequired: true; sentTo: string }>('/auth/login', {
+          identifier: loginId(),
+          password,
+          rememberMe,
+        })
+      : await apiPost<{ user: unknown }>('/auth/login/verify', {
+          identifier: loginId(),
+          password,
+          code: code.trim(),
+          rememberMe,
+        });
     setLoading(false);
 
     if (res.error || !res.data) {
-      if (password === 'Applyfields@2026' || password === 'PartnerPass123!' || password === 'CollegeAdmin2026!') {
-        const isCollege = persona === 'institution' || phoneOrEmail.includes('college') || phoneOrEmail.includes('cbit');
-        const demoUser = {
-          id: isCollege ? 'usr-college-01' : 'usr-partner-01',
-          email: phoneOrEmail.includes('@') ? phoneOrEmail.trim() : `${phoneOrEmail.replace(/\D/g, '')}@partner.applyfields.in`,
-          phone: phoneOrEmail.startsWith('+') ? phoneOrEmail : '+919876543211',
-          full_name: isCollege ? 'Dr. Ramesh Babu (College Officer)' : 'Srinivas Rao (Partner Operator)',
-          status: 'active',
-        };
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('currentUser', JSON.stringify(demoUser));
-          window.dispatchEvent(new Event('auth-changed'));
-        }
-        setSuccess('Signed in as ' + demoUser.full_name);
-        setTimeout(() => {
-          router.push(isCollege ? '/institution/dashboard' : '/dashboard');
-        }, 500);
-        return;
-      }
-      setError(res.error || 'Failed to login. Please check your credentials.');
+      setError(res.error || (codeTo ? 'That code did not work. Check it or send a new one.' : 'Failed to login. Please check your credentials.'));
+      return;
+    }
+    if ('verificationRequired' in res.data) {
+      setCodeTo(res.data.sentTo);
+      setCode('');
+      setSuccess(`First sign-in: confirm it's you with the 6-digit code sent to ${res.data.sentTo}. You won't be asked again.`);
       return;
     }
 
@@ -110,16 +133,13 @@ function LoginFormContent() {
 
   async function handleSendOtp() {
     setError(null);
-    if (!phoneOrEmail.trim() || phoneOrEmail.length < 10) {
-      setError('Please enter a valid 10-digit mobile number.');
+    if (!phoneOrEmail.trim()) {
+      setError('Please enter your registered mobile number or email.');
       return;
     }
 
     setLoading(true);
-    const res = await apiPost('/auth/otp/send', {
-      phone: phoneOrEmail.trim().startsWith('+91') ? phoneOrEmail.trim() : `+91${phoneOrEmail.trim()}`,
-      reason: 'login',
-    });
+    const res = await apiPost('/auth/otp/send', { target: loginId(), purpose: 'login' });
     setLoading(false);
 
     if (res.error) {
@@ -128,21 +148,22 @@ function LoginFormContent() {
     }
 
     setOtpSent(true);
-    setSuccess('One-time password sent to your mobile phone.');
+    setSuccess('We sent you a 6-digit code.');
   }
 
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!otpCode || otpCode.length < 4) {
-      setError('Please enter the verification code.');
+    if (otpCode.trim().length !== 6) {
+      setError('Please enter the 6-digit code.');
       return;
     }
 
     setLoading(true);
-    const res = await apiPost<{ user: any }>('/auth/otp/verify', {
-      phone: phoneOrEmail.trim().startsWith('+91') ? phoneOrEmail.trim() : `+91${phoneOrEmail.trim()}`,
+    const res = await apiPost<{ user: unknown }>('/auth/login/otp', {
+      identifier: loginId(),
       code: otpCode.trim(),
+      rememberMe,
     });
     setLoading(false);
 
@@ -160,17 +181,6 @@ function LoginFormContent() {
     setTimeout(() => {
       routeAfterLogin();
     }, 600);
-  }
-
-  // Quick test demo credentials helper
-  function fillDemo() {
-    if (persona === 'institution') {
-      setPhoneOrEmail('college@applyfields.in');
-      setPassword('Applyfields@2026');
-    } else {
-      setPhoneOrEmail('partner@applyfields.in');
-      setPassword('Applyfields@2026');
-    }
   }
 
   return (
@@ -339,17 +349,6 @@ function LoginFormContent() {
                       {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       <span>{showPassword ? 'Hide' : 'Show'}</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={fillDemo}
-                      className={`text-[11px] font-medium transition ${
-                        persona === 'institution'
-                          ? 'text-blue-400 hover:text-blue-300'
-                          : 'text-emerald-400 hover:text-emerald-300'
-                      }`}
-                    >
-                      Use Sample Demo Login
-                    </button>
                   </div>
                 </div>
                 <div className="relative mt-1">
@@ -408,9 +407,52 @@ function LoginFormContent() {
                 </div>
               </div>
 
+              {codeTo && (
+                <div>
+                  <label htmlFor="login-code" className="block text-xs font-semibold text-slate-300">
+                    6-digit code sent to {codeTo}
+                  </label>
+                  <input
+                    id="login-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    autoFocus
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    className="mt-1 block w-full rounded-xl border border-slate-700 bg-slate-800/80 py-2.5 text-center font-mono text-lg tracking-[0.4em] text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                  <div className="mt-2 flex justify-between text-[11px] font-medium">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCodeTo(null);
+                        setCode('');
+                        setSuccess(null);
+                      }}
+                      className="text-slate-400 hover:text-white"
+                    >
+                      Change details
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => void handlePasswordLogin(undefined, true)}
+                      className="text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+                    >
+                      Send a new code
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-300">
+                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="size-4 accent-current" />
+                Keep me signed in on this device
+              </label>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (codeTo !== null && code.length !== 6)}
                 className={`mt-6 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition disabled:opacity-50 ${
                   persona === 'institution'
                     ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/20'
@@ -418,7 +460,9 @@ function LoginFormContent() {
                 }`}
               >
                 {loading
-                  ? 'Authenticating...'
+                  ? 'Signing in...'
+                  : codeTo
+                  ? 'Verify and sign in'
                   : persona === 'institution'
                   ? 'Sign In to Admissions Desk'
                   : 'Sign In to Operator Workspace'}
@@ -489,6 +533,10 @@ function LoginFormContent() {
                     </div>
                   </div>
 
+                  <label className="flex items-center gap-2 text-xs font-medium text-slate-300">
+                    <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="size-4 accent-current" />
+                    Keep me signed in on this device
+                  </label>
                   <button
                     type="submit"
                     disabled={loading}
@@ -513,6 +561,17 @@ function LoginFormContent() {
                   </div>
                 </form>
               )}
+            </div>
+          )}
+
+          {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+            <div className="mt-5 space-y-3">
+              <p className="text-center text-[11px] font-medium uppercase tracking-wider text-slate-500">or</p>
+              <GoogleButton
+                clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+                theme="filled_black"
+                onCredential={(c) => void handleGoogle(c)}
+              />
             </div>
           )}
 

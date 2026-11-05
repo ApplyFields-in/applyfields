@@ -40,7 +40,7 @@ import { CacheService } from '../../common/cache.service.js';
 /** Internal Portal → Results & updates: admit cards, results, answer keys… Reviewer and above. */
 @Controller('admin')
 @UseGuards(StaffGuard)
-@Roles('reviewer')
+@Roles('reviewer', 'content_editor')
 export class UpdatesAdminController {
   private readonly logger = new Logger(UpdatesAdminController.name);
 
