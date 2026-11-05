@@ -891,48 +891,48 @@ model partner_slot_overrides {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model partners {
-  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug                 String                 @unique
-  type                 partner_type
-  business_name        String
-  description          String?
-  logo_url             String?
-  owner_name           String?
-  phone                String?
-  whatsapp             String?
-  email                String?
-  address              String?
-  state_code           String?
-  district             String?
-  city                 String?
-  pincode              String?
-  latitude             Decimal?               @db.Decimal(9, 6)
-  longitude            Decimal?               @db.Decimal(9, 6)
-  service_areas        String[]               @default([])
-  working_hours        Json                   @default("{}")
-  is_available         Boolean                @default(true)
-  institution_id       String?                @db.Uuid
-  verification_status  verification_status    @default(pending)
-  verified_at          DateTime?              @db.Timestamptz(6)
-  verified_by          String?                @db.Uuid
-  is_listed            Boolean                @default(false)
-  rating_avg           Decimal                @default(0) @db.Decimal(3, 2)
-  rating_count         Int                    @default(0)
-  created_at           DateTime               @default(now()) @db.Timestamptz(6)
-  updated_at           DateTime               @default(now()) @db.Timestamptz(6)
-  document_access_logs document_access_logs[]
-  document_shares      document_shares[]
-  partner_documents    partner_documents[]
-  partner_members      partner_members[]
-  partner_payouts      partner_payouts[]
-  partner_reviews      partner_reviews[]
-  partner_services     partner_services[]
-  institutions         institutions?          @relation(fields: [institution_id], references: [id], onUpdate: NoAction)
-  users                users?                 @relation(fields: [verified_by], references: [id], onUpdate: NoAction)
-  payments             payments[]
-  service_requests     service_requests[]
-  subscriptions        subscriptions[]
-  partner_schedules    partner_schedules[]
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                   String                   @unique
+  type                   partner_type
+  business_name          String
+  description            String?
+  logo_url               String?
+  owner_name             String?
+  phone                  String?
+  whatsapp               String?
+  email                  String?
+  address                String?
+  state_code             String?
+  district               String?
+  city                   String?
+  pincode                String?
+  latitude               Decimal?                 @db.Decimal(9, 6)
+  longitude              Decimal?                 @db.Decimal(9, 6)
+  service_areas          String[]                 @default([])
+  working_hours          Json                     @default("{}")
+  is_available           Boolean                  @default(true)
+  institution_id         String?                  @db.Uuid
+  verification_status    verification_status      @default(pending)
+  verified_at            DateTime?                @db.Timestamptz(6)
+  verified_by            String?                  @db.Uuid
+  is_listed              Boolean                  @default(false)
+  rating_avg             Decimal                  @default(0) @db.Decimal(3, 2)
+  rating_count           Int                      @default(0)
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  document_access_logs   document_access_logs[]
+  document_shares        document_shares[]
+  partner_documents      partner_documents[]
+  partner_members        partner_members[]
+  partner_payouts        partner_payouts[]
+  partner_reviews        partner_reviews[]
+  partner_services       partner_services[]
+  institutions           institutions?            @relation(fields: [institution_id], references: [id], onUpdate: NoAction)
+  users                  users?                   @relation(fields: [verified_by], references: [id], onUpdate: NoAction)
+  payments               payments[]
+  service_requests       service_requests[]
+  subscriptions          subscriptions[]
+  partner_schedules      partner_schedules[]
   partner_slot_overrides partner_slot_overrides[]
 
   @@index([institution_id])
@@ -1523,6 +1523,25 @@ model user_roles {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// One passkey (WebAuthn credential) per row: database/changes/2026-11-05_likhith_user_passkeys.sql
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_passkeys {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String    @db.Uuid
+  credential_id String    @unique
+  public_key    Bytes
+  counter       BigInt    @default(0)
+  transports    String[]  @default([])
+  device_type   String?
+  backed_up     Boolean   @default(false)
+  name          String?
+  last_used_at  DateTime? @db.Timestamptz(6)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  users         users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "user_passkeys_user_id_idx")
+}
+
 model user_sessions {
   id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id            String    @db.Uuid
@@ -1578,6 +1597,7 @@ model users {
   payments                                                     payments[]
   push_subscriptions                                           push_subscriptions[]
   push_tokens                                                  push_tokens[]
+  user_passkeys                                                user_passkeys[]
   recently_viewed                                              recently_viewed[]
   reminders                                                    reminders[]
   reports_reports_assigned_toTousers                           reports[]                 @relation("reports_assigned_toTousers")

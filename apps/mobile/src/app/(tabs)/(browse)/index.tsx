@@ -64,21 +64,25 @@ export default function ApplyFeed() {
     <>
       {signedIn && profileIncomplete ? (
         <Pressable onPress={() => router.push('/profile')} style={s.nudge}>
-          <Ionicons name="sparkles" size={18} color={C.blue} />
+          <View style={s.nudgeIconTile}>
+            <Ionicons name="sparkles" size={18} color={C.blue} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={s.nudgeTitle}>Finish your profile</Text>
             <Text style={s.nudgeBody}>Add a few details to see what you qualify for.</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={C.muted} />
+          <Ionicons name="chevron-forward" size={18} color={C.mutedNavy} />
         </Pressable>
       ) : !signedIn ? (
         <Pressable onPress={() => router.push('/login')} style={s.nudge}>
-          <Ionicons name="sparkles" size={18} color={C.blue} />
+          <View style={s.nudgeIconTile}>
+            <Ionicons name="sparkles" size={18} color={C.blue} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={s.nudgeTitle}>See what you qualify for</Text>
             <Text style={s.nudgeBody}>Sign in and every card shows a straight yes or no.</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={C.muted} />
+          <Ionicons name="chevron-forward" size={18} color={C.mutedNavy} />
         </Pressable>
       ) : null}
       {stale ? (
@@ -97,7 +101,7 @@ export default function ApplyFeed() {
     <View style={{ flex: 1 }}>
       <View style={s.searchOuter}>
         <View style={s.searchWrap}>
-          <Ionicons name="search" size={18} color={C.muted} />
+          <Ionicons name="search" size={18} color={C.blue} />
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -163,16 +167,16 @@ export default function ApplyFeed() {
 
 const s = StyleSheet.create({
   // Padding on the outer column, not margin on the box: margin + width 100% overflows.
-  searchOuter: { ...column, paddingHorizontal: S.lg, paddingTop: S.lg },
+  searchOuter: { ...column, paddingHorizontal: S.lg, paddingTop: S.sm },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: S.sm,
     paddingHorizontal: S.md,
-    backgroundColor: C.white,
-    borderRadius: R.md,
+    backgroundColor: C.inputBg,
+    borderRadius: R.pill,
     borderWidth: 1,
-    borderColor: C.line,
+    borderColor: C.inputBorder,
   },
   search: { flex: 1, minHeight: TAP, paddingVertical: S.sm, color: C.navy, fontSize: 14 },
   eligibleRow: {
@@ -182,10 +186,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: S.sm,
     paddingHorizontal: S.lg,
-    paddingBottom: S.md,
+    paddingBottom: S.xs,
   },
   eligibleText: { color: C.navy, fontSize: 13, fontWeight: '600' },
-  list: { padding: S.lg, paddingTop: S.sm, gap: S.md, flexGrow: 1 },
+  list: { padding: S.lg, paddingTop: S.xs, gap: S.md, flexGrow: 1 },
   nudge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -193,10 +197,25 @@ const s = StyleSheet.create({
     padding: S.md,
     marginBottom: S.md,
     backgroundColor: C.ice,
-    borderRadius: R.md,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: C.line,
+    borderColor: '#BFDBFE',
+    shadowColor: C.navy,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  nudgeIconTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: C.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
   },
   nudgeTitle: { color: C.navy, fontSize: 14, fontWeight: '800' },
-  nudgeBody: { color: C.muted, fontSize: 12.5, marginTop: 1 },
+  nudgeBody: { color: C.mutedNavy, fontSize: 12.5, marginTop: 1 },
 });

@@ -4,14 +4,21 @@
  */
 export const C = {
   navy: '#082046',
-  blue: '#0e7bf4',
+  blue: '#0E7BF4',
   blueDark: '#0c6fdc',
-  sky: '#38bdf8',
-  ice: '#e0edfb',
+  sky: '#38BDF8',
+  ice: '#E0EDFB',
   white: '#ffffff',
-  canvas: '#f0f4f8',
-  line: '#dbe5f1',
-  muted: '#5b6b82',
+  canvas: '#F4F7FB',
+  line: '#E2E8F0',
+  lineBorder: 'rgba(8, 32, 70, 0.08)',
+  subtleLine: 'rgba(8, 32, 70, 0.06)',
+  muted: '#5B6B82',
+  mutedNavy: '#435775',
+  slate: '#64748B',
+  inputBg: '#EDF3F9',
+  inputBorder: '#CAD7E7',
+  pillTrack: '#EDF2F8',
   good: '#0f9d58',
   warn: '#b45309',
   bad: '#c0392b',
@@ -19,7 +26,7 @@ export const C = {
 
 export const S = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
-export const R = { sm: 8, md: 12, lg: 16, pill: 999 } as const;
+export const R = { sm: 8, md: 12, lg: 16, card: 20, pill: 999 } as const;
 
 /** Apple/Google minimum touch target. Smaller visuals reach it with hitSlop. */
 export const TAP = 44;
@@ -37,27 +44,27 @@ export const column = { width: '100%', maxWidth: 720, alignSelf: 'center' } as c
 export const CHROME_FONT_SCALE = 1.35;
 
 /**
- * The website's floating capsule (floating-capsule-navbar.tsx): canvas fill,
- * white rim, soft navy drop shadow.
+ * The website's floating capsule: clean light surface, subtle line border,
+ * soft airy drop shadow.
  */
 export const capsule = {
-  backgroundColor: C.canvas,
+  backgroundColor: C.white,
   borderRadius: R.pill,
   borderWidth: 1,
-  borderColor: C.white,
+  borderColor: 'rgba(8, 32, 70, 0.08)',
   shadowColor: C.navy,
-  shadowOpacity: 0.16,
-  shadowRadius: 16,
-  shadowOffset: { width: 6, height: 10 },
-  elevation: 6,
+  shadowOpacity: 0.08,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 3,
 } as const;
 
-/** Soft card shadow that reads the same on both platforms. */
+/** Soft claymorphic / neumorphic card shadow that reads the same on both platforms. */
 export const card = {
   backgroundColor: C.white,
-  borderRadius: R.lg,
+  borderRadius: 20,
   borderWidth: 1,
-  borderColor: C.line,
+  borderColor: 'rgba(8, 32, 70, 0.08)',
   shadowColor: C.navy,
   shadowOpacity: 0.06,
   shadowRadius: 10,
