@@ -14,6 +14,7 @@ import type {
   InstitutionEnquiryStatus,
   InstitutionListResponse,
   InstitutionPartnerProfile,
+  InstitutionProgram,
   InstitutionSummary,
   RespondInstitutionEnquiryInput,
   UpdateInstitutionProfileInput,
@@ -105,6 +106,18 @@ export const updateInstitutionProfileSchema = z.object({
   fees_text: z.string().trim().max(200).optional().or(z.literal('')),
   description: z.string().trim().max(2000).optional().or(z.literal('')),
 });
+
+export const upsertInstitutionProgramSchema = z.object({
+  seats: z.number().int().min(0).max(100000).nullable().optional(),
+  fee_per_year: z.number().int().min(0).max(100_000_000).nullable().optional(),
+  fees_text: z.string().trim().max(200).nullable().optional(),
+  duration_months: z.number().int().min(1).max(120).nullable().optional(),
+  admission_process: z.string().trim().max(1000).nullable().optional(),
+  mode: z.enum(['regular', 'distance', 'online', 'part_time']).optional(),
+});
+
+/** Postgres uuid text shape. (Nest's ParseUUIDPipe also checks the RFC version digit, which seeded ids like c1000000-… fail.) */
+const UUID_TEXT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Injectable()
 export class InstitutionsService {
@@ -494,7 +507,7 @@ export class InstitutionsService {
       from partners p
       -- partners has no user_id column; owners/staff are linked through partner_members.
       join partner_members m on m.partner_id = p.id
-      where m.user_id = ${userId}::uuid and p.type = 'college'
+      where m.user_id = ${userId}::uuid and p.type::text in ('college', 'university', 'training_institute')
       limit 1
     `;
 
@@ -504,6 +517,62 @@ export class InstitutionsService {
       );
     }
     return pRows[0].institution_id;
+  }
+
+  // =========================================================================
+  // PARTNER DESK: PROGRAMS (institution_courses of the member's own college)
+  // =========================================================================
+
+  async listPartnerPrograms(userId: string): Promise<InstitutionProgram[]> {
+    const institutionId = await this.getLinkedInstitutionId(userId);
+    const rows = await this.prisma.institution_courses.findMany({
+      where: { institution_id: institutionId },
+      include: { courses: { select: { slug: true, name: true, short_name: true, level: true, stream: true } } },
+      orderBy: { courses: { name: 'asc' } },
+    });
+    return rows.map((r) => ({
+      course_id: r.course_id,
+      course_slug: r.courses.slug,
+      name: r.courses.name,
+      short_name: r.courses.short_name,
+      level: r.courses.level as InstitutionProgram['level'],
+      stream: r.courses.stream,
+      seats: r.seats,
+      fee_per_year: r.fee_per_year,
+      fees_text: r.fees_text,
+      duration_months: r.duration_months,
+      admission_process: r.admission_process,
+      mode: r.mode,
+    }));
+  }
+
+  /** Adds the course to the college, or updates its seats/fees/etc. Only published courses can be added. */
+  async upsertPartnerProgram(
+    userId: string,
+    courseId: string,
+    input: z.infer<typeof upsertInstitutionProgramSchema>,
+  ): Promise<InstitutionProgram> {
+    if (!UUID_TEXT.test(courseId)) throw new NotFoundException('Course not found');
+    const institutionId = await this.getLinkedInstitutionId(userId);
+    const course = await this.prisma.courses.findFirst({ where: { id: courseId, status: 'published' } });
+    if (!course) throw new NotFoundException('Course not found');
+
+    await this.prisma.institution_courses.upsert({
+      where: { institution_id_course_id: { institution_id: institutionId, course_id: courseId } },
+      create: { institution_id: institutionId, course_id: courseId, ...input },
+      update: input,
+    });
+    const all = await this.listPartnerPrograms(userId);
+    return all.find((p) => p.course_id === courseId)!;
+  }
+
+  async removePartnerProgram(userId: string, courseId: string): Promise<{ removed: boolean }> {
+    if (!UUID_TEXT.test(courseId)) throw new NotFoundException('Course not found');
+    const institutionId = await this.getLinkedInstitutionId(userId);
+    const res = await this.prisma.institution_courses.deleteMany({
+      where: { institution_id: institutionId, course_id: courseId },
+    });
+    return { removed: res.count > 0 };
   }
 
   /** Helper: get institution profile with metrics */

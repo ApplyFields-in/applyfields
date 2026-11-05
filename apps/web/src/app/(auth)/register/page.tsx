@@ -164,9 +164,10 @@ function RegisterForm() {
       return;
     }
 
-    // Auto-login after successful verification — go straight to dashboard
+    // Auto-login after successful verification — go straight to dashboard. Uses the email/phone
+    // that was just verified, so phone-only sign-ups work too and no second code is asked.
     const loginRes = await apiPost<{ user: UserSummary }>('/auth/login', {
-      identifier: email.toLowerCase().trim(),
+      identifier: target,
       password,
       rememberMe: true,
     });
@@ -264,7 +265,8 @@ function RegisterForm() {
 
       <Notice error={error} success={successMsg} />
 
-      {/* 1-Click Fast Device Account Registration */}
+      {/* Sign up with Google (shown only when a Google Client ID is configured) */}
+      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
       <div className="mt-6">
         <SocialAuthButtons
           mode="register"
@@ -274,6 +276,7 @@ function RegisterForm() {
         />
         <AuthDivider label="or create account with email & password" />
       </div>
+      )}
 
       <form onSubmit={handleRegister} className="mt-5 space-y-4">
         <div>

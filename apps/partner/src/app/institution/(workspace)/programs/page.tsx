@@ -1,300 +1,344 @@
 'use client';
 
-import React, { useState } from 'react';
-import {
-  Award,
-  BookOpen,
-  Calendar,
-  CheckCircle2,
-  Edit3,
-  ExternalLink,
-  GraduationCap,
-  Layers,
-  Plus,
-  Save,
-  Search,
-  Users,
-} from 'lucide-react';
+/**
+ * Programs the college offers, as students see them on its Career Mode page.
+ * Real data: institution_courses via GET/PUT/DELETE /career/colleges/partner/programs.
+ * New programs are picked from the published course catalogue (GET /career/courses?q=).
+ */
+import React, { useEffect, useState } from 'react';
+import { BookOpen, Edit3, Loader2, Plus, Save, Search, Trash2, X } from 'lucide-react';
+import type { CourseSummary, InstitutionProgram, UpsertInstitutionProgramInput } from '@applyfields/types';
+import { apiDelete, apiGet, apiPut } from '@/lib/api';
 
-interface ProgramItem {
-  id: string;
-  name: string;
-  degree: string;
-  duration: string;
-  intakeSeats: number;
-  availableSeats: number;
-  annualFee: string;
-  cutoffText: string;
-  entranceExam: string;
-  isOpen: boolean;
+const PATH = '/career/colleges/partner/programs';
+const MODES = ['regular', 'distance', 'online', 'part_time'] as const;
+type Mode = (typeof MODES)[number];
+
+/** Form state: text inputs, turned into numbers/null on save. */
+type Draft = { seats: string; fee: string; feesText: string; months: string; admission: string; mode: Mode };
+
+const toDraft = (p?: InstitutionProgram): Draft => ({
+  seats: p?.seats?.toString() ?? '',
+  fee: p?.fee_per_year?.toString() ?? '',
+  feesText: p?.fees_text ?? '',
+  months: p?.duration_months?.toString() ?? '',
+  admission: p?.admission_process ?? '',
+  mode: (MODES as readonly string[]).includes(p?.mode ?? '') ? (p!.mode as Mode) : 'regular',
+});
+
+const num = (v: string) => (v.trim() === '' ? null : Number(v));
+const toInput = (d: Draft): UpsertInstitutionProgramInput => ({
+  seats: num(d.seats),
+  fee_per_year: num(d.fee),
+  fees_text: d.feesText.trim() || null,
+  duration_months: num(d.months),
+  admission_process: d.admission.trim() || null,
+  mode: d.mode,
+});
+
+const rupees = (n: number | null) => (n == null ? '—' : `₹${n.toLocaleString('en-IN')} / year`);
+const years = (m: number | null) => (m == null ? '—' : m % 12 === 0 ? `${m / 12} years` : `${m} months`);
+
+const INPUT =
+  'w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none';
+
+function ProgramForm({ draft, onChange }: { draft: Draft; onChange: (d: Draft) => void }) {
+  const set = (k: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    onChange({ ...draft, [k]: e.target.value });
+  return (
+    <div className="grid grid-cols-2 gap-3 text-[11px] font-semibold text-slate-400">
+      <label className="space-y-1">
+        <span>Seats (intake)</span>
+        <input type="number" min={0} inputMode="numeric" value={draft.seats} onChange={set('seats')} className={INPUT} />
+      </label>
+      <label className="space-y-1">
+        <span>Fee per year (₹)</span>
+        <input type="number" min={0} inputMode="numeric" value={draft.fee} onChange={set('fee')} className={INPUT} />
+      </label>
+      <label className="space-y-1">
+        <span>Duration (months)</span>
+        <input type="number" min={1} max={120} inputMode="numeric" value={draft.months} onChange={set('months')} className={INPUT} />
+      </label>
+      <label className="space-y-1">
+        <span>Mode</span>
+        <select value={draft.mode} onChange={set('mode')} className={INPUT}>
+          {MODES.map((m) => (
+            <option key={m} value={m}>
+              {m.replace('_', ' ')}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="col-span-2 space-y-1">
+        <span>Fee note (optional, e.g. &quot;+ hostel ₹60,000&quot;)</span>
+        <input maxLength={200} value={draft.feesText} onChange={set('feesText')} className={INPUT} />
+      </label>
+      <label className="col-span-2 space-y-1">
+        <span>Admission process (entrance exam, counselling, cutoffs)</span>
+        <textarea rows={3} maxLength={1000} value={draft.admission} onChange={set('admission')} className={INPUT} />
+      </label>
+    </div>
+  );
 }
 
-const INITIAL_PROGRAMS: ProgramItem[] = [
-  {
-    id: 'prog-01',
-    name: 'Computer Science & Engineering (CSE)',
-    degree: 'B.Tech',
-    duration: '4 Years',
-    intakeSeats: 180,
-    availableSeats: 24,
-    annualFee: '₹1,40,000 / year',
-    cutoffText: 'TS EAMCET: Rank 1,200 – 4,500 | JEE Main: 95+ %ile',
-    entranceExam: 'TS EAMCET / JEE Main',
-    isOpen: true,
-  },
-  {
-    id: 'prog-02',
-    name: 'Artificial Intelligence & Data Science',
-    degree: 'B.Tech',
-    duration: '4 Years',
-    intakeSeats: 120,
-    availableSeats: 18,
-    annualFee: '₹1,40,000 / year',
-    cutoffText: 'TS EAMCET: Rank 3,500 – 6,800',
-    entranceExam: 'TS EAMCET / JEE Main',
-    isOpen: true,
-  },
-  {
-    id: 'prog-03',
-    name: 'Electronics & Communication Engineering',
-    degree: 'B.Tech',
-    duration: '4 Years',
-    intakeSeats: 180,
-    availableSeats: 42,
-    annualFee: '₹1,40,000 / year',
-    cutoffText: 'TS EAMCET: Rank 5,000 – 9,500',
-    entranceExam: 'TS EAMCET',
-    isOpen: true,
-  },
-  {
-    id: 'prog-04',
-    name: 'Master of Business Administration (MBA)',
-    degree: 'Post-Graduate',
-    duration: '2 Years',
-    intakeSeats: 60,
-    availableSeats: 12,
-    annualFee: '₹90,000 / year',
-    cutoffText: 'TS ICET: Rank 1 – 1,200 | CAT: 75+ %ile',
-    entranceExam: 'TS ICET / CAT',
-    isOpen: true,
-  },
-];
-
-export default function InstitutionProgramsPage() {
-  const [programs, setPrograms] = useState<ProgramItem[]>(INITIAL_PROGRAMS);
-  const [editingId, setEditingId] = useState<string | null>(null);
+export default function ProgramsPage() {
+  const [programs, setPrograms] = useState<InstitutionProgram[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  // Edit fields
-  const [editFee, setEditFee] = useState('');
-  const [editCutoff, setEditCutoff] = useState('');
-  const [editAvailable, setEditAvailable] = useState<number>(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Draft>(toDraft());
 
-  function startEdit(prog: ProgramItem) {
-    setEditingId(prog.id);
-    setEditFee(prog.annualFee);
-    setEditCutoff(prog.cutoffText);
-    setEditAvailable(prog.availableSeats);
+  // Add flow: search the catalogue, pick a course, fill the details.
+  const [adding, setAdding] = useState(false);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<CourseSummary[]>([]);
+  const [picked, setPicked] = useState<CourseSummary | null>(null);
+
+  const load = () =>
+    apiGet<InstitutionProgram[]>(PATH).then((res) => {
+      setPrograms(res.data ?? []);
+      setError(res.data ? null : res.error || 'Could not load programs.');
+    });
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  // Catalogue search (debounced). Results only show while there is a 2+ letter query.
+  const searching = adding && query.trim().length >= 2;
+  const shown = searching ? results : [];
+  useEffect(() => {
+    if (!searching) return;
+    const t = setTimeout(async () => {
+      const res = await apiGet<CourseSummary[]>(`/career/courses?q=${encodeURIComponent(query.trim())}`);
+      const have = new Set((programs ?? []).map((p) => p.course_id));
+      setResults((res.data ?? []).filter((c) => !have.has(c.id)).slice(0, 8));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searching, query, programs]);
+
+  function flash(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
   }
 
-  function saveEdit(id: string) {
-    setPrograms((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              annualFee: editFee,
-              cutoffText: editCutoff,
-              availableSeats: editAvailable,
-            }
-          : item
-      )
-    );
+  async function save(courseId: string, d: Draft) {
+    setBusy(true);
+    const res = await apiPut<InstitutionProgram>(`${PATH}/${courseId}`, toInput(d));
+    setBusy(false);
+    if (!res.data) return setError(res.error || 'Could not save the program.');
+    setError(null);
+    await load();
     setEditingId(null);
-    setToast('Program fee & cutoffs updated successfully!');
-    setTimeout(() => setToast(null), 3000);
+    setAdding(false);
+    setPicked(null);
+    setQuery('');
+    flash(`Saved ${res.data.short_name || res.data.name}.`);
   }
 
-  function toggleProgramStatus(id: string) {
-    setPrograms((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, isOpen: !item.isOpen } : item))
-    );
+  async function remove(p: InstitutionProgram) {
+    if (!window.confirm(`Remove ${p.name} from your college page?`)) return;
+    setBusy(true);
+    const res = await apiDelete<{ removed: boolean }>(`${PATH}/${p.course_id}`);
+    setBusy(false);
+    if (!res.data) return setError(res.error || 'Could not remove the program.');
+    await load();
+    flash(`Removed ${p.short_name || p.name}.`);
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-            Programs, Seat Matrix &amp; Cutoffs Manager
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Maintain accurate fee structures, seat intake, and cutoff requirements displayed to prospective students in Career Mode.
+          <h1 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">Programs &amp; seats</h1>
+          <p className="mt-1 text-xs text-slate-400">
+            The courses your college offers, with seats and fees. Students see these on your college page in Career Mode.
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            const newProg: ProgramItem = {
-              id: `prog-${Date.now()}`,
-              name: 'New Degree Program',
-              degree: 'B.Tech',
-              duration: '4 Years',
-              intakeSeats: 60,
-              availableSeats: 60,
-              annualFee: '₹1,20,000 / year',
-              cutoffText: 'TS EAMCET / Merit Based',
-              entranceExam: 'TS EAMCET',
-              isOpen: true,
-            };
-            setPrograms([newProg, ...programs]);
-            startEdit(newProg);
-          }}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-500 transition shadow-lg shadow-blue-500/20"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Add New Program</span>
-        </button>
+        {!adding && (
+          <button
+            type="button"
+            onClick={() => {
+              setAdding(true);
+              setPicked(null);
+              setDraft(toDraft());
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-500"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add program</span>
+          </button>
+        )}
       </div>
 
       {toast && (
-        <div className="rounded-xl bg-emerald-500/20 border border-emerald-500/30 px-4 py-2.5 text-xs font-bold text-emerald-300">
+        <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/20 px-4 py-2.5 text-xs font-bold text-emerald-300">
           {toast}
         </div>
       )}
+      {error && (
+        <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-950/30 px-4 py-2.5 text-xs font-semibold text-rose-300">
+          {error}
+        </div>
+      )}
 
-      {/* Program Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {programs.map((prog) => {
-          const isEditing = editingId === prog.id;
-          return (
-            <div
-              key={prog.id}
-              className={`rounded-2xl border p-5 transition ${
-                prog.isOpen
-                  ? 'border-slate-800 bg-slate-900/90'
-                  : 'border-slate-800/60 bg-slate-950/40 opacity-75'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-800">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-300">
-                      {prog.degree} · {prog.duration}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        prog.isOpen
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : 'bg-slate-800 text-slate-500'
-                      }`}
-                    >
-                      {prog.isOpen ? 'Admissions Open' : 'Closed'}
-                    </span>
-                  </div>
-                  <h3 className="mt-2 text-sm font-bold text-white">{prog.name}</h3>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => toggleProgramStatus(prog.id)}
-                    className="text-[11px] font-semibold text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800"
-                  >
-                    {prog.isOpen ? 'Close' : 'Reopen'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => (isEditing ? saveEdit(prog.id) : startEdit(prog))}
-                    className="p-1.5 rounded-lg bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 transition"
-                  >
-                    {isEditing ? <Save className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}
-                  </button>
-                </div>
+      {adding && (
+        <div className="space-y-4 rounded-2xl border border-blue-500/30 bg-slate-900/90 p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-white">{picked ? picked.name : 'Find the course'}</h2>
+            <button type="button" onClick={() => setAdding(false)} aria-label="Cancel" className="text-slate-400 hover:text-white">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {!picked ? (
+            <>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="e.g. B.Tech Computer Science, MBA, B.Pharm"
+                  className={`${INPUT} pl-9`}
+                />
               </div>
-
-              {/* Program Details */}
-              <div className="mt-4 space-y-3 text-xs">
-                {isEditing ? (
-                  <div className="space-y-3 rounded-xl bg-slate-950 p-3 border border-blue-500/30">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">
-                        Annual Tuition Fee
-                      </label>
-                      <input
-                        type="text"
-                        value={editFee}
-                        onChange={(e) => setEditFee(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">
-                        Remaining Available Seats
-                      </label>
-                      <input
-                        type="number"
-                        value={editAvailable}
-                        onChange={(e) => setEditAvailable(parseInt(e.target.value, 10) || 0)}
-                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">
-                        Cutoff &amp; Eligibility Criteria
-                      </label>
-                      <input
-                        type="text"
-                        value={editCutoff}
-                        onChange={(e) => setEditCutoff(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => saveEdit(prog.id)}
-                      className="w-full rounded-lg bg-blue-600 py-2 text-xs font-bold text-white hover:bg-blue-500"
-                    >
-                      Save Changes
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-                        <span className="text-[10px] text-slate-500 uppercase font-semibold block">
-                          Official Annual Fee
-                        </span>
-                        <span className="font-bold text-white mt-0.5 block">{prog.annualFee}</span>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-                        <span className="text-[10px] text-slate-500 uppercase font-semibold block">
-                          Seat Matrix
-                        </span>
-                        <span className="font-bold text-emerald-400 mt-0.5 block">
-                          {prog.availableSeats} of {prog.intakeSeats} Seats Available
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1">
-                      <div className="text-[10px] text-slate-500 uppercase font-semibold">
-                        Entrance Exams &amp; Cutoff Range
-                      </div>
-                      <div className="font-medium text-slate-200">{prog.cutoffText}</div>
-                      <div className="text-[11px] text-blue-400 font-bold">
-                        Linked Exam: {prog.entranceExam}
-                      </div>
-                    </div>
-                  </>
+              <div className="divide-y divide-slate-800 rounded-xl border border-slate-800">
+                {shown.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setPicked(c);
+                      setDraft({ ...toDraft(), months: c.duration_months?.toString() ?? '' });
+                    }}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-xs hover:bg-slate-800/60"
+                  >
+                    <span className="font-semibold text-white">{c.name}</span>
+                    <span className="shrink-0 text-slate-500">{c.level.toUpperCase()}</span>
+                  </button>
+                ))}
+                {searching && shown.length === 0 && (
+                  <p className="px-4 py-3 text-xs text-slate-500">
+                    No matching course in the catalogue (or you already offer it). Ask ApplyFields to add a missing course.
+                  </p>
                 )}
               </div>
-            </div>
-          );
-        })}
-      </div>
+            </>
+          ) : (
+            <>
+              <ProgramForm draft={draft} onChange={setDraft} />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void save(picked.id, draft)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-500 disabled:opacity-60"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Add to my college
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {programs === null ? (
+        <p className="text-xs text-slate-400">Loading programs…</p>
+      ) : programs.length === 0 && !adding ? (
+        <div className="rounded-2xl border border-dashed border-slate-700 p-10 text-center">
+          <BookOpen className="mx-auto h-8 w-8 text-slate-600" />
+          <p className="mt-3 text-sm font-semibold text-white">No programs yet</p>
+          <p className="mt-1 text-xs text-slate-400">Add the courses you offer so students can find them.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {programs.map((p) => {
+            const editing = editingId === p.course_id;
+            return (
+              <div key={p.course_id} className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/90 p-5">
+                <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-3">
+                  <div>
+                    <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-300">
+                      {p.level} · {p.mode.replace('_', ' ')}
+                    </span>
+                    <h3 className="mt-2 text-sm font-bold text-white">{p.name}</h3>
+                  </div>
+                  {!editing && (
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        aria-label={`Edit ${p.name}`}
+                        onClick={() => {
+                          setEditingId(p.course_id);
+                          setDraft(toDraft(p));
+                        }}
+                        className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-300 hover:text-white"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${p.name}`}
+                        disabled={busy}
+                        onClick={() => void remove(p)}
+                        className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-300 hover:text-rose-300"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {editing ? (
+                  <>
+                    <ProgramForm draft={draft} onChange={setDraft} />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void save(p.course_id, draft)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-500 disabled:opacity-60"
+                      >
+                        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300 hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                    <dt className="text-slate-500">Seats</dt>
+                    <dd className="font-semibold text-white">{p.seats ?? '—'}</dd>
+                    <dt className="text-slate-500">Fee</dt>
+                    <dd className="font-semibold text-white">{rupees(p.fee_per_year)}</dd>
+                    <dt className="text-slate-500">Duration</dt>
+                    <dd className="font-semibold text-white">{years(p.duration_months)}</dd>
+                    {p.fees_text && (
+                      <>
+                        <dt className="text-slate-500">Fee note</dt>
+                        <dd className="text-slate-300">{p.fees_text}</dd>
+                      </>
+                    )}
+                    {p.admission_process && (
+                      <>
+                        <dt className="col-span-2 text-slate-500">Admission</dt>
+                        <dd className="col-span-2 whitespace-pre-line text-slate-300">{p.admission_process}</dd>
+                      </>
+                    )}
+                  </dl>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

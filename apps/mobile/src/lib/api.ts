@@ -13,11 +13,12 @@ export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:400
   '',
 );
 
+const REFRESH_KEY = 'applyfields.refreshToken';
 const TOKEN_KEY = 'applyfields.accessToken';
 const LOCALE_KEY = 'applyfields.locale';
 
 let memoryToken: string | null = null;
-let refreshing: Promise<boolean> | null = null;
+let refreshing: Promise<boolean | null> | null = null;
 
 // Kept in memory so the Accept-Language header is set synchronously on every
 // request; the Profile language picker updates it and persists to SecureStore.
@@ -32,7 +33,21 @@ export async function getToken(): Promise<string | null> {
 export async function setToken(token: string | null): Promise<void> {
   memoryToken = token;
   if (token) await SecureStore.setItemAsync(TOKEN_KEY, token).catch(() => undefined);
-  else await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => undefined);
+  else {
+    // Sign-out: drop both tokens.
+    await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => undefined);
+    await SecureStore.deleteItemAsync(REFRESH_KEY).catch(() => undefined);
+  }
+}
+
+/**
+ * Save a new session. The refresh token is kept in SecureStore (not the native cookie jar, which
+ * Android doesn't reliably persist), so the app stays signed in across restarts until sign-out
+ * or uninstall. The API slides the session on every refresh.
+ */
+export async function saveSession(session: { accessToken?: string; refreshToken?: string }): Promise<void> {
+  if (session.accessToken) await setToken(session.accessToken);
+  if (session.refreshToken) await SecureStore.setItemAsync(REFRESH_KEY, session.refreshToken).catch(() => undefined);
 }
 
 export function getLocale(): string {
@@ -69,23 +84,27 @@ function message(err: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
-/** POST /auth/refresh using the refresh cookie React Native stored at login. */
-async function refreshSession(): Promise<boolean> {
+/**
+ * POST /auth/refresh with the stored refresh token. true = new session, false = the server
+ * rejected it (signed out elsewhere / expired), null = offline: keep the user signed in.
+ */
+async function refreshSession(): Promise<boolean | null> {
   if (refreshing) return refreshing;
   refreshing = (async () => {
     try {
+      const refreshToken = await SecureStore.getItemAsync(REFRESH_KEY).catch(() => null);
       const res = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
+        headers: { 'Content-Type': 'application/json', 'x-client': 'app' },
+        body: JSON.stringify(refreshToken ? { refreshToken } : {}),
       });
-      if (!res.ok) return false;
-      const json = (await res.json().catch(() => null)) as { accessToken?: string } | null;
-      if (!json?.accessToken) return false;
-      await setToken(json.accessToken);
+      if (!res.ok) return res.status === 401 ? false : null;
+      const json = (await res.json().catch(() => null)) as { accessToken?: string; refreshToken?: string } | null;
+      if (!json?.accessToken) return null;
+      await saveSession(json);
       return true;
     } catch {
-      return false;
+      return null;
     } finally {
       refreshing = null;
     }
@@ -104,6 +123,8 @@ async function request<T>(
   const send = async (token: string | null) => {
     const headers: Record<string, string> = {
       Accept: 'application/json',
+      // Tells the API to return the refresh token in the body (see auth.controller forApp).
+      'x-client': 'app',
       'Accept-Language': currentLocale,
     };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -120,8 +141,9 @@ async function request<T>(
     let res = await send(await getToken());
 
     if (res.status === 401 && !path.startsWith('/auth/')) {
-      if (await refreshSession()) res = await send(await getToken());
-      else await setToken(null);
+      const refreshed = await refreshSession();
+      if (refreshed) res = await send(await getToken());
+      else if (refreshed === false) await setToken(null); // offline (null) keeps the session
     }
 
     const json = await res.json().catch(() => null);

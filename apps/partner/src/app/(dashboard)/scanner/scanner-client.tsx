@@ -58,22 +58,11 @@ export function ScannerClient() {
   const [memoUploaded, setMemoUploaded] = useState<boolean>(true);
   const [casteUploaded, setCasteUploaded] = useState<boolean>(true);
 
-  // Dispatch state
-  const [isDispatching, setIsDispatching] = useState<boolean>(false);
-  const [dispatchedSuccess, setDispatchedSuccess] = useState<boolean>(false);
 
   const PHOTO_PRESETS = {
     ssc: { label: 'SSC Standard', dims: '200 x 230 px', minKb: 20, maxKb: 50, note: 'Plain white background, no eyewear' },
     upsc: { label: 'UPSC Standard', dims: '350 x 350 px', minKb: 20, maxKb: 300, note: 'Front-facing, 3/4 face coverage' },
     tgpsc: { label: 'TGPSC / State PSC', dims: '150 x 200 px', minKb: 15, maxKb: 40, note: 'Color photograph with stamp date' },
-  };
-
-  const handleTransmit = () => {
-    setIsDispatching(true);
-    setTimeout(() => {
-      setIsDispatching(false);
-      setDispatchedSuccess(true);
-    }, 900);
   };
 
   return (
@@ -447,48 +436,6 @@ export function ScannerClient() {
               </div>
             </div>
 
-            {/* Transmit Action */}
-            <div className="space-y-2 pt-2">
-              <button
-                type="button"
-                onClick={handleTransmit}
-                disabled={isDispatching || dispatchedSuccess}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-50 transition shadow-lg shadow-emerald-500/20"
-              >
-                {isDispatching ? (
-                  <>
-                    <RefreshCw className="size-4 animate-spin" />
-                    <span>Compressing &amp; Transmitting...</span>
-                  </>
-                ) : dispatchedSuccess ? (
-                  <>
-                    <CheckCircle2 className="size-4 text-slate-950" />
-                    <span>Dispatched to Back-Office!</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="size-4 text-slate-950" />
-                    <span>Bundle &amp; Transmit to Back-Office Desk</span>
-                  </>
-                )}
-              </button>
-
-              {dispatchedSuccess && (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3 text-xs text-emerald-300 space-y-2 animate-in fade-in">
-                  <p className="font-bold">File Dispatched to ApplyFields Service Desk</p>
-                  <p className="text-[11px] text-emerald-400/80">
-                    Your file is now live in the central filing workstation queue. You can monitor filing progress and receive OTP verification alerts in the Orders Pipeline.
-                  </p>
-                  <Link
-                    href="/orders"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
-                  >
-                    <span>View in Orders Pipeline</span>
-                    <ArrowRight className="size-3.5" />
-                  </Link>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>

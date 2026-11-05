@@ -1016,6 +1016,33 @@ export interface RoadmapDetail extends RoadmapSummary {
 
 export type CourseLevel = 'certificate' | 'iti' | 'diploma' | 'ug' | 'pg' | 'phd';
 
+/** One course a college offers, as its partner desk manages it (GET /career/colleges/partner/programs). */
+export interface InstitutionProgram {
+  course_id: string;
+  course_slug: string;
+  name: string;
+  short_name: string | null;
+  level: CourseLevel;
+  stream: string | null;
+  seats: number | null;
+  /** Rupees per year. */
+  fee_per_year: number | null;
+  fees_text: string | null;
+  duration_months: number | null;
+  admission_process: string | null;
+  mode: string;
+}
+
+/** PUT /career/colleges/partner/programs/:courseId — adds the course or updates it. */
+export interface UpsertInstitutionProgramInput {
+  seats?: number | null;
+  fee_per_year?: number | null;
+  fees_text?: string | null;
+  duration_months?: number | null;
+  admission_process?: string | null;
+  mode?: 'regular' | 'distance' | 'online' | 'part_time';
+}
+
 export interface CourseSummary {
   id: string;
   slug: string;

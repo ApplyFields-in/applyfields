@@ -11,12 +11,13 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import type { Request, Response } from 'express';
 import { jwtAccessSecret } from '../../common/jwt-secret.js';
-import { AuthService } from './auth.service.js';
+import { AuthService, SESSION_DAYS } from './auth.service.js';
 import { AuthGuard, type AuthenticatedRequest } from './auth.guard.js';
 import { RegisterDto } from './dto/register.dto.js';
 import {
   LoginDto,
   LoginOtpDto,
+  LoginVerifyDto,
   SocialLoginDto,
   PasskeyLoginDto,
   PasskeyRegisterDto,
@@ -34,15 +35,24 @@ const COOKIE_BASE = {
   path: '/',
 };
 
+/** "Remember me": cookies outlive the browser and the session slides for SESSION_DAYS. Off: gone when the browser closes. */
 function cookieOpts(rememberMe?: boolean) {
   if (rememberMe) {
     return {
-      access: { ...COOKIE_BASE, maxAge: 7 * 24 * 60 * 60 * 1000 },
-      refresh: { ...COOKIE_BASE, maxAge: 30 * 24 * 60 * 60 * 1000 },
+      access: { ...COOKIE_BASE, maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000 },
+      refresh: { ...COOKIE_BASE, maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000 },
     };
   }
   return { access: { ...COOKIE_BASE }, refresh: { ...COOKIE_BASE } };
 }
+
+/**
+ * The Expo apps send `x-client: app`. They keep the refresh token in SecureStore (cookie stores
+ * on Android aren't reliable across restarts), so for them it is also returned in the body.
+ * Browsers never get it in the body: it stays in the httpOnly cookie, out of reach of page scripts.
+ */
+const forApp = (req: Request, refreshToken: string) =>
+  req.headers['x-client'] === 'app' ? { refreshToken } : {};
 
 @Controller('auth')
 export class AuthController {
@@ -81,12 +91,42 @@ export class AuthController {
       ipAddress: req.ip || req.socket.remoteAddress,
     };
     const result = await this.authService.login(dto, meta);
+    // Never-verified account: a code was sent; the client finishes with POST /auth/login/verify.
+    if ('verificationRequired' in result) return result;
 
     const opts = cookieOpts(dto.rememberMe);
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
-    return { user: result.user, accessToken: result.accessToken };
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
+  }
+
+  /** Password + code, step 1: checks the password and sends a code to the same email/phone. */
+  @Post('login/start')
+  @HttpCode(HttpStatus.OK)
+  async startPasswordLogin(@Body() dto: LoginDto) {
+    return this.authService.startPasswordLogin(dto);
+  }
+
+  /** Password + code, step 2: issues an `mfa` session (required for /admin). */
+  @Post('login/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyPasswordLogin(
+    @Body() dto: LoginVerifyDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const meta = {
+      userAgent: req.headers['user-agent'],
+      ipAddress: req.ip || req.socket.remoteAddress,
+    };
+    const result = await this.authService.verifyPasswordLogin(dto, meta);
+
+    const opts = cookieOpts(dto.rememberMe);
+    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
+
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
   @Post('login/otp')
@@ -106,7 +146,7 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
-    return { user: result.user, accessToken: result.accessToken };
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
   @Post(['social/login', 'social-login'])
@@ -126,11 +166,7 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
-    return {
-      user: result.user,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    };
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
   @Post('passkey/login')
@@ -186,7 +222,7 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, tokens.newRefreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, opts.access);
 
-    return { success: true, accessToken: tokens.accessToken };
+    return { success: true, accessToken: tokens.accessToken, ...forApp(req, tokens.newRefreshToken) };
   }
 
   @Post('logout')

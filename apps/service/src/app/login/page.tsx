@@ -14,10 +14,10 @@ import {
   Mail,
   Phone,
   ShieldCheck,
-  Sparkles,
   KeyRound,
   ExternalLink,
 } from 'lucide-react';
+import { GoogleButton } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
 import { useAuth, type CitizenUser } from '@/lib/auth-context';
 
@@ -51,6 +51,11 @@ function ServiceLoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // Set only when the account still has to confirm its email/phone once (first sign-in).
+  const [codeTo, setCodeTo] = useState<string | null>(null);
+  // Remember me: stay signed in across browser restarts until sign-out.
+  const [rememberMe, setRememberMe] = useState(true);
+  const [code, setCode] = useState('');
 
   // OTP mode states
   const [otpSent, setOtpSent] = useState(false);
@@ -65,8 +70,8 @@ function ServiceLoginForm() {
 
   const passwordVal = validatePassword(password);
 
-  async function handlePasswordLogin(e: React.FormEvent) {
-    e.preventDefault();
+  async function handlePasswordLogin(e?: React.FormEvent, resend = false) {
+    e?.preventDefault();
     setError(null);
     setSuccess(null);
 
@@ -82,34 +87,25 @@ function ServiceLoginForm() {
     }
 
     setLoading(true);
-    const res = await apiPost<{ user: CitizenUser; accessToken: string }>('/auth/login', {
-      identifier,
-      password,
-      rememberMe: true,
-    });
+    // Verified accounts sign in with the password alone; a never-verified account gets one code, once.
+    type Session = { user: CitizenUser; accessToken: string };
+    const res = !codeTo || resend
+      ? await apiPost<Session | { verificationRequired: true; sentTo: string }>('/auth/login', {
+          identifier,
+          password,
+          rememberMe,
+        })
+      : await apiPost<Session>('/auth/login/verify', { identifier, password, code: code.trim(), rememberMe });
     setLoading(false);
 
     if (res.error || !res.data) {
-      // Local fallback for demo credentials
-      if (
-        password === 'Applyfields@2026' ||
-        password === 'studentAPPLY@123' ||
-        identifier.toLowerCase().includes('likhith')
-      ) {
-        const demoUser: CitizenUser = {
-          id: 'usr_citizen_likhith',
-          email: identifier.includes('@') ? identifier : 'likhith@applyfields.in',
-          phone: identifier.startsWith('+') ? identifier : '+91 98765 43210',
-          full_name: 'Likhith Kumar',
-          role: 'citizen',
-        };
-        login(demoUser, 'demo_token_likhith');
-        setSuccess('Logged in successfully as Likhith Kumar!');
-        setTimeout(() => router.push(redirectTarget), 500);
-        return;
-      }
-
-      setError(res.error || 'Invalid phone/email or password. Please try again.');
+      setError(res.error || (codeTo ? 'That code did not work. Check it or send a new one.' : 'Invalid phone/email or password. Please try again.'));
+      return;
+    }
+    if ('verificationRequired' in res.data) {
+      setCodeTo(res.data.sentTo);
+      setCode('');
+      setSuccess(`First sign-in: confirm it's you with the 6-digit code sent to ${res.data.sentTo}. You won't be asked again.`);
       return;
     }
 
@@ -118,6 +114,24 @@ function ServiceLoginForm() {
     setTimeout(() => {
       router.push(redirectTarget);
     }, 600);
+  }
+
+  /** Google sign-in: the API verifies the token with Google. */
+  async function handleGoogle(credential: string) {
+    setError(null);
+    setLoading(true);
+    const res = await apiPost<{ user: CitizenUser; accessToken: string }>('/auth/social-login', {
+      provider: 'google',
+      credential,
+    });
+    setLoading(false);
+    if (res.error || !res.data) {
+      setError(res.error || 'Google sign-in failed. Please try again.');
+      return;
+    }
+    login(res.data.user, res.data.accessToken);
+    setSuccess('Signed in with Google! Redirecting...');
+    setTimeout(() => router.push(redirectTarget), 600);
   }
 
   async function handleSendOtp() {
@@ -164,7 +178,7 @@ function ServiceLoginForm() {
       phone: credType === 'phone' ? target : undefined,
       email: credType === 'email' ? target : undefined,
       code: otpCode.trim(),
-      rememberMe: true,
+      rememberMe,
     });
     setLoading(false);
 
@@ -176,19 +190,6 @@ function ServiceLoginForm() {
     login(res.data.user, res.data.accessToken);
     setSuccess('Authenticated successfully! Redirecting...');
     setTimeout(() => router.push(redirectTarget), 600);
-  }
-
-  function handleQuickDemo() {
-    const demo: CitizenUser = {
-      id: 'usr_demo_likhith',
-      email: 'likhith@applyfields.in',
-      phone: '+91 98765 43210',
-      full_name: 'Likhith Kumar (Citizen)',
-      role: 'citizen',
-    };
-    login(demo, 'demo_token_likhith');
-    setSuccess('Signed in as Likhith Kumar (Single Sign-On Demo)');
-    setTimeout(() => router.push(redirectTarget), 400);
   }
 
   return (
@@ -401,13 +402,56 @@ function ServiceLoginForm() {
                 </div>
               </div>
 
+              {codeTo && (
+                <div>
+                  <label htmlFor="login-code" className="block text-xs font-bold text-slate-700">
+                    6-digit code sent to {codeTo}
+                  </label>
+                  <input
+                    id="login-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    autoFocus
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    className="mt-1.5 block h-12 w-full rounded-2xl border border-slate-200 bg-white text-center font-mono text-lg font-bold tracking-[0.4em] text-[#082046] focus:border-[#082046] focus:outline-none focus:ring-2 focus:ring-[#082046]/15"
+                  />
+                  <div className="mt-2 flex justify-between text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCodeTo(null);
+                        setCode('');
+                        setSuccess(null);
+                      }}
+                      className="text-slate-500 hover:text-[#082046]"
+                    >
+                      Change details
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => void handlePasswordLogin(undefined, true)}
+                      className="text-[#0e7bf4] hover:underline disabled:opacity-50"
+                    >
+                      Send a new code
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Submit button */}
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="size-4 accent-current" />
+                Keep me signed in on this device
+              </label>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (codeTo !== null && code.length !== 6)}
                 className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#082046] text-xs font-bold text-white shadow-md shadow-[#082046]/20 transition hover:bg-[#0c2f66] disabled:opacity-60"
               >
-                {loading ? 'Signing in...' : 'Sign In to Services'}
+                {loading ? 'Signing in...' : codeTo ? 'Verify and sign in' : 'Sign In to Services'}
                 {!loading && <ArrowRight className="h-4 w-4" />}
               </button>
             </form>
@@ -497,6 +541,11 @@ function ServiceLoginForm() {
               )}
 
               {otpSent && (
+                <>
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="size-4 accent-current" />
+                  Keep me signed in on this device
+                </label>
                 <button
                   type="submit"
                   disabled={loading || otpCode.length !== 6}
@@ -505,21 +554,17 @@ function ServiceLoginForm() {
                   {loading ? 'Verifying...' : 'Sign In With Code'}
                   {!loading && <ArrowRight className="h-4 w-4" />}
                 </button>
+                </>
               )}
             </form>
           )}
 
-          {/* Quick Demo Login Option */}
-          <div className="mt-6 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              onClick={handleQuickDemo}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-bold text-[#082046] hover:bg-slate-100 hover:border-[#0e7bf4] transition"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-[#0e7bf4]" />
-              <span>Quick Demo Sign In (Likhith Kumar)</span>
-            </button>
-          </div>
+          {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+            <div className="mt-6 space-y-3 border-t border-slate-100 pt-5">
+              <p className="text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400">or</p>
+              <GoogleButton clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID} onCredential={(c) => void handleGoogle(c)} />
+            </div>
+          )}
 
           {/* Register Link */}
           <div className="mt-5 text-center text-xs text-slate-500 font-medium">

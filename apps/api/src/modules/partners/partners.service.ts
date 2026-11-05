@@ -32,7 +32,7 @@ import type {
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../common/storage.service.js';
-import { PARTNER_DOCUMENT_KINDS, PARTNER_DOCUMENT_MIME_TYPES } from '@applyfields/types';
+import { PARTNER_DOCUMENT_KINDS, PARTNER_DOCUMENT_MIME_TYPES } from './partner-documents.js';
 
 import type {
   partner_type,

@@ -56,7 +56,7 @@ export class StaffGuard implements CanActivate {
     }
 
     // 2. Verify token
-    let payload: { sub?: string; userId?: string; email?: string } | undefined;
+    let payload: { sub?: string; userId?: string; email?: string; mfa?: boolean } | undefined;
     try {
       payload = await this.jwtService.verifyAsync(token, {
         secret: jwtAccessSecret(),
@@ -65,6 +65,12 @@ export class StaffGuard implements CanActivate {
       throw new UnauthorizedException(
         'Invalid or expired authentication token',
       );
+    }
+
+    // Staff must sign in with password + code or verified Google; a password-only or OTP-only
+    // session from the citizen/partner apps is not enough for /admin.
+    if (!payload?.mfa) {
+      throw new UnauthorizedException('Staff sign-in needs two-step verification. Please sign in again.');
     }
 
     const userId = payload?.sub ?? payload?.userId;
