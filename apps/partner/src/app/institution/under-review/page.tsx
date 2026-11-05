@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { KycDocuments } from '@/components/kyc-documents';
 import { usePartnerAuth } from '@/lib/auth-context';
 import {
   ArrowRight,
@@ -156,6 +157,8 @@ export default function InstitutionUnderReviewPage() {
               </div>
             </div>
           </div>
+
+          {partner && <KycDocuments partner={partner} onUploaded={refreshSession} />}
 
           {/* Actions & Developer Testing Bypass */}
           <div className="mt-10 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">

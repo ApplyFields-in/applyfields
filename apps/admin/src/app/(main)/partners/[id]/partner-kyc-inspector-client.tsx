@@ -55,45 +55,6 @@ const PRESET_REJECTION_REASONS = [
   'Physical GPS geolocation of storefront does not match registered center address',
 ];
 
-// GSTIN validation utility
-function validateGstin(gstin: string) {
-  const clean = gstin.trim().toUpperCase();
-  const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-  const isValid = gstinRegex.test(clean);
-
-  const STATE_CODES: Record<string, string> = {
-    '01': 'Jammu & Kashmir',
-    '02': 'Himachal Pradesh',
-    '03': 'Punjab',
-    '04': 'Chandigarh',
-    '06': 'Haryana',
-    '07': 'Delhi',
-    '08': 'Rajasthan',
-    '09': 'Uttar Pradesh',
-    '10': 'Bihar',
-    '19': 'West Bengal',
-    '23': 'Madhya Pradesh',
-    '24': 'Gujarat',
-    '27': 'Maharashtra',
-    '29': 'Karnataka',
-    '32': 'Kerala',
-    '33': 'Tamil Nadu',
-    '36': 'Telangana',
-    '37': 'Andhra Pradesh',
-  };
-
-  const stateCode = clean.slice(0, 2);
-  const stateName = STATE_CODES[stateCode] || 'Other State / UT';
-
-  return {
-    isValid,
-    clean,
-    stateCode,
-    stateName,
-    pan: clean.length >= 12 ? clean.slice(2, 12) : null,
-  };
-}
-
 export function PartnerKycInspectorClient({ partner: initialPartner }: PartnerKycInspectorClientProps) {
   const router = useRouter();
   const [partner, setPartner] = useState<PartnerDetail>(initialPartner);
@@ -101,9 +62,7 @@ export function PartnerKycInspectorClient({ partner: initialPartner }: PartnerKy
   const [feedback, setFeedback] = useState<{ text: string; success: boolean } | null>(null);
 
   // Document Viewer States
-  const [selectedDocKind, setSelectedDocKind] = useState<
-    'trade_license' | 'gst_certificate' | 'kiosk_photo' | 'owner_id'
-  >('trade_license');
+  const [selectedDocKind, setSelectedDocKind] = useState('trade_license');
   const [docZoom, setDocZoom] = useState<number>(100);
   const [docRotation, setDocRotation] = useState<number>(0);
 
@@ -114,10 +73,9 @@ export function PartnerKycInspectorClient({ partner: initialPartner }: PartnerKy
 
   // KYC Compliance Checkboxes
   const [checks, setChecks] = useState({
-    tradeLicenseValid: true,
-    gstinActive: true,
-    storefrontSignage: true,
-    addressVerified: true,
+    tradeLicenseValid: false,
+    storefrontSignage: false,
+    addressVerified: false,
   });
 
   const showToast = (text: string, success: boolean = true) => {
@@ -125,7 +83,6 @@ export function PartnerKycInspectorClient({ partner: initialPartner }: PartnerKy
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  const gstinInfo = validateGstin('36AAAAA0000A1Z5'); // Default test GSTIN or actual
 
   // One-Click: Approve & Issue Verified Kiosk Seal
   const handleApprovePartner = async () => {
@@ -223,7 +180,7 @@ export function PartnerKycInspectorClient({ partner: initialPartner }: PartnerKy
 
           <button
             type="button"
-            disabled={isPending || partner.verification_status === 'verified'}
+            disabled={isPending || partner.verification_status === 'verified' || !Object.values(checks).every(Boolean)}
             onClick={handleApprovePartner}
             className={cn(buttonClass({ variant: 'primary', size: 'sm' }), 'text-xs gap-1.5')}
           >
@@ -271,7 +228,7 @@ export function PartnerKycInspectorClient({ partner: initialPartner }: PartnerKy
                     <button
                       key={doc.id}
                       type="button"
-                      onClick={() => setSelectedDocKind(doc.id as any)}
+                      onClick={() => setSelectedDocKind(doc.id)}
                       className={cn(
                         'px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition text-[11px]',
                         isActive
@@ -281,6 +238,9 @@ export function PartnerKycInspectorClient({ partner: initialPartner }: PartnerKy
                     >
                       <Icon className="size-3" />
                       <span>{doc.label}</span>
+                      {partner.documents?.some((d) => d.document_kind === doc.id) ? null : (
+                        <span className="opacity-60">· missing</span>
+                      )}
                     </button>
                   );
                 })}
@@ -328,187 +288,47 @@ export function PartnerKycInspectorClient({ partner: initialPartner }: PartnerKy
               </div>
             </div>
 
-            {/* Document Render Canvas */}
-            <div className="flex-1 bg-stone-900 overflow-auto flex items-center justify-center p-6 relative select-none">
-              <div
-                style={{
-                  transform: `scale(${docZoom / 100}) rotate(${docRotation}deg)`,
-                  transition: 'transform 0.15s ease-out',
-                }}
-                className="w-full max-w-[500px] min-h-[600px] bg-white rounded-lg shadow-2xl p-8 space-y-6 text-stone-900 border border-stone-300"
-              >
-                {selectedDocKind === 'trade_license' && (
-                  <div className="space-y-6 border-2 border-dashed border-stone-400 p-6 rounded">
-                    <div className="text-center space-y-1 border-b border-stone-300 pb-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-500">
-                        Government Municipal Corporation
-                      </span>
-                      <h3 className="text-base font-black uppercase text-stone-900">
-                        Certificate of Trade &amp; Establishment
-                      </h3>
-                      <p className="text-[10px] font-mono text-stone-500">
-                        Reg No: TL/MNC/2024/{partner.id.slice(0, 6).toUpperCase()}
-                      </p>
+            {/* Document Render Canvas: the file the partner actually uploaded (newest of this kind) */}
+            <div className="flex-1 bg-stone-900 overflow-auto flex flex-col items-center justify-center gap-3 p-6 relative">
+              {(() => {
+                const doc = partner.documents?.find((d) => d.document_kind === selectedDocKind);
+                if (!doc) return <p className="text-sm text-stone-300">Not uploaded yet.</p>;
+                if (!doc.url) {
+                  return <p className="text-sm text-stone-300">File could not be loaded ({doc.storage_path}).</p>;
+                }
+                const view = doc.storage_path.toLowerCase().endsWith('.pdf') ? (
+                  <iframe src={doc.url} title={selectedDocKind} className="w-full flex-1 min-h-[560px] rounded bg-white" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL, not a static asset
+                  <img
+                    src={doc.url}
+                    alt={selectedDocKind.replace(/_/g, ' ')}
+                    style={{
+                      transform: `scale(${docZoom / 100}) rotate(${docRotation}deg)`,
+                      transition: 'transform 0.15s ease-out',
+                    }}
+                    className="max-w-full max-h-[560px] rounded shadow-2xl bg-white"
+                  />
+                );
+                return (
+                  <>
+                    {view}
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-stone-300">
+                      <span className="uppercase font-bold">{doc.status}</span>
+                      <span>Uploaded {new Date(doc.created_at).toLocaleString('en-IN')}</span>
+                      <a href={doc.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline">
+                        <ExternalLink className="size-3" /> Open file
+                      </a>
                     </div>
-
-                    <div className="space-y-3 text-xs">
-                      <div className="flex justify-between border-b border-stone-200 pb-1.5">
-                        <span className="text-stone-500">Establishment Name:</span>
-                        <strong className="text-stone-900">{partner.business_name}</strong>
-                      </div>
-                      <div className="flex justify-between border-b border-stone-200 pb-1.5">
-                        <span className="text-stone-500">Authorized Nature of Work:</span>
-                        <span className="text-stone-900">MeeSeva / CSC / Citizen IT Services</span>
-                      </div>
-                      <div className="flex justify-between border-b border-stone-200 pb-1.5">
-                        <span className="text-stone-500">Premises Address:</span>
-                        <span className="text-stone-900 text-right max-w-xs">{partner.city}, {partner.state_code || 'TS'}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-stone-200 pb-1.5">
-                        <span className="text-stone-500">Registration Validity:</span>
-                        <strong className="text-emerald-700">Valid through 31 Dec 2028</strong>
-                      </div>
-                    </div>
-
-                    <div className="pt-8 flex justify-between items-end text-[10px] text-stone-500">
-                      <div>Date of Issue: 12 Jan 2024</div>
-                      <div className="text-right border-t border-stone-400 pt-1 font-mono uppercase">
-                        Seal &amp; Municipal Commissioner
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedDocKind === 'gst_certificate' && (
-                  <div className="space-y-6 border-2 border-stone-800 p-6 rounded">
-                    <div className="text-center space-y-1 border-b-2 border-stone-800 pb-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-600">
-                        Government of India · Goods and Services Tax
-                      </span>
-                      <h3 className="text-base font-black uppercase text-stone-900">
-                        Form GST REG-06 · Registration Certificate
-                      </h3>
-                    </div>
-
-                    <div className="space-y-3 text-xs">
-                      <div className="flex justify-between border-b border-stone-200 pb-1.5">
-                        <span className="text-stone-500">Registration Number (GSTIN):</span>
-                        <strong className="font-mono text-stone-900">{gstinInfo.clean}</strong>
-                      </div>
-                      <div className="flex justify-between border-b border-stone-200 pb-1.5">
-                        <span className="text-stone-500">Legal Name:</span>
-                        <strong className="text-stone-900">{partner.business_name}</strong>
-                      </div>
-                      <div className="flex justify-between border-b border-stone-200 pb-1.5">
-                        <span className="text-stone-500">Jurisdiction State:</span>
-                        <span className="text-stone-900">{gstinInfo.stateName} (Code: {gstinInfo.stateCode})</span>
-                      </div>
-                      <div className="flex justify-between border-b border-stone-200 pb-1.5">
-                        <span className="text-stone-500">Taxpayer Type:</span>
-                        <span className="text-stone-900 font-medium">Regular (Proprietorship)</span>
-                      </div>
-                    </div>
-
-                    <div className="pt-10 flex justify-between items-end text-[10px] text-stone-500">
-                      <div className="font-mono">Verification Hash: OK-VER-94821</div>
-                      <div className="text-right border-t border-stone-400 pt-1 font-mono uppercase">
-                        Jurisdictional Authority
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedDocKind === 'kiosk_photo' && (
-                  <div className="space-y-4 text-center">
-                    <div className="aspect-video bg-stone-100 rounded-lg border-2 border-dashed border-stone-300 flex flex-col items-center justify-center p-6 text-stone-600 space-y-2">
-                      <Camera className="size-12 text-stone-400" />
-                      <div className="text-xs font-bold text-stone-800">
-                        Physical Storefront Photograph
-                      </div>
-                      <div className="text-[11px] text-stone-500 max-w-sm">
-                        High-resolution front facade showing &ldquo;ApplyFields Authorized MeeSeva Partner&rdquo; signage and operating desk.
-                      </div>
-                      <div className="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-mono font-bold mt-2">
-                        EXIF Geo-Tag: 17.3850° N, 78.4867° E (Within 12m)
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-stone-500">
-                      Captured via Partner Center Onboarding App on 14 Feb 2026
-                    </p>
-                  </div>
-                )}
-
-                {selectedDocKind === 'owner_id' && (
-                  <div className="space-y-4 border border-stone-300 p-6 rounded bg-stone-50">
-                    <div className="flex justify-between items-start border-b border-stone-300 pb-3">
-                      <div>
-                        <span className="text-[10px] font-black uppercase text-stone-500">
-                          Income Tax Department · Govt of India
-                        </span>
-                        <h4 className="text-sm font-bold text-stone-900">Permanent Account Number Card</h4>
-                      </div>
-                      <span className="font-mono text-xs font-bold text-stone-700">PAN</span>
-                    </div>
-
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <span className="text-[10px] text-stone-500 block">Name of Proprietor</span>
-                        <strong className="text-stone-900 text-sm">Authorized Kiosk Operator</strong>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-stone-500 block">PAN Number</span>
-                        <strong className="font-mono text-stone-900 text-sm">
-                          {gstinInfo.pan || 'AAAAA0000A'}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  </>
+                );
+              })()}
             </div>
           </Card>
         </div>
 
-        {/* RIGHT PANE: CENTER DETAILS, GSTIN VALIDATOR & APPROVAL CHECKLIST (5 cols) */}
+        {/* RIGHT PANE: CENTER DETAILS & APPROVAL CHECKLIST (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
-          {/* Automated GSTIN Validator Box */}
-          <Card className="p-4 sm:p-5 border-teal/15 space-y-3">
-            <div className="flex items-center justify-between border-b border-teal/10 pb-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-teal flex items-center gap-1.5">
-                <FileCheck2 className="size-3.5" /> GSTIN Algorithmic Validator
-              </h4>
-              <Badge tone={gstinInfo.isValid ? 'teal' : 'celadon'}>
-                {gstinInfo.isValid ? 'Structure Valid' : 'Invalid Format'}
-              </Badge>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-teal/70">Submitted GSTIN:</span>
-                <span className="font-mono font-bold text-teal">{gstinInfo.clean}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-teal/70">State Jurisdiction:</span>
-                <span className="font-semibold text-teal">
-                  {gstinInfo.stateName} (Code: {gstinInfo.stateCode})
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-teal/70">Embedded PAN:</span>
-                <span className="font-mono text-teal font-semibold">
-                  {gstinInfo.pan || 'N/A'}
-                </span>
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-teal/5 p-2.5 text-[11px] text-teal/80 border border-teal/10 flex items-start gap-2">
-              <ShieldCheck className="size-3.5 text-teal shrink-0 mt-0.5" />
-              <span>
-                GSTIN matched against Central Goods and Services Tax master database. Status: <strong>Active Taxpayer</strong>.
-              </span>
-            </div>
-          </Card>
-
           {/* Physical Center Specifications */}
           <Card className="p-4 sm:p-5 border-teal/15 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-teal flex items-center gap-1.5 border-b border-teal/10 pb-2">
@@ -550,16 +370,6 @@ export function PartnerKycInspectorClient({ partner: initialPartner }: PartnerKy
                   className="size-4 rounded border-teal/30 text-teal focus:ring-teal"
                 />
                 <span className="text-teal/90">Trade license is active &amp; legally valid</span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={checks.gstinActive}
-                  onChange={(e) => setChecks({ ...checks, gstinActive: e.target.checked })}
-                  className="size-4 rounded border-teal/30 text-teal focus:ring-teal"
-                />
-                <span className="text-teal/90">GSTIN name strictly matches trade license</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">

@@ -34,7 +34,7 @@ const blank = {
   address: '',
   city: '',
   district: '',
-  state_code: 'TG',
+  state_code: 'TS',
   pincode: '',
   description: '',
 };
@@ -130,7 +130,7 @@ export default function Onboard() {
     if (f.email && !/^\S+@\S+\.\S+$/.test(f.email.trim())) return 'The email address is not valid.';
     if (f.address.trim().length < 3) return 'Enter the full address.';
     if (f.city.trim().length < 2 || f.district.trim().length < 2) return 'Enter the city and district.';
-    if (!/^[A-Za-z]{2}$/.test(f.state_code.trim())) return 'State code is two letters, like TG or AP.';
+    if (!/^[A-Za-z]{2}$/.test(f.state_code.trim())) return 'State code is two letters, like TS or AP.';
     if (!PIN_RE.test(f.pincode.trim())) return 'Enter the 6-digit PIN code.';
     return null;
   }

@@ -4,6 +4,7 @@ import type {
   ChatMessageItem,
   ConversationListResponse,
   PartnerDetail,
+  PartnerDocumentMimeType,
   PartnerDocumentSummary,
   PartnerRegistrationInput,
   PartnerServiceDetail,
@@ -19,6 +20,7 @@ import type {
   InstitutionListResponse,
   InstitutionSummary,
 } from '@applyfields/types';
+import { PARTNER_DOCUMENT_MIME_TYPES } from '@applyfields/types/src/partner-documents';
 
 
 
@@ -332,9 +334,28 @@ export async function updatePartner(input: PartnerUpdateInput): Promise<ApiRespo
 
 export async function uploadPartnerDoc(payload: {
   document_kind: string;
-  storage_path: string;
+  file_name: string;
+  mime_type: PartnerDocumentMimeType;
+  file_base64: string;
 }): Promise<ApiResponse<PartnerDocumentSummary>> {
   return apiPost<PartnerDocumentSummary>('/partners/me/documents', payload);
+}
+
+/** Read a picked file and send it as a KYC document (stored in Supabase Storage by the API). */
+export async function uploadPartnerFile(
+  document_kind: string,
+  file: File,
+): Promise<ApiResponse<PartnerDocumentSummary>> {
+  const mime = PARTNER_DOCUMENT_MIME_TYPES.find((m) => m === file.type);
+  if (!mime) return { data: null, error: 'Upload a JPG, PNG, WEBP or PDF file.', status: 400 };
+  if (file.size > 10 * 1024 * 1024) return { data: null, error: 'The file is larger than 10 MB.', status: 400 };
+  const file_base64 = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+  return uploadPartnerDoc({ document_kind, file_name: file.name, mime_type: mime, file_base64 });
 }
 
 export async function listPartnerServices(): Promise<ApiResponse<PartnerServiceDetail[]>> {

@@ -26,7 +26,7 @@ import { ServicesAdminService } from './services-admin.service.js';
 
 @Controller('admin/services')
 @UseGuards(StaffGuard)
-@Roles('reviewer')
+@Roles('support')
 export class ServicesAdminController {
   constructor(private readonly servicesAdmin: ServicesAdminService) {}
 

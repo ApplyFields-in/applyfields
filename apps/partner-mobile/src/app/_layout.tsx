@@ -61,6 +61,7 @@ function Navigator() {
         <Stack.Screen name="service-form" options={{ title: 'Service', presentation: 'modal' }} />
         <Stack.Screen name="schedule" options={{ title: 'Operating schedule' }} />
         <Stack.Screen name="centre-profile" options={{ title: 'Centre details' }} />
+        <Stack.Screen name="earnings" options={{ title: 'Earnings & payouts' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={status === 'institution'}>

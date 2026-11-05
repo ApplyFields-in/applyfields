@@ -11,7 +11,7 @@ import { BookingsService } from './bookings.service.js';
 
 @Controller('admin/bookings')
 @UseGuards(StaffGuard)
-@Roles('reviewer')
+@Roles('support')
 export class BookingsAdminController {
   constructor(private readonly bookingsService: BookingsService) {}
 

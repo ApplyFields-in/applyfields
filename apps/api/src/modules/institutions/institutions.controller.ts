@@ -1,15 +1,19 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import type {
+  InstitutionProgram,
+  UpsertInstitutionProgramInput,
   CourseDetail,
   CourseSummary,
   CreateInstitutionEnquiryInput,
@@ -38,6 +42,7 @@ import {
   type CourseListQuery,
   type InstitutionListQuery,
   updateInstitutionProfileSchema,
+  upsertInstitutionProgramSchema,
 } from './institutions.service.js';
 
 @Controller('career')
@@ -100,6 +105,32 @@ export class InstitutionsController {
     @Body(new ZodPipe(updateInstitutionProfileSchema)) body: UpdateInstitutionProfileInput,
   ): Promise<InstitutionPartnerProfile> {
     return this.institutionsService.updatePartnerInstitutionDesk(req.user.userId, body);
+  }
+
+  // Programs the college offers (institution_courses). Scoped to the member's own college.
+  @Get('colleges/partner/programs')
+  @UseGuards(AuthGuard)
+  async listPartnerPrograms(@Req() req: AuthenticatedRequest): Promise<InstitutionProgram[]> {
+    return this.institutionsService.listPartnerPrograms(req.user.userId);
+  }
+
+  @Put('colleges/partner/programs/:courseId')
+  @UseGuards(AuthGuard)
+  async upsertPartnerProgram(
+    @Req() req: AuthenticatedRequest,
+    @Param('courseId') courseId: string,
+    @Body(new ZodPipe(upsertInstitutionProgramSchema)) body: UpsertInstitutionProgramInput,
+  ): Promise<InstitutionProgram> {
+    return this.institutionsService.upsertPartnerProgram(req.user.userId, courseId, body);
+  }
+
+  @Delete('colleges/partner/programs/:courseId')
+  @UseGuards(AuthGuard)
+  async removePartnerProgram(
+    @Req() req: AuthenticatedRequest,
+    @Param('courseId') courseId: string,
+  ): Promise<{ removed: boolean }> {
+    return this.institutionsService.removePartnerProgram(req.user.userId, courseId);
   }
 
   @Get('colleges/partner/enquiries')
