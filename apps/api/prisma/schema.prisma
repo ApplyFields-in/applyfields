@@ -1667,18 +1667,6 @@ model booking_messages {
   @@index([request_id, is_read], map: "idx_booking_messages_unread", where: raw("(is_read = false)"))
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model institutions_backup_20261104 {
-  id         String? @db.Uuid
-  name       String?
-  city       String?
-  district   String?
-  state_code String?
-
-  @@ignore
-}
-
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model search_terms {
