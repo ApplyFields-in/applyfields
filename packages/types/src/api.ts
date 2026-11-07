@@ -1444,6 +1444,10 @@ export interface BookingDetail {
   final_paise: number | null;
   cancelled_reason: string | null;
   completed_at: string | null;
+  /** Set when the operator files on the official portal. */
+  official_app_number?: string | null;
+  /** True once the acknowledgment slip is uploaded (download via GET /bookings/:id/slip). */
+  has_acknowledgment_slip?: boolean;
   created_at: string;
   updated_at: string;
   events: BookingRequestEvent[];
@@ -1463,6 +1467,14 @@ export interface CreateBookingInput {
   appointment_at?: string;
   user_note?: string;
   contact_phone?: string;
+}
+
+export interface MarkFiledInput {
+  official_app_number: string;
+  /** base64 or data URL; PDF, JPG or PNG, max 5 MB */
+  slip_base64: string;
+  slip_mime_type: 'application/pdf' | 'image/jpeg' | 'image/png';
+  partner_note?: string;
 }
 
 export interface UpdateBookingStatusInput {
