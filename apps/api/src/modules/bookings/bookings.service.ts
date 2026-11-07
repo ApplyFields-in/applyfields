@@ -2,7 +2,9 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type {
   BookingDetail,
@@ -12,10 +14,13 @@ import type {
   BookingReview,
   CreateBookingInput,
   CreateReviewInput,
+  MarkFiledInput,
   UpdateBookingStatusInput,
 } from '@applyfields/types';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { StorageService } from '../../common/storage.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import type { request_status } from '../../generated/prisma/enums.js';
 
 export const createBookingSchema = z.object({
@@ -35,6 +40,37 @@ export const updateBookingStatusSchema = z.object({
   quoted_paise: z.number().int().min(0).optional(),
   final_paise: z.number().int().min(0).optional(),
 });
+
+const MAX_SLIP_BYTES = 5 * 1024 * 1024; // 5 MB
+/** Accepted slip types → extension + magic bytes (never trust the declared MIME alone). */
+const SLIP_TYPES = {
+  'application/pdf': { ext: 'pdf', magic: [0x25, 0x50, 0x44, 0x46] }, // %PDF
+  'image/jpeg': { ext: 'jpg', magic: [0xff, 0xd8, 0xff] },
+  'image/png': { ext: 'png', magic: [0x89, 0x50, 0x4e, 0x47] },
+} as const;
+
+export const markFiledSchema = z.object({
+  official_app_number: z
+    .string()
+    .trim()
+    .min(4, 'Official application number is too short')
+    .max(60)
+    .regex(/^[A-Za-z0-9][A-Za-z0-9\-/. ]*$/, 'Use letters, digits, - / . only (e.g. MVA-2026-98741)'),
+  slip_base64: z.string().min(1, 'Upload the acknowledgment slip'),
+  slip_mime_type: z.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  partner_note: z.string().trim().max(500).optional(),
+});
+
+/** Decode a base64 / data-URL slip and check its size and real file type. */
+export function decodeSlip(base64: string, mime: keyof typeof SLIP_TYPES): Buffer {
+  const buf = Buffer.from(base64.includes(';base64,') ? base64.split(';base64,')[1] : base64, 'base64');
+  if (buf.length === 0) throw new BadRequestException('The acknowledgment slip is empty.');
+  if (buf.length > MAX_SLIP_BYTES) throw new BadRequestException('The acknowledgment slip must be 5 MB or smaller.');
+  if (!SLIP_TYPES[mime].magic.every((b, i) => buf[i] === b)) {
+    throw new BadRequestException('The file content does not match a PDF, JPG or PNG.');
+  }
+  return buf;
+}
 
 export const createReviewSchema = z.object({
   rating: z.number().int().min(1).max(5),
@@ -85,7 +121,13 @@ export const LEAN_BOOKING_INCLUDE = {
 
 @Injectable()
 export class BookingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(BookingsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage?: StorageService,
+    private readonly notifications?: NotificationsService,
+  ) {}
 
   // =========================================================================
   // CITIZEN BOOKINGS
@@ -165,7 +207,12 @@ export class BookingsService {
       throw new NotFoundException(`Booking "${bookingId}" not found`);
     }
 
-    if (req.user_id && userId && req.user_id !== userId) {
+    if (
+      req.user_id &&
+      userId &&
+      req.user_id !== userId &&
+      !(await this.isPartnerMember(userId, req.partner_id))
+    ) {
       throw new ForbiddenException(`You are not authorized to view this booking`);
     }
 
@@ -364,6 +411,104 @@ export class BookingsService {
     return this.mapToDetail(updated);
   }
 
+  /**
+   * Operator filed the application on the official portal: store the official application number and
+   * the acknowledgment slip (private Supabase Storage), complete the request, notify the citizen.
+   */
+  async markFiled(userId: string, bookingId: string, input: MarkFiledInput): Promise<BookingDetail> {
+    const existing = await this.prisma.service_requests.findUnique({ where: { id: bookingId } });
+    if (!existing || !(await this.isPartnerMember(userId, existing.partner_id))) {
+      throw new NotFoundException(`Booking "${bookingId}" not found or unauthorized`);
+    }
+    if (['completed', 'cancelled', 'rejected'].includes(existing.status)) {
+      throw new BadRequestException(`This request is already ${existing.status}.`);
+    }
+
+    const slip = decodeSlip(input.slip_base64, input.slip_mime_type);
+    const path = `acknowledgments/${bookingId}/${Date.now()}.${SLIP_TYPES[input.slip_mime_type].ext}`;
+    const stored = this.storage
+      ? await this.storage.upload(this.storage.documentsBucket, path, slip, input.slip_mime_type)
+      : null;
+    if (!stored) {
+      throw new ServiceUnavailableException('Could not store the acknowledgment slip. Please try again.');
+    }
+
+    const appNo = input.official_app_number;
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.service_requests.update({
+        where: { id: bookingId },
+        data: {
+          status: 'completed',
+          completed_at: new Date(),
+          official_app_number: appNo,
+          acknowledgment_slip_url: stored,
+          ...(input.partner_note !== undefined && { partner_note: input.partner_note }),
+        },
+        include: LEAN_BOOKING_INCLUDE,
+      });
+      await tx.service_request_events.create({
+        data: {
+          request_id: bookingId,
+          from_status: existing.status,
+          to_status: 'completed',
+          note: `Filed on the official portal. Application No. ${appNo}. Acknowledgment slip uploaded.`,
+          actor_user_id: userId,
+        },
+      });
+      return row;
+    });
+
+    // The filing is saved; a failed notification must not undo it.
+    if (existing.user_id && this.notifications) {
+      await this.notifications
+        .notify(
+          [existing.user_id],
+          {
+            type: 'request_update',
+            title: 'Your application has been filed',
+            body: `Official Application No. ${appNo}. Your acknowledgment slip is ready to download.`,
+            // The booking page lives on the services app, not the main web app.
+            link: `${(process.env.SERVICE_URL ?? 'https://service.applyfields.in').replace(/\/$/, '')}/bookings/${bookingId}`,
+          },
+          () => `request_filed:${bookingId}`,
+        )
+        .catch((err: Error) => this.logger.warn(`Filing notification failed for ${bookingId}: ${err.message}`));
+    }
+
+    return this.mapToDetail(updated);
+  }
+
+  /** Short-lived download link for the acknowledgment slip: only the citizen or the partner centre. */
+  async slipUrl(userId: string, bookingId: string): Promise<{ url: string }> {
+    const req = await this.prisma.service_requests.findUnique({
+      where: { id: bookingId },
+      select: { user_id: true, partner_id: true, acknowledgment_slip_url: true, official_app_number: true },
+    });
+    const allowed = req && (req.user_id === userId || (await this.isPartnerMember(userId, req.partner_id)));
+    if (!req || !allowed || !req.acknowledgment_slip_url) {
+      throw new NotFoundException('No acknowledgment slip for this booking.');
+    }
+    const ext = req.acknowledgment_slip_url.split('.').pop();
+    const url = this.storage
+      ? await this.storage.signedUrl(
+          this.storage.documentsBucket,
+          req.acknowledgment_slip_url,
+          600,
+          `acknowledgment-${req.official_app_number ?? bookingId}.${ext}`,
+        )
+      : null;
+    if (!url) throw new ServiceUnavailableException('The slip is not available right now. Please try again.');
+    return { url };
+  }
+
+  private async isPartnerMember(userId: string, partnerId: string): Promise<boolean> {
+    const m = await this.prisma.partner_members.findFirst({
+      where: { user_id: userId, partner_id: partnerId },
+      select: { user_id: true },
+    });
+    return Boolean(m);
+  }
+
   // =========================================================================
   // ADMIN NETWORK OVERSIGHT (StaffGuard)
   // =========================================================================
@@ -426,6 +571,8 @@ export class BookingsService {
       final_paise: r.final_paise,
       cancelled_reason: r.cancelled_reason,
       completed_at: r.completed_at ? r.completed_at.toISOString() : null,
+      official_app_number: r.official_app_number ?? null,
+      has_acknowledgment_slip: Boolean(r.acknowledgment_slip_url),
       created_at: r.created_at ? r.created_at.toISOString() : new Date().toISOString(),
       updated_at: r.updated_at ? r.updated_at.toISOString() : new Date().toISOString(),
       events: (r.service_request_events || []).map((e: any) => ({

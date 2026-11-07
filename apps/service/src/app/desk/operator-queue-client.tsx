@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -27,7 +27,9 @@ import {
   ServiceDeskRequest,
   ServiceRequestStatus,
   ServicePriority,
+  fromBooking,
 } from '@/lib/service-desk-data';
+import { getPartnerInbox } from '@/lib/api';
 
 const STATUS_CONFIG: Record<
   ServiceRequestStatus,
@@ -73,6 +75,15 @@ const STATUS_CONFIG: Record<
 export function OperatorQueueClient() {
   const router = useRouter();
   const [requests, setRequests] = useState<ServiceDeskRequest[]>(SAMPLE_SERVICE_REQUESTS);
+
+  // Real requests for the signed-in partner centre go first; demo samples stay below them.
+  useEffect(() => {
+    getPartnerInbox().then((res) => {
+      if (res.data?.items.length) {
+        setRequests([...res.data.items.map(fromBooking), ...SAMPLE_SERVICE_REQUESTS]);
+      }
+    });
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');

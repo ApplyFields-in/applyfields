@@ -29,14 +29,54 @@ import {
   RotateCw,
   ZoomIn,
 } from 'lucide-react';
-import {
-  ServiceDeskRequest,
-  ApplicantDocument,
-  SAMPLE_SERVICE_REQUESTS,
-} from '@/lib/service-desk-data';
+import { ServiceDeskRequest, ApplicantDocument, fromBooking } from '@/lib/service-desk-data';
+import { getBookingById, getBookingSlipUrl, markBookingFiled } from '@/lib/api';
 
 interface WorkstationClientProps {
   initialRequest: ServiceDeskRequest;
+}
+
+const SLIP_TYPES = ['application/pdf', 'image/jpeg', 'image/png'] as const;
+type SlipType = (typeof SLIP_TYPES)[number];
+const MAX_SLIP_BYTES = 5 * 1024 * 1024;
+const APP_NO = /^[A-Za-z0-9][A-Za-z0-9\-/. ]{3,59}$/;
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
+
+/** Loads a real service request (signed-in partner operator) and opens the workstation on it. */
+export function LiveWorkstation({ id }: { id: string }) {
+  const [request, setRequest] = useState<ServiceDeskRequest | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getBookingById(id).then((res) => {
+      if (res.data) setRequest(fromBooking(res.data));
+      else setError(res.status === 401 ? 'Sign in with your partner centre account.' : res.error);
+    });
+  }, [id]);
+
+  if (request) return <WorkstationClient initialRequest={request} />;
+  return (
+    <div className="mx-auto max-w-xl px-4 py-24 text-center text-sm text-slate-600">
+      {error ? (
+        <>
+          <p className="font-bold text-rose-700">{error}</p>
+          <Link href="/desk" className="mt-3 inline-block font-bold text-[#0e7bf4] hover:underline">
+            Back to queue
+          </Link>
+        </>
+      ) : (
+        'Loading request…'
+      )}
+    </div>
+  );
 }
 
 export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
@@ -68,12 +108,8 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
   const [portalRegNumber, setPortalRegNumber] = useState<string>(
     request.processingDetails?.portalRegNumber || ''
   );
-  const [challanReference, setChallanReference] = useState<string>(
-    request.processingDetails?.challanReference || ''
-  );
-  const [receiptFileName, setReceiptFileName] = useState<string>(
-    request.processingDetails?.acknowledgementPdfUrl ? 'government_submission_slip.pdf' : ''
-  );
+  const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [finalizeError, setFinalizeError] = useState<string | null>(null);
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
 
   // Timer logic for OTP
@@ -152,28 +188,58 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
     setShowDefectModal(false);
   };
 
-  // Finalize Submission & Clear Payout
-  const handleFinalizeSubmission = () => {
-    if (!portalRegNumber.trim()) {
-      alert('Please enter the Official Government Application / Registration Number.');
-      return;
+  const pickSlip = (file: File | undefined) => {
+    setFinalizeError(null);
+    if (!file) return setSlipFile(null);
+    if (!SLIP_TYPES.includes(file.type as SlipType)) return setFinalizeError('Upload a PDF, JPG or PNG.');
+    if (file.size > MAX_SLIP_BYTES) return setFinalizeError('The slip must be 5 MB or smaller.');
+    setSlipFile(file);
+  };
+
+  // Mark Filed: status → completed, slip stored in Supabase Storage, citizen notified (API does all three).
+  const handleFinalizeSubmission = async () => {
+    const appNo = portalRegNumber.trim();
+    if (!APP_NO.test(appNo)) {
+      return setFinalizeError('Enter the Official Application No. (letters, digits, - / . — e.g. MVA-2026-98741).');
     }
+    if (!slipFile) return setFinalizeError('Upload the acknowledgment receipt / slip.');
+    setFinalizeError(null);
     setIsFinalizing(true);
-    setTimeout(() => {
-      setIsFinalizing(false);
+    try {
+      if (request.live) {
+        const res = await markBookingFiled(request.id, {
+          official_app_number: appNo,
+          slip_base64: await readAsDataUrl(slipFile),
+          slip_mime_type: slipFile.type as SlipType,
+        });
+        if (!res.data) return setFinalizeError(res.error ?? 'Could not mark as filed.');
+      }
       setRequest((prev) => ({
         ...prev,
         status: 'completed',
         processingDetails: {
           ...prev.processingDetails,
-          portalRegNumber,
-          challanReference,
+          portalRegNumber: appNo,
           submissionTimestamp: new Date().toISOString(),
-          acknowledgementPdfUrl: `/receipts/${portalRegNumber}.pdf`,
+          acknowledgementPdfUrl: 'stored',
         },
       }));
       setShowFinalizeModal(false);
-    }, 700);
+    } catch {
+      setFinalizeError('Could not read the selected file.');
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
+  const handleViewSlip = async () => {
+    if (!request.live) {
+      alert(`Official Application No.: ${request.processingDetails?.portalRegNumber} (demo request, no stored slip)`);
+      return;
+    }
+    const res = await getBookingSlipUrl(request.id);
+    if (res.data?.url) window.location.assign(res.data.url);
+    else alert(res.error ?? 'Could not open the slip.');
   };
 
   const STEPS = [
@@ -242,6 +308,9 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
         <div className="flex flex-wrap items-center gap-2">
           {request.status !== 'completed' && request.status !== 'defective' && (
             <>
+              {/* Defect + OTP are still demo-only; hidden on real requests so they never fake an action. */}
+              {!request.live && (
+              <>
               <button
                 type="button"
                 onClick={() => setShowDefectModal(true)}
@@ -259,6 +328,8 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                 <Phone className="size-3.5" />
                 <span>Trigger Citizen OTP ({isOtpActive ? `${otpSecondsLeft}s` : 'Request'})</span>
               </button>
+              </>
+              )}
 
               <button
                 type="button"
@@ -266,7 +337,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm"
               >
                 <CheckCircle2 className="size-4" />
-                <span>Upload Receipt & Finalize</span>
+                <span>Mark Filed</span>
               </button>
             </>
           )}
@@ -275,15 +346,17 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-800">
                 <CheckCircle2 className="size-4 text-emerald-600" />
-                <span>Application Submitted & Sealed</span>
+                <span>Filed · {request.processingDetails?.portalRegNumber ?? 'Application submitted'}</span>
               </span>
-              <button
-                type="button"
-                onClick={() => alert(`Registration Receipt: ${request.processingDetails?.portalRegNumber}`)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-              >
-                View Stamped Slip
-              </button>
+              {request.processingDetails?.acknowledgementPdfUrl && (
+                <button
+                  type="button"
+                  onClick={handleViewSlip}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Download Acknowledgment Slip
+                </button>
+              )}
             </div>
           )}
 
@@ -971,77 +1044,76 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-emerald-700">
                 <CheckCircle2 className="size-5" />
-                <h3 className="text-base font-bold text-[#082046]">Finalize Application & Clear Settlement</h3>
+                <h3 className="text-base font-bold text-[#082046]">Mark Filed</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowFinalizeModal(false)}
                 className="text-slate-400 hover:text-slate-700"
+                aria-label="Close"
               >
                 <X className="size-4" />
               </button>
             </div>
 
             <p className="text-xs text-slate-600">
-              Enter the official submission references and upload the official PDF acknowledgement downloaded from the government portal.
+              Enter the application number the government portal gave you and upload its acknowledgment receipt.
             </p>
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Official Portal Application / Registration Number <span className="text-rose-600">*</span>
+                <label htmlFor="official-app-no" className="text-xs font-bold text-slate-700 block mb-1">
+                  Official Application No. <span className="text-rose-600">*</span>
                 </label>
                 <input
+                  id="official-app-no"
                   type="text"
                   value={portalRegNumber}
                   onChange={(e) => setPortalRegNumber(e.target.value)}
-                  placeholder="e.g. SSC-CGL-24009182410"
+                  placeholder="e.g. MVA-2026-98741"
+                  maxLength={60}
                   className="w-full rounded-xl border border-slate-200 p-2.5 font-mono text-xs font-bold text-slate-900 placeholder-slate-400 focus:border-[#0e7bf4] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Challan / Transaction Reference (Optional)
+                <label htmlFor="ack-slip" className="text-xs font-bold text-slate-700 block mb-1">
+                  Upload Acknowledgment Receipt / Slip <span className="text-rose-600">*</span>
+                </label>
+                <label
+                  htmlFor="ack-slip"
+                  className="block cursor-pointer rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center hover:border-[#0e7bf4]"
+                >
+                  <Upload className="mx-auto size-6 text-slate-400" />
+                  <p className="mt-1 text-xs font-bold text-slate-700 break-all">
+                    {slipFile ? slipFile.name : 'Choose the PDF downloaded from the government portal'}
+                  </p>
+                  <p className="text-[10px] text-slate-500">PDF, JPG or PNG · max 5 MB</p>
                 </label>
                 <input
-                  type="text"
-                  value={challanReference}
-                  onChange={(e) => setChallanReference(e.target.value)}
-                  placeholder="e.g. SBI-EPAY-8839102"
-                  className="w-full rounded-xl border border-slate-200 p-2.5 font-mono text-xs text-slate-900 placeholder-slate-400 focus:border-[#0e7bf4] focus:outline-none"
+                  id="ack-slip"
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png"
+                  onChange={(e) => pickSlip(e.target.files?.[0])}
+                  className="sr-only"
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Official Government Acknowledgement PDF
-                </label>
-                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
-                  <Upload className="mx-auto size-6 text-slate-400" />
-                  <p className="mt-1 text-xs font-bold text-slate-700">
-                    {receiptFileName || 'Drop official government PDF here, or browse'}
-                  </p>
-                  <p className="text-[10px] text-slate-500">Accepts .pdf, .jpg (Max 5MB)</p>
-                  <button
-                    type="button"
-                    onClick={() => setReceiptFileName('official_government_acknowledgement_receipt.pdf')}
-                    className="mt-2 rounded-lg bg-white border border-slate-200 px-3 py-1 text-xs font-bold text-[#082046] hover:bg-slate-100 transition shadow-xs"
-                  >
-                    Select File
-                  </button>
-                </div>
-              </div>
+              {finalizeError && (
+                <p role="alert" className="rounded-xl bg-rose-50 p-2.5 text-xs font-bold text-rose-700">
+                  {finalizeError}
+                </p>
+              )}
 
               <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs text-emerald-800 space-y-1">
                 <p className="font-bold flex items-center gap-1">
                   <ShieldCheck className="size-3.5 text-emerald-600" />
-                  Automated Downstream Actions:
+                  When you mark it filed:
                 </p>
                 <ul className="list-disc pl-4 text-[11px] text-emerald-700 space-y-0.5">
-                  <li>Submission receipt instantly pushed to candidate WhatsApp and vault</li>
-                  <li>Kiosk commission of <strong>₹{(request.fees.kioskFeePaise / 100).toFixed(2)}</strong> marked as cleared</li>
-                  <li>Filing audit logged with your operator ID</li>
+                  <li>The request is set to <strong>Completed</strong></li>
+                  <li>The slip is stored privately and the citizen can download it from their booking</li>
+                  <li>The citizen gets a notification with the application number</li>
                 </ul>
               </div>
             </div>
@@ -1057,10 +1129,10 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
               <button
                 type="button"
                 onClick={handleFinalizeSubmission}
-                disabled={isFinalizing || !portalRegNumber.trim()}
+                disabled={isFinalizing || !portalRegNumber.trim() || !slipFile}
                 className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50 transition shadow-sm"
               >
-                {isFinalizing ? 'Finalizing...' : 'Confirm Submission & Release Payout'}
+                {isFinalizing ? 'Saving…' : 'Mark Filed'}
               </button>
             </div>
           </div>

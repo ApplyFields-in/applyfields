@@ -1003,6 +1003,22 @@ model push_tokens {
   @@index([user_id])
 }
 
+/// W3C Web Push subscriptions with VAPID credentials per user device.
+model push_subscriptions {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  user_agent String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id])
+  @@index([created_at(sort: Desc)])
+}
+
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model recently_viewed {
@@ -1612,6 +1628,7 @@ model users {
   updates                                                      updates[]
   user_documents                                               user_documents[]
   user_education                                               user_education[]
+  push_subscriptions                                           push_subscriptions[]
   user_passkeys                                                user_passkeys[]
   user_profiles                                                user_profiles?
   user_roadmaps                                                user_roadmaps[]
@@ -2064,6 +2081,9 @@ enum update_kind {
   date_change
   extension
   counselling
+  vacancy_revision
+  syllabus_change
+  postponement
   other
 }
 

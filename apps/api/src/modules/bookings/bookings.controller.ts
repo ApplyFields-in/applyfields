@@ -15,6 +15,7 @@ import type {
   BookingReview,
   CreateBookingInput,
   CreateReviewInput,
+  MarkFiledInput,
   UpdateBookingStatusInput,
 } from '@applyfields/types';
 import { ZodPipe } from '../../common/zod.pipe.js';
@@ -28,6 +29,7 @@ import {
   BookingsService,
   createBookingSchema,
   createReviewSchema,
+  markFiledSchema,
   updateBookingStatusSchema,
 } from './bookings.service.js';
 
@@ -73,6 +75,26 @@ export class BookingsController {
     @Body(new ZodPipe(updateBookingStatusSchema)) body: UpdateBookingStatusInput,
   ): Promise<BookingDetail> {
     return this.bookingsService.updatePartnerBooking(req.user.userId, bookingId, body);
+  }
+
+  /** Operator: save the official application number + acknowledgment slip, complete, notify citizen. */
+  @Post('partner/:id/filed')
+  @UseGuards(AuthGuard)
+  async markFiled(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') bookingId: string,
+    @Body(new ZodPipe(markFiledSchema)) body: MarkFiledInput,
+  ): Promise<BookingDetail> {
+    return this.bookingsService.markFiled(req.user.userId, bookingId, body);
+  }
+
+  @Get(':id/slip')
+  @UseGuards(AuthGuard)
+  async getSlip(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') bookingId: string,
+  ): Promise<{ url: string }> {
+    return this.bookingsService.slipUrl(req.user.userId, bookingId);
   }
 
   @Get(':id')
