@@ -2,10 +2,29 @@
 
 import { useState, useTransition } from 'react';
 import { buttonClass, Card, cn } from '@applyfields/ui';
-import { CircleAlert, CircleCheck, Edit, Megaphone, Send, TriangleAlert, X } from 'lucide-react';
+import type { UpdateKind } from '@applyfields/types';
+import { ChevronDown, CircleAlert, CircleCheck, Edit, Megaphone, Send, TriangleAlert, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { publishOpportunityAction, setOpportunityStatusAction } from '@/lib/actions';
+import { UPDATE_KIND_LABEL } from './updates-ui';
+
+/** Kinds a corrigendum to a reviewed notice can be (the menu under "Corrigendum"). */
+const CORRIGENDUM_KINDS: UpdateKind[] = [
+  'date_change',
+  'extension',
+  'vacancy_revision',
+  'syllabus_change',
+  'postponement',
+  'other',
+];
+
+/** /updates/new pre-filled with the parent, the kind and the original notice PDF as the source. */
+export function corrigendumHref(id: string, kind: UpdateKind, noticeUrl?: string | null): string {
+  const q = new URLSearchParams({ opportunity_id: id, kind });
+  if (noticeUrl) q.set('source_url', noticeUrl);
+  return `/updates/new?${q}`;
+}
 
 const QUICK_REJECTION_REASONS = [
   'Duplicate of existing live opportunity',
@@ -15,7 +34,16 @@ const QUICK_REJECTION_REASONS = [
   'Eligibility criteria missing from source text',
 ];
 
-export function ReviewActions({ id, missing }: { id: string; missing: string[] }) {
+export function ReviewActions({
+  id,
+  missing,
+  noticeUrl,
+}: {
+  id: string;
+  missing: string[];
+  /** The opportunity's official notification PDF link (not the expiring signed preview link). */
+  noticeUrl?: string | null;
+}) {
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -103,13 +131,31 @@ export function ReviewActions({ id, missing }: { id: string; missing: string[] }
             <Edit aria-hidden="true" className="size-3.5" /> Full editor
           </Link>
 
-          <Link
-            href={`/updates/new?opportunity_id=${encodeURIComponent(id)}&kind=date_change`}
-            className={buttonClass({ variant: ready ? 'inverse' : 'secondary', size: 'sm' })}
-            title="Issue Corrigendum or deadline extension update"
-          >
-            <Megaphone aria-hidden="true" className="size-3.5" /> Corrigendum
-          </Link>
+          {/* Native <details> menu: pick the corrigendum kind, the update form opens pre-filled. */}
+          <details className="relative">
+            <summary
+              className={cn(
+                buttonClass({ variant: ready ? 'inverse' : 'secondary', size: 'sm' }),
+                'cursor-pointer list-none [&::-webkit-details-marker]:hidden',
+              )}
+              title="Issue a corrigendum, deadline extension or other change"
+            >
+              <Megaphone aria-hidden="true" className="size-3.5" /> Corrigendum
+              <ChevronDown aria-hidden="true" className="size-3.5" />
+            </summary>
+            <ul className="absolute left-0 z-20 mt-1 w-64 rounded-xl border border-line bg-canvas p-1 text-teal shadow-xl">
+              {CORRIGENDUM_KINDS.map((kind) => (
+                <li key={kind}>
+                  <Link
+                    href={corrigendumHref(id, kind, noticeUrl)}
+                    className="block rounded-lg px-3 py-2 text-xs font-semibold hover:bg-cream"
+                  >
+                    {UPDATE_KIND_LABEL[kind]}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </details>
 
           <button
             type="button"
