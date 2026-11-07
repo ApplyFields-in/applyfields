@@ -39,7 +39,8 @@ function Navigator() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={status === 'staff'}>
-        <Stack.Screen name="home" options={{ title: 'Staff desk' }} />
+        <Stack.Screen name="(desk)" options={{ headerShown: false }} />
+        <Stack.Screen name="kyc/[id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack.Protected>
     </Stack>
   );
