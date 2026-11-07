@@ -1,4 +1,4 @@
-/** Phase 2 landing: who is signed in and which departments their roles open. Department screens come next. */
+/** Account: who is signed in, their roles and departments, sign out. */
 import { useState } from 'react';
 
 import { Badge, Button, Card, Muted, Page, SectionTitle, Title } from '@/components/ui';
@@ -6,7 +6,7 @@ import { useSession } from '@/lib/session';
 import { DEPARTMENT_LABEL, departmentsForRoles } from '@/lib/staff';
 import { C } from '@/theme';
 
-export default function Home() {
+export default function Account() {
   const { staff, reload, logout } = useSession();
   const [refreshing, setRefreshing] = useState(false);
   const departments = departmentsForRoles(staff?.roles);

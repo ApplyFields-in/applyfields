@@ -1015,8 +1015,8 @@ model push_subscriptions {
   updated_at DateTime @default(now()) @db.Timestamptz(6)
   users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([user_id])
-  @@index([created_at(sort: Desc)])
+  @@index([created_at(sort: Desc)], map: "idx_push_subscriptions_created")
+  @@index([user_id], map: "idx_push_subscriptions_user_id")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -1614,6 +1614,7 @@ model users {
   partner_reviews                                              partner_reviews[]
   partners                                                     partners[]
   payments                                                     payments[]
+  push_subscriptions                                           push_subscriptions[]
   push_tokens                                                  push_tokens[]
   recently_viewed                                              recently_viewed[]
   reminders                                                    reminders[]
@@ -1628,7 +1629,6 @@ model users {
   updates                                                      updates[]
   user_documents                                               user_documents[]
   user_education                                               user_education[]
-  push_subscriptions                                           push_subscriptions[]
   user_passkeys                                                user_passkeys[]
   user_profiles                                                user_profiles?
   user_roadmaps                                                user_roadmaps[]
