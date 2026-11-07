@@ -64,6 +64,7 @@ export class GuidanceService {
     userId?: string,
   ): Promise<AskGuidanceResponse> {
     const question = dto.question.trim();
+    const groqKey = (process.env.GROQ_API_KEY || process.env.GROK_API_KEY)?.trim();
     const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
 
     // 1. Retrieve grounded internal ApplyFields sources
@@ -81,13 +82,11 @@ export class GuidanceService {
       conversationId = convRows[0]?.id;
     }
 
-    let answer: string;
+    let answer = '';
     let isFallback = false;
 
-    // 2. Call Anthropic Claude API if API key is present
-    if (apiKey) {
-      try {
-        const systemPrompt = `You are the ApplyFields AI Career Guide, an empathetic, highly knowledgeable educational advisor for students in India.
+    // 2. Call Groq / Grok or Anthropic API if an API key is present
+    const systemPrompt = `You are the ApplyFields AI Career Guide, an empathetic, highly knowledgeable educational advisor for students in India.
 CRITICAL RULES:
 1. Base all guidance strictly on real, factual educational trajectories and official eligibility criteria in India. Never invent admission deadlines, examination dates, or fees.
 2. Ground your advice in the following ApplyFields resources matching the student's inquiry:
@@ -95,6 +94,39 @@ ${JSON.stringify(sources, null, 2)}
 3. Where relevant, naturally reference and hyperlink ApplyFields pages using markdown: [Page Title](url).
 4. Provide structured, reassuring, step-by-step guidance formatted with bold headings and bullet points.`;
 
+    if (groqKey) {
+      try {
+        const groqModel = process.env.GROQ_MODEL?.trim() || 'openai/gpt-oss-120b';
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${groqKey}`,
+          },
+          body: JSON.stringify({
+            model: groqModel,
+            temperature: 0.3,
+            max_tokens: 1024,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: question },
+            ],
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          answer = data.choices?.[0]?.message?.content?.trim() || '';
+        } else {
+          console.warn('[GuidanceService] Groq API returned status:', res.status);
+        }
+      } catch (err: any) {
+        console.warn('[GuidanceService] Groq API call failed:', err.message);
+      }
+    }
+
+    if (!answer && apiKey) {
+      try {
         const res = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -117,16 +149,13 @@ ${JSON.stringify(sources, null, 2)}
           answer = data.content?.find((b: { type: string }) => b.type === 'text')?.text || '';
         } else {
           console.warn('[GuidanceService] Anthropic API returned status:', res.status);
-          answer = this.generateGroundedResponse(question, sources);
-          isFallback = true;
         }
       } catch (err: any) {
-        console.warn('[GuidanceService] Anthropic API call failed, using grounded fallback:', err.message);
-        answer = this.generateGroundedResponse(question, sources);
-        isFallback = true;
+        console.warn('[GuidanceService] Anthropic API call failed:', err.message);
       }
-    } else {
-      // API Key not set: use intelligent grounded rule-based guidance engine
+    }
+
+    if (!answer) {
       answer = this.generateGroundedResponse(question, sources);
       isFallback = true;
     }

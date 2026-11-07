@@ -23,7 +23,10 @@
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.USE_BIOMETRIC"],
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -53,6 +56,16 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "owner": "likhithkumar"
+    "owner": "likhithkumar",
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "3757945e-ae03-4ee5-93f8-9895bdc93bac"
+      }
+    }
   }
 }
