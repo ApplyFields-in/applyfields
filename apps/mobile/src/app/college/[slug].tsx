@@ -3,11 +3,13 @@ import type { InstitutionDetail } from '@applyfields/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Badge, Button, Card, Empty, Loading, Muted, SectionTitle } from '@/components/ui';
 import { useApi } from '@/lib/use-api';
+import { recordMascotEvent } from '@/services/mascot/IconManager';
 import { C, R, S, column } from '@/theme';
 
 const cap = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
@@ -18,6 +20,9 @@ export default function CollegeScreen() {
     slug ? `/career/colleges/${slug}` : null,
   );
   const insets = useSafeAreaInsets();
+  useEffect(() => {
+    recordMascotEvent({ type: 'research' }); // comparing colleges
+  }, [slug]);
 
   if (loading) return <Loading />;
   if (!data) {
@@ -118,6 +123,30 @@ export default function CollegeScreen() {
           label="Visit website"
           icon="open-outline"
           onPress={() => WebBrowser.openBrowserAsync(data.website!).catch(() => undefined)}
+        />
+      ) : null}
+      {data.contact_phone ? (
+        <Button
+          label={`Call ${data.contact_phone}`}
+          icon="call-outline"
+          variant="secondary"
+          onPress={() =>
+            Linking.openURL(`tel:${data.contact_phone!.replace(/[^\d+]/g, '')}`).catch(
+              () => undefined,
+            )
+          }
+        />
+      ) : null}
+      {data.latitude != null && data.longitude != null ? (
+        <Button
+          label="Directions"
+          icon="navigate-outline"
+          variant="secondary"
+          onPress={() =>
+            Linking.openURL(
+              `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}`,
+            ).catch(() => undefined)
+          }
         />
       ) : null}
     </ScrollView>

@@ -6,7 +6,6 @@ import {
   Settings,
   Crown,
   ShieldCheck,
-  KeyRound,
   Bell,
   FolderLock,
   UserRound,
@@ -19,6 +18,7 @@ import {
 import { apiGet } from '@/lib/api';
 import type { MeResponse } from '@applyfields/types';
 import { DigiLockerCard } from '@/components/digilocker-card';
+import { PasskeysCard } from '@/components/passkeys';
 import { PARTNER_PORTAL_URL } from '@/lib/urls';
 import { AccessibilityReadingSettings } from '@/components/settings/accessibility-reading-settings';
 import { AdvancedAccountSettings } from '@/components/settings/advanced-account-settings';
@@ -201,19 +201,8 @@ function AccountContent() {
             </div>
           </div>
 
-          {/* Security & Passkeys */}
-          <div className="rounded-2xl border border-[#c4d2e3] bg-white p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-[#082046] flex items-center gap-2">
-              <KeyRound className="size-4 text-[#0e7bf4]" /> Security &amp; Credentials
-            </h3>
-            <p className="text-xs text-[#536780]">
-              Passwordless login via WebAuthn / Passkeys (fingerprint, Face ID, or Windows Hello) allows secure sign-in without remembering passwords or waiting for SMS OTPs.
-            </p>
-            <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-[#435775]">
-              <span>Passkey Enrollment</span>
-              <span className="font-semibold text-emerald-700">Supported on this browser</span>
-            </div>
-          </div>
+          {/* Passkeys: real WebAuthn (fingerprint / face / screen lock) */}
+          <PasskeysCard />
         </div>
 
         {/* Right Column: Quick Links & Partner Network */}

@@ -60,7 +60,82 @@
           "isAndroidBackgroundLocationEnabled": false,
           "isIosBackgroundLocationEnabled": false
         }
-      ]
+      ],
+      [
+        "expo-awesome-app-icon",
+        {
+          "icons": {
+            "default": {
+              "ios": {
+                "light": "./assets/icons/ios/default.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/default.png",
+                "foregroundImage": "./assets/icons/android/default.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
+            "sleeping": {
+              "ios": {
+                "light": "./assets/icons/ios/sleeping.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/sleeping.png",
+                "foregroundImage": "./assets/icons/android/sleeping.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
+            "active": {
+              "ios": {
+                "light": "./assets/icons/ios/active.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/active.png",
+                "foregroundImage": "./assets/icons/android/active.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
+            "notification": {
+              "ios": {
+                "light": "./assets/icons/ios/notification.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/notification.png",
+                "foregroundImage": "./assets/icons/android/notification.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
+            "thinking": {
+              "ios": {
+                "light": "./assets/icons/ios/thinking.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/thinking.png",
+                "foregroundImage": "./assets/icons/android/thinking.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
+            "achievement": {
+              "ios": {
+                "light": "./assets/icons/ios/achievement.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/achievement.png",
+                "foregroundImage": "./assets/icons/android/achievement.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            }
+          }
+        }
+      ],
+      "./plugins/without-ios-background-fetch.js",
+      "./plugins/with-room-keep-rule.js"
     ],
     "experiments": {
       "typedRoutes": true,

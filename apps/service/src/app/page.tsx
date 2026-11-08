@@ -52,6 +52,22 @@ export interface VerifiedCenter {
   }[];
 }
 
+const MAIN_WEB_URL = process.env.NEXT_PUBLIC_MAIN_WEB_URL || 'http://localhost:3000';
+
+/** Slugs seeded by database/changes/2026-11-06_likhith_top10_citizen_services_ts_ap.sql */
+const POPULAR_GUIDES: [string, string][] = [
+  ['pan-card', 'PAN Card'],
+  ['passport', 'Passport'],
+  ['integrated-certificate', 'Integrated (Caste) Certificate'],
+  ['income-certificate', 'Income Certificate'],
+  ['residence-certificate', 'Residence Certificate'],
+  ['obc-ncl-certificate', 'OBC NCL Certificate'],
+  ['ews-certificate', 'EWS Certificate'],
+  ['driving-licence', 'Driving Licence / LL'],
+  ['voter-id', 'Voter ID'],
+  ['aadhaar-address-update', 'Aadhaar Address Update'],
+];
+
 const SAMPLE_CENTERS: VerifiedCenter[] = [
   {
     id: 'pt-1',
@@ -607,6 +623,24 @@ export default function ServicesHomePage() {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Step-by-step guides (gov_services on the main portal) for the most-asked TS/AP services */}
+      <section className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8" aria-labelledby="guides-heading">
+        <h2 id="guides-heading" className="text-sm font-black text-[#082046]">
+          Step-by-step guides: do it yourself, or book a centre below
+        </h2>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {POPULAR_GUIDES.map(([slug, label]) => (
+            <a
+              key={slug}
+              href={`${MAIN_WEB_URL}/services/${slug}`}
+              className="rounded-full border border-[#d5deea] bg-white px-3 py-1.5 text-xs font-bold text-[#082046] hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
+            >
+              {label}
+            </a>
+          ))}
         </div>
       </section>
 

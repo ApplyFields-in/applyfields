@@ -5,6 +5,7 @@ import { UsersStore } from './users.store.js';
 import { StorageService } from '../../common/storage.service.js';
 import {
   extractEducationFromResume,
+  extractProfileFromResume,
   extractTextFromBuffer,
 } from './resume-parser.js';
 import type { UpdateProfileDto } from './dto/update-profile.dto.js';
@@ -200,6 +201,8 @@ export class UsersService {
       success: true,
       resume: userResume,
       qualifications,
+      // Not stored: name/DOB/address only go into the profile if the citizen confirms them
+      profile: extractProfileFromResume(extractedText),
       text: extractedText,
     };
   }

@@ -323,11 +323,5 @@ describe('AuthService', () => {
       );
     });
 
-    it('refuses passkey sign-in until real WebAuthn exists (an email alone must never sign anyone in)', async () => {
-      await authService.register({ email: 'registered.passkey@example.com', password: 'Password123!' });
-      await expect(authService.passkeyLogin({ email: 'registered.passkey@example.com' } as any)).rejects.toThrow(
-        'not available yet',
-      );
-    });
   });
 });

@@ -293,6 +293,35 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
     expect(res.intent).toBe('fee');
     expect(res.answer).toContain('Fee Breakdown');
   });
+
+  it('synthesizes answers via Groq when GROQ_API_KEY is configured', async () => {
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: 'Synthesized Groq answer for career paths.' } }],
+      }),
+    } as any);
+
+    const res = await service.handleQuery({
+      query: 'What career paths open up after BSc Chemistry?',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.groq.com/openai/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-groq-key',
+        }),
+      }),
+    );
+    expect(res.mode).toBe('llm');
+    expect(res.answer).toBe('Synthesized Groq answer for career paths.');
+
+    fetchSpy.mockRestore();
+    delete process.env.GROQ_API_KEY;
+  });
 });
 
 describe('chatbot quota helpers', () => {

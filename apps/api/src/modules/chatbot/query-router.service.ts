@@ -895,8 +895,10 @@ ApplyFields partners with certified CSC and MeeSeva kiosks across India to provi
           { label: 'Explore Career Roadmaps', action: 'navigate', url: '/career' },
         ];
 
+    const groqKey = (process.env.GROQ_API_KEY || process.env.GROK_API_KEY)?.trim();
     const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-    if (apiKey) {
+
+    if (groqKey || apiKey) {
       try {
         const context = digestContext
           ? `OFFICIAL NOTIFICATION DIGEST (the only source of truth for this opportunity):\n${digestContext}`
@@ -921,45 +923,94 @@ ${context}`;
         const recent = (history ?? []).slice(-4).map((m) => ({ role: m.role, content: m.content.slice(0, 500) }));
         while (recent.length && recent[0].role !== 'user') recent.shift();
 
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-          },
-          body: JSON.stringify({
-            model: LLM_MODEL,
-            max_tokens: 1024,
-            output_config: { effort: 'low' },
-            system: systemPrompt,
-            messages: [...recent, { role: 'user', content: query }],
-          }),
-        });
+        // 1. Try Groq / Grok (high-speed LPU inference)
+        if (groqKey) {
+          try {
+            const groqModel = process.env.GROQ_MODEL?.trim() || 'openai/gpt-oss-120b';
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${groqKey}`,
+              },
+              body: JSON.stringify({
+                model: groqModel,
+                temperature: 0.2,
+                max_tokens: 1024,
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  ...recent,
+                  { role: 'user', content: query },
+                ],
+              }),
+            });
 
-        if (res.ok) {
-          const data = (await res.json()) as {
-            stop_reason?: string;
-            content?: Array<{ type: string; text?: string }>;
-          };
-          // content[0] can be a thinking block; take the text block.
-          const text = data.content?.find((b) => b.type === 'text')?.text?.trim();
-          if (text && data.stop_reason !== 'refusal') {
-            return {
-              mode: 'llm',
-              intent: 'general_ai',
-              answer: text,
-              actions,
-              related_queries: digestContext
-                ? ['When is the final deadline?', 'What is the application fee?', 'Am I eligible?']
-                : ['Which exams are closing this week?', 'What exams can I write after graduation?'],
-            };
+            if (res.ok) {
+              const data = (await res.json()) as {
+                choices?: Array<{ message?: { content?: string } }>;
+              };
+              const text = data.choices?.[0]?.message?.content?.trim();
+              if (text) {
+                return {
+                  mode: 'llm',
+                  intent: 'general_ai',
+                  answer: text,
+                  actions,
+                  related_queries: digestContext
+                    ? ['When is the final deadline?', 'What is the application fee?', 'Am I eligible?']
+                    : ['Which exams are closing this week?', 'What exams can I write after graduation?'],
+                };
+              }
+            } else {
+              logger.warn(`Groq API responded with status ${res.status}`);
+            }
+          } catch (err: any) {
+            logger.warn(`Groq call failed, attempting fallback: ${err.message}`);
           }
-        } else {
-          logger.warn(`Anthropic API responded with status ${res.status}`);
+        }
+
+        // 2. Try Anthropic Claude if available
+        if (apiKey) {
+          const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+              model: LLM_MODEL,
+              max_tokens: 1024,
+              output_config: { effort: 'low' },
+              system: systemPrompt,
+              messages: [...recent, { role: 'user', content: query }],
+            }),
+          });
+
+          if (res.ok) {
+            const data = (await res.json()) as {
+              stop_reason?: string;
+              content?: Array<{ type: string; text?: string }>;
+            };
+            // content[0] can be a thinking block; take the text block.
+            const text = data.content?.find((b) => b.type === 'text')?.text?.trim();
+            if (text && data.stop_reason !== 'refusal') {
+              return {
+                mode: 'llm',
+                intent: 'general_ai',
+                answer: text,
+                actions,
+                related_queries: digestContext
+                  ? ['When is the final deadline?', 'What is the application fee?', 'Am I eligible?']
+                  : ['Which exams are closing this week?', 'What exams can I write after graduation?'],
+              };
+            }
+          } else {
+            logger.warn(`Anthropic API responded with status ${res.status}`);
+          }
         }
       } catch (err: any) {
-        logger.warn(`Anthropic call failed, using grounded fallback: ${err.message}`);
+        logger.warn(`LLM synthesis failed, using grounded fallback: ${err.message}`);
       }
     }
 

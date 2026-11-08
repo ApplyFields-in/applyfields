@@ -451,7 +451,7 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
       {/* RIGHT PANE: FORM FIELDS WITH SANITY VALIDATOR & MAPPING */}
       {/* ======================================================== */}
       <div className="min-w-0 space-y-5" aria-label="Draft fields">
-        <ReviewActions id={d.id} missing={d.missing} />
+        <ReviewActions id={d.id} missing={d.missing} noticeUrl={d.links.notification_pdf_url} />
 
         {/* AUTOMATED INGESTION SANITY INSPECTOR */}
         <div className="rounded-2xl border border-teal/20 bg-cream/40 p-4 space-y-3 shadow-xs">

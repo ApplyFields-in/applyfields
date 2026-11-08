@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Eye, EyeOff, KeyRound, Mail } from 'lucide-react
 import { CountryPhoneInput, extractNationalDigits, isValidPhone } from '@/components/country-phone-input';
 import { OtpInput } from '@/components/otp-input';
 import { AuthDivider, SocialAuthButtons } from '@/components/social-auth-buttons';
+import { PasskeySignInButton } from '@/components/passkeys';
 import {
   Checkbox,
   DevCode,
@@ -601,15 +602,18 @@ function LoginForm() {
         </form>
       )}
 
-      {mode !== 'forgot' && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+      {mode !== 'forgot' && (
         <div className="mt-6 space-y-3">
           <AuthDivider label="or sign in with" />
-          <SocialAuthButtons
-            mode="login"
-            redirectUrl={redirectTarget}
-            onError={setError}
-            onSuccess={setSuccess}
-          />
+          {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+            <SocialAuthButtons
+              mode="login"
+              redirectUrl={redirectTarget}
+              onError={setError}
+              onSuccess={setSuccess}
+            />
+          )}
+          <PasskeySignInButton redirectTo={redirectTarget} onError={setError} onSuccess={setSuccess} />
         </div>
       )}
 

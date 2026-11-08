@@ -10,7 +10,7 @@ import type {
 } from '@applyfields/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -23,6 +23,7 @@ import {
 
 import { Badge, Chips, Empty, Loading, Muted } from '@/components/ui';
 import { useApi, useDebounced } from '@/lib/use-api';
+import { recordMascotEvent } from '@/services/mascot/IconManager';
 import { C, CHROME_FONT_SCALE, R, S, TAP, card, column } from '@/theme';
 
 // The website's /career/colleges stream tabs; the API filters on the same keys.
@@ -120,6 +121,9 @@ function Colleges() {
   const [search, setSearch] = useState('');
   const [stream, setStream] = useState('');
   const q = useDebounced(search.trim(), 300);
+  useEffect(() => {
+    if (q || stream) recordMascotEvent({ type: 'research' });
+  }, [q, stream]);
   const path = useMemo(() => {
     // ponytail: first 50 only; add onEndReached paging when a stream outgrows it.
     const p = new URLSearchParams({ limit: '50' });

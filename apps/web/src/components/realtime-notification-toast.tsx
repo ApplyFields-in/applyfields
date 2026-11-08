@@ -14,6 +14,9 @@ export function RealtimeNotificationToast() {
 
   useEffect(() => {
     const handleNotification = (e: Event) => {
+      if (typeof window !== 'undefined' && localStorage.getItem('applyfields_inapp_notifications_enabled') === 'false') {
+        return;
+      }
       const customEvent = e as CustomEvent<NotificationItem>;
       if (customEvent.detail) {
         setActiveToast(customEvent.detail);
