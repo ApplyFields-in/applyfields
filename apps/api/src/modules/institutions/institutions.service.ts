@@ -23,6 +23,7 @@ import { z } from 'zod';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { enquiry_status } from '../../generated/prisma/enums.js';
+import { cleanText, withoutPlaceholders } from './placeholders.js';
 
 export const courseListQuerySchema = z.object({
   q: z.string().trim().optional(),
@@ -266,7 +267,7 @@ export class InstitutionsService {
       career_outcomes: course.career_outcomes,
       careers,
       exams,
-      institutions,
+      institutions: institutions.map((i) => ({ ...i, fees_text: cleanText(i.fees_text) })),
       careers_count: careers.length,
       colleges_count: institutions.length,
     };
@@ -382,7 +383,7 @@ export class InstitutionsService {
     `;
 
     return {
-      items: rows as InstitutionSummary[],
+      items: (rows as InstitutionSummary[]).map(withoutPlaceholders),
       total,
       page,
       limit,
@@ -411,12 +412,18 @@ export class InstitutionsService {
         description: string | null;
         established_year: number | null;
         campus_facilities: string[];
+        address: string | null;
+        pincode: string | null;
+        contact_phone: string | null;
+        latitude: number | null;
+        longitude: number | null;
       }>
     >`
       select id::text, slug, name, short_name, type::text as type, ownership::text as ownership,
              state_code, city, district, website, ranking_text, fees_text,
              accreditation, placement_stats, description, established_year,
-             campus_facilities
+             campus_facilities, address, pincode, contact_phone,
+             latitude::float8 as latitude, longitude::float8 as longitude
       from institutions
       where slug = ${slug} and status = 'published'
       limit 1
@@ -450,7 +457,7 @@ export class InstitutionsService {
       order by c.created_at asc
     `;
 
-    return {
+    return withoutPlaceholders({
       id: inst.id,
       slug: inst.slug,
       name: inst.name,
@@ -468,9 +475,14 @@ export class InstitutionsService {
       description: inst.description,
       established_year: inst.established_year,
       campus_facilities: inst.campus_facilities || [],
+      address: inst.address,
+      pincode: inst.pincode,
+      contact_phone: inst.contact_phone,
+      latitude: inst.latitude,
+      longitude: inst.longitude,
       courses,
       courses_count: courses.length,
-    };
+    });
   }
 
   /** Side-by-Side Comparison of 2-4 institutions */

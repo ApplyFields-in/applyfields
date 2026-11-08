@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "primaryColor": "#082046",
-    "icon": "./assets/icons/ios/default.png",
+    "icon": "./assets/images/icon.png",
     "backgroundColor": "#ffffff",
     "ios": {
       "bundleIdentifier": "in.applyfields.app",
@@ -29,8 +29,9 @@
         "android.permission.ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#071A43",
-        "foregroundImage": "./assets/icons/android/default.png",
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       }
     },
@@ -64,8 +65,21 @@
         "expo-awesome-app-icon",
         {
           "icons": {
+            "default": {
+              "ios": {
+                "light": "./assets/icons/ios/default.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/default.png",
+                "foregroundImage": "./assets/icons/android/default.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
             "sleeping": {
-              "ios": { "light": "./assets/icons/ios/sleeping.png" },
+              "ios": {
+                "light": "./assets/icons/ios/sleeping.png"
+              },
               "android": {
                 "image": "./assets/icons/ios/sleeping.png",
                 "foregroundImage": "./assets/icons/android/sleeping.png",
@@ -74,7 +88,9 @@
               }
             },
             "active": {
-              "ios": { "light": "./assets/icons/ios/active.png" },
+              "ios": {
+                "light": "./assets/icons/ios/active.png"
+              },
               "android": {
                 "image": "./assets/icons/ios/active.png",
                 "foregroundImage": "./assets/icons/android/active.png",
@@ -83,7 +99,9 @@
               }
             },
             "notification": {
-              "ios": { "light": "./assets/icons/ios/notification.png" },
+              "ios": {
+                "light": "./assets/icons/ios/notification.png"
+              },
               "android": {
                 "image": "./assets/icons/ios/notification.png",
                 "foregroundImage": "./assets/icons/android/notification.png",
@@ -92,7 +110,9 @@
               }
             },
             "thinking": {
-              "ios": { "light": "./assets/icons/ios/thinking.png" },
+              "ios": {
+                "light": "./assets/icons/ios/thinking.png"
+              },
               "android": {
                 "image": "./assets/icons/ios/thinking.png",
                 "foregroundImage": "./assets/icons/android/thinking.png",
@@ -101,7 +121,9 @@
               }
             },
             "achievement": {
-              "ios": { "light": "./assets/icons/ios/achievement.png" },
+              "ios": {
+                "light": "./assets/icons/ios/achievement.png"
+              },
               "android": {
                 "image": "./assets/icons/ios/achievement.png",
                 "foregroundImage": "./assets/icons/android/achievement.png",
@@ -112,7 +134,8 @@
           }
         }
       ],
-      "./plugins/without-ios-background-fetch.js"
+      "./plugins/without-ios-background-fetch.js",
+      "./plugins/with-room-keep-rule.js"
     ],
     "experiments": {
       "typedRoutes": true,

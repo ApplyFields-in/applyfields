@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
 import { refreshUnread, useUnread } from '@/lib/unread';
+import { useMascotIcon } from '@/services/mascot/IconManager';
 import { C, CHROME_FONT_SCALE, R } from '@/theme';
 
 /**
@@ -29,6 +30,7 @@ export default function TabsLayout() {
   useEffect(() => {
     void refreshUnread(signedIn);
   }, [signedIn]);
+  useMascotIcon(signedIn, refreshUnread);
 
   return (
     <Tabs

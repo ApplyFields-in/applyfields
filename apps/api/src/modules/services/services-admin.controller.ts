@@ -84,6 +84,17 @@ export class ServicesAdminController {
     return this.servicesAdmin.publish(id, actor);
   }
 
+  /** POST /api/v1/admin/services/:id/verify — staff checked the guide against the official site */
+  @Post(':id/verify')
+  @Roles('admin')
+  @HttpCode(200)
+  async verify(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActorId() actor: string | null,
+  ): Promise<WriteResult> {
+    return this.servicesAdmin.verify(id, actor);
+  }
+
   /** POST /api/v1/admin/services/:id/status — change status (unpublish / close / archive) */
   @Post(':id/status')
   @Roles('admin')

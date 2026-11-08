@@ -87,6 +87,12 @@ Needs an EAS project (`eas init`) so the token can be issued, plus
 
 Device tokens are never issued on a simulator — test push on real hardware.
 
+## Dynamic mascot app icon
+
+The launcher icon changes with what the user is doing (six mascot states, `expo-awesome-app-icon`).
+Rules, platform limits, artwork spec and test checklist: [`docs/mascot-app-icon.md`](docs/mascot-app-icon.md).
+Needs a dev/preview build; not in Expo Go.
+
 ## Shipping to the stores
 
 ```bash
