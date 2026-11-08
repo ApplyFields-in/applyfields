@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Badge, Button, Card, Loading, Muted, SectionTitle } from '@/components/ui';
@@ -18,9 +18,16 @@ import { formatDate, rupees } from '@/lib/format';
 import { LANGUAGES, useLocale } from '@/lib/locale';
 import { useApi } from '@/lib/use-api';
 import { registerForPush } from '@/lib/push';
+import {
+  isMascotIconSupported,
+  resetMascotIcon,
+  setAutoEnabled,
+  useMascotSettings,
+} from '@/services/mascot/IconManager';
+import type { MascotIcon } from '@/services/mascot/MascotEventTypes';
 import { C, R, S, column } from '@/theme';
 
-const SITE = 'https://applyfields.in';
+const SITE = 'https://applyfields.com';
 
 export default function Profile() {
   const router = useRouter();
@@ -48,6 +55,7 @@ export default function Profile() {
         </Muted>
         <Button label="Sign in" onPress={() => router.replace('/login')} style={s.gateButton} />
         <LanguageCard />
+        <MascotIconCard />
       </ScrollView>
     );
   }
@@ -181,8 +189,10 @@ export default function Profile() {
         ) : null}
       </Card>
 
+      <MascotIconCard />
+
       <Button
-        label="Edit profile on applyfields.in"
+        label="Edit profile on applyfields.com"
         icon="open-outline"
         variant="secondary"
         onPress={() => WebBrowser.openBrowserAsync(`${SITE}/profile`)}
@@ -214,6 +224,75 @@ function LanguageCard() {
           );
         })}
       </View>
+    </Card>
+  );
+}
+
+const ICON_LABEL: Record<MascotIcon, string> = {
+  logo: 'ApplyFields logo',
+  default: 'Mascot',
+  sleeping: 'Sleeping',
+  active: 'Active',
+  notification: 'Alert',
+  thinking: 'Thinking',
+  achievement: 'Achievement',
+};
+
+/** Dynamic mascot app icon. Hidden where the native module isn't built in (Expo Go, web). */
+function MascotIconCard() {
+  const { autoEnabled, current } = useMascotSettings();
+  if (!isMascotIconSupported()) return null;
+
+  function toggle(next: boolean) {
+    if (!next || Platform.OS !== 'ios') return setAutoEnabled(next);
+    // Apple shows its own message on every icon change and offers no silent option: ask first.
+    Alert.alert(
+      'Change the icon automatically?',
+      'Your iPhone shows a short "You have changed the icon" message each time. ApplyFields changes it at most once a day (sooner for a deadline or a new milestone), only while the app is open.',
+      [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Turn on', onPress: () => setAutoEnabled(true) },
+      ],
+    );
+  }
+
+  async function restore() {
+    if (!(await resetMascotIcon())) Alert.alert('Could not change the icon', 'Please try again in a moment.');
+  }
+
+  return (
+    <Card style={[s.card, { alignSelf: 'stretch' }]}>
+      <SectionTitle>App icon</SectionTitle>
+      <View style={s.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.switchLabel}>Dynamic mascot icon</Text>
+          <Muted>
+            The mascot on your home screen reacts: a bell for a deadline, a star after you apply,
+            asleep when you have been away.
+          </Muted>
+        </View>
+        <Switch
+          value={autoEnabled}
+          onValueChange={toggle}
+          trackColor={{ true: C.blue, false: C.line }}
+          thumbColor={C.white}
+        />
+      </View>
+      <Muted style={{ marginTop: S.sm }}>
+        Current icon: {ICON_LABEL[current]}.{' '}
+        {Platform.OS === 'ios'
+          ? 'iPhone shows a system message whenever the icon changes.'
+          : 'Changes appear after you leave the app; some launchers take a moment.'}
+      </Muted>
+      {current !== 'logo' ? (
+        <Button
+          label="Restore ApplyFields logo"
+          icon="refresh-outline"
+          variant="secondary"
+          onPress={restore}
+          style={{ marginTop: S.md }}
+        />
+      ) : null}
     </Card>
   );
 }

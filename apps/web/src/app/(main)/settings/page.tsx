@@ -8,9 +8,7 @@ import {
   Palette,
   Filter,
   Check,
-  CheckCircle2,
   Sparkles,
-  ArrowRight,
   SunMedium,
   Moon,
   Eye,
@@ -18,14 +16,8 @@ import {
   Sliders,
   Mail,
   Smartphone,
-  MessageSquare,
-  ShieldAlert,
   RotateCcw,
   Save,
-  Compass,
-  FileCheck2,
-  Building2,
-  GraduationCap,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/lib/i18n/translations';
@@ -37,9 +29,8 @@ import type { NotificationPreferences } from '@applyfields/types';
 type SettingsTab = 'language' | 'notifications' | 'display' | 'preferences';
 type ReadingTheme = 'default' | 'sepia' | 'high-contrast';
 type TextScale = 'normal' | 'medium' | 'large';
-type DensityMode = 'comfortable' | 'compact';
-type AlertFrequency = 'instant' | 'daily' | 'weekly';
 
+// The Apply page reads applyfields_pref_state (these codes) to pre-filter by state
 const STATE_OPTIONS = [
   { code: 'ALL', name: 'All India & Central' },
   { code: 'TS', name: 'Telangana (తెలంగాణ)' },
@@ -55,47 +46,22 @@ const STATE_OPTIONS = [
   { code: 'WB', name: 'West Bengal (পশ্চিমবঙ্গ)' },
 ];
 
-const QUALIFICATION_OPTIONS = [
-  { id: '10th', translationKey: 'settings_qual_10th' as const, label: '10th / Secondary School' },
-  { id: '12th', translationKey: 'settings_qual_12th' as const, label: '12th / Intermediate / PUC' },
-  { id: 'diploma', translationKey: 'settings_qual_diploma' as const, label: 'Polytechnic Diploma / ITI' },
-  { id: 'graduate', translationKey: 'settings_qual_graduate' as const, label: 'Bachelor’s Degree (Graduate)' },
-  { id: 'post_graduate', translationKey: 'settings_qual_post_graduate' as const, label: 'Master’s Degree (Post Graduate)' },
-];
-
 export default function SettingsPage() {
   const { locale, setLocale, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<SettingsTab>('language');
   const push = useWebPush();
 
-  // --- Notification Preferences ---
+  // --- Notification Preferences (the API is the source of truth; nothing kept in localStorage) ---
   const [emailEnabled, setEmailEnabled] = useState(true);
-  const [whatsappEnabled, setWhatsappEnabled] = useState(true);
+  const [emailAvailable, setEmailAvailable] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
-  const [frequency, setFrequency] = useState<AlertFrequency>('instant');
-  const [quietHours, setQuietHours] = useState(true);
-  const [alertTopics, setAlertTopics] = useState({
-    deadlines: true,
-    admitCard: true,
-    results: true,
-    scholarships: true,
-    assistance: false,
-  });
 
   // --- Display Preferences ---
   const [readingTheme, setReadingTheme] = useState<ReadingTheme>('default');
   const [textScale, setTextScale] = useState<TextScale>('normal');
-  const [density, setDensity] = useState<DensityMode>('comfortable');
 
   // --- Opportunity / Filter Preferences ---
   const [preferredState, setPreferredState] = useState('ALL');
-  const [focusCategories, setFocusCategories] = useState({
-    jobs: true,
-    exams: true,
-    scholarships: true,
-    admissions: false,
-  });
-  const [preferredQualification, setPreferredQualification] = useState('graduate');
 
   // Sync push subscribed state
   useEffect(() => {
@@ -121,14 +87,12 @@ export default function SettingsPage() {
     const savedScale = (localStorage.getItem('applyfields_text_scale') as TextScale) || 'normal';
     setTextScale(savedScale);
 
-    const savedDensity = (localStorage.getItem('applyfields_density') as DensityMode) || 'comfortable';
-    setDensity(savedDensity);
-
-    // Sync live notification preferences from API if logged in
+    // Live notification preferences from the API (logged-in users)
     apiGet<NotificationPreferences>('/notifications/preferences')
       .then((res) => {
         if (res) {
           setEmailEnabled(res.email_enabled);
+          setEmailAvailable(res.email_available);
           if (res.push_enabled && push.isSubscribed) {
             setPushEnabled(true);
           }
@@ -136,33 +100,8 @@ export default function SettingsPage() {
       })
       .catch(() => null);
 
-    // Load notification preferences from localStorage
-    const savedNotifs = localStorage.getItem('applyfields_notification_preferences');
-    if (savedNotifs) {
-      try {
-        const parsed = JSON.parse(savedNotifs);
-        if (parsed.email !== undefined) setEmailEnabled(parsed.email);
-        if (parsed.whatsapp !== undefined) setWhatsappEnabled(parsed.whatsapp);
-        if (parsed.push !== undefined) setPushEnabled(parsed.push);
-        if (parsed.frequency) setFrequency(parsed.frequency);
-        if (parsed.quietHours !== undefined) setQuietHours(parsed.quietHours);
-        if (parsed.topics) setAlertTopics(parsed.topics);
-      } catch {}
-    }
-
-    // Load opportunity preferences
     const savedState = localStorage.getItem('applyfields_pref_state');
     if (savedState) setPreferredState(savedState);
-
-    const savedFocus = localStorage.getItem('applyfields_pref_focus');
-    if (savedFocus) {
-      try {
-        setFocusCategories(JSON.parse(savedFocus));
-      } catch {}
-    }
-
-    const savedQual = localStorage.getItem('applyfields_pref_qualification');
-    if (savedQual) setPreferredQualification(savedQual);
   }, [push.isSubscribed]);
 
   // Language Change Handler
@@ -195,40 +134,22 @@ export default function SettingsPage() {
     }
   };
 
-  // Density Handler
-  const handleDensityChange = (d: DensityMode) => {
-    setDensity(d);
-    localStorage.setItem('applyfields_density', d);
-  };
-
-  // Save all preferences
-  const handleSavePreferences = () => {
+  // Save: state preference stays on this device; email/push go to the API
+  const handleSavePreferences = async () => {
     if (typeof window !== 'undefined') {
-      const notifPrefs = {
-        email: emailEnabled,
-        whatsapp: whatsappEnabled,
-        push: pushEnabled,
-        frequency,
-        quietHours,
-        topics: alertTopics,
-      };
-      localStorage.setItem('applyfields_notification_preferences', JSON.stringify(notifPrefs));
       localStorage.setItem('applyfields_pref_state', preferredState);
-      localStorage.setItem('applyfields_pref_focus', JSON.stringify(focusCategories));
-      localStorage.setItem('applyfields_pref_qualification', preferredQualification);
       window.dispatchEvent(new CustomEvent('preferences-changed'));
-
-      // Also sync to backend API if logged in
-      void apiPut<NotificationPreferences>('/notifications/preferences', {
-        email_enabled: emailEnabled,
-        push_enabled: pushEnabled,
-      }).catch(() => null);
     }
+    const res = await apiPut<NotificationPreferences>('/notifications/preferences', {
+      email_enabled: emailEnabled,
+      push_enabled: pushEnabled,
+    }).catch(() => null);
 
-    showAppToast({
-      message: t('settings_saved_success'),
-      type: 'success',
-    });
+    showAppToast(
+      res && !res.error
+        ? { message: t('settings_saved_success'), type: 'success' }
+        : { message: 'Saved on this device. Sign in to save alert settings to your account.', type: 'info' },
+    );
   };
 
   // Reset to Defaults
@@ -236,37 +157,12 @@ export default function SettingsPage() {
     setLocale('en');
     handleThemeChange('default');
     handleScaleChange('normal');
-    handleDensityChange('comfortable');
     setEmailEnabled(true);
-    setWhatsappEnabled(true);
-    setPushEnabled(false);
-    setFrequency('instant');
-    setQuietHours(true);
-    setAlertTopics({
-      deadlines: true,
-      admitCard: true,
-      results: true,
-      scholarships: true,
-      assistance: false,
-    });
     setPreferredState('ALL');
-    setFocusCategories({
-      jobs: true,
-      exams: true,
-      scholarships: true,
-      admissions: false,
-    });
-    setPreferredQualification('graduate');
-
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('applyfields_notification_preferences');
-      localStorage.removeItem('applyfields_pref_state');
-      localStorage.removeItem('applyfields_pref_focus');
-      localStorage.removeItem('applyfields_pref_qualification');
-    }
+    if (typeof window !== 'undefined') localStorage.removeItem('applyfields_pref_state');
 
     showAppToast({
-      message: 'Preferences restored to factory defaults.',
+      message: 'Preferences restored to defaults. Press Save to keep them.',
       type: 'info',
     });
   };
@@ -540,7 +436,11 @@ export default function SettingsPage() {
                     </span>
                     <div>
                       <p className="text-sm font-black text-[#082046]">{t('settings_notif_email')}</p>
-                      <span className="text-[10px] text-emerald-600 font-bold uppercase">{t('settings_channel_email_verified')}</span>
+                      {emailAvailable ? (
+                        <span className="text-[10px] text-emerald-600 font-bold uppercase">{t('settings_channel_email_verified')}</span>
+                      ) : (
+                        <span className="text-[10px] text-amber-600 font-bold uppercase">No verified email</span>
+                      )}
                     </div>
                   </div>
                   <button
@@ -574,19 +474,9 @@ export default function SettingsPage() {
                       <span className="text-[10px] text-emerald-600 font-bold uppercase">{t('settings_channel_mobile')}</span>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setWhatsappEnabled(!whatsappEnabled)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      whatsappEnabled ? 'bg-[#0e7bf4]' : 'bg-slate-300'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        whatsappEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600">
+                    Coming soon
+                  </span>
                 </div>
                 <p className="text-xs text-[#526987] leading-relaxed">
                   {t('settings_notif_whatsapp_desc')}
@@ -653,53 +543,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Delivery Frequency */}
-            <div className="border-t border-slate-100 pt-6 space-y-3">
-              <h3 className="text-sm font-black text-[#082046]">
-                {t('settings_notif_freq')}
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  { id: 'instant', label: t('settings_notif_instant') },
-                  { id: 'daily', label: t('settings_notif_daily') },
-                  { id: 'weekly', label: t('settings_notif_weekly') },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setFrequency(item.id as AlertFrequency)}
-                    className={`p-3.5 rounded-xl border text-left text-xs font-bold transition-all ${
-                      frequency === item.id
-                        ? 'border-[#0e7bf4] bg-[#edf4fd] text-[#082046] ring-1 ring-[#0e7bf4]'
-                        : 'border-[#e2eaf4] bg-[#F8FAFC] text-[#526987] hover:bg-white'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Quiet Hours */}
-            <div className="border-t border-slate-100 pt-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-black text-[#082046]">{t('settings_notif_quiet')}</p>
-                <p className="text-xs text-[#526987]">{t('settings_notif_quiet_desc')}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setQuietHours(!quietHours)}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  quietHours ? 'bg-[#0e7bf4]' : 'bg-slate-300'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    quietHours ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -814,32 +657,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Density */}
-            <div className="border-t border-slate-100 pt-6 space-y-3">
-              <h3 className="text-sm font-black text-[#082046]">
-                {t('settings_display_density')}
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[
-                  { id: 'comfortable' as DensityMode, label: t('settings_display_comfortable'), desc: t('settings_density_comfortable_desc') },
-                  { id: 'compact' as DensityMode, label: t('settings_display_compact'), desc: t('settings_density_compact_desc') },
-                ].map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => handleDensityChange(d.id)}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      density === d.id
-                        ? 'border-[#0e7bf4] bg-[#edf4fd] text-[#082046] ring-1 ring-[#0e7bf4]'
-                        : 'border-[#e2eaf4] bg-[#F8FAFC] text-[#526987] hover:bg-white'
-                    }`}
-                  >
-                    <p className="text-xs font-black">{d.label}</p>
-                    <p className="text-[11px] text-[#526987] mt-0.5">{d.desc}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -881,71 +698,6 @@ export default function SettingsPage() {
               })}
             </div>
 
-            {/* Default Qualification */}
-            <div className="border-t border-slate-100 pt-6 space-y-3">
-              <div className="flex items-center gap-2">
-                <GraduationCap className="size-4 text-[#0e7bf4]" />
-                <h3 className="text-sm font-black text-[#082046]">
-                  {t('settings_filter_education')}
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {QUALIFICATION_OPTIONS.map((q) => {
-                  const isSelected = preferredQualification === q.id;
-                  return (
-                    <button
-                      key={q.id}
-                      type="button"
-                      onClick={() => setPreferredQualification(q.id)}
-                      className={`p-3 rounded-xl border text-left text-xs font-bold transition-all ${
-                        isSelected
-                          ? 'border-[#0e7bf4] bg-[#edf4fd] text-[#082046] ring-1 ring-[#0e7bf4]'
-                          : 'border-[#e2eaf4] bg-[#F8FAFC] text-[#526987] hover:bg-white'
-                      }`}
-                    >
-                      {t(q.translationKey)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Focus categories */}
-            <div className="border-t border-slate-100 pt-6 space-y-3">
-              <h3 className="text-sm font-black text-[#082046]">
-                {t('settings_filter_category')}
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { key: 'jobs', label: t('apply_tab_jobs') },
-                  { key: 'exams', label: t('apply_tab_exams') },
-                  { key: 'scholarships', label: t('apply_tab_scholarships') },
-                  { key: 'admissions', label: t('apply_tab_admissions') },
-                ].map((cat) => {
-                  const isChecked = (focusCategories as any)[cat.key];
-                  return (
-                    <button
-                      key={cat.key}
-                      type="button"
-                      onClick={() =>
-                        setFocusCategories((prev) => ({
-                          ...prev,
-                          [cat.key]: !isChecked,
-                        }))
-                      }
-                      className={`flex items-center justify-between p-3.5 rounded-xl border text-xs font-bold transition-all ${
-                        isChecked
-                          ? 'border-[#0e7bf4] bg-[#edf4fd] text-[#082046] ring-1 ring-[#0e7bf4]'
-                          : 'border-[#e2eaf4] bg-[#F8FAFC] text-[#526987] hover:bg-white'
-                      }`}
-                    >
-                      <span>{cat.label}</span>
-                      {isChecked && <Check className="size-3 text-[#0e7bf4] shrink-0 ml-1" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           </div>
         </div>
       )}

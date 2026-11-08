@@ -8,7 +8,9 @@ import type {
   EducationLevel,
   EducationStatus,
   ExtractedEducationItem,
+  ExtractedResumeProfile,
   ScoreType,
+  UserGender,
 } from '@applyfields/types';
 
 const execFileAsync = promisify(execFile);
@@ -56,40 +58,40 @@ async function runOcrOnImageBuffer(
   }
 }
 
-/**
- * Extracts printable ASCII/UTF-8 and decompressed text from PDF streams.
- */
-function extractTextFromPdfStreams(pdfBuffer: Buffer): string {
-  let accumulatedText = '';
-
-  // 1. Scan for compressed streams (FlateDecode)
-  let pos = 0;
-  while (pos < pdfBuffer.length) {
-    const streamIdx = pdfBuffer.indexOf('stream', pos);
-    if (streamIdx === -1) break;
-    let start = streamIdx + 6;
-    if (pdfBuffer[start] === 13) start++; // \r
-    if (pdfBuffer[start] === 10) start++; // \n
-    const end = pdfBuffer.indexOf('endstream', start);
-    if (end === -1) break;
-
-    const chunk = pdfBuffer.subarray(start, end);
-    try {
-      const decompressed = zlib.inflateSync(chunk);
-      const str = decompressed.toString('latin1');
-      // Look for text operators like (string) Tj or [(string)] TJ
-      const textMatches = str.match(/\(([^()]{2,})\)\s*Tj/g);
-      if (textMatches) {
-        for (const m of textMatches) {
-          const inner = m.slice(1, m.indexOf(')'));
-          accumulatedText += inner + ' ';
-        }
+/** Reads word/document.xml out of a .docx (a zip) with the central directory; no zip library needed. */
+function extractTextFromDocx(buf: Buffer): string {
+  try {
+    const eocd = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+    if (eocd < 0) return '';
+    const count = buf.readUInt16LE(eocd + 10);
+    let p = buf.readUInt32LE(eocd + 16);
+    for (let i = 0; i < count && buf.readUInt32LE(p) === 0x02014b50; i++) {
+      const method = buf.readUInt16LE(p + 10);
+      const size = buf.readUInt32LE(p + 20);
+      const nameLen = buf.readUInt16LE(p + 28);
+      const skip = nameLen + buf.readUInt16LE(p + 30) + buf.readUInt16LE(p + 32);
+      const local = buf.readUInt32LE(p + 42);
+      if (buf.toString('utf8', p + 46, p + 46 + nameLen) === 'word/document.xml') {
+        const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+        const data = buf.subarray(start, start + size);
+        // maxOutputLength guards against zip bombs
+        const xml = (method === 8 ? zlib.inflateRawSync(data, { maxOutputLength: 20 * 1024 * 1024 }) : data).toString('utf8');
+        return xml
+          .replace(/<\/w:p>/g, '\n')
+          .replace(/<w:(?:tab|br)\/>/g, ' ')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'")
+          .replace(/&amp;/g, '&');
       }
-    } catch {}
-    pos = end + 9;
+      p += 46 + skip;
+    }
+  } catch {
+    // corrupt or not a zip
   }
-
-  return accumulatedText.trim();
+  return '';
 }
 
 /**
@@ -142,10 +144,22 @@ export async function extractTextFromBuffer(
     return await runOcrOnImageBuffer(buffer, ext);
   }
 
-  // 3. PDF formats
+  // 3. Word documents
+  if (mimeType.includes('wordprocessingml') || ext === 'docx') {
+    return extractTextFromDocx(buffer);
+  }
+
+  // 4. PDF formats
   if (mimeType.includes('pdf') || ext === 'pdf') {
-    // Attempt digital stream text extraction first
-    const digitalText = extractTextFromPdfStreams(buffer);
+    // Digital PDFs: pdf.js keeps line breaks, which the section parsers rely on
+    let digitalText = '';
+    try {
+      const { extractText, getDocumentProxy } = await import('unpdf');
+      const pdf = await getDocumentProxy(new Uint8Array(buffer));
+      digitalText = (await extractText(pdf, { mergePages: true })).text;
+    } catch (err: any) {
+      console.warn('[ResumeParser] PDF text extraction failed:', err.message);
+    }
     const wordCount = digitalText.split(/\s+/).filter(Boolean).length;
 
     // If PDF has ample digital text (>= 60 words), use it
@@ -258,7 +272,7 @@ export function extractEducationFromResume(
 
   for (const sec of sections) {
     const chunkText = sec.lines.join('\n');
-    let degree = 'Qualification';
+    let degree = '';
     const level = sec.level;
 
     if (level === 'phd') {
@@ -267,9 +281,7 @@ export function extractEducationFromResume(
       const match = chunkText.match(
         /\b(?:M\.?Tech|MBA|MCA|M\.?Sc|M\.?Com|Master of [A-Za-z\s]+|M\.?S\.?)\b/i,
       );
-      degree = match
-        ? match[0].replace(/\./g, '').toUpperCase()
-        : 'Master Degree';
+      degree = match ? match[0].replace(/\./g, '').toUpperCase() : '';
     } else if (level === 'graduate') {
       const btech = chunkText.match(
         /\b(?:B\.?Tech|B\.?E\.?|B\.?Sc|B\.?Com|BCA|BBA|B\.?Pharm|MBBS)\b/i,
@@ -282,8 +294,6 @@ export function extractEducationFromResume(
             : clean === 'be'
               ? 'B.E.'
               : btech[0].replace(/\./g, '').toUpperCase();
-      } else {
-        degree = 'B.Tech';
       }
     } else if (level === '12th') {
       degree = 'Intermediate / Class XII';
@@ -350,47 +360,32 @@ export function extractEducationFromResume(
         break;
       }
     }
-    if (!stream && level === '10th') stream = 'General';
-    if (!stream && level === '12th') stream = 'MPC';
 
-    // Institution and Board extraction
+    // Institution and board: only text that is actually in the resume, never a guessed default.
+    // Lines without scores/years/degree words are the name lines; a wrapped name joins back up.
+    const nameText = sec.lines
+      .filter(
+        (l) =>
+          !/%|CGPA|GPA|\b(?:19|20)\d{2}\b|Graduation|Expected|B\.?Tech|M\.?Tech|\bB\.?E\b|B\.?Sc|M\.?Sc|B\.?Com|M\.?Com|\bBCA\b|\bMCA\b|\bBBA\b|\bMBA\b|Bachelor|Master/i.test(l),
+      )
+      .map((l) => l.replace(/^(?:[^\p{L}\p{N}]+|[oO°]\s+)+/u, '').trim())
+      .filter(Boolean)
+      .join(' ');
     let institution = '';
     let board = '';
-
-    if (level === 'graduate') {
-      const instLines = sec.lines.filter(
-        (l) =>
-          /College|University|Institute|JNTU|Engineering|Campus/i.test(l) &&
-          !/B\.?Tech|CGPA|Graduation|Expected/i.test(l),
-      );
-      institution =
-        instLines
-          .join(' ')
-          .replace(/^[^\w]+/, '')
-          .trim() || 'College of Engineering';
-      if (/JNTU/i.test(chunkText)) {
-        board = 'JNTU Gurajada Vizianagaram';
-      }
-    } else if (level === '12th') {
-      if (
-        /Board of Intermediate Education/i.test(chunkText) ||
-        /Andhra Pradesh/i.test(chunkText)
-      ) {
-        board = 'Board of Intermediate Education, Andhra Pradesh';
-        institution = 'Junior College';
-      } else {
-        board = 'State Board of Intermediate Education';
-        institution = 'Junior College';
-      }
-    } else if (level === '10th') {
-      if (/SSC/i.test(chunkText) && /Andhra Pradesh/i.test(chunkText)) {
-        board = 'Board of Secondary Education, Andhra Pradesh (SSC)';
-        institution = 'High School';
-      } else {
-        board = 'State Board of Secondary Education';
-        institution = 'High School';
-      }
+    const isSchool = level === '10th' || level === '12th';
+    if (isSchool && /\b(?:Board|CBSE|ICSE|SSC|Secondary Education)\b/i.test(nameText)) {
+      board = nameText;
+    } else if (/College|University|Institute|School|Vidyalaya|Academy|Campus|JNTU/i.test(nameText)) {
+      institution = nameText;
     }
+    if (!isSchool) {
+      const uni = nameText.match(/\b(?:[A-Z][\w.]*\s+)*University(?:\s+of\s+[A-Z]\w*)?|\bJNTU\w*\b/);
+      if (uni) board = uni[0].trim();
+    }
+
+    // Confidence = share of the four key fields actually found
+    const found = [degree, institution || board, year, score].filter((v) => v !== '' && v != null).length;
 
     results.push({
       level,
@@ -402,7 +397,7 @@ export function extractEducationFromResume(
       score,
       score_type: scoreType,
       status,
-      confidence: 0.95,
+      confidence: Math.round((0.4 + 0.15 * found) * 100) / 100,
     });
   }
 
@@ -427,4 +422,181 @@ export function extractEducationFromResume(
   return Array.from(uniqueMap.values()).sort(
     (a, b) => order[a.level] - order[b.level],
   );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Profile fields (name, DOB, gender, address, skills, languages). Everything is read from the
+// resume text; a field that isn't there comes back null/empty, never guessed. The citizen reviews
+// every value before it is saved.
+// ---------------------------------------------------------------------------------------------
+
+/** Codes match the web profile's INDIAN_STATES list (TS = Telangana, OD = Odisha). */
+const STATE_CODES: Record<string, string> = {
+  'andhra pradesh': 'AP', 'arunachal pradesh': 'AR', assam: 'AS', bihar: 'BR', chhattisgarh: 'CG',
+  goa: 'GA', gujarat: 'GJ', haryana: 'HR', 'himachal pradesh': 'HP', jharkhand: 'JH',
+  karnataka: 'KA', kerala: 'KL', 'madhya pradesh': 'MP', maharashtra: 'MH', manipur: 'MN',
+  meghalaya: 'ML', mizoram: 'MZ', nagaland: 'NL', odisha: 'OD', orissa: 'OD', punjab: 'PB',
+  rajasthan: 'RJ', sikkim: 'SK', 'tamil nadu': 'TN', telangana: 'TS', tripura: 'TR',
+  'uttar pradesh': 'UP', uttarakhand: 'UK', 'west bengal': 'WB', 'andaman and nicobar': 'AN',
+  chandigarh: 'CH', delhi: 'DL', 'new delhi': 'DL', 'jammu and kashmir': 'JK', 'jammu & kashmir': 'JK',
+  ladakh: 'LA', lakshadweep: 'LD', puducherry: 'PY', pondicherry: 'PY',
+};
+// Longest names first so "New Delhi" wins over "Delhi"
+const STATE_RE = new RegExp(
+  `\\b(${Object.keys(STATE_CODES).sort((a, b) => b.length - a.length).join('|')})\\b`,
+  'i',
+);
+
+const SECTION_HEADER =
+  /^(?:education(?:al)?(?: qualifications?| details)?|academic (?:background|details|qualifications?|profile)|qualifications?|(?:work |professional )?experience|internships?|(?:academic |personal )?projects?|(?:technical |key |core |soft |professional )?skills(?: (?:&|and) tools)?|tools(?: (?:&|and) technologies)?|certifications?|courses|languages(?: known)?|achievements|awards|hobbies|interests|personal (?:details|information|profile|data)|declaration|(?:professional )?summary|(?:career )?objective|profile|activities|leadership(?: (?:&|and) activities)?|extra[- ]?curricular(?: activities)?|references|contact(?: details| information)?)$/i;
+
+const cleanLine = (l: string) => l.replace(/^[^\p{L}\p{N}]+/u, '').trim();
+const isHeader = (l: string) => SECTION_HEADER.test(cleanLine(l).replace(/\s*:$/, ''));
+
+/** Lines under a header (until the next header), or the rest of an inline "Header: a, b" line. */
+function sectionLines(lines: string[], header: RegExp): string[] {
+  const inlineRe = new RegExp(`^(?:${header.source})\\s*[:\\-–]\\s*(.+)$`, 'i');
+  const blockRe = new RegExp(`^(?:${header.source})\\s*:?$`, 'i');
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const l = cleanLine(lines[i]);
+    const inline = l.match(inlineRe);
+    if (inline) {
+      out.push(inline[1]);
+      continue;
+    }
+    if (blockRe.test(l)) {
+      for (let j = i + 1; j < lines.length && !isHeader(lines[j]); j++) out.push(lines[j]);
+    }
+  }
+  return out;
+}
+
+function splitList(lines: string[], maxWords: number, cap: number): string[] {
+  const seen = new Set<string>();
+  const items: string[] = [];
+  for (const line of lines) {
+    // "Programming Languages: Python, Java" -> keep the part after the label
+    const body = line.includes(':') ? line.slice(line.indexOf(':') + 1) : line;
+    for (const raw of body.split(/[,|•·;●▪◦]|\s{2,}|\t/)) {
+      const item = raw
+        .replace(/\(.*?\)/g, '')
+        .replace(/^[^\p{L}\p{N}+#.]+|[\s.]+$/gu, '')
+        .trim();
+      const key = item.toLowerCase();
+      if (item.length < 1 || item.length > 40 || item.split(/\s+/).length > maxWords) continue;
+      if (/^\d+$/.test(item) || seen.has(key)) continue;
+      seen.add(key);
+      items.push(item);
+      if (items.length >= cap) return items;
+    }
+  }
+  return items;
+}
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+/** Indian resumes write day first: 05/03/2002 is 5 March. Returns YYYY-MM-DD or null. */
+export function parseResumeDate(s: string): string | null {
+  let d: number, m: number, y: number;
+  let r: RegExpMatchArray | null;
+  if ((r = s.match(/\b(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b/))) [y, m, d] = [+r[1], +r[2], +r[3]];
+  else if ((r = s.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\b/))) [d, m, y] = [+r[1], +r[2], +r[3]];
+  else if ((r = s.match(/\b(\d{1,2})(?:st|nd|rd|th)?[\s\-/.,]*([A-Za-z]{3,9})[\s\-/.,]*(\d{4})\b/)))
+    [d, m, y] = [+r[1], MONTHS.indexOf(r[2].slice(0, 3).toLowerCase()) + 1, +r[3]];
+  else if ((r = s.match(/\b([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/)))
+    [d, m, y] = [+r[2], MONTHS.indexOf(r[1].slice(0, 3).toLowerCase()) + 1, +r[3]];
+  else return null;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (m < 1 || date.getUTCDate() !== d || date.getUTCMonth() !== m - 1) return null;
+  if (y < 1940 || y > new Date().getFullYear() - 10) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+const titleCase = (s: string) =>
+  s === s.toUpperCase() ? s.toLowerCase().replace(/(^|\s)\p{L}/gu, (c) => c.toUpperCase()) : s;
+
+const NOT_A_NAME =
+  /resume|curriculum|vitae|\bcv\b|engineer|developer|student|analyst|manager|designer|intern|email|phone|mobile|address|linkedin|github|profile|india|scan|view/i;
+
+export function extractProfileFromResume(text: string): ExtractedResumeProfile {
+  const lines = (text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const all = lines.join('\n');
+  const firstHeader = lines.findIndex(isHeader);
+  const topBlock = lines.slice(0, firstHeader === -1 ? 12 : Math.min(firstHeader, 12));
+
+  // Name: an explicit "Name:" label, else the first name-looking lines at the top (a wrapped
+  // all-caps name like "YENDLURI GHANA / SATHYA KARTHIK" joins back into one)
+  let full_name: string | null = null;
+  const labelled = all.match(/^(?:full\s+)?name\s*[:\-–]\s*([\p{L} .']{3,60})$/imu);
+  if (labelled) full_name = labelled[1].trim();
+  else {
+    const isNameLine = (l: string) =>
+      /^[\p{L} .']+$/u.test(l) && l.split(/\s+/).length <= 4 && !NOT_A_NAME.test(l) && !isHeader(l);
+    const start = topBlock.findIndex(isNameLine);
+    if (start !== -1) {
+      const parts = [topBlock[start]];
+      const next = topBlock[start + 1];
+      if (next && isNameLine(next) && next === next.toUpperCase() && parts[0] === parts[0].toUpperCase())
+        parts.push(next);
+      const words = parts.join(' ').split(/\s+/);
+      if (words.length >= 2 && words.length <= 6) full_name = words.join(' ');
+    }
+  }
+  if (full_name) full_name = titleCase(full_name);
+
+  const dobMatch = all.match(
+    /(?:date\s*of\s*birth|\bd\.?\s*o\.?\s*b\b\.?|\bborn(?:\s+on)?)\s*[:\-–]?\s*([^\n]{6,30})/i,
+  );
+  const date_of_birth = dobMatch ? parseResumeDate(dobMatch[1]) : null;
+
+  const g = all.match(/\b(?:gender|sex)\s*[:\-–]?\s*(male|female|transgender)\b/i);
+  const gender = g ? (g[1].toLowerCase() as UserGender) : null;
+
+  // Address: the contact block at the top plus labelled address lines. Phone numbers are blanked
+  // first so their digits can't be read as a PIN code.
+  const addressLines = [...topBlock];
+  lines.forEach((l, i) => {
+    if (
+      /^(?:(?:permanent|present|current|residential|communication)\s+)?address|^location\b|^residence\b|^city\b/i.test(
+        cleanLine(l),
+      )
+    )
+      addressLines.push(l, lines[i + 1] ?? '');
+  });
+  const addressText = addressLines
+    .join('\n')
+    .replace(/(?:\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}/g, ' ');
+
+  let state_code: string | null = null;
+  let district: string | null = null;
+  const stateLine = addressText.split('\n').find((l) => STATE_RE.test(l));
+  if (stateLine) {
+    state_code = STATE_CODES[stateLine.match(STATE_RE)![1].toLowerCase()] ?? null;
+    // "Vinukonda, Palnadu, Andhra Pradesh" -> the part just before the state
+    const before = stateLine
+      .slice(0, stateLine.search(STATE_RE))
+      .split(',')
+      .map(cleanLine)
+      .filter(Boolean);
+    const last = before.at(-1)?.replace(/^(?:address|location|city)\s*[:\-–]?\s*/i, '');
+    if (last && /^[\p{L} .]{3,30}$/u.test(last) && !/india/i.test(last)) district = last;
+  }
+
+  const pin =
+    addressText.match(/\b([1-9]\d{2})\s?(\d{3})\b/) ??
+    all.match(/\bpin(?:\s*code)?\s*[:\-–]?\s*([1-9]\d{2})\s?(\d{3})\b/i);
+  const pin_code = pin ? pin[1] + pin[2] : null;
+
+  const skills = splitList(
+    sectionLines(
+      lines,
+      /(?:technical |key |core |soft |professional )?skills(?: (?:&|and) tools)?|tools(?: (?:&|and) technologies)?/,
+    ),
+    5,
+    30,
+  );
+  const languages = splitList(sectionLines(lines, /languages(?: known)?/), 2, 10).map(titleCase);
+
+  return { full_name, date_of_birth, gender, state_code, district, pin_code, skills, languages };
 }

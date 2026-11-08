@@ -61,6 +61,11 @@ async function bootstrap() {
     'http://127.0.0.1:3003',
     'https://partners.applyfields.com',
     'https://service.applyfields.in',
+    // Our Vercel deployments, by name: anyone can host a site on *.vercel.app.
+    'https://applyfields-web-two.vercel.app',
+    'https://applyfields-4alm.vercel.app',
+    'https://applyfields.vercel.app',
+    'https://applyfields-admin.vercel.app',
   ];
   const configuredOrigins = (process.env.CORS_ORIGINS ?? '')
     .split(',')
@@ -70,20 +75,20 @@ async function bootstrap() {
     new Set([...defaultOrigins, ...configuredOrigins]),
   );
 
-  // Only our own web apps and Vercel domains may call the API from a browser
+  // Only our own web apps may call the API from a browser. Auth cookies are SameSite=None in
+  // production, so a wrongly allowed origin could act as the signed-in user.
+  // Extra origins (e.g. a Vercel preview URL) go in CORS_ORIGINS.
   app.enableCors({
     origin: (requestOrigin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, SSR)
       if (!requestOrigin) return callback(null, true);
       const isAllowed =
         origins.includes(requestOrigin) ||
-        requestOrigin.endsWith('.vercel.app') ||
-        requestOrigin.endsWith('.applyfields.com') ||
-        requestOrigin.endsWith('.applyfields.in') ||
+        /^https:\/\/([a-z0-9-]+\.)*applyfields\.(com|in)$/.test(requestOrigin) ||
         /^https?:\/\/localhost(:\d+)?$/.test(requestOrigin) ||
         /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(requestOrigin);
 
-      return callback(null, isAllowed ? requestOrigin : true);
+      return callback(null, isAllowed);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

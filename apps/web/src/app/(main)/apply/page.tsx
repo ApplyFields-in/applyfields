@@ -40,24 +40,41 @@ export default function ApplyPage() {
     if (typeof window !== 'undefined') {
       const savedState = localStorage.getItem('applyfields_pref_state');
       if (savedState && savedState !== 'ALL') {
+        // Same codes as the Settings → Preferences state list (TS = Telangana)
         const stateNameMap: Record<string, string> = {
-          TG: 'Telangana',
+          TS: 'Telangana',
           AP: 'Andhra Pradesh',
           KA: 'Karnataka',
           MH: 'Maharashtra',
           DL: 'Delhi',
           TN: 'Tamil Nadu',
+          UP: 'Uttar Pradesh',
+          BR: 'Bihar',
+          RJ: 'Rajasthan',
+          MP: 'Madhya Pradesh',
+          WB: 'West Bengal',
         };
         if (stateNameMap[savedState]) {
           setLocationFilter(stateNameMap[savedState]);
         }
       }
+      // Links like /apply?deadline=7d or ?eligibility=eligible (the chatbot shortcuts) pre-set filters.
+      const url = new URLSearchParams(window.location.search);
+      const d = url.get('deadline');
+      if (d === '7d' || d === '30d') setDeadlineFilter(d);
+      if (url.get('eligibility') === 'eligible') setEligibilityFilter('eligible');
     }
   }, []);
 
   useEffect(() => {
     setLoading(true);
     const queryParams = new URLSearchParams();
+    if (deadlineFilter !== 'Any') {
+      queryParams.set('deadline', deadlineFilter === '7d' ? '7_days' : '30_days');
+    }
+    if (eligibilityFilter === 'eligible') {
+      queryParams.set('eligible', 'true');
+    }
     if (activeTab !== 'all') {
       queryParams.set('type', activeTab);
     }
@@ -71,7 +88,7 @@ export default function ApplyPage() {
         setApiUnavailable(!res);
       })
       .finally(() => setLoading(false));
-  }, [activeTab, searchQuery]);
+  }, [activeTab, searchQuery, deadlineFilter, eligibilityFilter]);
 
   // Client-side filtering based on dropdowns
   const filteredList = opportunities.filter((item) => {
@@ -94,7 +111,10 @@ export default function ApplyPage() {
               {t('apply_page_title', 'Apply')}
             </h1>
             <p className="mt-1 text-sm text-[#435775]">
-              {t('apply_page_subtitle', 'Find an opportunity, check eligibility and go to the official application route.')}
+              {t(
+                'apply_page_subtitle',
+                'Find an opportunity, check eligibility and go to the official application route.',
+              )}
             </p>
           </div>
 
@@ -103,7 +123,10 @@ export default function ApplyPage() {
               <Search className="mr-2 size-4 shrink-0 text-[#435775]" />
               <input
                 type="text"
-                placeholder={t('apply_search_placeholder', 'Search jobs, exams, scholarships, careers, courses...')}
+                placeholder={t(
+                  'apply_search_placeholder',
+                  'Search jobs, exams, scholarships, careers, courses...',
+                )}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-transparent text-sm text-[#082046] outline-none placeholder:text-[#64748b]"
@@ -178,8 +201,9 @@ export default function ApplyPage() {
               <option value="All India">All India</option>
               <option value="Telangana">Telangana</option>
               <option value="Andhra Pradesh">Andhra Pradesh</option>
-              <option value="Karnataka">Karnataka</option>
-              <option value="Delhi">Delhi</option>
+              {['Karnataka', 'Maharashtra', 'Tamil Nadu', 'Delhi', 'Uttar Pradesh', 'Bihar', 'Rajasthan', 'Madhya Pradesh', 'West Bengal'].map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
             </select>
 
             {/* Deadline */}
@@ -218,22 +242,24 @@ export default function ApplyPage() {
           </div>
 
           {/* Results count */}
-          <span className="text-sm font-medium text-[#435775]">
-            {filteredList.length} results
-          </span>
+          <span className="text-sm font-medium text-[#435775]">{filteredList.length} results</span>
         </div>
 
         {/* Opportunity List Rows */}
         <div className="space-y-3 border-t border-[#c4d2e3] pt-4">
           {loading ? (
-            <p className="rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] p-6 text-sm text-[#435775]">Loading opportunities…</p>
+            <p className="rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] p-6 text-sm text-[#435775]">
+              Loading opportunities…
+            </p>
           ) : filteredList.length ? (
             filteredList.map((item) => <HorizontalOpportunityCard key={item.slug} item={item} />)
           ) : (
             <div className="rounded-2xl border border-[#c4d2e3] bg-[#F8FBFF] p-8 text-center space-y-2">
               <h3 className="text-base font-black text-[#082046]">{t('apply_empty_title')}</h3>
               <p className="text-xs text-[#526987]">
-                {apiUnavailable ? 'Opportunities are temporarily unavailable. Please try again shortly.' : t('apply_empty_desc')}
+                {apiUnavailable
+                  ? 'Opportunities are temporarily unavailable. Please try again shortly.'
+                  : t('apply_empty_desc')}
               </p>
             </div>
           )}

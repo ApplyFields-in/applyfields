@@ -10,6 +10,7 @@ import {
   ExternalLink,
   GraduationCap,
   MapPin,
+  Phone,
   Sparkles,
   Users,
 } from 'lucide-react';
@@ -47,7 +48,10 @@ function getShortDescription(desc?: string | null): string {
   if (!desc) return 'Premier technical education and higher research institute in India.';
   const clean = desc
     .replace(/^(IIT|NIT|BITS|VIT|DTU|[A-Z\s]+)\s+Highlights\s+\d{4}/i, '')
-    .replace(/^IIT Madras is known as an 'Institute of Eminence'\./i, 'Renowned Institute of Eminence.')
+    .replace(
+      /^IIT Madras is known as an 'Institute of Eminence'\./i,
+      'Renowned Institute of Eminence.',
+    )
     .trim();
   if (clean.length <= 135) return clean;
   return clean.slice(0, 130).replace(/[\s,\.\-]+$/, '') + '...';
@@ -80,9 +84,12 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
     college.ranking_text ||
     (accreditation.nirf_rank ? `NIRF Rank #${accreditation.nirf_rank}` : null);
 
+  // Only real data is shown: a missing figure hides its tile instead of showing a made-up default.
   const instituteType =
     accreditation.institute_type_raw ||
-    (college.type === 'university' ? 'University' : 'Institute of Technology');
+    (college.type
+      ? college.type.charAt(0).toUpperCase() + college.type.slice(1).replace('_', ' ')
+      : 'College');
 
   const establishedDisplay =
     accreditation.established_text ||
@@ -93,20 +100,29 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
     [college.city, college.state_code].filter(Boolean).join(', ') ||
     'India';
 
-  const acceptedExams: string[] =
-    accreditation.accepted_exams && accreditation.accepted_exams.length > 0
-      ? accreditation.accepted_exams
-      : ['JEE Main', 'JEE Advanced', 'GATE'];
+  const acceptedExams: string[] = accreditation.accepted_exams ?? [];
 
   const specificBranches: string[] =
     accreditation.specific_branches && accreditation.specific_branches.length > 0
       ? accreditation.specific_branches
       : [];
 
-  const topRecruiters: string[] =
-    placementStats.top_recruiters && placementStats.top_recruiters.length > 0
-      ? placementStats.top_recruiters
-      : ['Google', 'Microsoft', 'Amazon', 'Texas Instruments', 'Qualcomm', 'Goldman Sachs'];
+  const topRecruiters: string[] = placementStats.top_recruiters ?? [];
+
+  const metrics = [
+    { label: 'Average Package', value: placementStats.avg_package },
+    { label: 'Highest Package', value: placementStats.highest_package },
+    { label: 'Annual Tuition Fees', value: college.fees_text },
+    { label: 'Accepted Entrance Exams', value: acceptedExams.slice(0, 3).join(', ') },
+  ].filter((m): m is { label: string; value: string } => Boolean(m.value));
+
+  const hasPlacements = Boolean(
+    placementStats.highest_package || placementStats.avg_package || placementStats.details,
+  );
+  const mapsHref =
+    college.latitude != null && college.longitude != null
+      ? `https://www.google.com/maps/search/?api=1&query=${college.latitude},${college.longitude}`
+      : null;
 
   return (
     <div>
@@ -120,7 +136,10 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
                 { label: 'Career', href: '/career' },
                 { label: 'Colleges', href: '/career/colleges' },
                 {
-                  label: accreditation.nirf_category === 'Medical' ? 'Top 50 Medical' : 'Top 50 Engineering',
+                  label:
+                    accreditation.nirf_category === 'Medical'
+                      ? 'Top 50 Medical'
+                      : 'Top 50 Engineering',
                   href: `/career/colleges?stream=${accreditation.nirf_category === 'Medical' ? 'medical' : 'top-50-engg'}`,
                 },
                 { label: college.short_name || college.name },
@@ -175,11 +194,7 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
                 category={instituteType || 'College'}
               />
 
-              <SaveButton
-                itemType="institution"
-                slug={college.slug}
-                title={college.name}
-              />
+              <SaveButton itemType="institution" slug={college.slug} title={college.name} />
 
               <Link
                 href={`/career/colleges/compare?slugs=${college.slug}`}
@@ -197,6 +212,26 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
                   className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-[#dec9a5] bg-[#F4E8D1] px-3.5 text-xs font-bold text-[#082046] hover:bg-[#ebdcc0] transition-colors shadow-sm"
                 >
                   Official Portal <ExternalLink className="size-3" />
+                </a>
+              )}
+
+              {college.contact_phone && (
+                <a
+                  href={`tel:${college.contact_phone.replace(/[^\d+]/g, '')}`}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-semibold text-[#082046] hover:bg-[#ffffff] transition-colors shadow-sm"
+                >
+                  <Phone className="size-3.5 text-[#0e7bf4]" /> {college.contact_phone}
+                </a>
+              )}
+
+              {mapsHref && (
+                <a
+                  href={mapsHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-[#dec9a5] bg-[#f8f5ef] px-3.5 text-xs font-semibold text-[#082046] hover:bg-[#ffffff] transition-colors shadow-sm"
+                >
+                  <MapPin className="size-3.5 text-[#0e7bf4]" /> Directions
                 </a>
               )}
             </div>
@@ -217,32 +252,24 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
           </div>
 
           {/* Key Metrics Bar - Rectangular rounded-md */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 pt-2">
-            <div className="rounded-md bg-[#ffffff] p-4 border border-[#dec9a5] shadow-sm">
-              <span className="text-[11px] font-semibold text-[#76562d]">Average Package</span>
-              <p className="mt-1 font-bold text-[#082046] text-base sm:text-lg">
-                {placementStats.avg_package || 'INR 18.5 LPA'}
-              </p>
+          {metrics.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 pt-2">
+              {metrics.map((m) => (
+                <div
+                  key={m.label}
+                  className="rounded-md bg-[#ffffff] p-4 border border-[#dec9a5] shadow-sm"
+                >
+                  <span className="text-[11px] font-semibold text-[#76562d]">{m.label}</span>
+                  <p
+                    className="mt-1 font-bold text-[#082046] text-sm sm:text-base truncate"
+                    title={m.value}
+                  >
+                    {m.value}
+                  </p>
+                </div>
+              ))}
             </div>
-            <div className="rounded-md bg-[#ffffff] p-4 border border-[#dec9a5] shadow-sm">
-              <span className="text-[11px] font-semibold text-[#76562d]">Highest Package</span>
-              <p className="mt-1 font-bold text-[#082046] text-base sm:text-lg">
-                {placementStats.highest_package || 'INR 50+ LPA'}
-              </p>
-            </div>
-            <div className="rounded-md bg-[#ffffff] p-4 border border-[#dec9a5] shadow-sm">
-              <span className="text-[11px] font-semibold text-[#76562d]">Annual Tuition Fees</span>
-              <p className="mt-1 font-bold text-[#082046] text-sm sm:text-base truncate" title={college.fees_text || ''}>
-                {college.fees_text || 'Subsidized Fee'}
-              </p>
-            </div>
-            <div className="rounded-md bg-[#ffffff] p-4 border border-[#dec9a5] shadow-sm">
-              <span className="text-[11px] font-semibold text-[#76562d]">Accepted Entrance Exams</span>
-              <p className="mt-1 font-bold text-[#082046] text-sm truncate" title={acceptedExams.join(', ')}>
-                {acceptedExams.slice(0, 3).join(', ')}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
@@ -270,7 +297,8 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
                 <div className="rounded-md border border-[#dec9a5] bg-[#ffffff] p-6 space-y-4 shadow-sm">
                   <div className="flex items-center justify-between">
                     <h2 className="text-base font-bold text-[#082046] flex items-center gap-2">
-                      <GraduationCap className="size-4 text-[#76562d]" /> Academic Branches &amp; Specializations
+                      <GraduationCap className="size-4 text-[#76562d]" /> Academic Branches &amp;
+                      Specializations
                     </h2>
                     <span className="text-xs font-semibold text-[#76562d]">
                       {specificBranches.length} Programs
@@ -295,7 +323,8 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
               {accreditation.admissions_details && (
                 <div className="rounded-md border border-[#dec9a5] bg-[#ffffff] p-6 space-y-3 shadow-sm">
                   <h2 className="text-base font-bold text-[#082046] flex items-center gap-2">
-                    <BookOpen className="size-4 text-[#76562d]" /> Admissions &amp; Application Dates
+                    <BookOpen className="size-4 text-[#76562d]" /> Admissions &amp; Application
+                    Dates
                   </h2>
                   <div className="text-xs sm:text-sm text-[#435775] leading-relaxed whitespace-pre-line space-y-2">
                     {accreditation.admissions_details}
@@ -307,7 +336,8 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
               {accreditation.cutoff_details && (
                 <div className="rounded-md border border-[#dec9a5] bg-[#ffffff] p-6 space-y-3 shadow-sm">
                   <h2 className="text-base font-bold text-[#082046] flex items-center gap-2">
-                    <Award className="size-4 text-[#76562d]" /> JoSAA Cutoff Rounds &amp; Closing Ranks
+                    <Award className="size-4 text-[#76562d]" /> JoSAA Cutoff Rounds &amp; Closing
+                    Ranks
                   </h2>
                   <div className="text-xs sm:text-sm text-[#435775] leading-relaxed whitespace-pre-line space-y-2">
                     {accreditation.cutoff_details}
@@ -319,7 +349,8 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
               <div className="rounded-md border border-[#dec9a5] bg-[#ffffff] p-6 space-y-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-bold text-[#082046] flex items-center gap-2">
-                    <BookOpen className="size-4 text-[#76562d]" /> Degrees, Courses &amp; Fee Details
+                    <BookOpen className="size-4 text-[#76562d]" /> Degrees, Courses &amp; Fee
+                    Details
                   </h2>
                   <span className="text-xs font-semibold text-[#76562d]">
                     {college.courses?.length || specificBranches.length || 0} Offerings
@@ -340,7 +371,9 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
                         className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4"
                       >
                         <div className="space-y-1">
-                          <p className="text-xs sm:text-sm font-bold text-[#082046]">{course.name}</p>
+                          <p className="text-xs sm:text-sm font-bold text-[#082046]">
+                            {course.name}
+                          </p>
                           <div className="flex items-center gap-2 text-[11px] text-[#536780]">
                             <span className="uppercase font-semibold tracking-wider text-[#76562d]">
                               {course.level}
@@ -349,14 +382,15 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
                           </div>
                         </div>
 
-                        <div className="shrink-0 text-left sm:text-right">
-                          <p className="text-xs sm:text-sm font-bold text-[#082046]">
-                            {course.fee_per_year
-                              ? `INR ${(course.fee_per_year / 100000).toFixed(2)} Lakh / yr`
-                              : course.fees_text || 'Standard Tuition'}
-                          </p>
-                          <p className="text-[10px] text-[#536780]">Inclusive of Academic Fees</p>
-                        </div>
+                        {(course.fee_per_year || course.fees_text) && (
+                          <div className="shrink-0 text-left sm:text-right">
+                            <p className="text-xs sm:text-sm font-bold text-[#082046]">
+                              {course.fee_per_year
+                                ? `INR ${(course.fee_per_year / 100000).toFixed(2)} Lakh / yr`
+                                : course.fees_text}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -366,56 +400,62 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
 
             {/* Right Column: Placements, Recruiters & Campus - Rectangular rounded-md */}
             <div className="space-y-6">
-              {/* Placements & Package Records */}
-              <div className="rounded-md border border-[#dec9a5] bg-[#ffffff] p-6 space-y-4 shadow-sm">
-                <h2 className="text-base font-bold text-[#082046] flex items-center gap-2">
-                  <Sparkles className="size-4 text-[#76562d]" /> Placements &amp; Highest CTC
-                </h2>
+              {/* Placements & Package Records (only when the college published them) */}
+              {hasPlacements && (
+                <div className="rounded-md border border-[#dec9a5] bg-[#ffffff] p-6 space-y-4 shadow-sm">
+                  <h2 className="text-base font-bold text-[#082046] flex items-center gap-2">
+                    <Sparkles className="size-4 text-[#76562d]" /> Placements &amp; Highest CTC
+                  </h2>
 
-                <div className="rounded-md border border-[#dec9a5] bg-[#f8f5ef] p-4 text-center space-y-1">
-                  <span className="text-[11px] font-semibold text-[#76562d] uppercase tracking-wide">
-                    Highest CTC Offered
-                  </span>
-                  <p className="text-xl sm:text-2xl font-black text-[#082046]">
-                    {placementStats.highest_package || 'INR 1+ Crore'}
-                  </p>
-                  <p className="text-[11px] text-[#536780]">International / Domestic Marquee Offer</p>
+                  {placementStats.highest_package && (
+                    <div className="rounded-md border border-[#dec9a5] bg-[#f8f5ef] p-4 text-center space-y-1">
+                      <span className="text-[11px] font-semibold text-[#76562d] uppercase tracking-wide">
+                        Highest CTC Offered
+                      </span>
+                      <p className="text-xl sm:text-2xl font-black text-[#082046]">
+                        {placementStats.highest_package}
+                      </p>
+                    </div>
+                  )}
+
+                  {placementStats.avg_package && (
+                    <div className="rounded-md border border-[#dec9a5] bg-[#f8f5ef] p-4 text-center space-y-1">
+                      <span className="text-[11px] font-semibold text-[#76562d] uppercase tracking-wide">
+                        Average Package
+                      </span>
+                      <p className="text-xl sm:text-2xl font-black text-[#082046]">
+                        {placementStats.avg_package}
+                      </p>
+                    </div>
+                  )}
+
+                  {placementStats.details && (
+                    <p className="text-xs text-[#435775] leading-relaxed pt-2 border-t border-[#dec9a5]/40 whitespace-pre-line">
+                      {placementStats.details}
+                    </p>
+                  )}
                 </div>
-
-                <div className="rounded-md border border-[#dec9a5] bg-[#f8f5ef] p-4 text-center space-y-1">
-                  <span className="text-[11px] font-semibold text-[#76562d] uppercase tracking-wide">
-                    Average B.Tech Package
-                  </span>
-                  <p className="text-xl sm:text-2xl font-black text-[#082046]">
-                    {placementStats.avg_package || 'INR 21.4 LPA'}
-                  </p>
-                  <p className="text-[11px] text-[#536780]">Official Institutional Placement Report</p>
-                </div>
-
-                {placementStats.details && (
-                  <p className="text-xs text-[#435775] leading-relaxed pt-2 border-t border-[#dec9a5]/40 whitespace-pre-line">
-                    {placementStats.details}
-                  </p>
-                )}
-              </div>
+              )}
 
               {/* Top Corporate Recruiters */}
-              <div className="rounded-md border border-[#dec9a5] bg-[#ffffff] p-6 space-y-3 shadow-sm">
-                <h2 className="text-base font-bold text-[#082046] flex items-center gap-2">
-                  <Users className="size-4 text-[#76562d]" /> Top Hiring Partners
-                </h2>
+              {topRecruiters.length > 0 && (
+                <div className="rounded-md border border-[#dec9a5] bg-[#ffffff] p-6 space-y-3 shadow-sm">
+                  <h2 className="text-base font-bold text-[#082046] flex items-center gap-2">
+                    <Users className="size-4 text-[#76562d]" /> Top Hiring Partners
+                  </h2>
 
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {topRecruiters.map((recruiter, idx) => (
-                    <span
-                      key={idx}
-                      className="rounded border border-[#dec9a5] bg-[#f8f5ef] px-2.5 py-1 text-xs font-semibold text-[#082046]"
-                    >
-                      {recruiter}
-                    </span>
-                  ))}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {topRecruiters.map((recruiter, idx) => (
+                      <span
+                        key={idx}
+                        className="rounded border border-[#dec9a5] bg-[#f8f5ef] px-2.5 py-1 text-xs font-semibold text-[#082046]"
+                      >
+                        {recruiter}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Campus Life & Scholarships */}
               {accreditation.campus_scholarships_details && (
@@ -435,9 +475,12 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
           <div className="mt-8 pt-6 border-t border-[#dec9a5]/70 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-[#082046] sm:text-xl">Similar Premier Colleges</h2>
+                <h2 className="text-lg font-bold text-[#082046] sm:text-xl">
+                  Similar Premier Colleges
+                </h2>
                 <p className="text-xs text-[#536780] mt-0.5">
-                  Explore peer engineering institutions with comparable rankings, degree programs, and placement outcomes.
+                  Explore peer engineering institutions with comparable rankings, degree programs,
+                  and placement outcomes.
                 </p>
               </div>
               <Link
@@ -453,10 +496,16 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
                 const simRank =
                   sim.accreditation?.nirf_rank_text ||
                   sim.ranking_text ||
-                  (sim.accreditation?.nirf_rank ? `NIRF Rank #${sim.accreditation.nirf_rank}` : null);
+                  (sim.accreditation?.nirf_rank
+                    ? `NIRF Rank #${sim.accreditation.nirf_rank}`
+                    : null);
                 const simType = sim.accreditation?.institute_type_raw || sim.type;
-                const simEstd = sim.accreditation?.established_text || (sim.established_year ? `Estd. ${sim.established_year}` : null);
-                const simLocation = sim.accreditation?.location_shown || [sim.city, sim.state_code].filter(Boolean).join(', ');
+                const simEstd =
+                  sim.accreditation?.established_text ||
+                  (sim.established_year ? `Estd. ${sim.established_year}` : null);
+                const simLocation =
+                  sim.accreditation?.location_shown ||
+                  [sim.city, sim.state_code].filter(Boolean).join(', ');
                 const simDesc = getShortDescription(sim.description);
 
                 return (
@@ -525,7 +574,7 @@ export default async function CollegeDetailPage({ params }: CollegeDetailPagePro
       <StickyMobileActionBar
         title={college.name}
         badgeText={rankDisplay || locationDisplay}
-        primaryCtaLabel={college.website ? "Portal" : "Compare"}
+        primaryCtaLabel={college.website ? 'Portal' : 'Compare'}
         primaryCtaHref={college.website || `/career/colleges/compare?slugs=${college.slug}`}
         isExternal={Boolean(college.website)}
         slug={college.slug}

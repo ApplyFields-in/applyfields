@@ -437,6 +437,7 @@ export interface AdminGovServiceListItem {
   state_codes: string[];
   updated_at: string;
   published_at: string | null;
+  last_verified_at?: string | null;
 }
 
 export interface AdminGovServiceList {
@@ -1108,6 +1109,11 @@ export interface InstitutionDetail extends InstitutionSummary {
   description: string | null;
   established_year: number | null;
   campus_facilities: string[];
+  pincode?: string | null;
+  contact_phone?: string | null;
+  /** WGS84; both set or both null */
+  latitude?: number | null;
+  longitude?: number | null;
   courses: Array<{
     id: string;
     slug: string;
@@ -1444,6 +1450,10 @@ export interface BookingDetail {
   final_paise: number | null;
   cancelled_reason: string | null;
   completed_at: string | null;
+  /** Set when the operator files on the official portal. */
+  official_app_number?: string | null;
+  /** True once the acknowledgment slip is uploaded (download via GET /bookings/:id/slip). */
+  has_acknowledgment_slip?: boolean;
   created_at: string;
   updated_at: string;
   events: BookingRequestEvent[];
@@ -1463,6 +1473,14 @@ export interface CreateBookingInput {
   appointment_at?: string;
   user_note?: string;
   contact_phone?: string;
+}
+
+export interface MarkFiledInput {
+  official_app_number: string;
+  /** base64 or data URL; PDF, JPG or PNG, max 5 MB */
+  slip_base64: string;
+  slip_mime_type: 'application/pdf' | 'image/jpeg' | 'image/png';
+  partner_note?: string;
 }
 
 export interface UpdateBookingStatusInput {

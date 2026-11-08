@@ -153,6 +153,7 @@ import type {
   BookingListResponse,
   ChatMessageItem,
   CreateBookingInput,
+  MarkFiledInput,
   PartnerDirectoryResponse,
   PartnerDetail,
   SendChatMessageInput,
@@ -183,6 +184,24 @@ export async function getBookingById(
 
 export async function getMyBookings(): Promise<ApiResponse<BookingListResponse>> {
   return apiGet<BookingListResponse>('/bookings/my');
+}
+
+/** Short-lived download link for the acknowledgment slip (citizen or partner centre only). */
+export async function getBookingSlipUrl(id: string): Promise<ApiResponse<{ url: string }>> {
+  return apiGet<{ url: string }>(`/bookings/${encodeURIComponent(id)}/slip`);
+}
+
+/** Operator desk: requests for the signed-in partner centre. */
+export async function getPartnerInbox(): Promise<ApiResponse<BookingListResponse>> {
+  return apiGet<BookingListResponse>('/bookings/partner/inbox');
+}
+
+/** Operator desk: save the official application number + slip, complete the request, notify the citizen. */
+export async function markBookingFiled(
+  id: string,
+  input: MarkFiledInput,
+): Promise<ApiResponse<BookingDetail>> {
+  return apiPost<BookingDetail, MarkFiledInput>(`/bookings/partner/${encodeURIComponent(id)}/filed`, input);
 }
 
 export async function cancelBooking(

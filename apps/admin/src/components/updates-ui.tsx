@@ -167,7 +167,10 @@ export function UpdateForm({ initialData, mode }: UpdateFormProps) {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const paramOppId = params.get('opportunity_id') || params.get('opportunityId');
-    const paramKind = params.get('kind') as UpdateKind | null;
+    const rawKind = params.get('kind');
+    const paramKind = rawKind && rawKind in UPDATE_KIND_LABEL ? (rawKind as UpdateKind) : null;
+    // The reviewed notice's PDF (from the review screen's Corrigendum menu) is the source of the update.
+    const paramSource = params.get('source_url');
     const paramTitle = params.get('title');
     const paramDiff = params.get('diff');
     const paramDeadline = params.get('new_deadline');
@@ -188,6 +191,7 @@ export function UpdateForm({ initialData, mode }: UpdateFormProps) {
       if (paramTitle) setTitle(paramTitle);
       if (paramDiff) setSummary(paramDiff);
       if (paramDeadline) setNewDeadline(paramDeadline);
+      if (paramSource) setSourceUrl(paramSource);
     }
   }, [mode]);
 

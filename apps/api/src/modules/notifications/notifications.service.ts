@@ -455,7 +455,7 @@ export class NotificationsService {
             renderEmail({
               title: n.title,
               body: n.body,
-              url: n.link ? `${webUrl()}${n.link}` : null,
+              url: n.link ? (/^https?:\/\//.test(n.link) ? n.link : `${webUrl()}${n.link}`) : null,
               unsubscribeUrl,
               preferencesUrl: `${webUrl()}/notifications#preferences`,
             }),

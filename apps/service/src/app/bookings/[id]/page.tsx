@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import {
   getBookingById,
+  getBookingSlipUrl,
   getBookingMessages,
   markBookingMessagesRead,
   sendBookingMessage,
@@ -51,6 +52,8 @@ interface StoredBooking {
   total: number;
   intakeSummary?: string[];
   createdAt: string;
+  officialAppNumber?: string | null;
+  hasSlip?: boolean;
 }
 
 export default function BookingDetailsPage() {
@@ -60,6 +63,7 @@ export default function BookingDetailsPage() {
 
   const [booking, setBooking] = useState<StoredBooking | null>(null);
   const [copied, setCopied] = useState(false);
+  const [slipError, setSlipError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [newMsgText, setNewMsgText] = useState('');
   const [messages, setMessages] = useState<Array<{ id: string; sender: 'citizen' | 'partner'; text: string; time: string }>>([
@@ -193,6 +197,8 @@ export default function BookingDetailsPage() {
               total: cached?.total || (res.data.quoted_paise || res.data.final_paise || 10700) / 100,
               intakeSummary: cached?.intakeSummary,
               createdAt: res.data.created_at,
+              officialAppNumber: res.data.official_app_number,
+              hasSlip: res.data.has_acknowledgment_slip,
             };
 
             setBooking(apiBooking);
@@ -382,6 +388,40 @@ export default function BookingDetailsPage() {
             </span>
           </div>
         </div>
+
+        {/* Filed on the official portal: application number + acknowledgment slip */}
+        {booking.officialAppNumber && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="space-y-0.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                Filed on the official portal
+              </span>
+              <div className="font-mono text-lg font-black text-[#082046] break-all">
+                {booking.officialAppNumber}
+              </div>
+              <p className="text-[11px] text-emerald-900 font-medium">
+                Official Application No. Keep it to track your application on the government portal.
+              </p>
+            </div>
+            {booking.hasSlip && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setSlipError(null);
+                  const res = await getBookingSlipUrl(booking.id);
+                  // Signed URL is sent as an attachment, so this downloads without leaving the page
+                  // (window.open after an await gets popup-blocked).
+                  if (res.data?.url) window.location.assign(res.data.url);
+                  else setSlipError(res.error ?? 'Could not open the slip.');
+                }}
+                className="cut-corner-btn inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-sm"
+              >
+                <FileText className="h-3.5 w-3.5" /> Download Acknowledgment Slip
+              </button>
+            )}
+            {slipError && <p className="text-[11px] font-bold text-rose-700">{slipError}</p>}
+          </div>
+        )}
 
         {/* Appointment Grid Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">

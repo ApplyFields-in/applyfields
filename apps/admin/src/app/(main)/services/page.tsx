@@ -194,6 +194,11 @@ export default async function ServicesAdminPage({
                         </td>
                         <td className="px-3 py-3.5">
                           <StatusBadge status={item.status} />
+                          {item.status === 'published' && !item.last_verified_at && (
+                            <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                              Not verified
+                            </span>
+                          )}
                         </td>
                         <td className="px-3 py-3.5 text-xs font-medium text-teal/80">
                           {item.authority_name || '—'}
