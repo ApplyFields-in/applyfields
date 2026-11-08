@@ -1,18 +1,21 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ArrowRight,
+  BadgeCheck,
+  Bookmark,
   Bot,
+  CalendarClock,
   Copy,
   Crown,
   ExternalLink,
   FileText,
   Lock,
   MessageSquare,
+  Newspaper,
   RefreshCw,
   Send,
   Sparkles,
@@ -26,6 +29,7 @@ import {
 import { apiGet, apiPost, apiPut } from '@/lib/api';
 import { showAppToast } from '@/components/toast-notification-provider';
 import { usePipApply } from '@/context/pip-apply-context';
+import { FieldyMascot, prefetchFieldy, type FieldyMood } from './fieldy-mascot';
 import type {
   ChatbotAction,
   ChatbotQueryInput,
@@ -55,6 +59,49 @@ interface QuotaState {
 const STORAGE_KEY = 'applyfields_ai_chat_history_v2';
 const QUOTA_STORAGE_KEY = 'applyfields_ai_quota_v2';
 
+/** No typing, sending or tapping for this long → Fieldy dozes off. */
+const BORED_AFTER_MS = 25_000;
+/** Typing paused this long → Fieldy stops "working". */
+const TYPING_PAUSE_MS = 2_500;
+
+/** Pages, not questions: instant and they don't use the 3 free chats. */
+const SHORTCUTS = [
+  {
+    label: 'Deadlines',
+    hint: 'Closing in 7 days',
+    href: '/apply?deadline=7d',
+    icon: CalendarClock,
+  },
+  { label: 'Suits me', hint: 'What I am eligible for', href: '/eligibility', icon: BadgeCheck },
+  {
+    label: 'Latest updates',
+    hint: 'Recently added results & notices',
+    href: '/updates',
+    icon: Newspaper,
+  },
+  { label: 'Saved', hint: 'My saved opportunities', href: '/saved', icon: Bookmark },
+  { label: 'Help centres', hint: 'MeeSeva / CSC near me', href: '/services', icon: Store },
+] as const;
+
+const MOOD_CAPTION: Record<FieldyMood, string> = {
+  idle: 'Your first move starts here',
+  greeting: 'Hi! Ask me anything',
+  working: 'Reading along…',
+  thinking: 'Thinking…',
+  success: 'Here you go!',
+  'bored-idle': 'Still here when you need me',
+};
+
+/** **bold** and [title](/site/path) -> HTML. Only links to our own pages (a path starting with "/"). */
+function inlineMarkdown(s: string): string {
+  return s
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(
+      /\[([^\]]+)\]\((\/[\w\-/?=&#.]*)\)/g,
+      '<a href="$2" class="font-semibold text-[#0e7bf4] underline hover:text-[#082046]">$1</a>',
+    );
+}
+
 // Format simple markdown (bold, headers, bullets, links) safely
 function renderMarkdown(content: string) {
   const lines = content.split('\n');
@@ -62,7 +109,10 @@ function renderMarkdown(content: string) {
     // Headers
     if (line.startsWith('## ')) {
       return (
-        <h3 key={idx} className="mt-3 mb-1.5 text-sm font-black text-[#082046] border-b border-blue-100 pb-1">
+        <h3
+          key={idx}
+          className="mt-3 mb-1.5 text-sm font-black text-[#082046] border-b border-blue-100 pb-1"
+        >
           {line.replace('## ', '')}
         </h3>
       );
@@ -97,7 +147,7 @@ function renderMarkdown(content: string) {
     // Bullets
     if (line.startsWith('• ') || line.startsWith('- ')) {
       const bulletText = line.replace(/^[•-]\s*/, '');
-      const formatted = bulletText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      const formatted = inlineMarkdown(bulletText);
       return (
         <li
           key={idx}
@@ -110,7 +160,7 @@ function renderMarkdown(content: string) {
     // Numbered lists
     if (/^\d+\.\s/.test(line)) {
       const numText = line.replace(/^\d+\.\s*/, '');
-      const formatted = numText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      const formatted = inlineMarkdown(numText);
       return (
         <div
           key={idx}
@@ -128,7 +178,7 @@ function renderMarkdown(content: string) {
     }
 
     // Normal text with bold
-    const formatted = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    const formatted = inlineMarkdown(line);
     return (
       <p
         key={idx}
@@ -148,6 +198,56 @@ export function FloatingAiAssistant() {
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Fieldy's mood follows the conversation: wave on open, "working" while you type,
+  // thinking (looping) until the answer lands, a cheer when it does, dozing when left alone.
+  const [mood, setMood] = useState<FieldyMood>('greeting');
+  const [replay, setReplay] = useState(0);
+  const [orbHover, setOrbHover] = useState(false);
+  const boredTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  function react(next: FieldyMood) {
+    setMood(next);
+    clearTimeout(boredTimer.current);
+    if (next !== 'thinking')
+      boredTimer.current = setTimeout(() => setMood('bored-idle'), BORED_AFTER_MS);
+  }
+
+  function openChat() {
+    prefetchFieldy('greeting', 'thinking', 'success');
+    setIsOpen(true);
+    react('greeting');
+    setReplay((n) => n + 1);
+  }
+
+  function closeChat() {
+    setIsOpen(false);
+    clearTimeout(boredTimer.current);
+    clearTimeout(typingTimer.current);
+  }
+
+  function waveHello() {
+    if (isLoading) return;
+    react('greeting');
+    setReplay((n) => n + 1);
+  }
+
+  function onTyping(value: string) {
+    setInputQuery(value);
+    if (isLoading) return;
+    react(value.trim() ? 'working' : 'idle');
+    clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => react('idle'), TYPING_PAUSE_MS);
+  }
+
+  useEffect(
+    () => () => {
+      clearTimeout(boredTimer.current);
+      clearTimeout(typingTimer.current);
+    },
+    [],
+  );
 
   // Daily Quota Tracking (3 free chats/day, resets at midnight IST)
   const [quota, setQuota] = useState<QuotaState>({
@@ -282,6 +382,9 @@ export function FloatingAiAssistant() {
     setMessages(nextMessages);
     setInputQuery('');
     setIsLoading(true);
+    clearTimeout(typingTimer.current);
+    react('thinking'); // loops until the answer (or an error) arrives
+    let answered = false;
 
     try {
       const payload: ChatbotQueryInput = {
@@ -313,6 +416,7 @@ export function FloatingAiAssistant() {
           }
         }
 
+        answered = res.data.mode !== 'limit_reached';
         botMsg = {
           id: `bot-${Date.now()}`,
           sender: 'assistant',
@@ -347,6 +451,7 @@ export function FloatingAiAssistant() {
       setMessages([...nextMessages, errorMsg]);
     } finally {
       setIsLoading(false);
+      react(answered ? 'success' : 'idle');
     }
   }
 
@@ -396,10 +501,17 @@ export function FloatingAiAssistant() {
     }
   }
 
-  async function handleFeedback(messageId: string, answerText: string, rating: 'helpful' | 'unhelpful') {
+  async function handleFeedback(
+    messageId: string,
+    answerText: string,
+    rating: 'helpful' | 'unhelpful',
+  ) {
     setFeedbackMap((prev) => ({ ...prev, [messageId]: rating }));
     showAppToast({
-      message: rating === 'helpful' ? 'Thank you for your feedback!' : 'Feedback noted. We will improve this answer.',
+      message:
+        rating === 'helpful'
+          ? 'Thank you for your feedback!'
+          : 'Feedback noted. We will improve this answer.',
       type: 'success',
     });
     try {
@@ -427,7 +539,7 @@ export function FloatingAiAssistant() {
           {/* Friendly Floating Greeting Tooltip */}
           <button
             type="button"
-            onClick={() => setIsOpen(true)}
+            onClick={openChat}
             className="hidden sm:flex items-center gap-2.5 rounded-full border border-blue-200/80 bg-white/95 px-4 py-2.5 shadow-xl shadow-blue-900/10 backdrop-blur-md text-xs font-bold text-[#082046] hover:border-[#0e7bf4] hover:shadow-blue-500/15 transition-all group cursor-pointer"
           >
             <Sparkles className="size-3.5 text-[#0e7bf4] animate-pulse" />
@@ -447,23 +559,19 @@ export function FloatingAiAssistant() {
           {/* Floating Orb Button */}
           <button
             type="button"
-            onClick={() => setIsOpen(true)}
+            onClick={openChat}
+            onMouseEnter={() => setOrbHover(true)}
+            onMouseLeave={() => setOrbHover(false)}
+            onFocus={() => setOrbHover(true)}
+            onBlur={() => setOrbHover(false)}
             aria-label="Open Fieldy AI Advisor"
-            className="group relative flex size-15 items-center justify-center rounded-full bg-gradient-to-tr from-[#082046] via-[#0e7bf4] to-[#10b981] p-0.5 text-white shadow-2xl shadow-blue-600/35 transition-all hover:scale-108 active:scale-95 cursor-pointer ring-4 ring-blue-500/15 hover:ring-blue-500/30"
+            className="group relative flex size-16 items-center justify-center rounded-full bg-gradient-to-tr from-[#082046] via-[#0e7bf4] to-[#10b981] p-0.5 text-white shadow-2xl shadow-blue-600/35 transition-all hover:scale-108 active:scale-95 cursor-pointer ring-4 ring-blue-500/15 hover:ring-blue-500/30"
           >
-            {/* Inner Brand Card with Logo Mark */}
-            <div className="flex size-full items-center justify-center rounded-full bg-[#082046] transition-transform group-hover:scale-95">
-              <div className="relative flex size-9 items-center justify-center">
-                <Image
-                  src="/logo-mark.png"
-                  alt="ApplyFields Emblem"
-                  width={34}
-                  height={34}
-                  unoptimized
-                  className="size-8 object-contain drop-shadow transition-transform group-hover:rotate-6"
-                />
-              </div>
-            </div>
+            {/* Fieldy waves when you point at him; still poster otherwise (no download until then) */}
+            <FieldyMascot
+              mood={orbHover ? 'greeting' : 'idle'}
+              className="size-full rounded-full"
+            />
 
             {/* Glowing Active Ring Indicator */}
             <span className="absolute -top-1 -right-1 flex size-4">
@@ -500,25 +608,28 @@ export function FloatingAiAssistant() {
           {/* Header Bar */}
           <header className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-[#082046] via-[#0b2d62] to-[#0e7bf4] px-5 py-3.5 text-white">
             <div className="flex items-center gap-3">
-              {/* Logo Avatar Badge */}
-              <div className="relative flex size-10 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-inner">
-                <Image
-                  src="/logo-mark.png"
-                  alt="ApplyFields Mark"
-                  width={24}
-                  height={24}
-                  unoptimized
-                  className="size-6 object-contain"
+              {/* Live Fieldy: mirrors the conversation once it has started (the welcome card shows him before that) */}
+              <button
+                type="button"
+                onClick={waveHello}
+                title="Say hi to Fieldy"
+                aria-label="Say hi to Fieldy"
+                className="relative shrink-0 cursor-pointer rounded-2xl border border-white/30 shadow-inner transition active:scale-95"
+              >
+                <FieldyMascot
+                  mood={messages.length && !isLoading ? mood : 'idle'}
+                  replay={replay}
+                  className="size-12 rounded-2xl"
                 />
                 <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-400 border-2 border-[#082046]" />
-              </div>
+              </button>
               <div>
                 <h3 className="text-sm font-black flex items-center gap-1.5 leading-tight">
                   Fieldy
                   <span className="text-[10px] font-medium text-blue-200">· AI Advisor</span>
                 </h3>
-                <p className="text-[10px] text-blue-100/80 italic font-medium">
-                  Your first move starts here
+                <p className="text-[10px] text-blue-100/80 italic font-medium" aria-live="polite">
+                  {MOOD_CAPTION[mood]}
                 </p>
               </div>
             </div>
@@ -570,7 +681,7 @@ export function FloatingAiAssistant() {
               )}
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
+                onClick={closeChat}
                 title="Minimize Fieldy"
                 aria-label="Close assistant"
                 className="rounded-full p-1.5 text-blue-100/80 hover:bg-white/10 hover:text-white transition cursor-pointer"
@@ -604,34 +715,40 @@ export function FloatingAiAssistant() {
             className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-gradient-to-b from-[#f8fafc] to-white text-xs"
           >
             {/* Friendly Welcome Card */}
-            <div className="rounded-2xl border border-blue-100/80 bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30 p-3.5 space-y-2 shadow-2xs">
-              <div className="flex items-center gap-2 text-xs font-black text-[#082046]">
-                <Image
-                  src="/logo-mark.png"
-                  alt="ApplyFields"
-                  width={18}
-                  height={18}
-                  unoptimized
-                  className="size-4 object-contain"
-                />
-                <span>Fieldy AI · Fast-Path + Generative Advisor</span>
+            <div className="flex items-start gap-3 rounded-2xl border border-blue-100/80 bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30 p-3.5 shadow-2xs">
+              {messages.length === 0 && (
+                <button
+                  type="button"
+                  onClick={waveHello}
+                  title="Tap to say hi"
+                  aria-label="Say hi to Fieldy"
+                  className="shrink-0 cursor-pointer rounded-2xl transition hover:scale-105 active:scale-95"
+                >
+                  <FieldyMascot mood={mood} replay={replay} className="size-24 rounded-2xl" />
+                </button>
+              )}
+              <div className="min-w-0 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-black text-[#082046]">
+                  <span>Fieldy AI · Fast-Path + Generative Advisor</span>
+                </div>
+                <p className="text-[11px] text-[#526987] leading-relaxed">
+                  {currentOpportunitySlug ? (
+                    <span>
+                      I have verified the official circular for{' '}
+                      <strong className="text-[#082046] font-semibold">
+                        {currentOpportunitySlug.replace(/-/g, ' ')}
+                      </strong>
+                      . Ask about closing dates, fee exemptions, eligibility criteria, or exam
+                      stages!
+                    </span>
+                  ) : (
+                    <span>
+                      Ask any question about government jobs, closing countdowns, fee waivers, or
+                      career roadmaps. Free accounts receive <strong>3 AI chats daily</strong>.
+                    </span>
+                  )}
+                </p>
               </div>
-              <p className="text-[11px] text-[#526987] leading-relaxed">
-                {currentOpportunitySlug ? (
-                  <span>
-                    I have verified the official circular for{' '}
-                    <strong className="text-[#082046] font-semibold">
-                      {currentOpportunitySlug.replace(/-/g, ' ')}
-                    </strong>
-                    . Ask about closing dates, fee exemptions, eligibility criteria, or exam stages!
-                  </span>
-                ) : (
-                  <span>
-                    Ask any question about government jobs, closing countdowns, fee waivers, or
-                    career roadmaps. Free accounts receive <strong>3 AI chats daily</strong>.
-                  </span>
-                )}
-              </p>
             </div>
 
             {/* Quick Chips (shown when no messages yet) */}
@@ -839,21 +956,36 @@ export function FloatingAiAssistant() {
 
             {/* Loading Indicator */}
             {isLoading && (
-              <div className="flex items-center gap-2 rounded-2xl bg-white border border-slate-200 p-3 max-w-[80%] shadow-2xs">
-                <div className="flex items-center gap-1">
-                  <span className="size-1.5 rounded-full bg-[#0e7bf4] animate-bounce" />
-                  <span className="size-1.5 rounded-full bg-[#0e7bf4] animate-bounce [animation-delay:0.2s]" />
-                  <span className="size-1.5 rounded-full bg-[#0e7bf4] animate-bounce [animation-delay:0.4s]" />
-                </div>
-                <span className="text-[11px] text-[#526987] font-medium">
-                  Fieldy is querying the engine (&lt;80ms)...
-                </span>
+              <div
+                role="status"
+                className="flex items-center gap-3 rounded-2xl bg-white border border-slate-200 p-2 pr-4 max-w-[80%] shadow-2xs"
+              >
+                {/* Loops until the answer arrives (the header Fieldy rests meanwhile) */}
+                <FieldyMascot mood="thinking" className="size-16 rounded-xl" />
+                <span className="text-[11px] text-[#526987] font-medium">Fieldy is thinking…</span>
               </div>
             )}
           </div>
 
           {/* Bottom Query Input Box */}
           <footer className="border-t border-slate-200 bg-white p-3 space-y-1.5">
+            {/* Shortcuts: straight to the page, free, and they work even after the daily chat limit */}
+            <nav
+              aria-label="Shortcuts"
+              className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5 scrollbar-none"
+            >
+              {SHORTCUTS.map(({ label, hint, href, icon: Icon }) => (
+                <a
+                  key={href}
+                  href={href}
+                  title={hint}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-blue-100 bg-[#f0f6ff] px-2.5 py-1 text-[11px] font-bold text-[#082046] transition hover:border-[#0e7bf4] hover:bg-blue-50 hover:text-[#0e7bf4] active:scale-95"
+                >
+                  <Icon className="size-3 text-[#0e7bf4]" aria-hidden="true" />
+                  {label}
+                </a>
+              ))}
+            </nav>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -865,7 +997,7 @@ export function FloatingAiAssistant() {
                 type="text"
                 disabled={quota.limit_reached || isLoading}
                 value={inputQuery}
-                onChange={(e) => setInputQuery(e.target.value)}
+                onChange={(e) => onTyping(e.target.value)}
                 placeholder={
                   quota.limit_reached
                     ? 'Daily limit reached (3/3 chats) · Upgrade to continue'
@@ -902,7 +1034,9 @@ export function FloatingAiAssistant() {
                 {quota.is_premium ? (
                   <strong className="text-amber-600 font-bold">ApplyFields Plus Unlimited</strong>
                 ) : quota.limit_reached ? (
-                  <span className="text-rose-500 font-semibold">Free limit reached (0/3 remaining)</span>
+                  <span className="text-rose-500 font-semibold">
+                    Free limit reached (0/3 remaining)
+                  </span>
                 ) : (
                   <span>
                     <strong>{quota.queries_remaining}</strong> of 3 free chats left today

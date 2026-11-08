@@ -1,15 +1,12 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiGet, apiPut, apiPost, apiDelete, API_URL } from '@/lib/api';
 import { PixelAvatar, PIXEL_AVATARS } from '@/components/pixel-avatars';
-import {
-  convertFileToBase64,
-  extractEducationFromResume,
-  type ExtractedEducation,
-} from '@/lib/resume-parser';
+import { convertFileToBase64 } from '@/lib/resume-parser';
+import { ResumeAutofillCard, type AutofillRow } from '@/components/profile/resume-autofill-card';
 import {
   HorizontalOpportunityCard,
   type ExtendedOpportunityCard,
@@ -18,6 +15,8 @@ import { DashboardCorrigendumBanner } from '@/components/dashboard-corrigendum-b
 import type {
   EducationLevel,
   EducationStatus,
+  ExtractedEducationItem,
+  ExtractedResumeProfile,
   MeResponse,
   OpportunityList,
   ResumeApiResponse,
@@ -30,17 +29,9 @@ import type {
   UserSummary,
 } from '@applyfields/types';
 import {
-  Bookmark,
-  Calendar,
   Check,
   CheckCircle2,
-  ChevronDown,
-  Circle,
-  Columns,
-  Download,
   ExternalLink,
-  FileCheck2,
-  FileText,
   GraduationCap,
   Info,
   LogIn,
@@ -48,12 +39,8 @@ import {
   MapPin,
   Pencil,
   Plus,
-  RefreshCw,
-  Save,
   ShieldCheck,
-  Sparkles,
   Trash2,
-  UploadCloud,
   User,
   UserCheck,
   UserPlus,
@@ -217,13 +204,10 @@ export default function ProfilePage() {
   const [eduStatus, setEduStatus] = useState<EducationStatus>('completed');
 
   // Resume Upload & Extraction states
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [savedResume, setSavedResume] = useState<UserResumeDocument | null>(null);
-  const [resumeText, setResumeText] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
-  const [extractedEducations, setExtractedEducations] = useState<ExtractedEducation[]>([]);
-  const [isImporting, setIsImporting] = useState(false);
-  const [showResumeSection, setShowResumeSection] = useState(false);
+  const [extractedEducations, setExtractedEducations] = useState<ExtractedEducationItem[]>([]);
+  const [resumeProfile, setResumeProfile] = useState<ExtractedResumeProfile | null>(null);
 
   // Relevant for you matching opportunities
   const [relevantOpportunities, setRelevantOpportunities] = useState<ExtendedOpportunityCard[]>([]);
@@ -287,12 +271,7 @@ export default function ProfilePage() {
           .filter((c) => !c.startsWith('pincode:') && !c.startsWith('pref:'))
           .map((c) => c.replace(/^skill:/, '').replace(/^lang:/, ''));
 
-        if (filteredSkills.length > 0) {
-          setSkillsList(filteredSkills);
-        } else {
-          // Default initial set matching reference image if newly created
-          setSkillsList(['Tally', 'MS Excel', 'Kannada', 'English']);
-        }
+        setSkillsList(filteredSkills);
 
         const foundPrefs = rawConditions
           .filter((c) => c.startsWith('pref:'))
@@ -307,18 +286,7 @@ export default function ProfilePage() {
 
       // Check if user has an active saved resume on file
       const resumeRes = await apiGet<{ resume: UserResumeDocument | null }>('/me/resume');
-      if (resumeRes?.resume) {
-        setSavedResume(resumeRes.resume);
-        if (
-          resumeRes.resume.details?.qualifications &&
-          resumeRes.resume.details.qualifications.length > 0
-        ) {
-          setExtractedEducations(resumeRes.resume.details.qualifications);
-        }
-        if (resumeRes.resume.details?.extracted_text) {
-          setResumeText(resumeRes.resume.details.extracted_text);
-        }
-      }
+      if (resumeRes?.resume) setSavedResume(resumeRes.resume);
 
       setLoading(false);
     }
@@ -387,7 +355,7 @@ export default function ProfilePage() {
     if (currentUser?.email) {
       return currentUser.email.slice(0, 2).toUpperCase();
     }
-    return 'AK';
+    return 'Me';
   }, [fullName, currentUser]);
 
   // Dynamic 20-detail profile completeness calculation
@@ -758,43 +726,46 @@ export default function ProfilePage() {
   }
 
   // Resume handlers
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  async function handleResumeUpload(file: File) {
     setIsExtracting(true);
     setSaveError(null);
     setSaveSuccess(null);
 
     try {
       const fileBase64 = await convertFileToBase64(file);
-      const res = await apiPost<ResumeApiResponse>('/me/resume', {
-        fileName: file.name,
-        mimeType: file.type || 'application/pdf',
-        fileBase64,
-        text: resumeText.trim() || undefined,
-      });
+      // Some browsers leave file.type empty for .docx; the API only accepts known types
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const mimeType =
+        file.type ||
+        (ext === 'docx'
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : ext === 'txt'
+            ? 'text/plain'
+            : 'application/pdf');
+      const res = await apiPost<ResumeApiResponse>('/me/resume', { fileName: file.name, mimeType, fileBase64 });
 
       if (res.error || !res.data || !res.data.success) {
         throw new Error(res.error || 'Server could not process resume file');
       }
 
       setSavedResume(res.data.resume);
-      if (res.data.text) {
-        setResumeText(res.data.text);
-      }
-
-      const parsed = res.data.qualifications || [];
-      setExtractedEducations(parsed);
+      setExtractedEducations(res.data.qualifications || []);
+      setResumeProfile(res.data.profile ?? null);
+      const p = res.data.profile;
+      const found =
+        (res.data.qualifications?.length ?? 0) +
+        (p ? [p.full_name, p.date_of_birth, p.gender, p.state_code, p.district, p.pin_code].filter(Boolean).length : 0) +
+        (p && p.skills.length + p.languages.length > 0 ? 1 : 0);
       setSaveSuccess(
-        `Resume securely saved! Parsed ${parsed.length} qualification(s). Click Import All to add them to your profile.`
+        found > 0
+          ? 'Resume saved. Check what we found below, then save it to your profile.'
+          : 'Resume saved, but we could not read details from it. Please fill the profile by hand.'
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to process resume file';
       setSaveError(`Resume upload failed: ${msg}.`);
     } finally {
       setIsExtracting(false);
-      if (e.target) e.target.value = '';
     }
   }
 
@@ -827,7 +798,7 @@ export default function ProfilePage() {
       if (res.error) throw new Error(res.error);
       setSavedResume(null);
       setExtractedEducations([]);
-      setResumeText('');
+      setResumeProfile(null);
       setSaveSuccess('Resume removed from profile.');
     } catch {
       setSaveError('Failed to remove saved resume.');
@@ -836,15 +807,102 @@ export default function ProfilePage() {
     }
   }
 
-  async function handleImportExtracted() {
-    if (extractedEducations.length === 0) return;
-    setIsImporting(true);
+  // Skills/languages from the resume that the profile doesn't have yet
+  const newResumeSkills = useMemo(() => {
+    if (!resumeProfile) return [];
+    const have = new Set(skillsList.map((s) => s.toLowerCase()));
+    return [...resumeProfile.skills, ...resumeProfile.languages].filter((s) => {
+      const k = s.toLowerCase();
+      if (have.has(k)) return false;
+      have.add(k);
+      return true;
+    });
+  }, [resumeProfile, skillsList]);
+
+  // Everything the resume gave us, next to what the profile has now
+  const autofillRows = useMemo<AutofillRow[]>(() => {
+    const rows: AutofillRow[] = [];
+    const p = resumeProfile;
+    const stateName = (code: string) => INDIAN_STATES.find((s) => s.code === code)?.name ?? code;
+    const add = (key: string, label: string, value: string | null, current: string, show = (v: string) => v) => {
+      if (value && value !== current) rows.push({ key, label, value: show(value), current: current ? show(current) : '' });
+    };
+    if (p) {
+      add('full_name', 'Full name', p.full_name, fullName);
+      add('date_of_birth', 'Date of birth', p.date_of_birth, dob);
+      add('gender', 'Gender', p.gender, gender, (v) => v.charAt(0).toUpperCase() + v.slice(1));
+      add('state_code', 'State', p.state_code, stateCode, stateName);
+      add('district', 'District / city', p.district, district);
+      add('pin_code', 'PIN code', p.pin_code, pinCode);
+      if (newResumeSkills.length > 0) {
+        rows.push({ key: 'skills', label: 'Add skills & languages', value: newResumeSkills.join(', '), current: '' });
+      }
+    }
+    for (const e of extractedEducations) {
+      const score = e.score != null ? `${e.score}${e.score_type === 'cgpa' ? ' CGPA' : '%'}` : '';
+      rows.push({
+        key: `edu:${e.level}`,
+        label: EDUCATION_LEVEL_LABELS[e.level],
+        value: [e.degree, e.stream, e.institution_name || e.board_or_university, e.year_of_passing, score]
+          .filter(Boolean)
+          .join(' · '),
+        current: educations.some((x) => x.level === e.level) ? 'This level is already in your education list' : '',
+      });
+    }
+    return rows;
+  }, [resumeProfile, extractedEducations, educations, newResumeSkills, fullName, dob, gender, stateCode, district, pinCode]);
+
+  // One click: save every ticked value to the profile + education
+  async function handleApplyResume(keys: Set<string>) {
+    setIsExtracting(true);
     setSaveError(null);
+    setSaveSuccess(null);
+    const p = resumeProfile;
+    let saved = 0;
 
-    let count = 0;
+    if (p) {
+      const payload: Record<string, unknown> = {};
+      if (keys.has('full_name')) payload.full_name = p.full_name;
+      if (keys.has('date_of_birth')) payload.date_of_birth = p.date_of_birth;
+      if (keys.has('gender')) payload.gender = p.gender;
+      if (keys.has('state_code')) payload.state_code = p.state_code;
+      if (keys.has('district')) payload.district = p.district;
+      const nextPin = keys.has('pin_code') && p.pin_code ? p.pin_code : pinCode.trim();
+      const nextSkills = keys.has('skills') ? [...skillsList, ...newResumeSkills] : skillsList;
+      if (keys.has('pin_code') || keys.has('skills')) {
+        // Same layout handleAddSkill/handleSaveAddress use: pref:, pincode:, skill:
+        payload.special_conditions = [
+          ...specialConditions.filter((c) => c.startsWith('pref:')),
+          ...(nextPin ? [`pincode:${nextPin}`] : []),
+          ...nextSkills.map((s) => `skill:${s}`),
+        ];
+      }
+
+      if (Object.keys(payload).length > 0) {
+        const res = await apiPut<UserProfile>('/me/profile', payload);
+        if (res.error || !res.data) {
+          setSaveError(res.error || 'Could not save the details from your resume.');
+          setIsExtracting(false);
+          return;
+        }
+        const d = res.data;
+        setProfile(d);
+        setFullName(d.full_name ?? '');
+        setDob(d.date_of_birth ?? '');
+        setGender(d.gender ?? '');
+        setStateCode(d.state_code ?? '');
+        setDistrict(d.district ?? '');
+        setSpecialConditions(d.special_conditions ?? []);
+        setPinCode(nextPin);
+        setSkillsList(nextSkills);
+        saved += Object.keys(payload).length - (payload.special_conditions ? 1 : 0);
+        if (keys.has('pin_code')) saved++;
+        if (keys.has('skills')) saved++;
+      }
+    }
+
     const added: UserEducation[] = [];
-
-    for (const item of extractedEducations) {
+    for (const item of extractedEducations.filter((e) => keys.has(`edu:${e.level}`))) {
       const payload = {
         level: item.level,
         degree: item.degree || undefined,
@@ -858,17 +916,15 @@ export default function ProfilePage() {
       };
 
       const res = await apiPost<UserEducation>('/me/education', payload);
-      if (res.data) {
-        count++;
-        added.push(res.data);
-      }
+      if (res.data) added.push(res.data);
     }
 
-    setIsImporting(false);
+    setIsExtracting(false);
     setEducations((prev) => [...prev, ...added]);
     setExtractedEducations([]);
-    setSaveSuccess(`Imported ${count} qualification(s) into your profile!`);
-    setTimeout(() => setSaveSuccess(null), 3000);
+    setResumeProfile(null);
+    setSaveSuccess(`Saved ${saved + added.length} item(s) from your resume. Please check them below.`);
+    setTimeout(() => setSaveSuccess(null), 4000);
   }
 
   async function handleLogout() {
@@ -983,7 +1039,7 @@ export default function ProfilePage() {
 
             {/* User Name */}
             <h2 className="text-xl font-bold text-slate-900 mt-4 tracking-tight">
-              {fullName || currentUser?.email?.split('@')[0] || 'Arvind Kumar'}
+              {fullName || currentUser?.email?.split('@')[0] || currentUser?.phone || 'Your profile'}
             </h2>
 
             {/* Subtitle (e.g. B.Com · Mysuru, Karnataka) */}
@@ -1065,6 +1121,19 @@ export default function ProfilePage() {
 
         {/* RIGHT COLUMN: Stack of Clean Modular Cards */}
         <div className="space-y-6">
+          <ResumeAutofillCard
+            savedResume={savedResume}
+            busy={isExtracting}
+            rows={autofillRows}
+            onUpload={handleResumeUpload}
+            onDownload={handleDownloadResume}
+            onDelete={handleDeleteResume}
+            onApply={handleApplyResume}
+            onDismiss={() => {
+              setResumeProfile(null);
+              setExtractedEducations([]);
+            }}
+          />
           {/* CARD 1: Personal Details */}
           <div
             id="personal-details"
@@ -1609,116 +1678,6 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
-
-            {/* Smart Resume Upload & Parsing Drawer */}
-            <div className="pt-4 border-t border-slate-100">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="size-4 text-[#0e7bf4]" />
-                  <span className="text-xs font-bold text-slate-800">
-                    AI Resume Auto-Detection
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowResumeSection(!showResumeSection)}
-                  className="text-xs font-semibold text-[#0e7bf4] hover:underline flex items-center gap-1"
-                >
-                  <span>{showResumeSection ? 'Hide' : savedResume ? 'View Saved Resume' : 'Upload Resume'}</span>
-                  <ChevronDown className={`size-3 transition-transform ${showResumeSection ? 'rotate-180' : ''}`} />
-                </button>
-              </div>
-
-              {showResumeSection && (
-                <div className="mt-4 p-4 rounded-2xl border border-blue-100 bg-blue-50/40 space-y-4">
-                  {savedResume ? (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <FileCheck2 className="size-5 text-[#0e7bf4]" />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">{savedResume.file_name || 'Resume.pdf'}</p>
-                          <p className="text-[11px] text-slate-500">
-                            {savedResume.size_bytes ? `${Math.round(savedResume.size_bytes / 1024)} KB · ` : ''}
-                            Saved on profile
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept=".pdf,.txt,.docx,image/*"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleDownloadResume}
-                          className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1"
-                        >
-                          <Download className="size-3" /> Download
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isExtracting}
-                          className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1"
-                        >
-                          <RefreshCw className={`size-3 ${isExtracting ? 'animate-spin' : ''}`} /> Replace
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleDeleteResume}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".pdf,.txt,.docx,image/*"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isExtracting}
-                        className="w-full py-4 rounded-xl border border-dashed border-blue-200 hover:border-blue-400 bg-white text-center flex flex-col items-center justify-center gap-1 text-xs text-slate-600 transition-colors"
-                      >
-                        <UploadCloud className="size-5 text-[#0e7bf4]" />
-                        <span className="font-semibold text-slate-800">
-                          {isExtracting ? 'Extracting qualifications...' : 'Click to upload your resume (.pdf / .txt)'}
-                        </span>
-                        <span className="text-[11px] text-slate-400">
-                          Automatically detect your degrees, colleges, passing years, and grades
-                        </span>
-                      </button>
-                    </div>
-                  )}
-
-                  {extractedEducations.length > 0 && (
-                    <div className="pt-3 border-t border-blue-100 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-700">
-                        {extractedEducations.length} qualification(s) detected
-                      </span>
-                      <button
-                        type="button"
-                        disabled={isImporting}
-                        onClick={handleImportExtracted}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#0e7bf4] text-white text-xs font-semibold hover:bg-blue-600 transition-colors shadow-xs"
-                      >
-                        {isImporting ? 'Importing...' : 'Import to Profile'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* CARD: Competitive Exam Scores & Roll Numbers */}
@@ -2048,7 +2007,7 @@ export default function ProfilePage() {
                 <button
                   key={flt.id}
                   type="button"
-                  onClick={() => setCollegeFilter(flt.id as any)}
+                  onClick={() => setCollegeFilter(flt.id as typeof collegeFilter)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
                     collegeFilter === flt.id
                       ? 'bg-[#082046] text-[#F4E8D1] border-[#082046]'

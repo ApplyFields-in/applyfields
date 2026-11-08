@@ -16,14 +16,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/lib/auth';
+import { googleSignInAvailable, useAuth } from '@/lib/auth';
 import { C, R, S, column } from '@/theme';
 
 const LOGO = require('../../assets/images/logo-mark.png');
 
 export default function Login() {
   const router = useRouter();
-  const { startLogin, login, sendLoginOtp, loginWithOtp } = useAuth();
+  const { startLogin, login, sendLoginOtp, loginWithOtp, loginWithGoogle } = useAuth();
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<'password' | 'otp'>('password');
   const [identifier, setIdentifier] = useState('');
@@ -101,6 +101,16 @@ export default function Login() {
     setError(null);
     const failure = await loginWithOtp(identifier, code);
     setBusy(false);
+    if (failure) setError(failure);
+    else router.back();
+  }
+
+  async function google() {
+    setBusy(true);
+    setError(null);
+    const failure = await loginWithGoogle();
+    setBusy(false);
+    if (failure === 'cancelled') return;
     if (failure) setError(failure);
     else router.back();
   }
@@ -199,7 +209,7 @@ export default function Login() {
               <View style={s.labelRow}>
                 <Text style={s.label}>Password</Text>
                 <Pressable
-                  onPress={() => WebBrowser.openBrowserAsync('https://applyfields.in/forgot')}
+                  onPress={() => WebBrowser.openBrowserAsync('https://applyfields.com/forgot')}
                   hitSlop={8}
                 >
                   <Text style={s.smallLink}>Forgot password?</Text>
@@ -359,10 +369,30 @@ export default function Login() {
             </Pressable>
           )}
 
+          {googleSignInAvailable ? (
+            <>
+              <View style={s.orRow}>
+                <View style={s.orLine} />
+                <Text style={s.orText}>or</Text>
+                <View style={s.orLine} />
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: busy }}
+                disabled={busy}
+                onPress={google}
+                style={[s.googleBtn, busy && s.btnDisabled]}
+              >
+                <Ionicons name="logo-google" size={18} color="#4285F4" />
+                <Text style={s.googleBtnText}>Continue with Google</Text>
+              </Pressable>
+            </>
+          ) : null}
+
           <View style={s.signupRow}>
             <Text style={s.sub}>Don&apos;t have an account? </Text>
             <Pressable
-              onPress={() => WebBrowser.openBrowserAsync('https://applyfields.in/register')}
+              onPress={() => WebBrowser.openBrowserAsync('https://applyfields.com/register')}
               hitSlop={8}
             >
               <Text style={s.smallLink}>Sign up</Text>
@@ -508,6 +538,21 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  orRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
+  orLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
+  orText: { color: C.muted, fontSize: 13 },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: S.sm,
+    minHeight: 48,
+    borderRadius: R.pill,
+    borderWidth: 1,
+    borderColor: '#DADCE0',
+    backgroundColor: C.white,
+  },
+  googleBtnText: { color: '#1F1F1F', fontSize: 15, fontWeight: '600' },
   signupRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', marginTop: S.xs },
   disclaimer: { color: C.muted, fontSize: 12, textAlign: 'center', paddingHorizontal: S.lg },
 });

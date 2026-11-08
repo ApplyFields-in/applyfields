@@ -1,6 +1,7 @@
 /** Who is signed in, for the whole app. One fetch of GET /me on launch. */
 import type { AuthResponse, MeResponse } from '@applyfields/types';
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { api, saveSession, setToken } from './api';
 import { clearPersonalOffline } from './offline';
@@ -29,8 +30,42 @@ interface AuthValue {
   sendLoginOtp: (identifier: string) => Promise<string | null>;
   /** Sign in with the code from sendLoginOtp. Returns an error string or null. */
   loginWithOtp: (identifier: string, code: string) => Promise<string | null>;
+  /**
+   * Google account picker → POST /auth/social-login (creates the account on first use, like the
+   * website). Returns an error string, null on success, or 'cancelled' when the user backed out.
+   */
+  loginWithGoogle: () => Promise<string | null>;
   logout: () => Promise<void>;
   reload: () => Promise<void>;
+}
+
+type GoogleSignInLib = typeof import('@react-native-google-signin/google-signin');
+
+// Public OAuth client IDs (not secrets), set per build profile in eas.json. Android sends the WEB
+// client ID; Google matches the app to the Android OAuth client by package name + SHA-1.
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
+
+// The native module throws on import where it isn't built in (Expo Go, web).
+let googleLib: GoogleSignInLib | null = null;
+try {
+  if (Platform.OS !== 'web') googleLib = require('@react-native-google-signin/google-signin') as GoogleSignInLib;
+} catch {
+  googleLib = null;
+}
+
+/**
+ * Show the Google button only when this build can finish a sign-in. iOS also needs its own client
+ * ID and the plugin's URL scheme in app.json (see docs), so it stays hidden there until then.
+ */
+export const googleSignInAvailable =
+  !!googleLib && !!GOOGLE_WEB_CLIENT_ID && (Platform.OS === 'android' || !!GOOGLE_IOS_CLIENT_ID);
+
+if (googleSignInAvailable) {
+  googleLib!.GoogleSignin.configure({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    ...(GOOGLE_IOS_CLIENT_ID ? { iosClientId: GOOGLE_IOS_CLIENT_ID } : {}),
+  });
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -107,8 +142,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [reload],
   );
 
+  const loginWithGoogle = useCallback<AuthValue['loginWithGoogle']>(async () => {
+    if (!googleSignInAvailable) return 'Google sign-in is not available in this version of the app.';
+    const { GoogleSignin, isCancelledResponse, isErrorWithCode, statusCodes } = googleLib!;
+    let idToken: string | null;
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const result = await GoogleSignin.signIn();
+      if (isCancelledResponse(result)) return 'cancelled';
+      idToken = result.data.idToken;
+    } catch (err) {
+      if (isErrorWithCode(err)) {
+        if (err.code === statusCodes.IN_PROGRESS) return 'cancelled';
+        if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+          return 'Google Play services is missing or out of date on this phone.';
+        }
+      }
+      return 'Could not open Google sign-in. Please try again.';
+    }
+    if (!idToken) return 'Google did not return a sign-in token. Please try again.';
+    const res = await api.post<AuthResponse & { accessToken?: string; refreshToken?: string }>(
+      '/auth/social-login',
+      { provider: 'google', idToken },
+    );
+    if (res.error || !res.data) {
+      // Next tap shows the account picker again instead of silently reusing this account.
+      await GoogleSignin.signOut().catch(() => {});
+      return res.error ?? 'Could not sign you in with Google';
+    }
+    await saveSession(res.data);
+    await reload();
+    return null;
+  }, [reload]);
+
   const logout = useCallback(async () => {
     await unregisterPush();
+    if (googleSignInAvailable) await googleLib!.GoogleSignin.signOut().catch(() => {});
     await api.post('/auth/logout');
     await setToken(null);
     clearPersonalOffline();
@@ -125,10 +194,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       sendLoginOtp,
       loginWithOtp,
+      loginWithGoogle,
       logout,
       reload,
     }),
-    [me, loading, startLogin, login, sendLoginOtp, loginWithOtp, logout, reload],
+    [me, loading, startLogin, login, sendLoginOtp, loginWithOtp, loginWithGoogle, logout, reload],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

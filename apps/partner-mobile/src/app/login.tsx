@@ -178,7 +178,7 @@ export default function Login() {
               <View style={s.labelRow}>
                 <Text style={s.label}>Password</Text>
                 <Pressable
-                  onPress={() => WebBrowser.openBrowserAsync('https://applyfields.in/forgot')}
+                  onPress={() => WebBrowser.openBrowserAsync('https://applyfields.com/forgot')}
                   hitSlop={8}
                 >
                   <Text style={s.smallLink}>Forgot password?</Text>
@@ -304,7 +304,7 @@ export default function Login() {
           <View style={s.signupRow}>
             <Text style={s.sub}>New partner? Create your account, then sign in here. </Text>
             <Pressable
-              onPress={() => WebBrowser.openBrowserAsync('https://applyfields.in/register')}
+              onPress={() => WebBrowser.openBrowserAsync('https://applyfields.com/register')}
               hitSlop={8}
             >
               <Text style={s.smallLink}>Create account</Text>

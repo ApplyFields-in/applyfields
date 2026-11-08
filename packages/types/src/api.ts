@@ -437,6 +437,7 @@ export interface AdminGovServiceListItem {
   state_codes: string[];
   updated_at: string;
   published_at: string | null;
+  last_verified_at?: string | null;
 }
 
 export interface AdminGovServiceList {
@@ -1108,6 +1109,11 @@ export interface InstitutionDetail extends InstitutionSummary {
   description: string | null;
   established_year: number | null;
   campus_facilities: string[];
+  pincode?: string | null;
+  contact_phone?: string | null;
+  /** WGS84; both set or both null */
+  latitude?: number | null;
+  longitude?: number | null;
   courses: Array<{
     id: string;
     slug: string;

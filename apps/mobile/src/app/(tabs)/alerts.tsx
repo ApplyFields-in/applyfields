@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
 import { setUnread } from '@/lib/unread';
 import { useApi, useRefreshOnFocus } from '@/lib/use-api';
+import { noteNotifications } from '@/services/mascot/IconManager';
 import { C, S, card, column } from '@/theme';
 
 const ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -42,7 +43,9 @@ export default function Alerts() {
   // Re-fetch when the tab regains focus, and keep the tab badge in sync.
   useRefreshOnFocus(refresh);
   useEffect(() => {
-    if (data) setUnread(data.unread);
+    if (!data) return;
+    setUnread(data.unread);
+    noteNotifications(data.items); // reading the deadline alert takes the bell off the icon
   }, [data?.unread]);
 
   async function open(item: NotificationItem) {

@@ -22,6 +22,7 @@ import {
   RotateCw,
   Save,
   Send,
+  ShieldCheck,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -32,6 +33,7 @@ import {
   publishServiceAction,
   saveServiceAction,
   setServiceStatusAction,
+  verifyServiceAction,
 } from '@/lib/actions';
 import { StatusBadge } from './opportunities-ui';
 import { Field, FormSection, SelectInput, TextArea, TextInput } from './review-ui';
@@ -157,6 +159,22 @@ export function ServiceForm({ initialData, mode }: ServiceFormProps) {
     });
   };
 
+  const handleVerify = () => {
+    if (!initialData) return;
+    if (!confirm('Have you checked the steps, documents, fees and links against the official site?')) return;
+    setError(null);
+    setSuccess(null);
+    startTransition(async () => {
+      const res = await verifyServiceAction(initialData.id);
+      if (res.ok) {
+        setSuccess('Marked verified. Citizens now see today as "Verified on".');
+        router.refresh();
+      } else {
+        setError(res.error ?? 'Could not mark verified');
+      }
+    });
+  };
+
   const handleStatusChange = (status: OpportunityStatus) => {
     if (!initialData) return;
     setError(null);
@@ -207,6 +225,13 @@ export function ServiceForm({ initialData, mode }: ServiceFormProps) {
             {initialData && (
               <span className="font-mono text-xs text-teal/60">/services/{initialData.slug}</span>
             )}
+            {initialData?.status === 'published' && (
+              <span className={`block text-xs font-semibold ${initialData.last_verified_at ? 'text-teal/70' : 'text-amber-700'}`}>
+                {initialData.last_verified_at
+                  ? `Verified on ${new Date(initialData.last_verified_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                  : 'Not verified yet — citizens see no "Verified on" date'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -220,6 +245,17 @@ export function ServiceForm({ initialData, mode }: ServiceFormProps) {
               className={buttonClass({ variant: 'primary', size: 'md' })}
             >
               <Send className="size-4" /> Publish Live
+            </button>
+          )}
+
+          {initialData?.status === 'published' && (
+            <button
+              type="button"
+              onClick={handleVerify}
+              disabled={isPending}
+              className={buttonClass({ variant: 'primary', size: 'md' })}
+            >
+              <ShieldCheck className="size-4" /> Mark verified
             </button>
           )}
 

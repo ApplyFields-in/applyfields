@@ -62,7 +62,14 @@ export default function RootLayout() {
                 <Stack.Screen name="college/[slug]" options={{ title: '' }} />
                 <Stack.Screen name="apply" options={{ title: 'Official application' }} />
                 <Stack.Screen name="profile" options={{ title: 'Profile' }} />
-                <Stack.Screen name="login" options={{ headerShown: false, presentation: 'modal' }} />
+                <Stack.Screen
+                  name="login"
+                  options={{ headerShown: false, presentation: 'modal' }}
+                />
+                <Stack.Screen
+                  name="assistant"
+                  options={{ headerShown: false, presentation: 'fullScreenModal' }}
+                />
               </Stack>
             </ThemeProvider>
           </AuthProvider>
