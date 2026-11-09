@@ -208,7 +208,6 @@ def test_scrape_continues_when_one_pdf_fails() -> None:
     assert body["status"] == "partial"
     assert finish_mock.call_args.kwargs["status_value"] == "partial"
 
-
 def test_isro_scrape_fetches_detail_page_and_processes_pdf():
     from app.scrapers.base import NoticeLink
 
@@ -218,13 +217,25 @@ def test_isro_scrape_fetches_detail_page_and_processes_pdf():
         "name": "Indian Space Research Organisation",
         "list_url": "https://www.isro.gov.in/Careers.html",
     }
+
     detail = NoticeLink(
         title="Recruitment to the post of Technical Assistant",
         url="https://www.isro.gov.in/ICRB_Recruitment11.html",
     )
+
     pdf = NoticeLink(
-        title=detail.title,
+        title="Recruitment to the post of Technical Assistant",
         url="https://www.isro.gov.in/media/advertisement.pdf",
+    )
+
+    application_form = NoticeLink(
+        title="Online Application Form",
+        url="https://www.isro.gov.in/media/application_form.pdf",
+    )
+
+    shortlist = NoticeLink(
+        title="Shortlisted Candidates",
+        url="https://www.isro.gov.in/media/shortlisted_candidates.pdf",
     )
 
     with (
@@ -238,7 +249,7 @@ def test_isro_scrape_fetches_detail_page_and_processes_pdf():
         ),
         patch(
             "app.main.IsroScraper.find_pdf_notices",
-            return_value=[pdf],
+            return_value=[pdf, application_form, shortlist],
         ) as pdf_mock,
         patch(
             "app.main.process_pdf_notice",
@@ -247,9 +258,13 @@ def test_isro_scrape_fetches_detail_page_and_processes_pdf():
                 "title": pdf.title,
                 "content_hash": "d" * 64,
                 "inserted": True,
+                "opportunity_id": "opportunity-test-id",
                 "status": "draft_created",
             },
         ) as process_mock,
+        patch(
+            "app.main.update_opportunity_related_links",
+        ) as related_links_mock,
         patch("app.main.finish_scrape_run") as finish_mock,
     ):
         fetch_mock.return_value.text = "<html></html>"
@@ -260,6 +275,7 @@ def test_isro_scrape_fetches_detail_page_and_processes_pdf():
         )
 
     assert response.status_code == 200
+
     body = response.json()
     assert body["items_found"] == 1
     assert body["new_items"] == 1
@@ -267,7 +283,109 @@ def test_isro_scrape_fetches_detail_page_and_processes_pdf():
 
     assert fetch_mock.call_count == 2
     pdf_mock.assert_called_once()
+
     assert pdf_mock.call_args.kwargs["detail_url"] == detail.url
+
     process_mock.assert_called_once()
     assert process_mock.call_args.kwargs["url"] == pdf.url
+
+    related_links_mock.assert_called_once_with(
+        opportunity_id="opportunity-test-id",
+        related_links=[
+            {
+                "title": "Online Application Form",
+                "url": application_form.url,
+                "category": "application_form",
+            },
+            {
+                "title": "Shortlisted Candidates",
+                "url": shortlist.url,
+                "category": "shortlist",
+            },
+        ],
+    )
+
+    finish_mock.assert_called_once()
+
+def test_isro_duplicate_scrape_updates_existing_opportunity_links():
+    from app.scrapers.base import NoticeLink
+
+    source = {
+        **mock_source(),
+        "key": "isro",
+        "name": "Indian Space Research Organisation",
+        "list_url": "https://www.isro.gov.in/Careers.html",
+    }
+
+    detail = NoticeLink(
+        title="Recruitment to the post of Technical Assistant",
+        url="https://www.isro.gov.in/ICRB_Recruitment11.html",
+    )
+
+    pdf = NoticeLink(
+        title="Detailed Recruitment Advertisement",
+        url="https://www.isro.gov.in/media/advertisement.pdf",
+    )
+
+    application_form = NoticeLink(
+        title="Online Application Form",
+        url="https://www.isro.gov.in/media/application_form.pdf",
+    )
+
+    with (
+        patch("app.main.settings.internal_service_token", "test-token"),
+        patch("app.main.get_active_source", return_value=source),
+        patch("app.main.start_scrape_run", return_value="run-test"),
+        patch("app.main.fetch") as fetch_mock,
+        patch(
+            "app.main.IsroScraper.find_notices",
+            return_value=[detail],
+        ),
+        patch(
+            "app.main.IsroScraper.find_pdf_notices",
+            return_value=[pdf, application_form],
+        ),
+        patch(
+            "app.main.process_pdf_notice",
+            return_value={
+                "url": pdf.url,
+                "title": pdf.title,
+                "content_hash": "d" * 64,
+                "inserted": False,
+                "opportunity_id": "existing-opportunity-id",
+                "status": "duplicate",
+            },
+        ) as process_mock,
+        patch(
+            "app.main.update_opportunity_related_links",
+        ) as related_links_mock,
+        patch("app.main.finish_scrape_run") as finish_mock,
+    ):
+        fetch_mock.return_value.text = "<html></html>"
+
+        response = client.post(
+            "/scrape/isro",
+            headers={"X-Internal-Token": "test-token"},
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["new_items"] == 0
+    assert body["duplicates"] == 1
+    assert body["failed_items"] == 0
+
+    process_mock.assert_called_once()
+
+    related_links_mock.assert_called_once_with(
+        opportunity_id="existing-opportunity-id",
+        related_links=[
+            {
+                "title": "Online Application Form",
+                "url": application_form.url,
+                "category": "application_form",
+            }
+        ],
+    )
+
     finish_mock.assert_called_once()
