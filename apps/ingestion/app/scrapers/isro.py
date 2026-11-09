@@ -190,7 +190,7 @@ def is_recruitment_advertisement(title: str, url: str) -> bool:
 
     return any(term in text for term in include_terms)
 def classify_pdf_link(title: str, url: str) -> str:
-    """Classify an ISRO PDF using its link title and filename."""
+    """Classify an ISRO PDF using its anchor title and filename."""
     filename = url.split("?", 1)[0].rsplit("/", 1)[-1]
 
     text = re.sub(
@@ -200,10 +200,8 @@ def classify_pdf_link(title: str, url: str) -> str:
     )
     text = " ".join(text.split())
 
-    # Supporting documents must be checked before main advertisements.
     if any(term in text for term in (
         "application form",
-        "application_form",
         "online application",
     )):
         return "application_form"
@@ -211,16 +209,13 @@ def classify_pdf_link(title: str, url: str) -> str:
     if any(term in text for term in (
         "shortlisted",
         "short listed",
-        "short-list",
         "short list",
     )):
         return "shortlist"
 
     if any(term in text for term in (
-        "interview schedule",
+        "interview",
         "schedule of interview",
-        "interview date",
-        "interview call letter",
     )):
         return "interview_schedule"
 
@@ -230,8 +225,19 @@ def classify_pdf_link(title: str, url: str) -> str:
     )):
         return "corrigendum"
 
+    if "extension" in text:
+        return "extension"
+
+    if "answer key" in text or "answer keys" in text:
+        return "answer_key"
+
     if any(term in text for term in (
-        "answer key",
+        "panel publication",
+        "selection panel",
+    )):
+        return "selection_panel"
+
+    if any(term in text for term in (
         "question paper",
         "response sheet",
         "objection format",
@@ -246,13 +252,13 @@ def classify_pdf_link(title: str, url: str) -> str:
     if any(term in text for term in (
         "result",
         "merit list",
-        "selection panel",
         "selected candidates",
         "final selection",
     )):
         return "result"
 
     if any(term in text for term in (
+        "bilingual advertisement",
         "detailed recruitment advertisement",
         "recruitment to the post",
         "recruitment for",

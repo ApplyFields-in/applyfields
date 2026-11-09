@@ -1,7 +1,7 @@
 
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient # type: ignore
 
 from app.main import app
 
@@ -387,5 +387,62 @@ def test_isro_duplicate_scrape_updates_existing_opportunity_links():
             }
         ],
     )
+
+    finish_mock.assert_called_once()
+def test_upsc_scrape_fetches_notifications_and_processes_pdfs():
+    from app.scrapers.base import NoticeLink
+
+    source = {
+        **mock_source(),
+        "key": "upsc",
+        "name": "Union Public Service Commission",
+        "list_url": "https://www.upsc.gov.in/examinations/active-exams",
+    }
+
+    notice = NoticeLink(
+        title="Civil Services Examination Notification",
+        url="https://upsc.gov.in/sites/default/files/notification.pdf",
+    )
+
+    with (
+        patch("app.main.settings.internal_service_token", "test-token"),
+        patch("app.main.get_active_source", return_value=source),
+        patch("app.main.start_scrape_run", return_value="run-upsc-test"),
+        patch("app.main.fetch") as fetch_mock,
+        patch(
+            "app.main.UPSCScraper.find_notices",
+            return_value=[notice],
+        ) as discover_mock,
+        patch(
+            "app.main.process_pdf_notice",
+            return_value={
+                "url": notice.url,
+                "title": notice.title,
+                "inserted": True,
+                "status": "draft_created",
+                "opportunity_id": "upsc-opportunity-test",
+            },
+        ) as process_mock,
+        patch("app.main.finish_scrape_run") as finish_mock,
+    ):
+        fetch_mock.return_value.text = "<html>UPSC notifications</html>"
+
+        response = client.post(
+            "/scrape/upsc",
+            headers={"X-Internal-Token": "test-token"},
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["source_key"] == "upsc"
+    assert body["items_found"] == 1
+    assert body["new_items"] == 1
+    assert body["failed_items"] == 0
+
+    fetch_mock.assert_called_once()
+    discover_mock.assert_called_once_with("<html>UPSC notifications</html>")
+    process_mock.assert_called_once()
+    assert process_mock.call_args.kwargs["url"] == notice.url
 
     finish_mock.assert_called_once()
