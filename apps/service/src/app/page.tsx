@@ -33,7 +33,7 @@ export interface VerifiedCenter {
   typeLabel: string;
   rating: number;
   reviewCount: number;
-  distanceKm: number;
+  distanceKm: number | null;
   address: string;
   city: string;
   district: string;
@@ -42,17 +42,19 @@ export interface VerifiedCenter {
   isOpenToday: boolean;
   openHours: string;
   slotDurationMinutes: number;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   landmark?: string;
-  sampleServices: {
+  rateCard: {
     title: string;
     price: number;
     turnaround: string;
   }[];
 }
 
-const MAIN_WEB_URL = process.env.NEXT_PUBLIC_MAIN_WEB_URL || 'http://localhost:3000';
+const MAIN_WEB_URL =
+  process.env.NEXT_PUBLIC_MAIN_WEB_URL ||
+  (process.env.NODE_ENV === 'production' ? 'https://applyfields.com' : 'http://localhost:3000');
 
 /** Slugs seeded by database/changes/2026-11-06_likhith_top10_citizen_services_ts_ap.sql */
 const POPULAR_GUIDES: [string, string][] = [
@@ -66,168 +68,6 @@ const POPULAR_GUIDES: [string, string][] = [
   ['driving-licence', 'Driving Licence / LL'],
   ['voter-id', 'Voter ID'],
   ['aadhaar-address-update', 'Aadhaar Address Update'],
-];
-
-const SAMPLE_CENTERS: VerifiedCenter[] = [
-  {
-    id: 'pt-1',
-    name: 'Sri Balaji MeeSeva & Xerox Centre',
-    slug: 'sri-balaji-meeseva-ameerpet',
-    type: 'meeseva',
-    typeLabel: 'MeeSeva Hub',
-    rating: 4.9,
-    reviewCount: 218,
-    distanceKm: 0.8,
-    address: 'Shop #12, Ground Floor, Opp Metro Pillar 1042',
-    city: 'Ameerpet',
-    district: 'Hyderabad',
-    pincode: '500016',
-    phone: '+91 98480 12345',
-    isOpenToday: true,
-    openHours: '09:00 AM – 08:00 PM',
-    slotDurationMinutes: 30,
-    lat: 17.437462,
-    lng: 78.448288,
-    landmark: 'Beside Sarathi Studios',
-    sampleServices: [
-      { title: 'Aadhaar PVC Smart Card (UIDAI Official)', price: 50, turnaround: '15m' },
-      { title: 'New PAN Card Application (Form 49A)', price: 150, turnaround: 'Same Day' },
-      { title: 'Integrated Caste & Income Certificate', price: 100, turnaround: 'Same Day' },
-      { title: 'High-Speed B&W Xerox Print (75 GSM)', price: 3, turnaround: 'Instant' },
-    ],
-  },
-  {
-    id: 'pt-2',
-    name: 'Om Sai CSC Digital Seva Kiosk',
-    slug: 'om-sai-csc-digital-seva',
-    type: 'csc',
-    typeLabel: 'CSC Digital Seva',
-    rating: 4.8,
-    reviewCount: 164,
-    distanceKm: 1.4,
-    address: 'Near Old Bus Stand, Beside SBI ATM',
-    city: 'SR Nagar',
-    district: 'Hyderabad',
-    pincode: '500038',
-    phone: '+91 97005 54321',
-    isOpenToday: true,
-    openHours: '09:30 AM – 07:30 PM',
-    slotDurationMinutes: 30,
-    lat: 17.44421,
-    lng: 78.444102,
-    landmark: 'Beside SBI ATM',
-    sampleServices: [
-      { title: 'Aadhaar Biometric & Demographic Update', price: 50, turnaround: 'Same Day' },
-      { title: 'Instant e-PAN Card', price: 80, turnaround: '1-2h' },
-      { title: 'Ayushman Bharat Golden Card', price: 30, turnaround: 'Instant' },
-      { title: 'White Ration Card Linking', price: 50, turnaround: 'Same Day' },
-    ],
-  },
-  {
-    id: 'pt-3',
-    name: 'Saraswati Xerox & Cyber Point',
-    slug: 'saraswati-xerox-cyber-point',
-    type: 'xerox_printing',
-    typeLabel: 'Xerox & Application Hub',
-    rating: 4.9,
-    reviewCount: 312,
-    distanceKm: 2.1,
-    address: 'Opposite Government Polytechnic College Gate',
-    city: 'Masab Tank',
-    district: 'Hyderabad',
-    pincode: '500028',
-    phone: '+91 99890 99887',
-    isOpenToday: true,
-    openHours: '08:30 AM – 09:00 PM',
-    slotDurationMinutes: 15,
-    lat: 17.404245,
-    lng: 78.45512,
-    landmark: 'Opp Polytechnic Gate',
-    sampleServices: [
-      { title: 'Bulk Syllabus & Project Print', price: 2, turnaround: 'Instant' },
-      { title: 'Color Project Spiral Binding', price: 40, turnaround: '15m' },
-      { title: 'SSC & UPSC Online Registration', price: 150, turnaround: 'Same Day' },
-      { title: 'Passport Photo 8 Copies', price: 50, turnaround: '10m' },
-    ],
-  },
-  {
-    id: 'pt-4',
-    name: 'Kakatiya MeeSeva & Citizen Facilitation Desk',
-    slug: 'kakatiya-meeseva-secunderabad',
-    type: 'meeseva',
-    typeLabel: 'State MeeSeva Hub',
-    rating: 4.7,
-    reviewCount: 142,
-    distanceKm: 3.5,
-    address: 'Plot 44, Clock Tower Commercial Complex',
-    city: 'Secunderabad',
-    district: 'Hyderabad',
-    pincode: '500003',
-    phone: '+91 94401 22334',
-    isOpenToday: false,
-    openHours: '10:00 AM – 06:00 PM',
-    slotDurationMinutes: 30,
-    lat: 17.4399,
-    lng: 78.4983,
-    landmark: 'Clock Tower Complex',
-    sampleServices: [
-      { title: 'Encumbrance Certificate (EC)', price: 150, turnaround: 'Same Day' },
-      { title: 'Residence / Nativity Certificate', price: 100, turnaround: 'Same Day' },
-      { title: 'EWS General Reservation Certificate', price: 150, turnaround: 'Same Day' },
-    ],
-  },
-  {
-    id: 'pt-5',
-    name: 'Sri Sai Digital MeeSeva & Printing Kiosk',
-    slug: 'sri-sai-digital-gachibowli',
-    type: 'meeseva',
-    typeLabel: 'MeeSeva & IT Hub',
-    rating: 4.9,
-    reviewCount: 284,
-    distanceKm: 4.2,
-    address: 'Shop #4, Opp Municipal Complex, Main Road',
-    city: 'Gachibowli',
-    district: 'Hyderabad',
-    pincode: '500032',
-    phone: '+91 98480 22334',
-    isOpenToday: true,
-    openHours: '09:00 AM – 07:30 PM',
-    slotDurationMinutes: 30,
-    lat: 17.440081,
-    lng: 78.348915,
-    landmark: 'Opp Municipal Complex',
-    sampleServices: [
-      { title: 'New PAN Card (Form 49A)', price: 107, turnaround: 'Same Day' },
-      { title: 'Income & Caste Verification', price: 90, turnaround: 'Same Day' },
-      { title: 'High-Speed Spiral Binding', price: 35, turnaround: 'Instant' },
-    ],
-  },
-  {
-    id: 'pt-6',
-    name: 'KPHB Cyber Zone & Online Forms Desk',
-    slug: 'kphb-cyber-zone-kukatpally',
-    type: 'browsing_centre',
-    typeLabel: 'Cyber Cafe & Online Exam Desk',
-    rating: 4.8,
-    reviewCount: 195,
-    distanceKm: 5.0,
-    address: 'Near KPHB Metro Station, Pillar 782',
-    city: 'Kukatpally',
-    district: 'Hyderabad',
-    pincode: '500072',
-    phone: '+91 98660 88990',
-    isOpenToday: true,
-    openHours: '08:00 AM – 10:00 PM',
-    slotDurationMinutes: 20,
-    lat: 17.4933,
-    lng: 78.3995,
-    landmark: 'Near Metro Pillar 782',
-    sampleServices: [
-      { title: 'Webcam Photo & Signature Scan', price: 40, turnaround: 'Instant' },
-      { title: 'JEE / NEET / EAMCET Online Filing', price: 120, turnaround: 'Same Day' },
-      { title: 'Legal Paper Deed Printout', price: 10, turnaround: 'Instant' },
-    ],
-  },
 ];
 
 function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -244,8 +84,18 @@ function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lo
   return Number((R * c).toFixed(1));
 }
 
+/** Distance from the user for centres with a map pin; centres without one sort last. */
+function withDistance(list: VerifiedCenter[], at: { lat: number; lng: number }): VerifiedCenter[] {
+  return list
+    .map((c) => ({
+      ...c,
+      distanceKm: c.lat != null && c.lng != null ? calculateHaversineDistance(at.lat, at.lng, c.lat, c.lng) : null,
+    }))
+    .sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+}
+
 export default function ServicesHomePage() {
-  const [centers, setCenters] = useState<VerifiedCenter[]>(SAMPLE_CENTERS);
+  const [centers, setCenters] = useState<VerifiedCenter[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
@@ -256,7 +106,7 @@ export default function ServicesHomePage() {
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [focusedCenter, setFocusedCenter] = useState<VerifiedCenter | null>(null);
   const [activeLocation, setActiveLocation] = useState<string>('Enable Location');
-  const [gpsFarAway, setGpsFarAway] = useState<boolean>(false);
+  const [showAllAnyway, setShowAllAnyway] = useState<boolean>(false);
 
   const { addItem } = useCart();
 
@@ -273,12 +123,6 @@ export default function ServicesHomePage() {
         try {
           const { lat, lng } = JSON.parse(coordsRaw);
           setUserLocation({ lat, lng });
-          const nearestDistance = Math.min(...SAMPLE_CENTERS.map((c) => calculateHaversineDistance(lat, lng, c.lat, c.lng)));
-          if (nearestDistance > 30) {
-            setGpsFarAway(true);
-          } else {
-            setGpsFarAway(false);
-          }
         } catch {
           // ignore
         }
@@ -295,14 +139,8 @@ export default function ServicesHomePage() {
       if (detail?.coords) {
         const { lat, lng } = detail.coords;
         setUserLocation({ lat, lng });
-        const nearestDistance = Math.min(...SAMPLE_CENTERS.map((c) => calculateHaversineDistance(lat, lng, c.lat, c.lng)));
-        if (nearestDistance > 30) {
-          setGpsFarAway(true);
-        } else {
-          setGpsFarAway(false);
-        }
       } else {
-        setGpsFarAway(false);
+        setUserLocation(null); // a typed area, not GPS: no distance sorting
       }
     }
 
@@ -317,7 +155,7 @@ export default function ServicesHomePage() {
     async function loadDirectory() {
       try {
         const res = await listDirectoryPartners();
-        if (mounted && res.data?.items && res.data.items.length > 0) {
+        if (mounted && res.data?.items) {
           const liveCenters: VerifiedCenter[] = res.data.items.map((p) => {
             const typeMapping: Record<string, VerifiedCenter['type']> = {
               meeseva: 'meeseva',
@@ -339,41 +177,36 @@ export default function ServicesHomePage() {
                   : p.type === 'xerox_printing'
                   ? 'Xerox & Print Desk'
                   : 'Cyber & Application Hub',
-              rating: p.rating_avg || 4.9,
-              reviewCount: p.rating_count || 12,
-              distanceKm: 1.5,
-              address: p.address || 'Opposite Municipal Complex',
-              city: p.city || 'Hyderabad',
-              district: p.district || 'Hyderabad',
-              pincode: p.pincode || '500001',
-              phone: p.phone || '+91 98480 12345',
+              // Real partner data only; missing fields stay empty and the card hides them.
+              rating: p.rating_avg ?? 0,
+              reviewCount: p.rating_count ?? 0,
+              distanceKm: null,
+              address: p.address ?? '',
+              city: p.city ?? '',
+              district: p.district ?? '',
+              pincode: p.pincode ?? '',
+              phone: p.phone ?? '',
               isOpenToday: p.is_available,
-              openHours: '09:00 AM – 08:00 PM',
+              openHours: '',
               slotDurationMinutes: 30,
-              lat: p.latitude || 17.4374,
-              lng: p.longitude || 78.4482,
+              lat: p.latitude ?? null,
+              lng: p.longitude ?? null,
               landmark: p.district || undefined,
-              sampleServices: p.services?.length
-                ? p.services.map((s) => ({
-                    title: s.name,
-                    price: (s.charge_paise ?? 5000) / 100,
-                    turnaround: s.estimated_time_text || 'Same Day',
-                  }))
-                : [
-                    { title: 'Aadhaar PVC Smart Card (UIDAI Official)', price: 50, turnaround: '15m' },
-                    { title: 'New PAN Card Application (Form 49A)', price: 150, turnaround: 'Same Day' },
-                  ],
+              // Only services with a set price can go in the cart (the user must see the amount first).
+              rateCard: (p.services ?? [])
+                .filter((s) => s.charge_paise != null)
+                .map((s) => ({
+                  title: s.name,
+                  price: (s.charge_paise as number) / 100,
+                  turnaround: s.estimated_time_text ?? '',
+                })),
             };
           });
 
-          setCenters((prev) => {
-            const liveSlugs = new Set(liveCenters.map((c) => c.slug));
-            const filteredSamples = SAMPLE_CENTERS.filter((s) => !liveSlugs.has(s.slug));
-            return [...liveCenters, ...filteredSamples];
-          });
+          setCenters(liveCenters);
         }
       } catch (err) {
-        console.warn('Could not load live directory, using verified directory sample list:', err);
+        console.warn('Could not load the centre directory:', err);
       }
     }
 
@@ -387,77 +220,41 @@ export default function ServicesHomePage() {
     setIsLocating(true);
     setLocationNotice(null);
 
+    const fail = (msg: string) => {
+      setIsLocating(false);
+      setLocationNotice(msg);
+      setTimeout(() => setLocationNotice(null), 4000);
+    };
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      applyDefaultLocation(17.4374, 78.4482, 'Defaulting to Ameerpet, Hyderabad center point.');
+      fail('Location is not available in this browser. Showing all centres.');
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setUserLocation({ lat, lng });
-
-        const nearestDistance = Math.min(...SAMPLE_CENTERS.map((c) => calculateHaversineDistance(lat, lng, c.lat, c.lng)));
-        if (nearestDistance > 30) {
-          setGpsFarAway(true);
-          setActiveLocation('GPS Location (Outside City)');
-          setIsLocating(false);
-          setLocationNotice(`GPS detected: ${nearestDistance}km away. No verified centers found within 30 km.`);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('applyfields_service_location', 'GPS: Outside City');
-            localStorage.setItem('applyfields_service_coords', JSON.stringify({ lat, lng }));
-            window.dispatchEvent(
-              new CustomEvent('applyfields:location-change', {
-                detail: { location: 'GPS: Outside City', coords: { lat, lng } },
-              }),
-            );
-          }
-        } else {
-          setGpsFarAway(false);
-          const updated = SAMPLE_CENTERS.map((c) => ({
-            ...c,
-            distanceKm: calculateHaversineDistance(lat, lng, c.lat, c.lng),
-          })).sort((a, b) => a.distanceKm - b.distanceKm);
-
-          setCenters(updated);
-          setIsLocating(false);
-          setActiveLocation('GPS: Hyderabad (Current)');
-          setLocationNotice('GPS Location Enabled! Centers sorted by closest proximity to you.');
-          setTimeout(() => setLocationNotice(null), 5000);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('applyfields_service_location', 'GPS: Hyderabad (Current)');
-            localStorage.setItem('applyfields_service_coords', JSON.stringify({ lat, lng }));
-            window.dispatchEvent(
-              new CustomEvent('applyfields:location-change', {
-                detail: { location: 'GPS: Hyderabad (Current)', coords: { lat, lng } },
-              }),
-            );
-          }
-        }
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const label = 'GPS: Current location';
+        setUserLocation(coords);
+        setShowAllAnyway(false);
+        setActiveLocation(label);
+        setIsLocating(false);
+        setLocationNotice('Location on. Centres are sorted by distance from you.');
+        setTimeout(() => setLocationNotice(null), 5000);
+        localStorage.setItem('applyfields_service_location', label);
+        localStorage.setItem('applyfields_service_coords', JSON.stringify(coords));
+        window.dispatchEvent(new CustomEvent('applyfields:location-change', { detail: { location: label, coords } }));
       },
-      () => {
-        applyDefaultLocation(17.4374, 78.4482, 'GPS permission denied. Centered on Hyderabad Core.');
-      },
+      () => fail('Location permission denied. Showing all centres.'),
       { timeout: 8000, enableHighAccuracy: true },
     );
   }
 
-  function applyDefaultLocation(lat: number, lng: number, msg: string) {
-    setUserLocation({ lat, lng });
-    setGpsFarAway(false);
-    const updated = SAMPLE_CENTERS.map((c) => ({
-      ...c,
-      distanceKm: calculateHaversineDistance(lat, lng, c.lat, c.lng),
-    })).sort((a, b) => a.distanceKm - b.distanceKm);
+  // Sorted by distance once we know where the user is; "far away" = the nearest pinned centre is > 30 km.
+  const sortedCenters = userLocation ? withDistance(centers, userLocation) : centers;
+  const nearestKm = sortedCenters[0]?.distanceKm;
+  const gpsFarAway = !showAllAnyway && nearestKm != null && nearestKm > 30;
 
-    setCenters(updated);
-    setIsLocating(false);
-    setLocationNotice(msg);
-    setTimeout(() => setLocationNotice(null), 4000);
-  }
-
-  const filteredCenters = centers.filter((c) => {
+  const filteredCenters = sortedCenters.filter((c) => {
     // If user's GPS is far away from all centers, show 0 centers
     if (gpsFarAway) return false;
 
@@ -467,7 +264,7 @@ export default function ServicesHomePage() {
       loc !== 'enable location' &&
       loc !== 'all centers' &&
       loc !== 'all centers (hyderabad metro)' &&
-      !loc.startsWith('gps: hyderabad');
+      !loc.startsWith('gps:');
 
     let matchesActiveLocation = true;
     if (isSpecificLocation) {
@@ -487,11 +284,11 @@ export default function ServicesHomePage() {
       (selectedCategory === 'meeseva' && (c.type === 'meeseva' || c.type === 'csc')) ||
       (selectedCategory === 'xerox' && c.type === 'xerox_printing') ||
       (selectedCategory === 'pan_aadhaar' &&
-        c.sampleServices.some(
+        c.rateCard.some(
           (s) => s.title.toLowerCase().includes('pan') || s.title.toLowerCase().includes('aadhaar'),
         )) ||
       (selectedCategory === 'exams' &&
-        c.sampleServices.some((s) => s.title.toLowerCase().includes('ssc') || s.title.toLowerCase().includes('upsc')));
+        c.rateCard.some((s) => s.title.toLowerCase().includes('ssc') || s.title.toLowerCase().includes('upsc')));
 
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
@@ -500,12 +297,15 @@ export default function ServicesHomePage() {
       c.city.toLowerCase().includes(q) ||
       c.address.toLowerCase().includes(q) ||
       c.pincode.includes(q) ||
-      c.sampleServices.some((s) => s.title.toLowerCase().includes(q));
+      c.rateCard.some((s) => s.title.toLowerCase().includes(q));
 
     return matchesActiveLocation && matchesCategory && matchesSearch;
   });
 
-  const mapPins: MapCenterPin[] = filteredCenters.map((c) => ({
+  const mapPins: MapCenterPin[] = filteredCenters.flatMap((c) =>
+    c.lat == null || c.lng == null
+      ? []
+      : [{
     id: c.id,
     name: c.name,
     slug: c.slug,
@@ -514,11 +314,11 @@ export default function ServicesHomePage() {
     city: c.city,
     lat: c.lat,
     lng: c.lng,
-    distanceKm: c.distanceKm,
+    distanceKm: c.distanceKm ?? undefined,
     phone: c.phone,
     rating: c.rating,
     isOpen: c.isOpenToday,
-  }));
+  }]);
 
   return (
     <div className="space-y-10 pb-24 pt-6">
@@ -702,21 +502,21 @@ export default function ServicesHomePage() {
                 type="button"
                 onClick={() => {
                   setActiveLocation('All Centers');
-                  setGpsFarAway(false);
+                  setShowAllAnyway(true);
                   setSearchQuery('');
                   setSelectedCategory('all');
                   if (typeof window !== 'undefined') {
-                    localStorage.setItem('applyfields_service_location', 'All Centers (Hyderabad Metro)');
+                    localStorage.setItem('applyfields_service_location', 'All Centers');
                     window.dispatchEvent(
                       new CustomEvent('applyfields:location-change', {
-                        detail: { location: 'All Centers (Hyderabad Metro)' },
+                        detail: { location: 'All Centers' },
                       }),
                     );
                   }
                 }}
                 className="rounded-2xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-bold text-white shadow-clay-btn-azure hover:bg-[#0c6fdc] transition active:scale-95"
               >
-                View All Available Centers (Hyderabad Metro)
+                View All Centres
               </button>
             </div>
           </div>
@@ -770,9 +570,11 @@ export default function ServicesHomePage() {
                           </span>
                         )}
 
-                        <span className="rounded-full bg-[#edf2f8] px-2 py-0.5 text-[10px] font-mono font-bold text-[#082046]">
-                          {center.distanceKm} km away
-                        </span>
+                        {center.distanceKm != null && (
+                          <span className="rounded-full bg-[#edf2f8] px-2 py-0.5 text-[10px] font-mono font-bold text-[#082046]">
+                            {center.distanceKm} km away
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -783,23 +585,28 @@ export default function ServicesHomePage() {
                       </h3>
                       <p className="mt-1 text-xs text-[#526987] flex items-start gap-1.5 leading-relaxed">
                         <MapPin className="h-3.5 w-3.5 text-[#0e7bf4] shrink-0 mt-0.5" />
-                        <span>{center.address}, {center.city}</span>
+                        <span>{[center.address, center.city].filter(Boolean).join(', ') || 'Address on the centre page'}</span>
                       </p>
                     </div>
 
                     {/* Operational Timings */}
                     <div className="flex flex-wrap items-center gap-3 text-xs text-[#526987]">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5 text-[#0e7bf4]" />
-                        <span>Hours: <strong className="text-[#082046]">{center.openHours}</strong></span>
-                      </div>
-                      <div className="flex items-center gap-1 font-mono text-[11px]">
-                        <Phone className="h-3.5 w-3.5 text-emerald-600" />
-                        <span>{center.phone}</span>
-                      </div>
+                      {center.openHours && (
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-[#0e7bf4]" />
+                          <span>Hours: <strong className="text-[#082046]">{center.openHours}</strong></span>
+                        </div>
+                      )}
+                      {center.phone && (
+                        <div className="flex items-center gap-1 font-mono text-[11px]">
+                          <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>{center.phone}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Rate Card Quick Snippet */}
+                    {/* Rate Card Quick Snippet (only priced services) */}
+                    {center.rateCard.length > 0 && (
                     <div className="rounded-2xl bg-[#F0F4F8] p-3 space-y-2 border border-white shadow-[inset_2px_2px_5px_#d5deea,inset_-2px_-2px_5px_#ffffff]">
                       <div className="flex items-center justify-between text-[11px] font-bold text-[#526987]">
                         <span>Popular Services Offered</span>
@@ -807,7 +614,7 @@ export default function ServicesHomePage() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
-                        {center.sampleServices.map((svc, idx) => (
+                        {center.rateCard.map((svc, idx) => (
                           <button
                             key={idx}
                             type="button"
@@ -834,10 +641,12 @@ export default function ServicesHomePage() {
                         ))}
                       </div>
                     </div>
+                    )}
                   </div>
 
                   {/* Actions Bar */}
                   <div className="mt-5 flex items-center justify-between gap-3 border-t border-[#d5deea] pt-4">
+                    {center.lat != null && (
                     <button
                       type="button"
                       onClick={() => {
@@ -849,6 +658,7 @@ export default function ServicesHomePage() {
                       <MapPin className="h-3.5 w-3.5 text-[#0e7bf4]" />
                       <span>View on Map</span>
                     </button>
+                    )}
 
                     <Link
                       href={`/partner/${center.slug}`}

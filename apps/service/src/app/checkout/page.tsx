@@ -47,8 +47,8 @@ export default function CheckoutPage() {
     isAvailable: true,
   });
 
-  const [candidateName, setCandidateName] = useState(user?.full_name || 'Arvind V. Kumar');
-  const [candidatePhone, setCandidatePhone] = useState(user?.phone || '+91 98765 43210');
+  const [candidateName, setCandidateName] = useState(user?.full_name || '');
+  const [candidatePhone, setCandidatePhone] = useState(user?.phone || '');
   const [intakePayload, setIntakePayload] = useState<CombinedIntakePayload>({});
   const [paymentMode, setPaymentMode] = useState<'counter' | 'online'>('counter');
   const [isSubmitting, setIsSubmitting] = useState(false);

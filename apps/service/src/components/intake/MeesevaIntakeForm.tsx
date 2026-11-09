@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useAuth } from '@/lib/auth-context';
 import { ShieldCheck, User, FileText, Check, AlertCircle } from 'lucide-react';
 
 export interface MeesevaIntakeData {
@@ -30,6 +31,7 @@ export function MeesevaIntakeForm({
   onChange,
   onValidationChange,
 }: MeesevaIntakeFormProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState<MeesevaIntakeData>({
     certificateType: initialData?.certificateType || 'income_certificate',
     beneficiaryName: initialData?.beneficiaryName || '',
@@ -60,14 +62,10 @@ export function MeesevaIntakeForm({
   }
 
   function handleVaultAutofill() {
+    // Only the signed-in user's own account details; the rest the user types.
     const autofilled: MeesevaIntakeData = {
       ...formData,
-      beneficiaryName: 'Arvind V. Kumar',
-      rationCardNumber: 'WAP084920491024',
-      mandal: 'Serilingampally',
-      villageWard: 'Gachibowli Ward 104',
-      annualIncome: '95,000',
-      casteCategory: 'BC-B (Telangana State List)',
+      beneficiaryName: user?.full_name || formData.beneficiaryName,
       autofilledFromVault: true,
     };
     setFormData(autofilled);

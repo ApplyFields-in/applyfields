@@ -6,7 +6,7 @@ import { connection } from 'next/server';
 import { ApiOffline, FilterBar, type ListSearchParams } from '@/components/opportunity';
 import { SearchAnalyticsTracker } from '@/components/analytics-tracker';
 import { apiGet } from '@/lib/api';
-import { daysLeftLabel, formatDate, Highlight, RESULT_META, urgencyTone } from '@/lib/format';
+import { DeadlineBadge, Highlight, RESULT_META, formatDate } from '@/lib/format';
 import { getMockSearchResults } from '@/lib/mock-data';
 
 export const metadata = { title: 'Search' };
@@ -181,7 +181,8 @@ function ResultCard({ item, query }: { item: SearchResult; query: string }) {
             <CalendarDays className="size-3.5" aria-hidden="true" />
             {item.last_date ? `Last date ${formatDate(item.last_date)}` : 'Dates not announced'}
           </span>
-          <Badge tone={urgencyTone(item.days_left)}>{daysLeftLabel(item.days_left)}</Badge>
+          <DeadlineBadge days={item.days_left} />
+
         </div>
       )}
     </Card>

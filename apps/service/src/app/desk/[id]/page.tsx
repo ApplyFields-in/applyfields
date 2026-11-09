@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
-import { SAMPLE_SERVICE_REQUESTS } from '@/lib/service-desk-data';
-import { LiveWorkstation, WorkstationClient } from './workstation-client';
+import { notFound } from 'next/navigation';
+import { LiveWorkstation } from './workstation-client';
 
 export const metadata: Metadata = {
   title: 'Service Workstation | ApplyFields Services Hub',
@@ -15,12 +15,7 @@ export default async function WorkstationPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const sample = SAMPLE_SERVICE_REQUESTS.find((r) => r.id === id);
-  if (sample) return <WorkstationClient initialRequest={sample} />;
-
   // A real service request: loaded in the browser with the operator's session.
-  if (UUID.test(id)) return <LiveWorkstation id={id} />;
-
-  // Unknown demo id: show the first sample so the demo never 404s.
-  return <WorkstationClient initialRequest={{ ...SAMPLE_SERVICE_REQUESTS[0], id }} />;
+  if (!UUID.test(id)) notFound();
+  return <LiveWorkstation id={id} />;
 }
