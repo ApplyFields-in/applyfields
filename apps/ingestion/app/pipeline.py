@@ -3,7 +3,13 @@
 
 from datetime import date
 from typing import Any
-
+from app.db.repository import (
+    create_draft_for_document,
+    get_opportunity_id_for_scraped_document,
+    save_scraped_document,
+    scraped_document_exists,
+)
+from sqlalchemy import text
 from app.db import get_engine
 from app.db.repository import (
     create_draft_for_document,
@@ -28,17 +34,22 @@ def process_pdf_notice(
     """Download, deduplicate, upload, and create a draft for a PDF."""
 
     downloaded = download_pdf(url)
-
     if scraped_document_exists(downloaded.url, downloaded.content_hash):
+        existing_opportunity_id = get_opportunity_id_for_scraped_document(
+            downloaded.url,
+            downloaded.content_hash,
+        )
+
         return {
             "url": downloaded.url,
             "title": title,
             "content_hash": downloaded.content_hash,
             "storage_path": None,
             "inserted": False,
-            "opportunity_id": None,
+            "opportunity_id": existing_opportunity_id,
             "status": "duplicate",
         }
+
 
     storage_path = upload_pdf(
         source_key=source_key,
@@ -61,13 +72,33 @@ def process_pdf_notice(
         )
 
         if document_id is None:
+            existing_opportunity_id = connection.execute(
+                text(
+                    """
+                    SELECT opportunity_id
+                    FROM scraped_documents
+                    WHERE url = :url
+                    AND content_hash = :content_hash
+                    LIMIT 1
+                    """
+                ),
+                {
+                    "url": downloaded.url,
+                    "content_hash": downloaded.content_hash,
+                },
+            ).scalar_one_or_none()
+
             return {
                 "url": downloaded.url,
                 "title": title,
                 "content_hash": downloaded.content_hash,
                 "storage_path": storage_path,
                 "inserted": False,
-                "opportunity_id": None,
+                "opportunity_id": (
+                    str(existing_opportunity_id)
+                    if existing_opportunity_id is not None
+                    else None
+                ),
                 "status": "duplicate",
             }
 

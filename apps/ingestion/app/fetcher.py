@@ -1,13 +1,17 @@
-
+﻿
 """Polite HTTP fetching with robots.txt enforcement and retry handling."""
 
+import ssl
 import time
 import urllib.robotparser
 from urllib.parse import urlparse
 
 import httpx
+import truststore
 
 from app.config import settings
+
+_ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
 
 def is_allowed_by_robots(url: str) -> bool:
@@ -18,6 +22,7 @@ def is_allowed_by_robots(url: str) -> bool:
     response = httpx.get(
         robots_url,
         headers={"User-Agent": settings.user_agent},
+        verify=_ssl_context,
         timeout=10.0,
     )
 
@@ -47,6 +52,7 @@ def fetch(url: str) -> httpx.Response:
             response = httpx.get(
                 url,
                 headers=headers,
+                verify=_ssl_context,
                 timeout=10.0,
             )
             response.raise_for_status()
@@ -62,3 +68,5 @@ def fetch(url: str) -> httpx.Response:
                 raise
 
     raise RuntimeError("Fetch failed unexpectedly")
+
+
