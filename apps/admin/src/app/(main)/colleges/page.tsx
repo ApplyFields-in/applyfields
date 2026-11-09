@@ -4,7 +4,7 @@ import { Building, ExternalLink } from 'lucide-react';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
 import { CollegesTableClient } from '@/components/colleges-table-client';
-import { apiGet } from '@/lib/api';
+import { apiGet, WEB_URL } from '@/lib/api';
 
 export const metadata = {
   title: 'Colleges & Universities Directory',
@@ -46,7 +46,7 @@ export default async function AdminCollegesPage({
         actions={
           <div className="flex items-center gap-2">
             <a
-              href="http://localhost:3000/career/colleges"
+              href={`${WEB_URL}/career/colleges`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1.5' })}

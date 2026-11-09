@@ -23,7 +23,6 @@ import {
   User,
 } from 'lucide-react';
 import {
-  SAMPLE_SERVICE_REQUESTS,
   ServiceDeskRequest,
   ServiceRequestStatus,
   ServicePriority,
@@ -74,15 +73,11 @@ const STATUS_CONFIG: Record<
 
 export function OperatorQueueClient() {
   const router = useRouter();
-  const [requests, setRequests] = useState<ServiceDeskRequest[]>(SAMPLE_SERVICE_REQUESTS);
+  const [requests, setRequests] = useState<ServiceDeskRequest[]>([]);
 
-  // Real requests for the signed-in partner centre go first; demo samples stay below them.
+  // The signed-in centre's real requests only.
   useEffect(() => {
-    getPartnerInbox().then((res) => {
-      if (res.data?.items.length) {
-        setRequests([...res.data.items.map(fromBooking), ...SAMPLE_SERVICE_REQUESTS]);
-      }
-    });
+    getPartnerInbox().then((res) => setRequests((res.data?.items ?? []).map(fromBooking)));
   }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');

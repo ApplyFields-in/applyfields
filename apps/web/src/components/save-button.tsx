@@ -62,8 +62,18 @@ export function SaveButton({
         });
       }
       router.refresh();
+    } else {
+      // Never fail silently: a demo listing isn't in the database (404), anything else is a real error.
+      showAppToast({
+        message:
+          res.status === 404
+            ? 'This is a demo listing, so it can’t be saved. Real listings save normally.'
+            : res.error || 'Could not save right now. Please try again.',
+        type: 'info',
+      });
     }
   }
+
 
   return (
     <div className="relative inline-flex items-center justify-center">

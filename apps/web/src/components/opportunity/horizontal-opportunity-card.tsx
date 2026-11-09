@@ -4,8 +4,10 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Bookmark, ExternalLink } from 'lucide-react';
 import type { OpportunityCard, OpportunityType } from '@applyfields/types';
-import { formatDate } from '@/lib/format';
+import { DeadlineDot, formatDate } from '@/lib/format';
 import { apiPut, apiDelete } from '@/lib/api';
+import { showAppToast } from '@/components/toast-notification-provider';
+
 import { useLanguage } from '@/lib/i18n/language-context';
 
 export interface ExtendedOpportunityCard extends Omit<OpportunityCard, 'type'> {
@@ -81,11 +83,28 @@ export function HorizontalOpportunityCard({
     const nextState = !isSaved;
     setIsSaved(nextState);
 
-    if (nextState) {
-      await apiPut(`/saved/opportunity/${item.slug}`);
-    } else {
-      await apiDelete(`/saved/opportunity/${item.slug}`);
+    const path = `/saved/${item.type === 'service' ? 'service' : 'opportunity'}/${encodeURIComponent(item.slug)}`;
+    const res = nextState ? await apiPut(path, {}) : await apiDelete(path);
+    if (res.status === 401) {
+      window.location.href = '/login';
+      return;
     }
+    if (res.error) {
+      setIsSaved(!nextState); // undo: the save didn't happen
+      showAppToast({
+        message:
+          res.status === 404
+            ? 'This is a demo listing, so it can’t be saved. Real listings save normally.'
+            : res.error || 'Could not save right now. Please try again.',
+        type: 'info',
+      });
+      return;
+    }
+    showAppToast(
+      nextState
+        ? { message: 'Saved to your list.', actionLabel: 'View Saved →', actionHref: '/saved', type: 'success' }
+        : { message: 'Removed from saved items.', type: 'remove' },
+    );
   }
 
   const deadlineFormatted = item.last_date ? formatDate(item.last_date) : t('card_rolling');
@@ -93,7 +112,9 @@ export function HorizontalOpportunityCard({
     typeof item.days_left === 'number'
       ? item.days_left > 0
         ? ` · ${item.days_left}${t('card_days_left_short')}`
-        : ` · ${t('card_closing_today')}`
+        : item.days_left === 0
+          ? ` · ${t('card_closing_today')}`
+          : ` · ${t('card_ended')}`
       : '';
 
   return (
@@ -144,8 +165,10 @@ export function HorizontalOpportunityCard({
         {/* Deadline */}
         <div className="text-left min-w-[100px]">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('card_deadline')}</p>
-          <p className="text-xs font-semibold text-slate-800 mt-0.5">
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+            <DeadlineDot days={item.days_left ?? null} />
             {deadlineFormatted}
+
             <span className="text-slate-500 font-normal">{daysText}</span>
           </p>
         </div>

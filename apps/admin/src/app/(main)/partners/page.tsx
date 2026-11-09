@@ -6,7 +6,6 @@ import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
-import { getMockAdminPartners } from '@/lib/mock-data';
 import { Badge } from '@applyfields/ui';
 import { PartnersClient } from './partners-client';
 
@@ -32,9 +31,8 @@ export default async function PartnersAdminPage({
     `/admin/partners${query.size ? `?${query}` : ''}`,
   );
 
-  const mockFallback = getMockAdminPartners({ q, status, page });
-  const displayData = data && data.items.length > 0 ? data : mockFallback;
-  const isMock = !data || data.items.length === 0;
+  const displayData = data ?? { total: 0, items: [] };
+  const apiDown = !data;
 
   const buildUrl = (next: { q?: string; status?: string; page?: number }) => {
     const params = new URLSearchParams();
@@ -57,9 +55,9 @@ export default async function PartnersAdminPage({
         description="Verify citizen assistance centers, MeeSeva kiosks, cyber points, and college desks. Approve rate cards and enable public directory listings."
         icon={<Store />}
         actions={
-          isMock ? (
+          apiDown ? (
             <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10">
-              Demo Mode
+              API unreachable
             </Badge>
           ) : undefined
         }

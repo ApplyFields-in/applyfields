@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -77,7 +78,15 @@ export class UpdateProfileDto {
   @IsString()
   preferred_language?: string;
 
+  /** A pixel avatar id, an https photo URL (Google login), or an uploaded photo
+   *  as a data URL. 70,000 chars of base64 ≈ the 50 KB photo limit. */
   @IsOptional()
   @IsString()
+  @MaxLength(70_000, { message: 'Profile photo must be under 50 KB' })
+  @Matches(
+    /^(pixel-[a-z0-9-]+|https:\/\/\S+|data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*)$/,
+    { message: 'avatar_url must be a pixel avatar, an https URL or a PNG/JPEG/WebP photo' },
+  )
   avatar_url?: string;
 }
+
