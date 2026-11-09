@@ -27,8 +27,7 @@ import {
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
-import { apiGet } from '@/lib/api';
-import { MOCK_ADMIN_OPPORTUNITIES, MOCK_ADMIN_SUMMARY, MOCK_HOME_SUMMARY } from '@/lib/mock-data';
+import { apiGet, PARTNER_URL, SERVICE_URL, WEB_URL } from '@/lib/api';
 
 /** '2026-10-04T05:56:18Z' → '10 min ago' or '4 Oct, 11:26 am' */
 function formatTimeAgo(iso?: string | null): string {
@@ -60,10 +59,11 @@ export default async function DashboardPage() {
     apiGet<HomeSummary>('/home'),
   ]);
 
-  const summaryData = summary ?? MOCK_ADMIN_SUMMARY;
-  const oppsData = oppsList && oppsList.items.length > 0 ? oppsList : MOCK_ADMIN_OPPORTUNITIES;
-  const homeSummaryData = homeData ?? MOCK_HOME_SUMMARY;
-  const isMock = !summary;
+  // Real numbers only: if the API is down, tiles read 0 and the header says "API unreachable".
+  const summaryData: AdminSummary = summary ?? { stats: [], review_queue: [], scrapers: [], sample: false };
+  const recentOpportunities = oppsList?.items.slice(0, 5) ?? [];
+  const deadlines = homeData?.closing_soon?.slice(0, 4) ?? [];
+  const apiDown = !summary;
 
   const statsMap = new Map(summaryData.stats.map((s) => [s.key, s]));
   const pendingReviewsCount = statsMap.get('pending_reviews')?.value ?? 0;
@@ -78,10 +78,8 @@ export default async function DashboardPage() {
   const failingScrapers = summaryData.scrapers.filter((s) => s.consecutive_failures > 0);
 
   // Real upcoming deadlines from database or fallback
-  const deadlines = homeSummaryData.closing_soon?.slice(0, 4) ?? [];
 
   // Real recent opportunities or fallback
-  const recentOpportunities = oppsData.items?.slice(0, 5) ?? [];
 
   // Current formatted date string
   const now = new Date();
@@ -112,9 +110,9 @@ export default async function DashboardPage() {
               <span>ApplyFields Global Operations</span>
               <span className="text-white/40">|</span>
               <span className="text-olive-200">Port :3001</span>
-              {isMock && (
+              {apiDown && (
                 <span className="rounded bg-amber-400/20 px-1.5 py-0.2 text-[10px] text-amber-300">
-                  Demo Data
+                  API unreachable
                 </span>
               )}
             </div>
@@ -251,7 +249,7 @@ export default async function DashboardPage() {
               </p>
               <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-olive-900">
                 <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-800">
-                  {summaryData.scrapers?.length ?? 8} Scrapers
+                  {summaryData.scrapers.length} Scrapers
                 </span>
                 <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-800">
                   {publishedWeekCount} Published/Wk
@@ -350,9 +348,9 @@ export default async function DashboardPage() {
             </div>
 
             <div className="mt-5 pt-3 border-t border-olive-100 flex items-center justify-between">
-              <span className="text-[11px] text-olive-700">http://localhost:3000</span>
+              <span className="text-[11px] text-olive-700">{WEB_URL}</span>
               <a
-                href="http://localhost:3000"
+                href={`${WEB_URL}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-bold text-olive-900 hover:text-emerald-700 hover:underline"
@@ -395,9 +393,9 @@ export default async function DashboardPage() {
             </div>
 
             <div className="mt-5 pt-3 border-t border-olive-100 flex items-center justify-between">
-              <span className="text-[11px] text-olive-700">http://localhost:3003</span>
+              <span className="text-[11px] text-olive-700">{SERVICE_URL}</span>
               <a
-                href="http://localhost:3003"
+                href={`${SERVICE_URL}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-bold text-olive-900 hover:text-amber-700 hover:underline"
@@ -440,9 +438,9 @@ export default async function DashboardPage() {
             </div>
 
             <div className="mt-5 pt-3 border-t border-olive-100 flex items-center justify-between">
-              <span className="text-[11px] text-olive-700">http://localhost:3002</span>
+              <span className="text-[11px] text-olive-700">{PARTNER_URL}</span>
               <a
-                href="http://localhost:3002"
+                href={`${PARTNER_URL}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-bold text-olive-900 hover:text-emerald-700 hover:underline"

@@ -18,7 +18,6 @@ import Link from 'next/link';
 import { ApiOffline } from '@/components/admin-shell';
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
-import { getMockAdminUsers } from '@/lib/mock-data';
 
 export const metadata = { title: SECTIONS.users.title };
 
@@ -112,9 +111,8 @@ export default async function UsersPage({
     }
   >(endpoint);
 
-  const mockFallback = getMockAdminUsers({ q, type: activeType, page: currentPage });
-  const displayData = data && data.users.length > 0 ? data : mockFallback;
-  const isMock = !data || data.users.length === 0;
+  const displayData = data ?? { users: [], total: 0, page: 1, limit: 20, staff_count: 0, citizen_count: 0 };
+  const apiDown = !data;
 
   const total = displayData.total ?? 0;
   const limit = displayData.limit ?? 20;
@@ -155,9 +153,9 @@ export default async function UsersPage({
         icon={<Users />}
         actions={
           <div className="flex items-center gap-2">
-            {isMock && (
+            {apiDown && (
               <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10">
-                Demo Mode
+                API unreachable
               </Badge>
             )}
             <Badge tone="celadon">

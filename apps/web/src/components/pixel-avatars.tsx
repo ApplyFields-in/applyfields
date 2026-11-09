@@ -264,9 +264,25 @@ export function PixelAvatar({
   size?: number;
   className?: string;
 }) {
+  // An uploaded photo (data URL) or a Google photo (https) shows as the picture itself.
+  if (avatarId && /^(data:image\/|https:\/\/)/.test(avatarId)) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- tiny data URL, next/image adds nothing
+      <img
+        src={avatarId}
+        alt="Profile photo"
+        width={size}
+        height={size}
+        className={`rounded-2xl object-cover shadow-xs ${className}`}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+
   const avatar = PIXEL_AVATARS.find((a) => a.id === avatarId) ?? PIXEL_AVATARS[0];
 
   return (
+
     <svg
       viewBox="0 0 16 16"
       width={size}

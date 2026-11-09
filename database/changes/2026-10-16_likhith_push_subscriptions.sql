@@ -30,3 +30,6 @@ drop trigger if exists trg_push_subscriptions_updated_at on push_subscriptions;
 create trigger trg_push_subscriptions_updated_at
 before update on push_subscriptions
 for each row execute function set_push_subscriptions_updated_at();
+
+-- Same as the other user tables: no access through Supabase's public REST API; the API connects as the table owner.
+alter table push_subscriptions enable row level security;

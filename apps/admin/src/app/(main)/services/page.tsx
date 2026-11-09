@@ -15,7 +15,6 @@ import { ApiOffline } from '@/components/admin-shell';
 import { StatusBadge } from '@/components/opportunities-ui';
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
-import { MOCK_ADMIN_SERVICES } from '@/lib/mock-data';
 
 export const metadata = { title: SECTIONS.services.title };
 
@@ -37,28 +36,9 @@ export default async function ServicesAdminPage({
 
   const data = await apiGet<AdminGovServiceList>(`/admin/services${query.size ? `?${query}` : ''}`);
 
-  const displayData = data && data.items.length > 0 ? data : (() => {
-    let list = [...MOCK_ADMIN_SERVICES.items];
-    if (status) {
-      list = list.filter((s) => s.status === status);
-    }
-    if (q) {
-      const qLower = q.toLowerCase();
-      list = list.filter(
-        (s) =>
-          s.name.toLowerCase().includes(qLower) ||
-          s.slug.toLowerCase().includes(qLower) ||
-          (s.authority_name && s.authority_name.toLowerCase().includes(qLower)) ||
-          (s.category && s.category.toLowerCase().includes(qLower)),
-      );
-    }
-    return {
-      total: list.length,
-      counts: MOCK_ADMIN_SERVICES.counts,
-      items: list,
-    };
-  })();
-  const isMock = !data || data.items.length === 0;
+  // Real data only; no invented rows when the list is empty.
+  const displayData = data ?? { total: 0, counts: { draft: 0, published: 0, closed: 0, archived: 0 }, items: [] };
+  const apiDown = !data;
 
   const buildUrl = (next: { q?: string; status?: string; page?: number }) => {
     const params = new URLSearchParams();
@@ -82,9 +62,9 @@ export default async function ServicesAdminPage({
         icon={<Landmark />}
         actions={
           <div className="flex items-center gap-2">
-            {isMock && (
+            {apiDown && (
               <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10">
-                Demo Mode
+                API unreachable
               </Badge>
             )}
             <Link href="/services/new" className={buttonClass({ variant: 'primary', size: 'sm' })}>

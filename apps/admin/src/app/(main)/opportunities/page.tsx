@@ -21,7 +21,6 @@ import { CloseExpiredButton, StatusBadge } from '@/components/opportunities-ui';
 import { formatDay, TYPE_LABEL } from '@/components/review-ui';
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
-import { MOCK_ADMIN_OPPORTUNITIES } from '@/lib/mock-data';
 
 export const metadata = { title: SECTIONS.opportunities.title };
 
@@ -45,32 +44,9 @@ export default async function OpportunitiesPage({
 
   const data = await apiGet<AdminOpportunityList>(`/admin/opportunities${query.size ? `?${query}` : ''}`);
 
-  const displayData = data && data.items.length > 0 ? data : (() => {
-    let list = [...MOCK_ADMIN_OPPORTUNITIES.items];
-    if (status) {
-      list = list.filter((item) => item.status === status);
-    }
-    if (type) {
-      list = list.filter((item) => item.type === type);
-    }
-    if (q) {
-      const qLower = q.toLowerCase();
-      list = list.filter(
-        (item) =>
-          item.title.toLowerCase().includes(qLower) ||
-          item.slug.toLowerCase().includes(qLower) ||
-          item.organization.toLowerCase().includes(qLower),
-      );
-    }
-    return {
-      total: list.length,
-      page: 1,
-      page_size: 20,
-      counts: MOCK_ADMIN_OPPORTUNITIES.counts,
-      items: list,
-    };
-  })();
-  const isMock = !data || data.items.length === 0;
+  // Real data only; no invented rows when the list is empty.
+  const displayData = data ?? { total: 0, page: 1, page_size: 20, counts: { draft: 0, published: 0, closed: 0, archived: 0 }, items: [] };
+  const apiDown = !data;
 
   const buildUrl = (next: { q?: string; status?: string; type?: string; page?: number }) => {
     const params = new URLSearchParams();
@@ -96,9 +72,9 @@ export default async function OpportunitiesPage({
         icon={<Briefcase />}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {isMock && (
+            {apiDown && (
               <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10">
-                Demo Mode
+                API unreachable
               </Badge>
             )}
             <CloseExpiredButton />

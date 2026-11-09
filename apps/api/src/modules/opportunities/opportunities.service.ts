@@ -286,6 +286,8 @@ export class OpportunitiesService {
             equals: today,
           },
         });
+      } else if (deadline === 'ended') {
+        // handled below: swaps the open filter for "last date has passed"
       } else if (deadline === 'this_month' || deadline === '30_days') {
         deadlineConditions.push({
           application_end: {
@@ -299,7 +301,9 @@ export class OpportunitiesService {
     const rows = await this.prisma.opportunities.findMany({
       where: {
         AND: [
-          openWhere(today),
+          deadline === 'ended'
+            ? { status: 'published', application_end: { lt: today } }
+            : openWhere(today),
           ...(type ? [{ type }] : []),
           ...categoryConditions,
           ...stateConditions,
@@ -324,12 +328,14 @@ export class OpportunitiesService {
       },
       select: CARD_SELECT,
       orderBy: [
-        { application_end: { sort: 'asc', nulls: 'last' } },
+        // ended: most recently closed first; open: closing soonest first
+        { application_end: { sort: deadline === 'ended' ? 'desc' : 'asc', nulls: 'last' } },
         { published_at: 'desc' },
       ],
       take,
     });
     return rows.map((r) => this.toCard(r, today, filters?.lang));
+
   }
 
   /** Find complete published opportunity details by slug. */

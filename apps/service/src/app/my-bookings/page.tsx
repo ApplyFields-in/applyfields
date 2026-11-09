@@ -30,7 +30,9 @@ import {
   ArrowLeft,
   X,
 } from 'lucide-react';
+import type { BookingDetail } from '@applyfields/types';
 import { useAuth } from '@/lib/auth-context';
+import { getMyBookings } from '@/lib/api';
 import { useLanguage } from '@/lib/i18n';
 
 export type BookingStage = 'booked' | 'verified_present' | 'in_filing' | 'defective' | 'completed' | 'cancelled';
@@ -81,109 +83,47 @@ export interface CitizenBookingItem {
   };
 }
 
-const DEFAULT_SEED_BOOKINGS: CitizenBookingItem[] = [
-  {
-    id: 'bk-8821',
-    token: 'AF-HYD-8821',
-    candidateName: 'Likhith Kumar',
-    candidatePhone: '+91 98765 43210',
-    slotDate: 'Today',
-    slotTime: '10:30 AM - 11:00 AM',
-    status: 'in_filing',
-    securityPin: '4819',
-    queuePosition: 2,
-    estimatedWaitMinutes: 11,
-    counterName: 'Counter 2 (Govt Recruitment Desk)',
+/** A real booking from GET /bookings/my in this page's shape. PIN/queue are not tracked by the API, so they stay empty and hidden. */
+function fromApi(b: BookingDetail): CitizenBookingItem {
+  const at = b.appointment_at ? new Date(b.appointment_at) : null;
+  const total = (b.final_paise ?? b.quoted_paise ?? 0) / 100;
+  const stage: BookingStage =
+    b.status === 'completed'
+      ? 'completed'
+      : b.status === 'cancelled' || b.status === 'rejected'
+        ? 'cancelled'
+        : b.status === 'in_progress'
+          ? 'in_filing'
+          : 'booked';
+  return {
+    id: b.id,
+    token: `AF-${b.id.slice(0, 8).toUpperCase()}`,
+    candidateName: '',
+    candidatePhone: '',
+    slotDate: at ? at.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not scheduled',
+    slotTime: at ? at.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) : '',
+    status: stage,
+    securityPin: '',
+    queuePosition: -1,
+    estimatedWaitMinutes: 0,
+    counterName: '',
     partner: {
-      id: 'partner-1',
-      name: 'Sri Sai MeeSeva & Digital Kiosk',
-      address: 'Shop #4, Opp. Municipal Corporation, Gachibowli Main Rd',
-      city: 'Hyderabad',
-      district: 'Rangareddy',
-      phone: '+91 98480 22334',
-      googleMapsUrl: 'https://maps.google.com/?q=Gachibowli+Hyderabad',
+      id: b.partner_id,
+      name: b.partner_business_name,
+      address: b.partner_address ?? '',
+      city: '',
+      district: '',
+      phone: b.partner_phone ?? '',
     },
-    items: [
-      { title: 'SSC CGL 2026 Online Form Filing Assistance', price: 150, quantity: 1, category: 'Exam Application' },
-      { title: 'Passport Photo Instant Crop & Print (Set of 8)', price: 60, quantity: 1, category: 'Photo & Printing' },
-    ],
-    total: 210,
-    paymentMode: 'online',
-    isPaid: true,
-    requiredDocuments: ['Aadhaar Card (Original)', 'Degree Provisional Memo', 'Recent Passport Size Photo'],
-    createdAt: '2026-10-30T09:15:00Z',
-  },
-  {
-    id: 'bk-8824',
-    token: 'AF-HYD-8824',
-    candidateName: 'Likhith Kumar',
-    candidatePhone: '+91 98765 43210',
-    slotDate: 'Today',
-    slotTime: '11:45 AM - 12:15 PM',
-    status: 'defective',
-    securityPin: '7302',
-    queuePosition: 4,
-    estimatedWaitMinutes: 24,
-    counterName: 'Counter 1 (Revenue & MeeSeva Desk)',
-    defectReason: 'Candidate signature scan is blurred and below 200 DPI requirement. Please upload a crisp black-ink signature scan.',
-    partner: {
-      id: 'partner-2',
-      name: 'Sri Balaji Digital Seva & MeeSeva Hub',
-      address: 'Shop #12, Ground Floor, Opp Metro Pillar 1042, Ameerpet',
-      city: 'Hyderabad',
-      district: 'Hyderabad',
-      phone: '+91 98480 12345',
-      googleMapsUrl: 'https://maps.google.com/?q=Ameerpet+Metro+Hyderabad',
-    },
-    items: [
-      { title: 'Telangana MeeSeva Income & Asset Certificate', price: 120, quantity: 1, category: 'MeeSeva Services' },
-    ],
-    total: 120,
+    items: [{ title: b.service_name ?? 'Service request', price: total, quantity: 1, category: 'Service' }],
+    total,
     paymentMode: 'counter',
     isPaid: false,
-    requiredDocuments: ['Ration Card / Food Security Card', 'Salary Slip / Income Affidavit', 'Applicant Signature Scan'],
-    createdAt: '2026-10-30T10:00:00Z',
-    dispute: {
-      id: 'DSP-8824',
-      reason: 'Partner Overcharged Above Rate Card',
-      details: 'Charged extra cash beyond the booked MeeSeva assistance fee.',
-      refundClaim: 40,
-      status: 'open',
-      openedAt: '30 Oct 2026',
-    },
-  },
-  {
-    id: 'bk-7910',
-    token: 'AF-HYD-7910',
-    candidateName: 'Likhith Kumar',
-    candidatePhone: '+91 98765 43210',
-    slotDate: 'Yesterday',
-    slotTime: '04:00 PM - 04:30 PM',
-    status: 'completed',
-    securityPin: '1920',
-    queuePosition: 0,
-    estimatedWaitMinutes: 0,
-    counterName: 'Counter 3 (Card Printing Desk)',
-    portalRegNumber: 'UIDAI-PVC-991823',
-    partner: {
-      id: 'partner-3',
-      name: 'City Xerox & MeeSeva Hub',
-      address: 'Near Old Bus Stand, Hanamkonda Main Road',
-      city: 'Warangal',
-      district: 'Warangal Urban',
-      phone: '+91 98491 55667',
-      googleMapsUrl: 'https://maps.google.com/?q=Warangal+Old+Bus+Stand',
-    },
-    items: [
-      { title: 'High-Quality Aadhaar PVC Smart Card Print', price: 50, quantity: 1, category: 'Aadhaar Services' },
-    ],
-    total: 50,
-    paymentMode: 'online',
-    isPaid: true,
-    requiredDocuments: ['Aadhaar Number / OTP or Virtual ID'],
-    createdAt: '2026-10-29T15:30:00Z',
-  },
-];
+    requiredDocuments: [],
+    portalRegNumber: b.official_app_number ?? undefined,
+    createdAt: b.created_at,
+  };
+}
 
 export default function MyBookingsPage() {
   const { user } = useAuth();
@@ -208,51 +148,15 @@ export default function MyBookingsPage() {
   const [disputeClaimAmount, setDisputeClaimAmount] = useState<number>(0);
   const [disputeSuccessToast, setDisputeSuccessToast] = useState<string | null>(null);
 
-  // Load from localStorage or initialize defaults
+  // The signed-in user's real bookings only; none = the empty state.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    try {
-      const raw = localStorage.getItem('applyfields_bookings_v1');
-      if (raw) {
-        const stored = JSON.parse(raw);
-        if (Array.isArray(stored) && stored.length > 0) {
-          // Merge stored bookings with seed bookings ensuring unique tokens
-          const storedTokens = new Set(stored.map((b: any) => b.token || b.id));
-          const complementary = DEFAULT_SEED_BOOKINGS.filter((seed) => !storedTokens.has(seed.token));
-
-          const mappedStored: CitizenBookingItem[] = stored.map((b: any, idx: number) => ({
-            id: b.id || `bk-${idx}`,
-            token: b.token || `AF-HYD-${7000 + idx}`,
-            candidateName: b.candidateName || user?.full_name || 'Citizen User',
-            candidatePhone: b.candidatePhone || user?.phone || '+91 98765 43210',
-            slotDate: b.slotDate || 'Upcoming',
-            slotTime: b.slotTime || '10:00 AM - 10:30 AM',
-            status: (b.status as BookingStage) || 'in_filing',
-            securityPin: b.securityPin || `${Math.floor(1000 + Math.random() * 9000)}`,
-            queuePosition: typeof b.queuePosition === 'number' ? b.queuePosition : 1,
-            estimatedWaitMinutes: typeof b.estimatedWaitMinutes === 'number' ? b.estimatedWaitMinutes : 8,
-            counterName: b.counterName || 'Counter 1 (General Assistance)',
-            partner: b.partner || DEFAULT_SEED_BOOKINGS[0].partner,
-            items: b.items || [{ title: 'Citizen Government Service', price: b.total || 100, quantity: 1, category: 'Service' }],
-            total: b.total || 100,
-            paymentMode: b.paymentMode || 'counter',
-            isPaid: b.isPaid ?? true,
-            defectReason: b.defectReason,
-            correctionUploaded: b.correctionUploaded ?? false,
-            requiredDocuments: b.requiredDocuments || ['Aadhaar Card (Original)', 'Application Forms'],
-            portalRegNumber: b.portalRegNumber,
-            createdAt: b.createdAt || new Date().toISOString(),
-            dispute: b.dispute,
-          }));
-
-          setBookings([...mappedStored, ...complementary]);
-          return;
-        }
-      }
-    } catch {}
-
-    setBookings(DEFAULT_SEED_BOOKINGS);
+    if (!user) {
+      setBookings([]);
+      return;
+    }
+    getMyBookings()
+      .then((res) => setBookings((res.data?.items ?? []).map(fromApi)))
+      .catch(() => setBookings([]));
   }, [user]);
 
   // Copy token helper
@@ -566,6 +470,7 @@ export default function MyBookingsPage() {
                   </div>
 
                   {/* Security PIN Display Card */}
+                  {b.securityPin && (
                   <div className="flex items-center gap-3 bg-[#F0F4F8] border border-[#d5deea] rounded-2xl px-3.5 py-2">
                     <div>
                       <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -580,10 +485,11 @@ export default function MyBookingsPage() {
                       Show at counter to verify presence
                     </div>
                   </div>
+                  )}
                 </div>
 
                 {/* Queue Position & Timing Estimator */}
-                {!isCompleted && (
+                {!isCompleted && b.queuePosition >= 0 && (
                   <div className="my-4 rounded-2xl border border-blue-200 bg-blue-50/70 p-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#0e7bf4] text-white font-mono font-bold text-xs">
