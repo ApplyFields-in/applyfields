@@ -8,6 +8,9 @@ Run locally:
 
 import secrets
 from urllib.parse import urlsplit
+from app.scrapers.upsc import UPSCScraper
+from app.scrapers.npcil import NPCILScraper
+from app.scrapers.cdsco import CDSCOScraper
 from app.scrapers.isro import (
     IsroScraper,
     RecruitmentPdfBundle,
@@ -37,11 +40,13 @@ app = FastAPI(title="ApplyFields Ingestion (internal)", version="0.1.0")
 SCRAPERS = {
     "ssc": SSCScraper,
     "appsc": AppscScraper,
+    "upsc": UPSCScraper,
     "isro": IsroScraper,
     "indiapost": IndiaPostScraper,
-
-
+    "npcil": NPCILScraper,
+    "cdsco": CDSCOScraper,
 }
+
 
 
 

@@ -315,3 +315,36 @@ def test_uses_detail_title_when_pdf_link_label_is_generic():
 
     assert bundle.notification_pdf is not None
     assert bundle.notification_pdf.url == pdfs[0].url
+def test_classifies_bilingual_advertisement_as_main_notice():
+    assert classify_pdf_link(
+        "Bilingual Advertisement",
+        "https://www.isro.gov.in/media/Bilingual_Advertisement_2026.pdf",
+    ) == "main_advertisement"
+
+
+def test_classifies_interview_from_filename():
+    assert classify_pdf_link(
+        "Civil Engineering - BE004 & 4A",
+        "https://www.isro.gov.in/media/INTERVIEW_CIVIL_29092026.pdf",
+    ) == "interview_schedule"
+
+
+def test_classifies_panel_publication():
+    assert classify_pdf_link(
+        "Mechanical 002",
+        "https://www.isro.gov.in/media/ME_GATE_2026_PANEL_PUBLICATION_05112026.pdf",
+    ) == "selection_panel"
+
+
+def test_classifies_answer_keys_separately():
+    assert classify_pdf_link(
+        "Final Answer keys for the written test",
+        "https://www.isro.gov.in/media/Industrial_Eng_Answer_Keys_06112026.pdf",
+    ) == "answer_key"
+
+
+def test_classifies_extension_circular():
+    assert classify_pdf_link(
+        "Extension: Circular",
+        "https://www.isro.gov.in/media/Extension_for_receipt_of_application_05112026.pdf",
+    ) == "extension"
