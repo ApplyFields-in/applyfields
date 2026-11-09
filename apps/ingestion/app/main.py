@@ -1,4 +1,4 @@
-
+﻿
 """
 ApplyFields ingestion service (INTERNAL ONLY).
 
@@ -8,26 +8,46 @@ Run locally:
 
 import secrets
 from urllib.parse import urlsplit
+from app.scrapers.upsc import UPSCScraper
+from app.scrapers.npcil import NPCILScraper
+from app.scrapers.cdsco import CDSCOScraper
+from app.scrapers.isro import (
+    IsroScraper,
+    RecruitmentPdfBundle,
+    group_related_pdf_links,
+)
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
+from app.scrapers.indiapost import IndiaPostScraper
 
 from app.config import settings
+
+from app.fetcher import fetch
+from app.pipeline import process_pdf_notice
+from app.scrapers.ssc import SSCScraper
+from app.scrapers.appsc import AppscScraper
 from app.db.repository import (
     finish_scrape_run,
     get_active_source,
     start_scrape_run,
+    update_opportunity_related_links,
 )
-from app.fetcher import fetch
-from app.pipeline import process_pdf_notice
-from app.scrapers.ssc import SSCScraper
 
 app = FastAPI(title="ApplyFields Ingestion (internal)", version="0.1.0")
 
 # Only sources with implemented scrapers belong here.
 SCRAPERS = {
     "ssc": SSCScraper,
+    "appsc": AppscScraper,
+    "upsc": UPSCScraper,
+    "isro": IsroScraper,
+    "indiapost": IndiaPostScraper,
+    "npcil": NPCILScraper,
+    "cdsco": CDSCOScraper,
 }
+
+
 
 
 def require_internal_token(
@@ -113,21 +133,83 @@ def run_scraper(source_key: str) -> dict[str, object]:
     failed_items = 0
     skipped_non_pdf = 0
     results: list[dict[str, object]] = []
+    isro_bundles_by_pdf_url: dict[str, RecruitmentPdfBundle] = {}
 
     try:
 
+
         if source_key == "ssc":
             notices = scraper.discover_notices()
+        elif source_key == "isro":
+            response = fetch(scraper.list_url)
+            detail_notices = scraper.find_notices(response.text)
+
+            notices = []
+            seen_pdf_urls: set[str] = set()
+
+            for detail in detail_notices:
+                detail_response = fetch(detail.url)
+
+                pdf_notices = scraper.find_pdf_notices(
+                    detail_response.text,
+                    detail_url=detail.url,
+                    title=detail.title,
+                    published_on=detail.published_on,
+                )
+
+                unique_pdf_notices = []
+
+                for pdf_notice in pdf_notices:
+                    normalized_url = pdf_notice.url.split("#", 1)[0]
+
+                    if normalized_url in seen_pdf_urls:
+                        continue
+
+                    seen_pdf_urls.add(normalized_url)
+                    unique_pdf_notices.append(pdf_notice)
+
+                bundle = group_related_pdf_links(
+                    detail,
+                    unique_pdf_notices,
+                )
+
+                # Only the main advertisement can create a draft opportunity.
+                if bundle.notification_pdf is None:
+                    continue
+
+                main_notice = bundle.notification_pdf
+                notices.append(main_notice)
+                isro_bundles_by_pdf_url[main_notice.url] = bundle
+
+
         else:
             response = fetch(scraper.list_url)
             notices = scraper.find_notices(response.text)
+
         items_found = len(notices)
 
-        for notice in notices:
-            # This initial version processes direct PDF links only.
-            path = urlsplit(notice.url).path.lower()
 
-            if not path.endswith(".pdf"):
+
+        for notice in notices:
+            bundle = isro_bundles_by_pdf_url.get(notice.url)
+            notice_title = (
+                bundle.recruitment_title
+                if bundle is not None
+                else notice.title
+            )
+            # India Post serves PDFs through an API endpoint without a .pdf suffix.
+            parsed_url = urlsplit(notice.url)
+            path = parsed_url.path.lower()
+
+            is_direct_pdf = path.endswith(".pdf")
+            is_indiapost_document = (
+                source_key == "indiapost"
+                and parsed_url.scheme == "https"
+                and parsed_url.hostname == "www.indiapost.gov.in"
+                and path.startswith("/api/documents/file/")
+            )
+
+            if not (is_direct_pdf or is_indiapost_document):
                 skipped_non_pdf += 1
                 results.append(
                     {
@@ -150,9 +232,25 @@ def run_scraper(source_key: str) -> dict[str, object]:
                         else "central_govt"
                     ),
                     url=notice.url,
-                    title=notice.title,
+                    title=notice_title,
                     published_on=notice.published_on,
                 )
+                if (
+                    bundle is not None
+                    and bundle.related_links
+                    and result.get("opportunity_id")
+                ):
+                    update_opportunity_related_links(
+                        opportunity_id=str(result["opportunity_id"]),
+                        related_links=[
+                            {
+                                "title": link.title,
+                                "url": link.url,
+                                "category": link.category,
+                            }
+                            for link in bundle.related_links
+                        ],
+                    )
 
                 results.append(result)
 
@@ -225,3 +323,4 @@ def run_scraper(source_key: str) -> dict[str, object]:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Scraping source '{source_key}' failed",
         ) from exc
+
