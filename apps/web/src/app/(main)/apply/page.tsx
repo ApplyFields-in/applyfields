@@ -7,16 +7,19 @@ import {
   type ExtendedOpportunityCard,
 } from '@/components/opportunity/horizontal-opportunity-card';
 import { apiGet } from '@/lib/api';
-import type { OpportunityList } from '@applyfields/types';
+import type { OpportunityList, OpportunityType } from '@applyfields/types';
 import { useLanguage } from '@/lib/i18n/language-context';
+import { DeadlineLegend } from '@/lib/format';
+import { getMockOpportunities } from '@/lib/mock-data';
 
 export default function ApplyPage() {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [opportunities, setOpportunities] = useState<ExtendedOpportunityCard[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [apiUnavailable, setApiUnavailable] = useState(false);
+  const [usingMock, setUsingMock] = useState(false);
 
   // Filters state
   const [typeFilter, setTypeFilter] = useState('Any');
@@ -55,44 +58,68 @@ export default function ApplyPage() {
           WB: 'West Bengal',
         };
         if (stateNameMap[savedState]) {
+          // One-time read of browser-only storage/URL after mount; a lazy useState
+          // initialiser would differ from the server render (hydration mismatch).
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setLocationFilter(stateNameMap[savedState]);
         }
       }
       // Links like /apply?deadline=7d or ?eligibility=eligible (the chatbot shortcuts) pre-set filters.
       const url = new URLSearchParams(window.location.search);
       const d = url.get('deadline');
-      if (d === '7d' || d === '30d') setDeadlineFilter(d);
+      if (d === '7d' || d === '30d' || d === 'ended') setDeadlineFilter(d);
       if (url.get('eligibility') === 'eligible') setEligibilityFilter('eligible');
     }
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    const queryParams = new URLSearchParams();
-    if (deadlineFilter !== 'Any') {
-      queryParams.set('deadline', deadlineFilter === '7d' ? '7_days' : '30_days');
-    }
-    if (eligibilityFilter === 'eligible') {
-      queryParams.set('eligible', 'true');
-    }
-    if (activeTab !== 'all') {
-      queryParams.set('type', activeTab);
-    }
-    if (searchQuery.trim()) {
-      queryParams.set('q', searchQuery.trim());
-    }
+  const deadline =
+    deadlineFilter === '7d' ? '7_days' : deadlineFilter === '30d' ? '30_days' : deadlineFilter === 'ended' ? 'ended' : '';
+  const queryParams = new URLSearchParams();
+  if (deadline) queryParams.set('deadline', deadline);
+  if (eligibilityFilter === 'eligible') queryParams.set('eligible', 'true');
+  if (activeTab !== 'all') queryParams.set('type', activeTab);
+  if (searchQuery.trim()) queryParams.set('q', searchQuery.trim());
+  const queryKey = queryParams.toString();
+  // Loading = the list on screen is not for the current filters yet.
+  const loading = loadedKey !== queryKey;
 
-    apiGet<OpportunityList>(`/opportunities?${queryParams.toString()}`)
+  useEffect(() => {
+    let active = true; // ignore a slow older response that lands after a newer one
+    apiGet<OpportunityList>(`/opportunities?${queryKey}`)
       .then((res) => {
-        setOpportunities(res && !res.sample ? res.items : []);
+        if (!active) return;
+        if (res && !res.sample && res.total > 0) {
+          setOpportunities(res.items);
+          setUsingMock(false);
+        } else {
+          // ponytail: mock fallback kept on purpose until real listings are loaded (Likhith, 2026-11-09)
+          const type = activeTab === 'all' ? undefined : (activeTab as OpportunityType);
+          setOpportunities(
+            getMockOpportunities(type, {
+              q: searchQuery.trim(),
+              deadline,
+              eligible: eligibilityFilter === 'eligible',
+            }).items,
+          );
+          setUsingMock(true);
+        }
         setApiUnavailable(!res);
-      })
-      .finally(() => setLoading(false));
-  }, [activeTab, searchQuery, deadlineFilter, eligibilityFilter]);
+        setLoadedKey(queryKey);
+      });
+    return () => {
+      active = false;
+    };
+  }, [queryKey, activeTab, searchQuery, deadline, eligibilityFilter]);
+
 
   // Client-side filtering based on dropdowns
   const filteredList = opportunities.filter((item) => {
     if (activeTab !== 'all' && item.type !== activeTab) return false;
+    if (typeFilter !== 'Any' && item.type !== typeFilter) return false;
+    if (orgFilter !== 'Any') {
+      const org = orgFilter.toLowerCase();
+      if (!item.organization?.toLowerCase().includes(org) && !item.tags?.some((tag) => tag.toLowerCase() === org)) return false;
+    }
     if (educationFilter !== 'Any') {
       if (!item.qualification?.toLowerCase().includes(educationFilter.toLowerCase())) return false;
     }
@@ -215,6 +242,7 @@ export default function ApplyPage() {
               <option value="Any">{t('apply_filter_deadline', 'Deadline')}: Any</option>
               <option value="7d">Closing in 7 days</option>
               <option value="30d">Closing in 30 days</option>
+              <option value="ended">Ended (last date passed)</option>
             </select>
 
             {/* Eligibility */}
@@ -242,8 +270,27 @@ export default function ApplyPage() {
           </div>
 
           {/* Results count */}
-          <span className="text-sm font-medium text-[#435775]">{filteredList.length} results</span>
+          <span className="text-sm font-medium text-[#435775]">
+            {filteredList.length} {deadlineFilter === 'ended' ? 'ended' : ''} results
+            {usingMock && (
+              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                Demo / Mock Data
+              </span>
+            )}
+          </span>
         </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <DeadlineLegend />
+          <button
+            type="button"
+            onClick={() => setDeadlineFilter(deadlineFilter === 'ended' ? 'Any' : 'ended')}
+            className="text-xs font-semibold text-[#0e7bf4] underline-offset-2 hover:underline"
+          >
+            {deadlineFilter === 'ended' ? 'Show open ones' : 'Show ended ones'}
+          </button>
+        </div>
+
 
         {/* Opportunity List Rows */}
         <div className="space-y-3 border-t border-[#c4d2e3] pt-4">

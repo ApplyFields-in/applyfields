@@ -49,16 +49,7 @@ import { PrintExportButton } from '@/components/print-export-button';
 import { QuickSummaryModal } from '@/components/summary/quick-summary-modal';
 import { StickyMobileActionBar } from '@/components/layout/sticky-mobile-action-bar';
 import { isSaved, apiGetPublic } from '@/lib/server-api';
-import {
-  DATE_KIND_LABEL,
-  daysLeftLabel,
-  estimateSalary,
-  formatCurrency,
-  formatDate,
-  STATE_NAMES,
-  TYPE_META,
-  urgencyTone,
-} from '@/lib/format';
+import { DATE_KIND_LABEL, DeadlineBadge, STATE_NAMES, TYPE_META, daysLeftLabel, estimateSalary, formatCurrency, formatDate } from '@/lib/format';
 
 export async function OpportunityDetailView({ item }: { item: OpportunityDetail }) {
   const saved = await isSaved('opportunity', item.slug);
@@ -310,9 +301,7 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
               <Clock className="size-3.5" /> Status / Timeline
             </span>
             <div className="mt-1">
-              <Badge tone={urgencyTone(item.days_left)} className="text-xs">
-                {daysLeftLabel(item.days_left)}
-              </Badge>
+              <DeadlineBadge days={item.days_left} className="text-xs" />
             </div>
           </div>
         </div>
@@ -877,9 +866,8 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {s.days_left != null && (
-                          <Badge tone={urgencyTone(s.days_left)} className="text-[10px]">
-                            {daysLeftLabel(s.days_left)}
-                          </Badge>
+                          <DeadlineBadge days={s.days_left} className="text-[10px]" />
+
                         )}
                         <ChevronRight className="size-3.5 text-teal/40 group-hover:text-sea transition-colors" />
                       </div>

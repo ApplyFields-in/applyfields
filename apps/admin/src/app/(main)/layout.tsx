@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import type { AdminMeResponse } from '@applyfields/types';
 import { AdminShell } from '@/components/admin-shell';
-import { apiGetWithStatus } from '@/lib/api';
+import { apiGetWithStatus, WEB_URL } from '@/lib/api';
 import { Card, Logo } from '@applyfields/ui';
 import { ShieldAlert } from 'lucide-react';
 import { StaffLogoutButton } from '@/components/staff-logout-button';
@@ -34,7 +34,7 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
             <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center items-center">
               <StaffLogoutButton />
               <a
-                href="http://localhost:3000"
+                href={`${WEB_URL}`}
                 className="inline-flex items-center justify-center rounded-full border border-line bg-cream px-4 py-2 text-xs font-semibold text-teal hover:bg-cream/80 transition-colors"
               >
                 Go to Citizen Portal

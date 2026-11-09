@@ -62,6 +62,7 @@ export default function BookingDetailsPage() {
   const bookingId = params?.id as string;
 
   const [booking, setBooking] = useState<StoredBooking | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
   const [slipError, setSlipError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -181,20 +182,20 @@ export default function BookingDetailsPage() {
               partner: {
                 id: res.data.partner_id,
                 name: res.data.partner_business_name,
-                address: res.data.partner_address || 'Partner Center Location',
-                city: 'Hyderabad',
-                district: 'Hyderabad',
+                address: res.data.partner_address ?? '',
+                city: '',
+                district: '',
                 phone: res.data.partner_phone || undefined,
               },
               items: cached?.items || [
                 {
                   title: res.data.service_name || 'Government / MeeSeva Facilitation Service',
-                  price: (res.data.quoted_paise || res.data.final_paise || 10700) / 100,
+                  price: (res.data.final_paise ?? res.data.quoted_paise ?? 0) / 100,
                   quantity: 1,
                   category: 'MeeSeva',
                 },
               ],
-              total: cached?.total || (res.data.quoted_paise || res.data.final_paise || 10700) / 100,
+              total: cached?.total ?? (res.data.final_paise ?? res.data.quoted_paise ?? 0) / 100,
               intakeSummary: cached?.intakeSummary,
               createdAt: res.data.created_at,
               officialAppNumber: res.data.official_app_number,
@@ -205,42 +206,12 @@ export default function BookingDetailsPage() {
             return;
           }
         } catch (err) {
-          console.warn('Could not fetch booking from API, using cached/sample:', err);
+          console.warn('Could not fetch booking from API:', err);
         }
       }
 
-      // 3. Fallback sample if neither cached nor API succeeded
-      if (!cached && mounted) {
-        setBooking({
-          id: bookingId,
-          token: bookingId.startsWith('AF-') ? bookingId : 'AF-HYD-50001',
-          candidateName: 'Arvind V. Kumar',
-          candidatePhone: '+91 98765 43210',
-          slotDate: 'Tomorrow, 10:00 AM',
-          slotTime: '10:00 AM – 10:30 AM',
-          status: 'new',
-          partner: {
-            id: 'pt-1',
-            name: 'Sri Balaji MeeSeva & Xerox Centre',
-            address: 'Shop #12, Ground Floor, Opp Metro Pillar 1042',
-            city: 'Ameerpet',
-            district: 'Hyderabad',
-            phone: '+91 98480 12345',
-          },
-          items: [
-            { title: 'PAN Card New Application (Form 49A)', price: 107, quantity: 1, category: 'PAN Services' },
-            { title: 'Aadhaar Biometric Facilitation Slot', price: 50, quantity: 1, category: 'Aadhaar Services' },
-          ],
-          total: 157,
-          intakeSummary: [
-            'Applicant: Arvind V. Kumar (Aadhaar Verified)',
-            'Father: Venkata Raman Kumar',
-            'DOB: 1998-05-14 · Gender: Male',
-            'Document Vault: 1-Click Linked',
-          ],
-          createdAt: new Date().toISOString(),
-        });
-      }
+      // 3. Neither cached nor found on the API: say so, never show a sample slip.
+      if (!cached && mounted) setNotFound(true);
     }
 
     loadBooking();
@@ -248,6 +219,18 @@ export default function BookingDetailsPage() {
       mounted = false;
     };
   }, [bookingId]);
+
+  if (!booking && notFound) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-24 text-center text-[#526987] space-y-3">
+        <p className="text-base font-bold text-[#082046]">We couldn&apos;t find this booking</p>
+        <p className="text-sm">Check the link, or sign in to see your bookings.</p>
+        <a href="/my-bookings" className="inline-block rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white">
+          My bookings
+        </a>
+      </div>
+    );
+  }
 
   if (!booking) {
     return (
@@ -459,7 +442,7 @@ export default function BookingDetailsPage() {
               <div className="font-black text-[#082046] text-sm">{booking.partner.name}</div>
               <div className="flex items-start gap-1.5 text-[#526987] font-medium">
                 <MapPin className="h-4 w-4 text-[#0e7bf4] shrink-0 mt-0.5" />
-                <span>{booking.partner.address}, {booking.partner.city}</span>
+                <span>{[booking.partner.address, booking.partner.city].filter(Boolean).join(', ')}</span>
               </div>
             </div>
             <div className="pt-2 flex items-center gap-3">

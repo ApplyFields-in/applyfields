@@ -44,11 +44,11 @@ import {
   User,
   UserCheck,
   UserPlus,
-  Wand2,
   X,
   Award,
   Banknote,
   Briefcase,
+  Camera,
 } from 'lucide-react';
 import {
   CompetitiveExamScoresCard,
@@ -162,6 +162,8 @@ export default function ProfilePage() {
   // Avatar states
   const [avatarUrl, setAvatarUrl] = useState<string>('pixel-scholar');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoSaving, setPhotoSaving] = useState(false);
 
   // Form states - Personal details
   const [fullName, setFullName] = useState('');
@@ -618,21 +620,57 @@ export default function ProfilePage() {
     await apiPut<UserProfile>('/me/profile', { special_conditions: updated });
   }
 
-  // Pixel avatar selector
-  async function handleSelectAvatar(newAvatarId: string) {
+  // Profile picture: a pixel character id, or an uploaded photo stored as a data URL.
+  async function handleSelectAvatar(newAvatarId: string, message = 'Profile picture updated.') {
+    const previous = avatarUrl;
     setAvatarUrl(newAvatarId);
-    setShowAvatarModal(false);
-
+    setPhotoError(null);
+    setPhotoSaving(true);
     const res = await apiPut<UserProfile>('/me/profile', { avatar_url: newAvatarId });
+    setPhotoSaving(false);
     if (res.data) {
       setProfile(res.data);
+      setShowAvatarModal(false);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('auth-changed'));
       }
-      setSaveSuccess('Pixel avatar updated successfully!');
+      setSaveSuccess(message);
       setTimeout(() => setSaveSuccess(null), 3000);
+    } else {
+      setAvatarUrl(previous);
+      setPhotoError(res.error || 'Could not save your picture. Please try again.');
     }
   }
+
+  const MAX_PHOTO_BYTES = 50 * 1024;
+
+  async function handlePhotoUpload(file: File | undefined) {
+    if (!file) return;
+    setPhotoError(null);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setPhotoError('Please choose a JPG, PNG or WebP photo.');
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setPhotoError(
+        `This photo is ${Math.ceil(file.size / 1024)} KB. It must be 50 KB or smaller. Tip: crop it, or shrink it with a free tool like squoosh.app, then try again.`,
+      );
+      return;
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    }).catch(() => null);
+    if (!dataUrl) {
+      setPhotoError('Could not read that file. Please try another photo.');
+      return;
+    }
+    await handleSelectAvatar(dataUrl, 'Profile photo uploaded.');
+  }
+
+  const hasUploadedPhoto = /^(data:image\/|https:\/\/)/.test(avatarUrl);
 
   // Education handlers
   function openAddEducation() {
@@ -1019,9 +1057,12 @@ export default function ProfilePage() {
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm">
             {/* Avatar Circle with Initials or Pixel Avatar */}
             <div
-              onClick={() => setShowAvatarModal(true)}
+              onClick={() => {
+                setPhotoError(null);
+                setShowAvatarModal(true);
+              }}
               className="relative group cursor-pointer inline-block"
-              title="Click to change avatar"
+              title="Change profile picture (upload a photo or pick a character)"
             >
               {avatarUrl && avatarUrl !== 'pixel-scholar' ? (
                 <div className="size-16 rounded-full overflow-hidden border-2 border-blue-200 shadow-xs flex items-center justify-center bg-blue-50">
@@ -1033,9 +1074,19 @@ export default function ProfilePage() {
                 </div>
               )}
               <div className="absolute -bottom-1 -right-1 size-6 rounded-full bg-[#0e7bf4] text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
-                <Wand2 className="size-3" />
+                <Camera className="size-3" />
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPhotoError(null);
+                setShowAvatarModal(true);
+              }}
+              className="mt-2 block text-xs font-semibold text-[#0e7bf4] hover:underline"
+            >
+              {hasUploadedPhoto ? 'Change photo' : 'Add profile photo'}
+            </button>
 
             {/* User Name */}
             <h2 className="text-xl font-bold text-slate-900 mt-4 tracking-tight">
@@ -2131,27 +2182,78 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* MODAL: 10 Pixel Avatars Selector */}
+      {/* MODAL: profile picture (upload a photo, or pick one of 10 pixel characters) */}
       {showAvatarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xl">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="avatar-modal-title"
+            className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xl max-h-[90vh] overflow-y-auto"
+          >
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Select Your Pixel Character</h3>
-                <p className="text-xs text-slate-500">
-                  Pick one of 10 retro pixel characters for your citizen profile.
-                </p>
-              </div>
+              <h3 id="avatar-modal-title" className="text-lg font-bold text-slate-900">
+                Change profile picture
+              </h3>
               <button
                 type="button"
                 onClick={() => setShowAvatarModal(false)}
+                aria-label="Close"
                 className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
               >
                 <X className="size-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 max-h-[60vh] overflow-y-auto p-1">
+            {/* Option 1: upload your own photo */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-bold text-slate-900">1. Upload your photo</p>
+              <ul className="mt-1 list-disc pl-5 text-xs text-slate-600 space-y-0.5">
+                <li>JPG, PNG or WebP</li>
+                <li>
+                  <strong>50 KB or smaller</strong> (a cropped passport-size photo usually fits)
+                </li>
+                <li>A clear photo of your face works best</li>
+              </ul>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {hasUploadedPhoto && <PixelAvatar avatarId={avatarUrl} size={48} />}
+                <label
+                  className={`inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0c6fdc] ${photoSaving ? 'pointer-events-none opacity-60' : ''}`}
+                >
+                  <Camera className="size-4" aria-hidden="true" />
+                  {photoSaving ? 'Saving…' : hasUploadedPhoto ? 'Choose a different photo' : 'Choose photo'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    onChange={(e) => {
+                      void handlePhotoUpload(e.target.files?.[0]);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                {hasUploadedPhoto && (
+                  <button
+                    type="button"
+                    disabled={photoSaving}
+                    onClick={() => handleSelectAvatar('pixel-scholar', 'Photo removed.')}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden="true" /> Remove photo
+                  </button>
+                )}
+              </div>
+              {photoError && (
+                <p role="alert" className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                  {photoError}
+                </p>
+              )}
+            </div>
+
+            {/* Option 2: pick a character */}
+            <p className="mt-5 mb-2 text-sm font-bold text-slate-900">2. Or pick a character</p>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-1">
+
               {PIXEL_AVATARS.map((item) => (
                 <button
                   key={item.id}

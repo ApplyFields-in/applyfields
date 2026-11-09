@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useAuth } from '@/lib/auth-context';
 import { ShieldCheck, User, FileText, Check, UploadCloud } from 'lucide-react';
 
 export interface PanIntakeData {
@@ -27,6 +28,7 @@ export function PanCardIntakeForm({
   onChange,
   onValidationChange,
 }: PanCardIntakeFormProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState<PanIntakeData>({
     applicationType: initialData?.applicationType || 'new_pan_citizen',
     fullName: initialData?.fullName || '',
@@ -60,16 +62,12 @@ export function PanCardIntakeForm({
   }
 
   function handleVaultAutofill() {
+    // Only the signed-in user's own account details; the rest the user types.
     const autofilled: PanIntakeData = {
       ...formData,
-      fullName: 'Arvind V. Kumar',
-      fatherName: 'Venkata Raman Kumar',
-      dateOfBirth: '1998-05-14',
-      gender: 'male',
-      mobileNumber: '+91 98765 43210',
-      email: 'arvind.kumar@example.com',
-      identityProofType: 'Aadhaar Card (Verified in Vault)',
-      addressProofType: 'Aadhaar Card (Verified in Vault)',
+      fullName: user?.full_name || formData.fullName,
+      mobileNumber: user?.phone || formData.mobileNumber,
+      email: user?.email || formData.email,
       autofilledFromVault: true,
     };
     setFormData(autofilled);
