@@ -389,6 +389,61 @@ export class NotificationsService {
     return created;
   }
 
+  /**
+   * "Remind me when applications open" (Plus): pending `reminders` rows whose job's application_start has
+   * arrived. Reads the job's current date (a corrigendum that moves it is honoured). Users whose Plus lapsed
+   * are skipped and their reminder cancelled. Safe to run any number of times (dedupe key + status).
+   */
+  async runOpenReminders(today = todayIst()): Promise<number> {
+    const pending = await this.prisma.reminders.findMany({
+      where: { status: 'pending', item_type: 'opportunity' },
+      select: { user_id: true, item_id: true },
+    });
+    if (pending.length === 0) return 0;
+    const opps = await this.prisma.opportunities.findMany({
+      where: { id: { in: [...new Set(pending.map((r) => r.item_id))] }, status: 'published', application_start: { lte: today } },
+      select: { id: true, slug: true, type: true, title: true, application_start: true, application_end: true },
+    });
+    if (opps.length === 0) return 0;
+
+    const dueUsers = [...new Set(pending.filter((r) => opps.some((o) => o.id === r.item_id)).map((r) => r.user_id))];
+    const subs = await this.prisma.subscriptions.findMany({
+      where: { user_id: { in: dueUsers }, status: 'active', OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }] },
+      select: { user_id: true },
+    });
+    const plus = new Set(subs.map((s) => s.user_id));
+
+    let created = 0;
+    for (const o of opps) {
+      const users = pending.filter((r) => r.item_id === o.id).map((r) => r.user_id);
+      const send = users.filter((u) => plus.has(u));
+      if (send.length) {
+        created += await this.notify(
+          send,
+          {
+            type: 'closing_reminder',
+            title: `Applications are open: ${o.title}`,
+            body: `Applications opened on ${isoDate(o.application_start!)}${
+              o.application_end ? ` and close on ${isoDate(o.application_end)}` : ''
+            }. Apply on the official website.`,
+            link: opportunityPath(o.type, o.slug),
+            item_type: 'opportunity',
+            item_id: o.id,
+          },
+          () => `open_reminder:${o.id}`,
+        );
+      }
+      const now = new Date();
+      const where = { item_type: 'opportunity' as const, item_id: o.id, status: 'pending' as const };
+      await this.prisma.reminders.updateMany({ where: { ...where, user_id: { in: send } }, data: { status: 'sent', sent_at: now, updated_at: now } });
+      await this.prisma.reminders.updateMany({
+        where: { ...where, user_id: { in: users.filter((u) => !plus.has(u)) } },
+        data: { status: 'cancelled', updated_at: now },
+      });
+    }
+    return created;
+  }
+
   /* ------------------------------------------------------------------ email queue */
 
   /** Starts sending queued emails in the background; a call while sending runs one more pass after. */
@@ -809,7 +864,7 @@ export class NotificationsService {
         body = topOpp
           ? `Have you seen this career option: ${topOpp.title}? ${topOpp.vacancies_total ? `${topOpp.vacancies_total} posts announced.` : ''} Check eligibility & dates.`
           : 'Explore top government recruitments and competitive admissions open today.';
-        link = topOpp ? opportunityPath(topOpp.type, topOpp.slug) : '/apply/jobs';
+        link = topOpp ? opportunityPath(topOpp.type, topOpp.slug) : '/jobs';
         itemId = topOpp?.id;
       } else if (slot === 'afternoon') {
         notifType = 'closing_reminder';

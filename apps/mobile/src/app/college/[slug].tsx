@@ -1,13 +1,16 @@
 /** One college: ranking, fees, placements, courses. GET /career/colleges/:slug. */
 import type { InstitutionDetail } from '@applyfields/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Badge, Button, Card, Empty, Loading, Muted, SectionTitle } from '@/components/ui';
+import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import { collegeUrl, shareLink } from '@/lib/share';
 import { useApi } from '@/lib/use-api';
 import { recordMascotEvent } from '@/services/mascot/IconManager';
 import { C, R, S, column } from '@/theme';
@@ -20,6 +23,21 @@ export default function CollegeScreen() {
     slug ? `/career/colleges/${slug}` : null,
   );
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { signedIn } = useAuth();
+  const [saved, setSaved] = useState(false);
+  const [savePending, setSavePending] = useState(false);
+
+  async function toggleSave() {
+    if (!signedIn) return router.push('/login');
+    const next = !saved;
+    setSavePending(true);
+    setSaved(next); // optimistic, reverted on error
+    const res = next ? await api.put(`/saved/institution/${slug}`) : await api.del(`/saved/institution/${slug}`);
+    if (res.error) setSaved(!next);
+    setSavePending(false);
+  }
+
   useEffect(() => {
     recordMascotEvent({ type: 'research' }); // comparing colleges
   }, [slug]);
@@ -52,6 +70,24 @@ export default function CollegeScreen() {
           <Muted>{place}</Muted>
         </View>
       ) : null}
+
+      <View style={s.actions}>
+        <Button
+          label={saved ? 'Saved' : 'Save'}
+          icon={saved ? 'bookmark' : 'bookmark-outline'}
+          variant="secondary"
+          disabled={savePending}
+          style={{ flex: 1 }}
+          onPress={toggleSave}
+        />
+        <Button
+          label="Share"
+          icon="share-social-outline"
+          variant="secondary"
+          style={{ flex: 1 }}
+          onPress={() => shareLink(data.name, collegeUrl(data.slug))}
+        />
+      </View>
 
       <Card style={s.card}>
         <SectionTitle>At a glance</SectionTitle>
@@ -167,6 +203,7 @@ const s = StyleSheet.create({
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: S.sm },
   h1: { color: C.navy, fontSize: 22, fontWeight: '800', lineHeight: 29 },
   place: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  actions: { flexDirection: 'row', gap: S.sm },
   card: { padding: S.lg },
   body: { color: C.navy, fontSize: 13.5, lineHeight: 20 },
   row: {

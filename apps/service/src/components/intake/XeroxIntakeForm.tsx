@@ -41,9 +41,7 @@ export function XeroxIntakeForm({
   onValidationChange,
 }: XeroxIntakeFormProps) {
   const [files, setFiles] = useState<XeroxUploadedFile[]>(
-    initialData?.files || [
-      { id: 'f-1', name: 'Application_Document_Set.pdf', sizeMb: 2.4, pageCount: 8 },
-    ],
+    initialData?.files || [],
   );
   const [printMode, setPrintMode] = useState<XeroxIntakeData['printMode']>(
     initialData?.printMode || 'black_and_white',
@@ -100,10 +98,16 @@ export function XeroxIntakeForm({
       id: `file-${Date.now()}-${idx}`,
       name: file.name,
       sizeMb: Number((file.size / (1024 * 1024)).toFixed(1)),
-      // Random realistic page count between 4 and 25 for demonstration
-      pageCount: Math.floor(Math.random() * 18) + 4,
+      // ponytail: the citizen types the page count (no PDF parser in the browser); add pdf.js if it matters.
+      pageCount: 1,
     }));
     const nextFiles = [...files, ...newItems];
+    setFiles(nextFiles);
+    broadcast({ files: nextFiles });
+  }
+
+  function setPages(id: string, pages: number) {
+    const nextFiles = files.map((f) => (f.id === id ? { ...f, pageCount: Math.max(1, Math.min(999, pages || 1)) } : f));
     setFiles(nextFiles);
     broadcast({ files: nextFiles });
   }
@@ -156,7 +160,7 @@ export function XeroxIntakeForm({
                 Click or drag &amp; drop PDF documents here
               </p>
               <p className="text-[11px] text-slate-500 mt-0.5 font-medium">
-                Supports PDF, DOCX, JPG up to 50MB per file with automatic page detection
+                Pick the files to estimate the cost, then enter each file&apos;s page count. Bring them on a pen drive or share them below from your Document Locker.
               </p>
             </div>
           </div>
@@ -173,9 +177,18 @@ export function XeroxIntakeForm({
                 <div className="flex items-center gap-2.5 overflow-hidden">
                   <FileText className="h-4 w-4 text-[#0E7BF4] shrink-0" />
                   <span className="font-semibold text-[#082046] truncate max-w-xs">{file.name}</span>
-                  <span className="rounded-md bg-white border border-slate-200 px-1.5 py-0.5 text-[10px] text-slate-600 font-mono font-medium">
-                    {file.pageCount} pages · {file.sizeMb} MB
-                  </span>
+                  <label className="flex items-center gap-1 text-[10px] text-slate-600 font-medium">
+                    <input
+                      type="number"
+                      min={1}
+                      max={999}
+                      value={file.pageCount}
+                      onChange={(e) => setPages(file.id, Number(e.target.value))}
+                      aria-label={`Pages in ${file.name}`}
+                      className="w-14 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono"
+                    />
+                    pages · {file.sizeMb} MB
+                  </label>
                 </div>
                 <button
                   type="button"

@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { deleteCollegeAction } from '@/lib/actions';
 import { CollegeFormModal } from './college-form-modal';
+import { WEB_URL } from '@/lib/api';
 
 interface CollegesTableClientProps {
   colleges: InstitutionSummary[];
@@ -60,6 +61,7 @@ export function CollegesTableClient({
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCollege, setSelectedCollege] = useState<InstitutionSummary | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const openCreateModal = () => {
     setSelectedCollege(null);
@@ -75,12 +77,13 @@ export function CollegesTableClient({
     const confirmText = `Are you sure you want to permanently delete "${college.name}"? This action cannot be undone.`;
     if (!window.confirm(confirmText)) return;
 
+    setDeleteError(null);
     startTransition(async () => {
       const res = await deleteCollegeAction(college.id);
       if (res.ok) {
         router.refresh();
       } else {
-        alert(res.error || 'Failed to delete college.');
+        setDeleteError(`Could not delete "${college.name}": ${res.error || 'unknown error'}`);
       }
     });
   };
@@ -119,6 +122,11 @@ export function CollegesTableClient({
 
   return (
     <div className="space-y-4">
+      {deleteError && (
+        <Card tone="tea" className="p-3 text-xs font-semibold text-teal" role="alert">
+          {deleteError}
+        </Card>
+      )}
       {/* Search and Action Bar */}
       <Card className="p-4 space-y-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -325,7 +333,7 @@ export function CollegesTableClient({
                         </button>
 
                         <a
-                          href={`http://localhost:3000/career/colleges/${c.slug}`}
+                          href={`${WEB_URL}/career/colleges/${c.slug}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className={buttonClass({

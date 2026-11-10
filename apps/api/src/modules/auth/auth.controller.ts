@@ -17,6 +17,7 @@ import { jwtAccessSecret } from '../../common/jwt-secret.js';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server';
 import { AuthService, SESSION_DAYS } from './auth.service.js';
 import { PasskeysService } from './passkeys.service.js';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard, type AuthenticatedRequest } from './auth.guard.js';
 import { RegisterDto } from './dto/register.dto.js';
 import {
@@ -58,6 +59,12 @@ function cookieOpts(rememberMe?: boolean) {
 const forApp = (req: Request, refreshToken: string) =>
   req.headers['x-client'] === 'app' ? { refreshToken } : {};
 
+/**
+ * Password, code, sign-up and reset routes: 10 tries a minute per IP (the global limit is 300).
+ * Brute-forcing a password or a 6-digit code needs far more; normal people never hit it.
+ */
+const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -66,24 +73,28 @@ export class AuthController {
     private readonly passkeys: PasskeysService,
   ) {}
 
+  @Throttle(AUTH_THROTTLE)
   @Post('register')
   async register(@Body() dto: RegisterDto, @Req() req: Request) {
     const ip = req.ip || req.socket.remoteAddress;
     return this.authService.register(dto, ip);
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post('otp/send')
   @HttpCode(HttpStatus.OK)
   async sendOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendOtp(dto);
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post('otp/verify')
   @HttpCode(HttpStatus.OK)
   async verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
@@ -107,6 +118,7 @@ export class AuthController {
   }
 
   /** Password + code, step 1: checks the password and sends a code to the same email/phone. */
+  @Throttle(AUTH_THROTTLE)
   @Post('login/start')
   @HttpCode(HttpStatus.OK)
   async startPasswordLogin(@Body() dto: LoginDto) {
@@ -114,6 +126,7 @@ export class AuthController {
   }
 
   /** Password + code, step 2: issues an `mfa` session (required for /admin). */
+  @Throttle(AUTH_THROTTLE)
   @Post('login/verify')
   @HttpCode(HttpStatus.OK)
   async verifyPasswordLogin(
@@ -134,6 +147,7 @@ export class AuthController {
     return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post('login/otp')
   @HttpCode(HttpStatus.OK)
   async loginWithOtp(
@@ -154,6 +168,7 @@ export class AuthController {
     return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post(['social/login', 'social-login'])
   @HttpCode(HttpStatus.OK)
   async socialLogin(
@@ -182,6 +197,7 @@ export class AuthController {
     return this.passkeys.loginOptions();
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post('passkey/login/verify')
   @HttpCode(HttpStatus.OK)
   async passkeyLogin(
@@ -299,6 +315,7 @@ export class AuthController {
     return { success: true };
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post('password/reset')
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() dto: ResetPasswordDto) {

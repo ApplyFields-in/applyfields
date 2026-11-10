@@ -1,18 +1,14 @@
-
 """Process notification PDFs and create draft opportunities."""
 
 from datetime import date
 from typing import Any
-from app.db.repository import (
-    create_draft_for_document,
-    get_opportunity_id_for_scraped_document,
-    save_scraped_document,
-    scraped_document_exists,
-)
+
 from sqlalchemy import text
+
 from app.db import get_engine
 from app.db.repository import (
     create_draft_for_document,
+    get_opportunity_id_for_scraped_document,
     save_scraped_document,
     scraped_document_exists,
 )

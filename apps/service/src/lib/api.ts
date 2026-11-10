@@ -109,10 +109,13 @@ export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<A
   }
 }
 
-export async function apiPatch<T, B = unknown>(path: string, body?: B): Promise<ApiResponse<T>> {
+export const apiPatch = <T, B = unknown>(path: string, body?: B) => apiWrite<T, B>('PATCH', path, body);
+export const apiPut = <T, B = unknown>(path: string, body?: B) => apiWrite<T, B>('PUT', path, body);
+
+async function apiWrite<T, B = unknown>(method: 'PATCH' | 'PUT', path: string, body?: B): Promise<ApiResponse<T>> {
   try {
     const res = await send(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, () => ({
-      method: 'PATCH',
+      method,
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -150,6 +153,8 @@ export async function apiPatch<T, B = unknown>(path: string, body?: B): Promise<
 
 import type {
   BookingDetail,
+  BookingDispute,
+  CreateBookingDisputeInput,
   BookingListResponse,
   ChatMessageItem,
   CreateBookingInput,
@@ -157,6 +162,7 @@ import type {
   PartnerDirectoryResponse,
   PartnerDetail,
   SendChatMessageInput,
+  UserDocumentListResponse,
 } from '@applyfields/types';
 
 export async function listDirectoryPartners(
@@ -180,6 +186,21 @@ export async function getBookingById(
   id: string,
 ): Promise<ApiResponse<BookingDetail>> {
   return apiGet<BookingDetail>(`/bookings/${encodeURIComponent(id)}`);
+}
+
+/** Citizen: the locker documents the centre may open for this booking (replaces the set). */
+export async function shareBookingDocuments(id: string, documentIds: string[]): Promise<ApiResponse<BookingDetail>> {
+  return apiPut<BookingDetail>(`/bookings/${encodeURIComponent(id)}/documents`, { document_ids: documentIds });
+}
+
+/** 10-minute link to a document the citizen shared for this booking (centre or the citizen; logged). */
+export async function getSharedDocumentUrl(bookingId: string, shareId: string): Promise<ApiResponse<{ url: string }>> {
+  return apiGet<{ url: string }>(`/bookings/${encodeURIComponent(bookingId)}/documents/${encodeURIComponent(shareId)}`);
+}
+
+/** The signed-in citizen's Document Locker (GET /documents). */
+export async function listMyDocuments(): Promise<ApiResponse<UserDocumentListResponse>> {
+  return apiGet<UserDocumentListResponse>('/documents');
 }
 
 export async function getMyBookings(): Promise<ApiResponse<BookingListResponse>> {
@@ -212,6 +233,14 @@ export async function cancelBooking(
     `/bookings/${encodeURIComponent(id)}/cancel`,
     { reason },
   );
+}
+
+/** Raise a complaint about your own booking (goes to the ApplyFields disputes desk). */
+export async function fileBookingDispute(
+  id: string,
+  input: CreateBookingDisputeInput,
+): Promise<ApiResponse<BookingDispute>> {
+  return apiPost<BookingDispute, CreateBookingDisputeInput>(`/bookings/${encodeURIComponent(id)}/dispute`, input);
 }
 
 export async function getBookingMessages(

@@ -1,11 +1,12 @@
-﻿import datetime as dt
+import datetime as dt
 import re
+from dataclasses import dataclass
 from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
 from app.scrapers.base import BaseScraper, NoticeLink
-from dataclasses import dataclass
+
 
 @dataclass(frozen=True)
 class RelatedPdfLink:
@@ -152,7 +153,6 @@ class IsroScraper(BaseScraper):
 def is_recruitment_advertisement(title: str, url: str) -> bool:
     """Identify likely recruitment advertisements, excluding supporting documents."""
     text = f"{title} {url}".lower()
-    filename = url.split("?", 1)[0].rsplit("/", 1)[-1].lower()
 
     exclude_terms = (
         "application_form",

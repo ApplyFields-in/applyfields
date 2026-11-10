@@ -160,7 +160,7 @@ export default function SchedulePage() {
   // Add Holiday Override
   function handleAddOverride() {
     if (!newOverrideDate) {
-      alert('Please pick a date for the holiday override.');
+      showToast('Pick a date for the holiday first.');
       return;
     }
     const newHol: HolidayOverride = {

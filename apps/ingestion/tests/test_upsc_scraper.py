@@ -1,4 +1,4 @@
-﻿import datetime as dt
+import datetime as dt
 
 from app.scrapers.upsc import UPSCScraper
 

@@ -587,7 +587,6 @@ model opportunities {
   official_page_url                       String?
   apply_url                               String?
   official_website                        String?
-  related_links                           Json     @default("[]")
   application_start                       DateTime?                 @db.Date
   application_end                         DateTime?                 @db.Date
   status                                  content_status            @default(draft)

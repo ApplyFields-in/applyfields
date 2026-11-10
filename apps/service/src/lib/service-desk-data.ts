@@ -159,7 +159,15 @@ export function fromBooking(b: BookingDetail): ServiceDeskRequest {
       city: b.partner_address ?? dash,
     },
     fees: { govtFeePaise: 0, kioskFeePaise: total, platformFeePaise: 0, totalPaise: total },
-    documents: [],
+    documents: (b.shared_documents ?? []).map((d) => ({
+      id: d.share_id, // opened via GET /bookings/:id/documents/:share_id
+      name: d.title || d.document_type_code.replace(/_/g, ' '),
+      type: 'other' as const,
+      fileName: d.file_name ?? '',
+      fileSize: d.size_bytes ? `${Math.max(1, Math.round(d.size_bytes / 1024))} KB` : '',
+      url: '',
+      verified: false,
+    })),
     processingDetails: {
       portalRegNumber: b.official_app_number ?? undefined,
       acknowledgementPdfUrl: b.has_acknowledgment_slip ? 'stored' : undefined,
