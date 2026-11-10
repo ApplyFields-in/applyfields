@@ -150,7 +150,10 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
 
     expect(res.mode).toBe('deterministic');
     expect(res.intent).toBe('closing_soon');
-    expect(res.answer).toContain('Opportunities Closing Soon');
+    expect(res.answer).toContain('Closing in the next 7 days');
+    // Website paths: /exams/<slug>, never /apply/... (that 404s on the site)
+    expect(res.answer).toContain('](/exams/ssc-cgl-2026)');
+    expect(res.answer).not.toContain('/apply/');
   });
 
   it('resolves authenticated USER STATUS with saved and application counts', async () => {

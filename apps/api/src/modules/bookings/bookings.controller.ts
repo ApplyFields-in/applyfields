@@ -3,13 +3,18 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { z } from 'zod';
 import type {
+  BookingDispute,
+  CreateBookingDisputeInput,
   BookingDetail,
   BookingListResponse,
   BookingReview,
@@ -29,7 +34,10 @@ import {
   BookingsService,
   createBookingSchema,
   createReviewSchema,
+  createDisputeSchema,
+
   markFiledSchema,
+  shareDocumentsSchema,
   updateBookingStatusSchema,
 } from './bookings.service.js';
 
@@ -97,6 +105,28 @@ export class BookingsController {
     return this.bookingsService.slipUrl(req.user.userId, bookingId);
   }
 
+  /** Citizen: which locker documents the centre may open for this booking (replaces the set). */
+  @Put(':id/documents')
+  @UseGuards(AuthGuard)
+  async shareDocuments(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') bookingId: string,
+    @Body(new ZodPipe(shareDocumentsSchema)) body: z.infer<typeof shareDocumentsSchema>,
+  ): Promise<BookingDetail> {
+    return this.bookingsService.shareDocuments(req.user.userId, bookingId, body.document_ids);
+  }
+
+  /** Centre (or the citizen): 10-minute link to one shared document. */
+  @Get(':id/documents/:shareId')
+  @UseGuards(AuthGuard)
+  async sharedDocument(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') bookingId: string,
+    @Param('shareId', ParseUUIDPipe) shareId: string,
+  ): Promise<{ url: string }> {
+    return this.bookingsService.sharedDocumentUrl(req.user.userId, bookingId, shareId);
+  }
+
   @Get(':id')
   @UseGuards(OptionalAuthGuard)
   async getBooking(
@@ -108,6 +138,7 @@ export class BookingsController {
   }
 
   @Post(':id/cancel')
+  @UseGuards(AuthGuard) // was missing: req.user was undefined → 500 for everyone
   async cancelBooking(
     @Req() req: AuthenticatedRequest,
     @Param('id') bookingId: string,
@@ -116,7 +147,19 @@ export class BookingsController {
     return this.bookingsService.cancelUserBooking(req.user.userId, bookingId, reason);
   }
 
+  /** Citizen complaint about their booking → admin Disputes desk. */
+  @Post(':id/dispute')
+  @UseGuards(AuthGuard)
+  async createDispute(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') bookingId: string,
+    @Body(new ZodPipe(createDisputeSchema)) body: CreateBookingDisputeInput,
+  ): Promise<BookingDispute> {
+    return this.bookingsService.createDispute(req.user.userId, bookingId, body);
+  }
+
   @Post(':id/review')
+  @UseGuards(AuthGuard) // was missing (same 500 as cancel)
   async reviewBooking(
     @Req() req: AuthenticatedRequest,
     @Param('id') bookingId: string,

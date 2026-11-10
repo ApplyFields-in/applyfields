@@ -29,8 +29,8 @@ import {
   RotateCw,
   ZoomIn,
 } from 'lucide-react';
-import { ServiceDeskRequest, ApplicantDocument, fromBooking } from '@/lib/service-desk-data';
-import { getBookingById, getBookingSlipUrl, markBookingFiled } from '@/lib/api';
+import { ServiceDeskRequest, fromBooking } from '@/lib/service-desk-data';
+import { getBookingById, getBookingSlipUrl, getSharedDocumentUrl, markBookingFiled } from '@/lib/api';
 
 interface WorkstationClientProps {
   initialRequest: ServiceDeskRequest;
@@ -87,9 +87,24 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
   // Stepper state
   const [currentStep, setCurrentStep] = useState<number>(4); // Default to photo/sign or OTP
 
-  // Document preview modal
-  const [selectedDoc, setSelectedDoc] = useState<ApplicantDocument | null>(null);
-  const [docZoom, setDocZoom] = useState<number>(100);
+  const [openingDoc, setOpeningDoc] = useState<string | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
+
+  /** Open a shared locker file via a 10-minute signed link (tab opened inside the click so it isn't blocked). */
+  async function openSharedDoc(shareId: string) {
+    const tab = window.open('', '_blank');
+    setOpeningDoc(shareId);
+    setDocError(null);
+    const res = await getSharedDocumentUrl(request.id, shareId);
+    setOpeningDoc(null);
+    if (res.data?.url && tab) {
+      tab.opener = null;
+      tab.location.href = res.data.url;
+    } else {
+      tab?.close();
+      setDocError(res.error || 'Could not open the document.');
+    }
+  }
 
   // OTP Bridge State
   const [isOtpActive, setIsOtpActive] = useState<boolean>(request.status === 'otp_pending');
@@ -696,10 +711,16 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                 </h2>
               </div>
               <span className="text-[11px] font-bold text-slate-500">
-                {request.documents.length} verified files
+                {request.documents.length} shared by the citizen
               </span>
             </div>
 
+            {docError && (
+              <p role="alert" className="text-xs font-semibold text-rose-600">{docError}</p>
+            )}
+            {request.documents.length === 0 && (
+              <p className="text-xs text-slate-500">No documents shared. Ask the citizen to share from their Document Locker or bring originals.</p>
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {request.documents.map((doc) => (
                 <div
@@ -737,23 +758,14 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                   <div className="mt-3 flex items-center gap-2 border-t border-slate-200/60 pt-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedDoc(doc);
-                        setDocZoom(100);
-                      }}
-                      className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-white border border-slate-200 px-2 py-1 text-[11px] font-bold text-[#082046] hover:bg-slate-100 transition shadow-xs"
+                      disabled={openingDoc === doc.id}
+                      onClick={() => void openSharedDoc(doc.id)}
+                      className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-white border border-slate-200 px-2 py-1 text-[11px] font-bold text-[#082046] hover:bg-slate-100 transition shadow-xs disabled:opacity-60"
+                      title="Open in a new tab to view, download or print"
                     >
                       <Eye className="size-3" />
-                      <span>Inspect</span>
+                      <span>{openingDoc === doc.id ? 'Opening…' : 'Open'}</span>
                     </button>
-                    <a
-                      href={doc.url}
-                      download={doc.fileName}
-                      className="flex items-center justify-center gap-1 rounded-lg bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-300 transition"
-                      title="Download Asset"
-                    >
-                      <Download className="size-3" />
-                    </a>
                   </div>
                 </div>
               ))}
@@ -902,61 +914,6 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
       </div>
 
       {/* INSPECT DOCUMENT MODAL */}
-      {selectedDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-sm font-bold text-[#082046]">{selectedDoc.name}</h3>
-                <p className="text-xs text-slate-500 font-mono">{selectedDoc.fileName} · {selectedDoc.fileSize}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedDoc(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-
-            <div className="flex h-80 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 overflow-hidden relative">
-              <div className="text-center space-y-2">
-                <FileText className="mx-auto size-12 text-[#0e7bf4]" />
-                <p className="font-mono text-xs font-bold text-slate-800">{selectedDoc.fileName}</p>
-                {selectedDoc.dimensions && (
-                  <p className="text-xs text-slate-500">Dimension Standards: {selectedDoc.dimensions}</p>
-                )}
-                {selectedDoc.notes && (
-                  <p className="text-xs text-slate-600 max-w-md mx-auto">{selectedDoc.notes}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-              <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                <ShieldCheck className="size-4" />
-                Verified for Portal Compliance
-              </span>
-              <div className="flex items-center gap-2">
-                <a
-                  href={selectedDoc.url}
-                  download={selectedDoc.fileName}
-                  className="rounded-xl bg-[#082046] px-4 py-2 text-xs font-bold text-white hover:bg-[#0c2f66] transition"
-                >
-                  Download Asset
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDoc(null)}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* DEFECT & RETURN TO KIOSK MODAL */}
       {showDefectModal && (

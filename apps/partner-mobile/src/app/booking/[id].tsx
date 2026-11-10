@@ -7,6 +7,7 @@ import type { BookingDetail, BookingListResponse, BookingRequestStatus } from '@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -68,6 +69,7 @@ export default function Booking() {
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState<BookingRequestStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
 
   if (loading && !data) return <Loading />;
   if (!booking) return <Empty icon="alert-circle-outline" title="Booking not found" body="It may have been removed." />;
@@ -153,6 +155,30 @@ export default function Booking() {
               />
             </View>
           ) : null}
+        </Card>
+
+        <Card style={st.card}>
+          <SectionTitle>Documents shared by the citizen</SectionTitle>
+          {booking.shared_documents?.length ? (
+            booking.shared_documents.map((d) => (
+              <Button
+                key={d.share_id}
+                label={d.title || d.file_name || d.document_type_code.replace(/_/g, ' ')}
+                icon="document-outline"
+                variant="secondary"
+                disabled={opening === d.share_id}
+                onPress={async () => {
+                  setOpening(d.share_id);
+                  const res = await api.get<{ url: string }>(`/bookings/${booking.id}/documents/${d.share_id}`);
+                  setOpening(null);
+                  if (res.data) WebBrowser.openBrowserAsync(res.data.url).catch(() => undefined);
+                  else setError(res.error ?? 'Could not open the document.');
+                }}
+              />
+            ))
+          ) : (
+            <Muted>None shared. Ask the citizen to bring originals or share from their Document Locker.</Muted>
+          )}
         </Card>
 
         <Button

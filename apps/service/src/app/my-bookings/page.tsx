@@ -30,9 +30,9 @@ import {
   ArrowLeft,
   X,
 } from 'lucide-react';
-import type { BookingDetail } from '@applyfields/types';
+import type { BookingDetail, BookingDisputeStatus } from '@applyfields/types';
 import { useAuth } from '@/lib/auth-context';
-import { getMyBookings } from '@/lib/api';
+import { cancelBooking, fileBookingDispute, getMyBookings, sendBookingMessage } from '@/lib/api';
 import { useLanguage } from '@/lib/i18n';
 
 export type BookingStage = 'booked' | 'verified_present' | 'in_filing' | 'defective' | 'completed' | 'cancelled';
@@ -72,14 +72,35 @@ export interface CitizenBookingItem {
   requiredDocuments: string[];
   portalRegNumber?: string;
   createdAt: string;
+  partnerEmail?: string;
   dispute?: {
     id: string;
     reason: string;
     details: string;
     refundClaim: number;
-    status: 'open' | 'refund_approved' | 'dismissed';
+    status: BookingDisputeStatus;
     adminNote?: string;
     openedAt: string;
+  };
+}
+
+const DISPUTE_LABEL: Record<BookingDisputeStatus, string> = {
+  open: 'Received, waiting for review',
+  in_review: 'Being reviewed',
+  resolved: 'Resolved',
+  rejected: 'Not upheld',
+  closed: 'Closed',
+};
+
+function toDisputeView(d: NonNullable<BookingDetail['disputes']>[number]): CitizenBookingItem['dispute'] {
+  return {
+    id: d.id.slice(0, 8).toUpperCase(),
+    reason: d.reason,
+    details: d.details,
+    refundClaim: (d.claim_paise ?? 0) / 100,
+    status: d.status,
+    adminNote: d.resolution_note ?? undefined,
+    openedAt: new Date(d.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
   };
 }
 
@@ -122,6 +143,8 @@ function fromApi(b: BookingDetail): CitizenBookingItem {
     requiredDocuments: [],
     portalRegNumber: b.official_app_number ?? undefined,
     createdAt: b.created_at,
+    partnerEmail: b.partner_email ?? undefined,
+    dispute: b.disputes?.[0] ? toDisputeView(b.disputes[0]) : undefined,
   };
 }
 
@@ -138,8 +161,10 @@ export default function MyBookingsPage() {
   const [selectedSlipBooking, setSelectedSlipBooking] = useState<CitizenBookingItem | null>(null);
   const [slipPrintFormat, setSlipPrintFormat] = useState<'a4' | 'thermal'>('a4');
   const [correctingBooking, setCorrectingBooking] = useState<CitizenBookingItem | null>(null);
-  const [uploadFileName, setUploadFileName] = useState('');
+  const [correctionText, setCorrectionText] = useState('');
   const [uploadSuccessMessage, setUploadSuccessMessage] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   // Dispute & Refund Arbitration
   const [disputingBooking, setDisputingBooking] = useState<CitizenBookingItem | null>(null);
@@ -166,82 +191,79 @@ export default function MyBookingsPage() {
     setTimeout(() => setCopiedToken(null), 2000);
   }
 
-  // 1-Click WhatsApp Share formatted message (NO EMOJIS)
-  function handleWhatsAppShare(b: CitizenBookingItem) {
-    const textLines = [
-      'ApplyFields Appointment Token Slip',
-      `Token Number: ${b.token}`,
-      `Security Presence PIN: ${b.securityPin}`,
-      `Candidate: ${b.candidateName}`,
-      `Slot: ${b.slotDate} (${b.slotTime})`,
-      `Center: ${b.partner.name}`,
-      `Address: ${b.partner.address}, ${b.partner.city}`,
+  // Email the booking details (to yourself or anyone): opens the user's own mail app.
+  function handleEmailShare(b: CitizenBookingItem) {
+    const lines = [
+      'ApplyFields appointment',
+      `Token: ${b.token}`,
+      `Time: ${b.slotDate}${b.slotTime ? ` (${b.slotTime})` : ''}`,
+      `Centre: ${b.partner.name}`,
+      b.partner.address ? `Address: ${b.partner.address}` : '',
       `Services: ${b.items.map((i) => i.title).join(', ')}`,
-      `Total Fee: INR ${b.total}.00 (${b.isPaid ? 'Paid' : 'Pay at Counter'})`,
-      `Required Documents: ${b.requiredDocuments.join(', ')}`,
-      `Google Maps: ${b.partner.googleMapsUrl || 'https://maps.google.com'}`,
-      `Digital Slip URL: https://service.applyfields.in/bookings/${b.id}`,
-    ];
-
-    const message = encodeURIComponent(textLines.join('\n'));
-    window.open(`https://wa.me/?text=${message}`, '_blank');
+      `Fee: INR ${b.total} (${b.isPaid ? 'Paid' : 'Pay at the counter'})`,
+      `Slip: https://service.applyfields.in/bookings/${b.id}`,
+    ].filter(Boolean);
+    window.location.href = `mailto:?subject=${encodeURIComponent(`ApplyFields appointment ${b.token}`)}&body=${encodeURIComponent(lines.join('\n'))}`;
   }
 
-  // Defect Loop: Upload replacement document
-  function handleResolveCorrection(e: React.FormEvent) {
+  // Cancel a booking that hasn't started yet (POST /bookings/:id/cancel).
+  async function handleCancel(b: CitizenBookingItem) {
+    if (!window.confirm(`Cancel booking ${b.token} at ${b.partner.name}?`)) return;
+    setActionError(null);
+    setBusyId(b.id);
+    const res = await cancelBooking(b.id, 'Cancelled by citizen');
+    setBusyId(null);
+    if (!res.data) {
+      setActionError(res.error || 'Could not cancel. Please contact the centre.');
+      return;
+    }
+    setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, status: 'cancelled' } : x)));
+  }
+
+  // Corrections go to the centre's operator as a chat message on this booking.
+  async function handleResolveCorrection(e: React.FormEvent) {
     e.preventDefault();
-    if (!correctingBooking || !uploadFileName) return;
-
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === correctingBooking.id
-          ? {
-              ...b,
-              status: 'in_filing',
-              defectReason: undefined,
-              correctionUploaded: true,
-            }
-          : b
-      )
-    );
-
+    if (!correctingBooking || correctionText.trim().length < 3) return;
+    setActionError(null);
+    const res = await sendBookingMessage(correctingBooking.id, {
+      message: `Correction from the applicant: ${correctionText.trim()}`,
+      sender_type: 'citizen',
+      sender_name: user?.full_name || 'Applicant',
+    });
+    if (!res.data) {
+      setActionError(res.error || 'Could not send your correction. Please try again.');
+      return;
+    }
+    setBookings((prev) => prev.map((b) => (b.id === correctingBooking.id ? { ...b, correctionUploaded: true } : b)));
     setUploadSuccessMessage(true);
     setTimeout(() => {
       setUploadSuccessMessage(false);
       setCorrectingBooking(null);
-      setUploadFileName('');
-    }, 1200);
+      setCorrectionText('');
+    }, 1500);
   }
 
-  // Handle filing citizen grievance / dispute
-  function handleFileDispute(e: React.FormEvent) {
+  // Complaint → ApplyFields disputes desk (POST /bookings/:id/dispute).
+  async function handleFileDispute(e: React.FormEvent) {
     e.preventDefault();
-    if (!disputingBooking || !disputeDetails.trim()) return;
-
-    const newDispute = {
-      id: `DSP-${Math.floor(1000 + Math.random() * 9000)}`,
+    if (!disputingBooking || disputeDetails.trim().length < 10) return;
+    setActionError(null);
+    const claim = disputeClaimAmount || disputingBooking.total;
+    const res = await fileBookingDispute(disputingBooking.id, {
       reason: disputeReason,
       details: disputeDetails.trim(),
-      refundClaim: disputeClaimAmount || disputingBooking.total,
-      status: 'open' as const,
-      openedAt: 'Today',
-    };
-
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === disputingBooking.id
-          ? {
-              ...b,
-              dispute: newDispute,
-            }
-          : b,
-      ),
-    );
-
-    setDisputeSuccessToast(`Grievance Case #${newDispute.id} registered. Our Admin Arbitration Desk will review and arbitrate within 24 hours.`);
+      claim_paise: claim > 0 ? Math.round(claim * 100) : undefined,
+    });
+    if (!res.data) {
+      setActionError(res.error || 'Could not send your complaint. Please try again.');
+      return;
+    }
+    const view = toDisputeView(res.data);
+    setBookings((prev) => prev.map((b) => (b.id === disputingBooking.id ? { ...b, dispute: view } : b)));
+    setDisputeSuccessToast(`Complaint received (ref ${view?.id}). Our team will review it and notify you.`);
     setDisputingBooking(null);
     setDisputeDetails('');
-    setTimeout(() => setDisputeSuccessToast(null), 5000);
+    setTimeout(() => setDisputeSuccessToast(null), 6000);
   }
 
   const filteredBookings = useMemo(() => {
@@ -562,7 +584,7 @@ export default function MyBookingsPage() {
                         type="button"
                         onClick={() => {
                           setCorrectingBooking(b);
-                          setUploadFileName('');
+                          setCorrectionText('');
                         }}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-rose-700 px-4 py-2 text-xs font-bold text-white hover:bg-rose-800 transition shadow-sm"
                       >
@@ -589,22 +611,24 @@ export default function MyBookingsPage() {
                 {/* Dispute / Grievance Status Banner */}
                 {b.dispute && (
                   <div className={`my-3 rounded-2xl border p-3.5 text-xs space-y-1.5 ${
-                    b.dispute.status === 'open'
+                    b.dispute.status === 'open' || b.dispute.status === 'in_review'
                       ? 'border-amber-200 bg-amber-50 text-amber-900'
-                      : b.dispute.status === 'refund_approved'
+                      : b.dispute.status === 'resolved'
                         ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
                         : 'border-slate-200 bg-slate-50 text-slate-800'
                   }`}>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-bold uppercase tracking-wider text-[10px]">
-                        Grievance Case #{b.dispute.id} - {b.dispute.status === 'open' ? 'Under Admin Arbitration' : b.dispute.status === 'refund_approved' ? 'Refund Credited' : 'Resolved'}
+                        Complaint {b.dispute.id} · {DISPUTE_LABEL[b.dispute.status]}
                       </span>
-                      <span className="font-mono font-bold">Claim: INR {b.dispute.refundClaim}.00</span>
+                      {b.dispute.refundClaim > 0 && (
+                        <span className="font-mono font-bold">Asked back: INR {b.dispute.refundClaim}</span>
+                      )}
                     </div>
                     <p className="font-medium text-slate-700">{b.dispute.reason}: {b.dispute.details}</p>
                     {b.dispute.adminNote && (
-                      <p className="pt-1 text-[11px] border-t border-slate-200 italic text-slate-600">
-                        Admin Verdict: {b.dispute.adminNote}
+                      <p className="pt-1 text-[11px] border-t border-slate-200 text-slate-700">
+                        <strong>ApplyFields reply:</strong> {b.dispute.adminNote}
                       </p>
                     )}
                   </div>
@@ -663,16 +687,54 @@ export default function MyBookingsPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* 1-Click WhatsApp Share */}
+                    {/* Email the details (opens the user's mail app) */}
                     <button
                       type="button"
-                      onClick={() => handleWhatsAppShare(b)}
+                      onClick={() => handleEmailShare(b)}
                       className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition"
-                      title="Share token slip details on WhatsApp"
+                      title="Email these booking details"
                     >
                       <Share2 className="h-3.5 w-3.5 text-[#0e7bf4]" />
-                      <span>{t('shareWhatsApp')}</span>
+                      <span>Email details</span>
                     </button>
+
+                    {b.partnerEmail && (
+                      <a
+                        href={`mailto:${b.partnerEmail}?subject=${encodeURIComponent(`Appointment ${b.token}`)}`}
+                        className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 text-[#0e7bf4]" />
+                        <span>Email centre</span>
+                      </a>
+                    )}
+
+                    {/* Correction → message to the centre (active bookings only) */}
+                    {b.status !== 'completed' && b.status !== 'cancelled' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCorrectingBooking(b);
+                          setCorrectionText('');
+                        }}
+                        className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition"
+                      >
+                        <Upload className="h-3.5 w-3.5 text-[#0e7bf4]" />
+                        <span>Send a correction</span>
+                      </button>
+                    )}
+
+                    {/* Cancel (only before the centre starts work) */}
+                    {b.status === 'booked' && (
+                      <button
+                        type="button"
+                        disabled={busyId === b.id}
+                        onClick={() => void handleCancel(b)}
+                        className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition disabled:opacity-50"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        <span>{busyId === b.id ? 'Cancelling…' : 'Cancel booking'}</span>
+                      </button>
+                    )}
 
                     {/* Chat with Center */}
                     <Link
@@ -684,7 +746,7 @@ export default function MyBookingsPage() {
                     </Link>
 
                     {/* Raise Grievance / Dispute Button */}
-                    {!b.dispute && (
+                    {(!b.dispute || ['resolved', 'rejected', 'closed'].includes(b.dispute.status)) && b.status !== 'booked' && (
                       <button
                         type="button"
                         onClick={() => {
@@ -696,7 +758,7 @@ export default function MyBookingsPage() {
                         className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition"
                       >
                         <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
-                        <span>Raise Grievance</span>
+                        <span>Report a problem</span>
                       </button>
                     )}
 
@@ -899,7 +961,7 @@ export default function MyBookingsPage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-rose-600" />
-                <h3 className="text-base font-bold text-[#082046]">Upload Corrected Document</h3>
+                <h3 className="text-base font-bold text-[#082046]">Send a correction to the centre</h3>
               </div>
               <button
                 type="button"
@@ -910,44 +972,40 @@ export default function MyBookingsPage() {
               </button>
             </div>
 
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-900 space-y-1">
-              <span className="font-bold block uppercase text-[10px] text-rose-800">Operator Correction Request</span>
-              <p className="leading-relaxed">{correctingBooking.defectReason}</p>
-            </div>
+            {correctingBooking.defectReason && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-900 space-y-1">
+                <span className="font-bold block uppercase text-[10px] text-rose-800">What the centre asked for</span>
+                <p className="leading-relaxed">{correctingBooking.defectReason}</p>
+              </div>
+            )}
 
             {uploadSuccessMessage ? (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center text-xs font-bold text-emerald-800 space-y-2">
                 <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
-                <p className="text-sm">Replacement Document Uploaded Successfully</p>
+                <p className="text-sm">Sent to {correctingBooking.partner.name}</p>
                 <p className="text-emerald-700 font-normal">
-                  Transmitted directly to operator workstation. Your application status is now back in filing.
+                  The operator sees it in your booking chat. Open the booking to follow up or attach a document.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleResolveCorrection} className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-xs font-bold text-[#082046] mb-1.5">
-                    Select Replacement Document (PDF, JPEG, or PNG)
+                  <label htmlFor="correction-text" className="block text-xs font-bold text-[#082046] mb-1.5">
+                    What should the centre correct?
                   </label>
-                  <div className="relative rounded-2xl border-2 border-dashed border-[#d5deea] bg-slate-50/80 p-6 text-center hover:border-[#0e7bf4] transition cursor-pointer">
-                    <Upload className="h-6 w-6 text-slate-400 mx-auto mb-2" />
-                    <p className="text-xs font-bold text-[#082046]">
-                      {uploadFileName ? uploadFileName : 'Click to browse or drop file here'}
+                  <textarea
+                    id="correction-text"
+                    rows={4}
+                    value={correctionText}
+                    onChange={(e) => setCorrectionText(e.target.value)}
+                    placeholder="e.g. My father's name is spelled wrong: it should be 'Venkata Rao', not 'Venkat Rao'."
+                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#0e7bf4] focus:outline-none"
+                  />
+                  {actionError && (
+                    <p role="alert" className="mt-1 text-[11px] font-semibold text-red-700">
+                      {actionError}
                     </p>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Max 2MB - 200+ DPI recommended
-                    </p>
-                    <input
-                      type="file"
-                      required
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setUploadFileName(file.name);
-                      }}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
-                  </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
@@ -960,11 +1018,11 @@ export default function MyBookingsPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={!uploadFileName}
+                    disabled={correctionText.trim().length < 3}
                     className="inline-flex items-center gap-1.5 rounded-xl bg-[#082046] px-4 py-2 text-xs font-bold text-white hover:bg-[#0c2f66] disabled:opacity-50 transition"
                   >
                     <Upload className="h-4 w-4" />
-                    <span>Submit to Operator</span>
+                    <span>Send to centre</span>
                   </button>
                 </div>
               </form>
@@ -979,7 +1037,7 @@ export default function MyBookingsPage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-rose-600" />
-                <h3 className="text-base font-bold text-[#082046]">File Grievance / Refund Dispute</h3>
+                <h3 className="text-base font-bold text-[#082046]">Report a problem with this booking</h3>
               </div>
               <button
                 type="button"
@@ -1032,27 +1090,33 @@ export default function MyBookingsPage() {
 
               <div>
                 <label className="block text-xs font-bold text-[#082046] mb-1">
-                  Claimed Refund Amount (INR)
+                  Amount you want back (INR, optional)
                 </label>
                 <input
                   type="number"
-                  min={1}
-                  max={disputingBooking.total}
+                  min={0}
+                  max={disputingBooking.total || undefined}
                   value={disputeClaimAmount || disputingBooking.total}
                   onChange={(e) => setDisputeClaimAmount(Number(e.target.value))}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-mono font-bold text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
                 />
                 <span className="text-[11px] text-slate-400 mt-0.5 block">
-                  Maximum refundable: INR {disputingBooking.total}.00 (held in escrow until arbitrated)
+                  Leave 0 if you aren&apos;t asking for money back.
                 </span>
               </div>
 
               <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-amber-900 space-y-0.5">
-                <p className="font-bold">Consumer Protection Notice:</p>
+                <p className="font-bold">What happens next</p>
                 <p>
-                  Upon filing, the partner center's settlement payout for this order is paused in escrow. ApplyFields arbitration staff will review the counter logs and issue a binding decision within 24 hours.
+                  The ApplyFields team checks with the centre and replies to you with a notification. Any refund is
+                  arranged by our team.
                 </p>
               </div>
+              {actionError && (
+                <p role="alert" className="text-[11px] font-semibold text-red-700">
+                  {actionError}
+                </p>
+              )}
 
               <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
                 <button
@@ -1064,10 +1128,11 @@ export default function MyBookingsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={!disputeDetails.trim()}
+                  disabled={disputeDetails.trim().length < 10}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50 transition shadow-sm"
                 >
-                  <span>Submit to Arbitration</span>
+                  <span>Send complaint</span>
+
                 </button>
               </div>
             </form>

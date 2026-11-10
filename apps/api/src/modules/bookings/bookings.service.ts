@@ -7,6 +7,11 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type {
+  AdminBookingDispute,
+  BookingDispute,
+  BookingDisputeStatus,
+  CreateBookingDisputeInput,
+  ResolveBookingDisputeInput,
   BookingDetail,
   BookingListResponse,
   BookingRequestEvent,
@@ -72,6 +77,21 @@ export function decodeSlip(base64: string, mime: keyof typeof SLIP_TYPES): Buffe
   return buf;
 }
 
+export const createDisputeSchema = z.object({
+  reason: z.string().trim().min(3).max(120),
+  details: z.string().trim().min(10, 'Please describe what happened (at least 10 characters).').max(2000),
+  claim_paise: z.number().int().min(0).max(10_000_000).optional(),
+});
+
+export const resolveDisputeSchema = z.object({
+  status: z.enum(['in_review', 'resolved', 'rejected']),
+  note: z.string().trim().min(3, 'Add a short note for the citizen.').max(2000),
+});
+
+/** Disputes live in support_tickets: category = this, subject = `booking:<id>`, internal_notes[0] = the claim. */
+const DISPUTE_CATEGORY = 'booking_dispute';
+type DisputeNote = { reason?: string; claim_paise?: number | null; status?: string; note?: string; by?: string | null; at?: string };
+
 export const createReviewSchema = z.object({
   rating: z.number().int().min(1).max(5),
   comment: z.string().trim().max(500).optional(),
@@ -84,6 +104,7 @@ export const LEAN_BOOKING_INCLUDE = {
       business_name: true,
       slug: true,
       phone: true,
+      email: true,
       address: true,
       city: true,
       district: true,
@@ -117,7 +138,26 @@ export const LEAN_BOOKING_INCLUDE = {
       created_at: true,
     },
   },
+  // Expiry is checked in mapToDetail (a `new Date()` here would freeze at module load).
+  document_shares: {
+    where: { revoked_at: null, user_documents: { deleted_at: null } },
+    orderBy: { created_at: 'asc' as const },
+    select: {
+      id: true,
+      expires_at: true,
+      user_documents: {
+        select: { document_type_code: true, title: true, file_name: true, mime_type: true, size_bytes: true },
+      },
+    },
+  },
 } as const;
+
+export const shareDocumentsSchema = z.object({
+  document_ids: z.array(z.string().uuid()).max(15),
+});
+
+/** Shares last until a week after the appointment (or a week from now for walk-ins / past dates). */
+export const SHARE_GRACE_MS = 7 * 86_400_000;
 
 @Injectable()
 export class BookingsService {
@@ -191,9 +231,156 @@ export class BookingsService {
       include: LEAN_BOOKING_INCLUDE,
     });
 
+    // The citizen's own complaints, attached to their bookings.
+    const tickets = rows.length
+      ? await this.prisma.support_tickets.findMany({
+          where: { user_id: userId, category: DISPUTE_CATEGORY },
+          orderBy: { created_at: 'desc' },
+        })
+      : [];
+    const disputesByBooking = new Map<string, BookingDispute[]>();
+    for (const t of tickets) {
+      const d = this.toDispute(t);
+      disputesByBooking.set(d.booking_id, [...(disputesByBooking.get(d.booking_id) ?? []), d]);
+    }
+
     return {
       total: rows.length,
-      items: rows.map((r) => this.mapToDetail(r)),
+      items: rows.map((r) => ({ ...this.mapToDetail(r), disputes: disputesByBooking.get(r.id) ?? [] })),
+    };
+  }
+
+  /** Citizen raises a complaint about their own booking; staff handle it on the admin Disputes desk. */
+  async createDispute(userId: string, bookingId: string, input: CreateBookingDisputeInput): Promise<BookingDispute> {
+    const booking = await this.prisma.service_requests.findUnique({
+      where: { id: bookingId },
+      select: { id: true, user_id: true },
+    });
+    if (!booking || booking.user_id !== userId) {
+      throw new NotFoundException(`Booking "${bookingId}" not found`);
+    }
+    const already = await this.prisma.support_tickets.findFirst({
+      where: { user_id: userId, category: DISPUTE_CATEGORY, subject: `booking:${bookingId}`, status: { in: ['open', 'in_review'] } },
+      select: { id: true },
+    });
+    if (already) {
+      throw new BadRequestException('You already have an open complaint for this booking. We will reply there.');
+    }
+    const first: DisputeNote = { reason: input.reason, claim_paise: input.claim_paise ?? null };
+    const row = await this.prisma.support_tickets.create({
+      data: {
+        user_id: userId,
+        category: DISPUTE_CATEGORY,
+        subject: `booking:${bookingId}`,
+        message: input.details,
+        internal_notes: [first],
+      },
+    });
+    return this.toDispute(row);
+  }
+
+  async adminListDisputes(status?: string): Promise<{ total: number; items: AdminBookingDispute[] }> {
+    const statuses: BookingDisputeStatus[] = ['open', 'in_review', 'resolved', 'rejected', 'closed'];
+    const where = {
+      category: DISPUTE_CATEGORY,
+      ...(status && statuses.includes(status as BookingDisputeStatus) ? { status: status as BookingDisputeStatus } : {}),
+    };
+    const tickets = await this.prisma.support_tickets.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      take: 200,
+      include: {
+        users_support_tickets_user_idTousers: {
+          select: { email: true, phone: true, user_profiles: { select: { full_name: true } } },
+        },
+      },
+    });
+    const disputes = tickets.map((t) => this.toDispute(t));
+    const bookings = await this.prisma.service_requests.findMany({
+      where: { id: { in: [...new Set(disputes.map((d) => d.booking_id))] } },
+      select: {
+        id: true,
+        final_paise: true,
+        quoted_paise: true,
+        partners: { select: { business_name: true } },
+        partner_services: { select: { name: true } },
+      },
+    });
+    const byId = new Map(bookings.map((b) => [b.id, b]));
+    return {
+      total: disputes.length,
+      items: disputes.map((d, i) => {
+        const user = tickets[i].users_support_tickets_user_idTousers;
+        const b = byId.get(d.booking_id);
+        return {
+          ...d,
+          citizen_name: user?.user_profiles?.full_name ?? null,
+          citizen_phone: user?.phone ?? null,
+          citizen_email: user?.email ?? null,
+          partner_business_name: b?.partners?.business_name ?? null,
+          service_name: b?.partner_services?.name ?? null,
+          booking_amount_paise: b?.final_paise ?? b?.quoted_paise ?? null,
+        };
+      }),
+    };
+  }
+
+  /** Staff decision. Money is not moved here (no payments yet): a refund is recorded and paid by hand. */
+  async adminResolveDispute(actorId: string | null, id: string, input: ResolveBookingDisputeInput): Promise<BookingDispute> {
+    const ticket = await this.prisma.support_tickets.findFirst({ where: { id, category: DISPUTE_CATEGORY } });
+    if (!ticket) throw new NotFoundException('Dispute not found');
+    const notes = Array.isArray(ticket.internal_notes) ? (ticket.internal_notes as DisputeNote[]) : [];
+    const done = input.status !== 'in_review';
+    const updated = await this.prisma.support_tickets.update({
+      where: { id },
+      data: {
+        status: input.status,
+        assigned_to: actorId,
+        resolved_at: done ? new Date() : null,
+        updated_at: new Date(),
+        internal_notes: [...notes, { status: input.status, note: input.note, by: actorId, at: new Date().toISOString() }],
+      },
+    });
+    const dispute = this.toDispute(updated);
+    if (ticket.user_id && this.notifications) {
+      await this.notifications
+        .notify(
+          [ticket.user_id],
+          {
+            type: 'request_update',
+            title: done ? `Your complaint was ${input.status}` : 'Your complaint is being reviewed',
+            body: input.note,
+            link: `${(process.env.SERVICE_URL ?? 'https://service.applyfields.in').replace(/\/$/, '')}/my-bookings`,
+          },
+          () => `dispute:${id}:${input.status}:${notes.length}`,
+        )
+        .catch((err: Error) => this.logger.warn(`Dispute notify failed: ${err.message}`));
+    }
+    return dispute;
+  }
+
+  private toDispute(t: {
+    id: string;
+    subject: string;
+    message: string;
+    status: string;
+    internal_notes: unknown;
+    created_at: Date;
+    resolved_at: Date | null;
+  }): BookingDispute {
+    const notes = Array.isArray(t.internal_notes) ? (t.internal_notes as DisputeNote[]) : [];
+    const claim = notes[0] ?? {};
+    const lastDecision = [...notes].reverse().find((n) => n.note);
+    return {
+      id: t.id,
+      booking_id: t.subject.replace(/^booking:/, ''),
+      reason: claim.reason ?? 'Complaint',
+      details: t.message,
+      claim_paise: claim.claim_paise ?? null,
+      status: t.status as BookingDisputeStatus,
+      resolution_note: lastDecision?.note ?? null,
+      created_at: t.created_at.toISOString(),
+      resolved_at: t.resolved_at ? t.resolved_at.toISOString() : null,
     };
   }
 
@@ -501,6 +688,90 @@ export class BookingsService {
     return { url };
   }
 
+  /**
+   * Citizen picks which locker documents the centre may open for this booking. Replaces the set:
+   * ids left out are revoked, new ones get a share that ends a week after the appointment.
+   */
+  async shareDocuments(userId: string, bookingId: string, documentIds: string[]): Promise<BookingDetail> {
+    const booking = await this.prisma.service_requests.findUnique({
+      where: { id: bookingId },
+      select: { user_id: true, partner_id: true, appointment_at: true, status: true },
+    });
+    if (!booking || booking.user_id !== userId) throw new NotFoundException('Booking not found.');
+    if (['completed', 'cancelled', 'rejected'].includes(booking.status)) {
+      throw new BadRequestException(`This booking is already ${booking.status}.`);
+    }
+    const ids = [...new Set(documentIds)];
+    const owned = await this.prisma.user_documents.findMany({
+      where: { id: { in: ids }, user_id: userId, deleted_at: null },
+      select: { id: true },
+    });
+    if (owned.length !== ids.length) throw new BadRequestException('Some documents are not in your locker.');
+
+    const now = new Date();
+    const expires = new Date(Math.max(booking.appointment_at?.getTime() ?? 0, now.getTime()) + SHARE_GRACE_MS);
+    const active = await this.prisma.document_shares.findMany({
+      where: { service_request_id: bookingId, revoked_at: null, expires_at: { gt: now } },
+      select: { id: true, document_id: true },
+    });
+    const keep = new Set(ids);
+    const have = new Set(active.map((s) => s.document_id));
+    const revoke = active.filter((s) => !keep.has(s.document_id));
+    const add = ids.filter((id) => !have.has(id));
+
+    await this.prisma.$transaction(async (tx) => {
+      if (revoke.length) {
+        await tx.document_shares.updateMany({ where: { id: { in: revoke.map((s) => s.id) } }, data: { revoked_at: now } });
+      }
+      for (const document_id of add) {
+        const share = await tx.document_shares.create({
+          data: { document_id, owner_user_id: userId, partner_id: booking.partner_id, service_request_id: bookingId, expires_at: expires },
+          select: { id: true },
+        });
+        await tx.document_access_logs.create({
+          data: { document_id, share_id: share.id, actor_user_id: userId, partner_id: booking.partner_id, action: 'share' },
+        });
+      }
+      for (const s of revoke) {
+        await tx.document_access_logs.create({
+          data: { document_id: s.document_id, share_id: s.id, actor_user_id: userId, partner_id: booking.partner_id, action: 'revoke' },
+        });
+      }
+    });
+    return this.getUserBooking(userId, bookingId);
+  }
+
+  /** 10-minute link to one shared document: the citizen who shared it or a member of that centre. Logged. */
+  async sharedDocumentUrl(userId: string, bookingId: string, shareId: string): Promise<{ url: string }> {
+    const share = await this.prisma.document_shares.findFirst({
+      where: { id: shareId, service_request_id: bookingId, revoked_at: null, expires_at: { gt: new Date() } },
+      select: {
+        id: true,
+        owner_user_id: true,
+        partner_id: true,
+        document_id: true,
+        user_documents: { select: { storage_path: true, deleted_at: true } },
+      },
+    });
+    const isOwner = share?.owner_user_id === userId;
+    const isCentre = Boolean(share?.partner_id && (await this.isPartnerMember(userId, share.partner_id)));
+    if (!share || share.user_documents.deleted_at || (!isOwner && !isCentre)) {
+      throw new NotFoundException('This document is not shared with you.');
+    }
+    const url = this.storage
+      ? await this.storage.signedUrl(this.storage.documentsBucket, share.user_documents.storage_path, 600) // inline, so the centre can view + print
+      : null;
+    if (!url) throw new ServiceUnavailableException('The document is not available right now. Please try again.');
+    if (isCentre) {
+      await this.prisma.document_access_logs
+        .create({
+          data: { document_id: share.document_id, share_id: share.id, actor_user_id: userId, partner_id: share.partner_id, action: 'view' },
+        })
+        .catch(() => null);
+    }
+    return { url };
+  }
+
   private async isPartnerMember(userId: string, partnerId: string): Promise<boolean> {
     const m = await this.prisma.partner_members.findFirst({
       where: { user_id: userId, partner_id: partnerId },
@@ -556,6 +827,8 @@ export class BookingsService {
       partner_business_name: r.partners?.business_name ?? 'Unknown Partner',
       partner_slug: r.partners?.slug ?? '',
       partner_phone: r.partners?.phone ?? null,
+      partner_email: r.partners?.email ?? null,
+
       partner_address: r.partners?.address
         ? `${r.partners.address}, ${r.partners.city || r.partners.district || ''}`
         : null,
@@ -597,6 +870,17 @@ export class BookingsService {
               : new Date().toISOString(),
           }
         : null,
+      shared_documents: (r.document_shares || [])
+        .filter((s: any) => s.expires_at > new Date())
+        .map((s: any) => ({
+          share_id: s.id,
+          document_type_code: s.user_documents.document_type_code,
+          title: s.user_documents.title,
+          file_name: s.user_documents.file_name,
+          mime_type: s.user_documents.mime_type,
+          size_bytes: s.user_documents.size_bytes,
+          expires_at: s.expires_at.toISOString(),
+        })),
     };
   }
 }

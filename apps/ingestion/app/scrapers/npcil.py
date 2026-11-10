@@ -1,6 +1,5 @@
 
 import datetime as dt
-import re
 from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup

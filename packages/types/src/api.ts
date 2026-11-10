@@ -281,6 +281,14 @@ export interface ReviewDetail {
 }
 
 /** Complete detail for public view of an opportunity. */
+/** `opportunities.related_links` item, written by apps/ingestion (ISRO today). */
+export interface RelatedLink {
+  title: string;
+  url: string;
+  /** corrigendum | extension | application_form | interview_schedule | shortlist | answer_key | result | selection_panel | supporting_document */
+  category: string;
+}
+
 export interface OpportunityDetail {
   id: string;
   slug: string;
@@ -323,6 +331,8 @@ export interface OpportunityDetail {
   application_start: string | null;
   application_end: string | null;
   days_left: number | null;
+  /** Official supporting PDFs found next to the notification (corrigenda, forms, results…), from the scraper. */
+  related_links: RelatedLink[];
   links: {
     notification_pdf_url: string | null;
     official_page_url: string | null;
@@ -663,6 +673,15 @@ export interface SavedList {
 export interface SaveResult {
   saved: boolean;
   reminder_enabled: boolean;
+}
+
+/** GET|PUT|DELETE /saved/opportunity/:slug/open-reminder — "remind me when applications open" (Plus only). */
+export interface OpenReminderStatus {
+  /** The user has an active ApplyFields Plus subscription. */
+  plus: boolean;
+  on: boolean;
+  /** application_start (YYYY-MM-DD); the reminder is only offered while this is in the future. */
+  opens_on: string | null;
 }
 
 // ---------- Notifications (GET /notifications, /notifications/preferences) ----------
@@ -1437,6 +1456,8 @@ export interface BookingDetail {
   partner_business_name: string;
   partner_slug: string;
   partner_phone: string | null;
+  /** The centre's email, for "Email the centre" (null if they gave none). */
+  partner_email?: string | null;
   partner_address: string | null;
   partner_service_id: string | null;
   service_name: string | null;
@@ -1458,9 +1479,62 @@ export interface BookingDetail {
   updated_at: string;
   events: BookingRequestEvent[];
   review: BookingReview | null;
+  /** Complaints the citizen raised on this booking (only on GET /bookings/my). */
+  disputes?: BookingDispute[];
+  /** Locker documents the citizen shared with the centre for this booking (active shares only). */
+  shared_documents?: BookingSharedDocument[];
+}
+
+/** A citizen's locker document shared with a centre. Open it with GET /bookings/:id/documents/:share_id. */
+export interface BookingSharedDocument {
+  share_id: string;
+  document_type_code: string;
+  title: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  expires_at: string;
+}
+
+/* ---- Booking disputes (stored in support_tickets, category 'booking_dispute') ---- */
+
+export type BookingDisputeStatus = 'open' | 'in_review' | 'resolved' | 'rejected' | 'closed';
+
+export interface BookingDispute {
+  id: string;
+  booking_id: string;
+  reason: string;
+  details: string;
+  /** What the citizen asks back, in paise; null = no money claimed. */
+  claim_paise: number | null;
+  status: BookingDisputeStatus;
+  resolution_note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface AdminBookingDispute extends BookingDispute {
+  citizen_name: string | null;
+  citizen_phone: string | null;
+  citizen_email: string | null;
+  partner_business_name: string | null;
+  service_name: string | null;
+  booking_amount_paise: number | null;
+}
+
+export interface CreateBookingDisputeInput {
+  reason: string;
+  details: string;
+  claim_paise?: number;
+}
+
+export interface ResolveBookingDisputeInput {
+  status: 'in_review' | 'resolved' | 'rejected';
+  note: string;
 }
 
 export interface BookingListResponse {
+
   total: number;
   items: BookingDetail[];
 }

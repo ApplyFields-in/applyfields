@@ -11,6 +11,7 @@ import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { ToastNotificationProvider } from '@/components/toast-notification-provider';
 import { CommandPalette } from '@/components/search/command-palette';
 import { ReadingThemeInitializer } from '@/components/layout/reading-theme-initializer';
+import { OpenInAppBanner } from '@/components/open-in-app-banner';
 
 export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -23,6 +24,9 @@ export function SiteShell({ children }: { children: ReactNode }) {
       <div className="min-h-screen bg-[#F0F4F8] flex flex-col justify-between text-[#082046]">
         <FloatingCapsuleNavbar />
         <main id="main" className="flex-1 w-full animate-rise pt-2 sm:pt-4 pb-16 sm:pb-0">
+          <div className="px-4">
+            <OpenInAppBanner pathname={pathname} />
+          </div>
           {isCustomBleed ? (
             children
           ) : (

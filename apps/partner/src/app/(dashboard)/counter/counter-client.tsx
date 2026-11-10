@@ -52,41 +52,12 @@ export function CounterClient() {
 
   // Generated Ticket / Modal State
   const [activeTicket, setActiveTicket] = useState<WalkInTicket | null>(null);
-  const [tokenCounter, setTokenCounter] = useState(43);
+  const [tokenCounter, setTokenCounter] = useState(1);
 
   // Recent walk-in queue
-  const [recentWalkIns, setRecentWalkIns] = useState<WalkInTicket[]>([
-    {
-      tokenNumber: 'TK-042',
-      createdAt: '10 mins ago',
-      citizenName: 'B. Jagadeesh',
-      mobile: '+91 99480 11928',
-      gender: 'Male',
-      category: 'ST',
-      serviceTitle: 'Integrated Caste & Domicile Certificate',
-      govtFee: 45,
-      kioskFee: 50,
-      printFee: 20,
-      totalCollected: 115,
-      paymentMode: 'Cash',
-      status: 'scanning_pending',
-    },
-    {
-      tokenNumber: 'TK-041',
-      createdAt: '25 mins ago',
-      citizenName: 'P. Sai Praneeth',
-      mobile: '+91 98481 22910',
-      gender: 'Male',
-      category: 'OBC-NCL',
-      serviceTitle: 'SSC CGL 2026 Application Filing',
-      govtFee: 100,
-      kioskFee: 70,
-      printFee: 20,
-      totalCollected: 190,
-      paymentMode: 'UPI',
-      status: 'dispatched_to_backoffice',
-    },
-  ]);
+  // This browser session only (nothing is sent to the API yet), so it starts empty.
+  const [recentWalkIns, setRecentWalkIns] = useState<WalkInTicket[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const selectedService = useMemo(
     () => COUNTER_CATALOG.find((s) => s.id === selectedServiceId) || COUNTER_CATALOG[0],
@@ -117,10 +88,11 @@ export function CounterClient() {
 
   // Handle Token Generation
   const handleGenerateToken = (action: 'print' | 'scan' | 'backoffice') => {
-    if (!citizenName.trim() || mobile.length < 10) {
-      alert('Please enter a valid Citizen Full Name and 10-digit Mobile Number.');
+    if (!citizenName.trim() || mobile.replace(/\D/g, '').length < 10) {
+      setFormError("Enter the citizen's full name and 10-digit mobile number.");
       return;
     }
+    setFormError(null);
 
     const tokenNum = `TK-${String(tokenCounter).padStart(3, '0')}`;
     const newTicket: WalkInTicket = {
@@ -460,6 +432,11 @@ export function CounterClient() {
 
             {/* Action Buttons */}
             <div className="space-y-2 pt-2">
+              {formError && (
+                <p role="alert" className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300">
+                  {formError}
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => handleGenerateToken('scan')}

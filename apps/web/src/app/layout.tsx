@@ -25,6 +25,8 @@ export const metadata: Metadata = {
     shortcut: '/favicon.ico',
     apple: '/icon.png',
   },
+  // Safari's own "Open / Get" app banner on iPhone, once the app is on the App Store.
+  ...(process.env.NEXT_PUBLIC_IOS_APP_STORE_ID ? { itunes: { appId: process.env.NEXT_PUBLIC_IOS_APP_STORE_ID } } : {}),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

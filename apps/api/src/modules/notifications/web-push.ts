@@ -16,9 +16,8 @@ export function getVapidKeys(): { publicKey: string; privateKey: string } {
   // Fallback to auto-generated keys for seamless development without configuration friction
   if (!cachedVapidKeys) {
     cachedVapidKeys = webpush.generateVAPIDKeys();
-    logger.warn('No VAPID keys in .env. Auto-generated ephemeral development VAPID keys:');
-    logger.warn(`VAPID_PUBLIC_KEY=${cachedVapidKeys.publicKey}`);
-    logger.warn(`VAPID_PRIVATE_KEY=${cachedVapidKeys.privateKey}`);
+    // Never log the private key (it would land in Render logs). Generate a pair with `npx web-push generate-vapid-keys`.
+    logger.warn('No VAPID keys in .env: using ephemeral keys (browser push subscriptions break on every restart).');
   }
 
   return cachedVapidKeys;
