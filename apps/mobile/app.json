@@ -16,7 +16,13 @@
       "requireFullScreen": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:applyfields.com",
+        "applinks:www.applyfields.com",
+        "applinks:applyfields.in",
+        "applinks:www.applyfields.in"
+      ]
     },
     "android": {
       "package": "in.applyfields.app",
@@ -33,7 +39,139 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/jobs/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/exams/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/scholarships/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/admissions/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/career/colleges/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/services/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/jobs/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/exams/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/scholarships/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/admissions/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/career/colleges/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/services/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/jobs/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/exams/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/scholarships/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/admissions/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/career/colleges/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/services/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/jobs/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/exams/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/scholarships/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/admissions/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/career/colleges/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/services/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "plugins": [
       "expo-router",

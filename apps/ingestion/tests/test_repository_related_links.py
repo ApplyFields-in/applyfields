@@ -1,6 +1,8 @@
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app.db.repository import update_opportunity_related_links
 
 
@@ -53,11 +55,8 @@ def test_raises_error_when_opportunity_does_not_exist():
         "app.db.repository.get_engine",
         return_value=engine,
     ):
-        try:
+        with pytest.raises(ValueError, match="Opportunity not found"):
             update_opportunity_related_links(
                 opportunity_id="missing-id",
                 related_links=[],
             )
-            assert False, "Expected ValueError"
-        except ValueError as exc:
-            assert "Opportunity not found" in str(exc)

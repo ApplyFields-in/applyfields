@@ -23,7 +23,7 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { API_URL } from '@/lib/api';
+import { API_URL, PARTNER_URL, SERVICE_URL, WEB_URL } from '@/lib/api';
 import {
   DEPARTMENTS,
   canOpenPath,
@@ -219,33 +219,33 @@ function Topbar({ staff, activeDepartment, departments, onSwitchDepartment }: To
       {/* External Portals Switcher */}
       <div className="hidden 2xl:flex items-center gap-1 rounded-full border border-olive-200/80 bg-white/80 p-1 shadow-xs backdrop-blur-md">
         <a
-          href="http://localhost:3000"
+          href={WEB_URL}
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-olive-800 hover:bg-olive-100/70 hover:text-olive-950 transition-colors"
-          title="Open Citizen Web Portal (localhost:3000)"
+          title="Open the citizen website"
         >
           <Globe className="size-3 text-olive-600" />
           <span>Web :3000</span>
           <ExternalLink className="size-2.5 opacity-40" />
         </a>
         <a
-          href="http://localhost:3003"
+          href={SERVICE_URL}
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-olive-800 hover:bg-olive-100/70 hover:text-olive-950 transition-colors"
-          title="Open Citizen Services Hub (localhost:3003)"
+          title="Open the services portal"
         >
           <Zap className="size-3 text-amber-600" />
           <span>Services :3003</span>
           <ExternalLink className="size-2.5 opacity-40" />
         </a>
         <a
-          href="http://localhost:3002"
+          href={PARTNER_URL}
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-olive-800 hover:bg-olive-100/70 hover:text-olive-950 transition-colors"
-          title="Open Partner & Operator Portal (localhost:3002)"
+          title="Open the partner portal"
         >
           <Store className="size-3 text-emerald-600" />
           <span>Partner :3002</span>

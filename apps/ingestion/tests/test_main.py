@@ -1,7 +1,7 @@
 
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient # type: ignore
+from fastapi.testclient import TestClient  # type: ignore
 
 from app.main import app
 
@@ -446,3 +446,71 @@ def test_upsc_scrape_fetches_notifications_and_processes_pdfs():
     assert process_mock.call_args.kwargs["url"] == notice.url
 
     finish_mock.assert_called_once()
+
+
+def test_scrape_processes_only_the_newest_n_documents() -> None:
+    import datetime as dt
+
+    from app.scrapers.base import NoticeLink
+
+    notices = [
+        NoticeLink(
+            title=f"Notice of Examination {i}",
+            url=f"https://ssc.gov.in/files/{i}.pdf",
+            published_on=dt.date(2026, 10, 1) + dt.timedelta(days=i),
+        )
+        for i in range(5)
+    ] + [NoticeLink(title="No date", url="https://ssc.gov.in/files/undated.pdf")]
+
+    with (
+        patch("app.main.settings.internal_service_token", "test-token"),
+        patch("app.main.settings.max_notices_per_run", 2),
+        patch("app.main.get_active_source", return_value=mock_source()),
+        patch("app.main.start_scrape_run", return_value="run-test"),
+        patch("app.main.SSCScraper.discover_notices", return_value=notices),
+        patch(
+            "app.main.process_pdf_notice",
+            side_effect=lambda **kw: {"url": kw["url"], "inserted": True, "status": "saved"},
+        ) as process_mock,
+        patch("app.main.finish_scrape_run"),
+    ):
+        response = client.post("/scrape/ssc", headers={"X-Internal-Token": "test-token"})
+
+    body = response.json()
+    assert body["items_found"] == 6
+    assert body["deferred"] == 4
+    processed = [c.kwargs["url"] for c in process_mock.call_args_list]
+    assert processed == ["https://ssc.gov.in/files/4.pdf", "https://ssc.gov.in/files/3.pdf"]
+
+
+def test_scrape_downloads_cdsco_jsp_links() -> None:
+    source = {**mock_source(), "key": "cdsco"}
+    link = (
+        "https://www.cdsco.gov.in/opencms/opencms/system/modules/CDSCO.WEB/elements/"
+        "download_file_division.jsp?num_id=MTQ1NTE="
+    )
+    with (
+        patch("app.main.settings.internal_service_token", "test-token"),
+        patch("app.main.get_active_source", return_value=source),
+        patch("app.main.start_scrape_run", return_value="run-test"),
+        patch("app.main.fetch") as fetch_mock,
+        patch(
+            "app.main.CDSCOScraper.find_notices",
+            return_value=[mock_notice("Vacancy Notice for Data Analyst", link)],
+        ),
+        patch(
+            "app.main.CDSCOScraper.resolve_document_url",
+            return_value="https://www.cdsco.gov.in/opencms/resources/notice.pdf",
+        ) as resolve_mock,
+        patch(
+            "app.main.process_pdf_notice",
+            return_value={"url": link, "inserted": True, "status": "saved"},
+        ) as process_mock,
+        patch("app.main.finish_scrape_run"),
+    ):
+        fetch_mock.return_value.text = "<html></html>"
+        response = client.post("/scrape/cdsco", headers={"X-Internal-Token": "test-token"})
+
+    assert response.json()["skipped_non_pdf"] == 0
+    resolve_mock.assert_called_once_with(link)
+    assert process_mock.call_args.kwargs["url"] == "https://www.cdsco.gov.in/opencms/resources/notice.pdf"

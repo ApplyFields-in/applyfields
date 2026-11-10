@@ -1,4 +1,4 @@
-﻿
+
 """
 ApplyFields ingestion service (INTERNAL ONLY).
 
@@ -6,33 +6,32 @@ Run locally:
     uv run uvicorn app.main:app --reload --port 8000
 """
 
+import datetime as dt
 import secrets
-from urllib.parse import urlsplit
-from app.scrapers.upsc import UPSCScraper
-from app.scrapers.npcil import NPCILScraper
-from app.scrapers.cdsco import CDSCOScraper
-from app.scrapers.isro import (
-    IsroScraper,
-    RecruitmentPdfBundle,
-    group_related_pdf_links,
-)
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
-from app.scrapers.indiapost import IndiaPostScraper
 
 from app.config import settings
-
-from app.fetcher import fetch
-from app.pipeline import process_pdf_notice
-from app.scrapers.ssc import SSCScraper
-from app.scrapers.appsc import AppscScraper
 from app.db.repository import (
     finish_scrape_run,
     get_active_source,
     start_scrape_run,
     update_opportunity_related_links,
 )
+from app.fetcher import fetch
+from app.pipeline import process_pdf_notice
+from app.scrapers.appsc import AppscScraper
+from app.scrapers.cdsco import CDSCOScraper
+from app.scrapers.indiapost import IndiaPostScraper
+from app.scrapers.isro import (
+    IsroScraper,
+    RecruitmentPdfBundle,
+    group_related_pdf_links,
+)
+from app.scrapers.npcil import NPCILScraper
+from app.scrapers.ssc import SSCScraper
+from app.scrapers.upsc import UPSCScraper
 
 app = FastAPI(title="ApplyFields Ingestion (internal)", version="0.1.0")
 
@@ -188,38 +187,29 @@ def run_scraper(source_key: str) -> dict[str, object]:
 
         items_found = len(notices)
 
-
-
+        documents = []
         for notice in notices:
+            if scraper.is_document_url(notice.url):
+                documents.append(notice)
+            else:
+                skipped_non_pdf += 1
+                results.append(
+                    {"title": notice.title, "url": notice.url, "status": "skipped_non_pdf"}
+                )
+
+        # ponytail: newest-first cap; a source that posts more than N notices between two runs loses
+        # the oldest ones (raise MAX_NOTICES_PER_RUN or run more often if that ever happens).
+        documents.sort(key=lambda n: n.published_on or dt.date.min, reverse=True)
+        deferred = max(0, len(documents) - settings.max_notices_per_run)
+        documents = documents[: settings.max_notices_per_run]
+
+        for notice in documents:
             bundle = isro_bundles_by_pdf_url.get(notice.url)
             notice_title = (
                 bundle.recruitment_title
                 if bundle is not None
                 else notice.title
             )
-            # India Post serves PDFs through an API endpoint without a .pdf suffix.
-            parsed_url = urlsplit(notice.url)
-            path = parsed_url.path.lower()
-
-            is_direct_pdf = path.endswith(".pdf")
-            is_indiapost_document = (
-                source_key == "indiapost"
-                and parsed_url.scheme == "https"
-                and parsed_url.hostname == "www.indiapost.gov.in"
-                and path.startswith("/api/documents/file/")
-            )
-
-            if not (is_direct_pdf or is_indiapost_document):
-                skipped_non_pdf += 1
-                results.append(
-                    {
-                        "title": notice.title,
-                        "url": notice.url,
-                        "status": "skipped_non_pdf",
-                    }
-                )
-                continue
-
             try:
                 result = process_pdf_notice(
                     source_id=str(source["id"]),
@@ -231,7 +221,7 @@ def run_scraper(source_key: str) -> dict[str, object]:
                         if source_key == "rrb"
                         else "central_govt"
                     ),
-                    url=notice.url,
+                    url=scraper.resolve_document_url(notice.url),
                     title=notice_title,
                     published_on=notice.published_on,
                 )
@@ -295,6 +285,7 @@ def run_scraper(source_key: str) -> dict[str, object]:
             "duplicates": duplicates,
             "failed_items": failed_items,
             "skipped_non_pdf": skipped_non_pdf,
+            "deferred": deferred,
             "notices": results,
         }
 

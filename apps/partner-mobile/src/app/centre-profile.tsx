@@ -3,7 +3,7 @@ import type { PartnerDetail, PartnerUpdateInput } from '@applyfields/types';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { Button, Card, ErrorNote, Field, Muted, Page, SectionTitle } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -106,6 +106,20 @@ export default function CentreProfile() {
         <Muted>
           {gps ? `Pinned at ${gps.latitude.toFixed(5)}, ${gps.longitude.toFixed(5)}` : 'Not pinned yet — citizens cannot see your distance.'}
         </Muted>
+        {gps ? (
+          // ponytail: opens the phone's maps app instead of an in-app map (no native map SDK / API key);
+          // add react-native-maps when partners need to drag the pin.
+          <Button
+            label="View pin on map"
+            icon="map-outline"
+            variant="secondary"
+            onPress={() =>
+              Linking.openURL(
+                `https://www.google.com/maps/search/?api=1&query=${gps.latitude},${gps.longitude}`,
+              ).catch(() => setError('No maps app found on this phone.'))
+            }
+          />
+        ) : null}
         <Field label="Address" value={f.address} onChangeText={set('address')} multiline />
         <Field label="City / mandal" value={f.city} onChangeText={set('city')} />
         <Field label="District" value={f.district} onChangeText={set('district')} />

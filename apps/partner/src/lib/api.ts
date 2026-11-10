@@ -406,6 +406,11 @@ export async function markBookingMessagesRead(
   );
 }
 
+/** 10-minute link to a locker document the citizen shared for this booking (access is logged). */
+export async function sharedDocumentUrl(bookingId: string, shareId: string): Promise<ApiResponse<{ url: string }>> {
+  return apiGet<{ url: string }>(`/bookings/${bookingId}/documents/${shareId}`);
+}
+
 export async function listPartnerBookings(status?: string): Promise<ApiResponse<BookingListResponse>> {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
   return apiGet<BookingListResponse>(`/bookings/partner/inbox${query}`);

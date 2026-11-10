@@ -6,6 +6,7 @@ import type {
   OpportunityCategory,
   OpportunityDetail,
   OpportunityType,
+  RelatedLink,
   RequiredDocument,
   UpdateItem,
 } from '@applyfields/types';
@@ -18,6 +19,24 @@ import {
 
 const DAY_MS = 86_400_000;
 const IST_OFFSET_MS = 5.5 * 3_600_000;
+
+/**
+ * `opportunities.related_links` (jsonb written by the scraper) → safe list for the page:
+ * only https links with a title; anything malformed is dropped rather than shown.
+ */
+export function relatedLinks(value: unknown): RelatedLink[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((v) => {
+    const { title, url, category } = (v ?? {}) as Record<string, unknown>;
+    if (typeof title !== 'string' || !title.trim() || typeof url !== 'string') return [];
+    try {
+      if (new URL(url).protocol !== 'https:') return [];
+    } catch {
+      return [];
+    }
+    return [{ title: title.trim(), url, category: typeof category === 'string' ? category : 'supporting_document' }];
+  });
+}
 
 /** Today's date in India, as a UTC-midnight Date (matches Postgres DATE columns). */
 export function todayIst(): Date {
@@ -499,6 +518,7 @@ export class OpportunitiesService {
         ? isoDate(row.application_end)
         : null,
       days_left: daysLeft,
+      related_links: relatedLinks(row.related_links),
       links: {
         notification_pdf_url: row.notification_pdf_url,
         official_page_url: row.official_page_url,

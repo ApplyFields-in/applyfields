@@ -76,20 +76,23 @@ export function UpdateKindBadge({ kind }: { kind: UpdateKind }) {
 
 export function QuickPublishUpdateButton({ id }: { id: string }) {
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handlePublish = () => {
     startTransition(async () => {
+      setError(null);
       const res = await publishUpdateAction(id);
       if (res.ok) {
         router.refresh();
       } else {
-        alert(res.error ?? 'Failed to publish update');
+        setError(res.error ?? 'Failed to publish update');
       }
     });
   };
 
   return (
+    <span className="inline-flex flex-col items-end gap-1">
     <button
       type="button"
       onClick={handlePublish}
@@ -100,26 +103,35 @@ export function QuickPublishUpdateButton({ id }: { id: string }) {
       <Send className="size-3.5" aria-hidden="true" />
       {isPending ? 'Publishing...' : 'Publish'}
     </button>
+    {error && (
+      <span role="alert" className="text-xs font-semibold text-teal">
+        {error}
+      </span>
+    )}
+    </span>
   );
 }
 
 export function QuickArchiveUpdateButton({ id }: { id: string }) {
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleArchive = () => {
     if (!confirm('Archive / dismiss this update?')) return;
     startTransition(async () => {
+      setError(null);
       const res = await setUpdateStatusAction(id, 'archived');
       if (res.ok) {
         router.refresh();
       } else {
-        alert(res.error ?? 'Failed to archive update');
+        setError(res.error ?? 'Failed to archive update');
       }
     });
   };
 
   return (
+    <span className="inline-flex flex-col items-end gap-1">
     <button
       type="button"
       onClick={handleArchive}
@@ -130,6 +142,12 @@ export function QuickArchiveUpdateButton({ id }: { id: string }) {
       <Archive className="size-3.5" aria-hidden="true" />
       Archive
     </button>
+    {error && (
+      <span role="alert" className="text-xs font-semibold text-teal">
+        {error}
+      </span>
+    )}
+    </span>
   );
 }
 

@@ -5,6 +5,7 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { OpportunitiesAdminService } from './opportunities-admin.service.js';
+import { recordJobRun } from '../../common/job-runs.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -37,11 +38,13 @@ export class ExpiryService
   private async run(): Promise<void> {
     try {
       const { closed } = await this.opportunities.closeExpired();
+      recordJobRun('auto-close', true, `Closed ${closed} expired listing${closed === 1 ? '' : 's'}`);
       if (closed)
         this.logger.log(
           `Closed ${closed} expired opportunit${closed === 1 ? 'y' : 'ies'}`,
         );
     } catch (err) {
+      recordJobRun('auto-close', false, (err as Error).message);
       this.logger.warn(`Auto-close failed: ${(err as Error).message}`);
     }
   }

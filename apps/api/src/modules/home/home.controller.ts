@@ -1,3 +1,4 @@
+import { SkipThrottle } from '@nestjs/throttler';
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import type { ApiHealth, HomePersonal, HomeSummary } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -22,6 +23,7 @@ export class HomeController {
   ) {}
 
   /** GET /api/v1/health — used by the web footer to show "API connected" (also checks the database) */
+  @SkipThrottle() // Render's health checks and uptime monitors
   @Get('health')
   async health(): Promise<ApiHealth> {
     return this.cache.wrap('health', 15, async () => {

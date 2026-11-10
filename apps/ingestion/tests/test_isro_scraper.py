@@ -1,5 +1,4 @@
-﻿from app.scrapers.base import NoticeLink
-
+from app.scrapers.base import NoticeLink
 from app.scrapers.isro import (
     IsroScraper,
     classify_pdf_link,

@@ -10,6 +10,7 @@ import {
   MapPin,
   Phone,
   MessageSquare,
+  Mail,
   Printer,
   Share2,
   AlertCircle,
@@ -42,6 +43,7 @@ interface StoredBooking {
     city: string;
     district: string;
     phone?: string;
+    email?: string;
   };
   items: Array<{
     title: string;
@@ -163,7 +165,7 @@ export default function BookingDetailsPage() {
               id: res.data.id,
               token: `AF-${res.data.id.slice(0, 8).toUpperCase()}`,
               candidateName: cached?.candidateName || res.data.user_note?.match(/Applicant:\s*([^;]+)/)?.[1] || 'Citizen Applicant',
-              candidatePhone: cached?.candidatePhone || res.data.partner_phone || '+91 98765 43210',
+              candidatePhone: cached?.candidatePhone || '',
               slotDate: res.data.appointment_at
                 ? new Date(res.data.appointment_at).toLocaleDateString('en-IN', {
                     weekday: 'short',
@@ -171,13 +173,13 @@ export default function BookingDetailsPage() {
                     day: 'numeric',
                     year: 'numeric',
                   })
-                : cached?.slotDate || 'Tomorrow, 10:00 AM',
+                : cached?.slotDate || 'Time not set yet',
               slotTime: res.data.appointment_at
                 ? new Date(res.data.appointment_at).toLocaleTimeString('en-IN', {
                     hour: '2-digit',
                     minute: '2-digit',
                   })
-                : cached?.slotTime || '10:00 AM – 10:30 AM',
+                : cached?.slotTime || '',
               status: res.data.status,
               partner: {
                 id: res.data.partner_id,
@@ -186,6 +188,7 @@ export default function BookingDetailsPage() {
                 city: '',
                 district: '',
                 phone: res.data.partner_phone || undefined,
+                email: res.data.partner_email || undefined,
               },
               items: cached?.items || [
                 {
@@ -454,14 +457,14 @@ export default function BookingDetailsPage() {
                   <Phone className="h-3 w-3 text-emerald-600" /> Call Center
                 </a>
               )}
-              <a
-                href={`https://wa.me/919848012345?text=Hello%2C%20I%20have%20an%20appointment%20token%20%23${booking.token}%20at%20your%20center`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
-              >
-                <MessageSquare className="h-3 w-3" /> WhatsApp
-              </a>
+              {booking.partner.email && (
+                <a
+                  href={`mailto:${booking.partner.email}?subject=${encodeURIComponent(`Appointment ${booking.token}`)}&body=${encodeURIComponent(`Hello, I have an appointment (token ${booking.token}) at your centre.`)}`}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#082046] hover:text-[#0e7bf4]"
+                >
+                  <Mail className="h-3 w-3 text-[#0e7bf4]" /> Email centre
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -515,15 +518,16 @@ export default function BookingDetailsPage() {
             >
               <MessageSquare className="h-4 w-4" /> Open Live Chat Desk
             </button>
-            <a
-              href={`https://wa.me/919848012345?text=Hello%20Operator%2C%20I%20hold%20appointment%20token%20%23${booking.token}%20for%20${booking.slotDate}%20at%20${booking.slotTime}.`}
-              target="_blank"
-              rel="noreferrer"
-              className="cut-corner-btn inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-500 transition shrink-0 shadow-sm"
-              title="Chat on WhatsApp"
-            >
-              WhatsApp
-            </a>
+            {booking.partner.email && (
+              <a
+                href={`mailto:${booking.partner.email}?subject=${encodeURIComponent(`Appointment ${booking.token}`)}&body=${encodeURIComponent(`Hello, I hold appointment token ${booking.token} for ${booking.slotDate} ${booking.slotTime}.`)}`}
+                className="cut-corner-btn inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d5deea] bg-white px-3.5 py-2 text-xs font-bold text-[#082046] hover:bg-slate-50 transition shrink-0 shadow-sm"
+                title="Email the centre"
+              >
+                <Mail className="h-4 w-4" /> Email
+              </a>
+            )}
+
           </div>
         </div>
       </div>
