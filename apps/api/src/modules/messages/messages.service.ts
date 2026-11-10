@@ -57,7 +57,14 @@ export class MessagesService {
     bookingId: string,
     userId?: string | null,
     token?: string | null,
-  ): Promise<{ id: string; partner_id: string; user_id: string | null; token?: string }> {
+  ): Promise<{
+    id: string;
+    partner_id: string;
+    user_id: string | null;
+    token?: string | null;
+    /** Who the caller is on this booking, worked out here and never taken from the request body. */
+    role: 'citizen' | 'partner' | 'staff';
+  }> {
     const booking = await this.prisma.service_requests.findUnique({
       where: { id: bookingId },
       select: { id: true, partner_id: true, user_id: true, token: true },
@@ -69,7 +76,7 @@ export class MessagesService {
 
     // 1. Citizen owner
     if (userId && booking.user_id && booking.user_id === userId) {
-      return booking;
+      return { ...booking, role: 'citizen' };
     }
 
     // 2. Partner operator / member
@@ -77,18 +84,18 @@ export class MessagesService {
       const isPartnerStaff = await this.prisma.partner_members.findFirst({
         where: { user_id: userId, partner_id: booking.partner_id, is_active: true },
       });
-      if (isPartnerStaff) return booking;
+      if (isPartnerStaff) return { ...booking, role: 'partner' };
 
       // 3. System admin / staff
       const isStaff = await this.prisma.user_roles.findFirst({
         where: { user_id: userId, role: { in: ['admin', 'super_admin', 'support'] } },
       });
-      if (isStaff) return booking;
+      if (isStaff) return { ...booking, role: 'staff' };
     }
 
-    // 4. Token-based access (appointment pass for guest check-in)
+    // 4. Token-based access (appointment pass for guest check-in) = the citizen side
     if (token && booking.token && token === booking.token) {
-      return booking;
+      return { ...booking, role: 'citizen' };
     }
 
     throw new ForbiddenException('You are not authorized to access messages for this booking');
@@ -127,15 +134,19 @@ export class MessagesService {
   ): Promise<ChatMessageItem> {
     const booking = await this.assertBookingAccess(bookingId, senderUserId, token);
 
-    // Determine sender_type securely from authenticated identity (prevents spoofing)
+    // Type AND name come from who the caller is, never from the body (no posing as the centre or support).
     let senderType: ChatSenderType = 'citizen';
-    if (senderUserId) {
-      const isPartnerStaff = await this.prisma.partner_members.findFirst({
-        where: { user_id: senderUserId, partner_id: booking.partner_id, is_active: true },
+    let senderName = input.sender_name;
+    if (booking.role === 'partner') {
+      senderType = 'partner';
+      const partner = await this.prisma.partners.findUnique({
+        where: { id: booking.partner_id },
+        select: { business_name: true },
       });
-      if (isPartnerStaff) {
-        senderType = 'partner';
-      }
+      senderName = partner?.business_name ?? 'Service centre';
+    } else if (booking.role === 'staff') {
+      senderType = 'system';
+      senderName = 'ApplyFields Support';
     }
 
     const created = await this.prisma.booking_messages.create({
@@ -143,7 +154,7 @@ export class MessagesService {
         request_id: bookingId,
         sender_user_id: senderUserId,
         sender_type: senderType,
-        sender_name: input.sender_name,
+        sender_name: senderName,
         message: input.message,
         attachments: (input.attachments as any) ?? [],
         is_read: false,
@@ -170,8 +181,11 @@ export class MessagesService {
     userId?: string | null,
     token?: string | null,
   ): Promise<{ count: number }> {
-    await this.assertBookingAccess(bookingId, userId, token);
-    const targetSenderType = readerType === 'partner' ? 'citizen' : 'partner';
+    const access = await this.assertBookingAccess(bookingId, userId, token);
+    // The reader's side comes from their access, not the body; staff only read on the side they asked for.
+    const side = access.role === 'staff' ? readerType : access.role;
+    const targetSenderType = side === 'partner' ? 'citizen' : 'partner';
+
     const updateRes = await this.prisma.booking_messages.updateMany({
       where: {
         request_id: bookingId,

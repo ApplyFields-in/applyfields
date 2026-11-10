@@ -10,28 +10,6 @@ import { PARTNER_PORTAL_URL } from '@/lib/urls';
 export function DarkNavyFooter() {
   const { t } = useLanguage();
 
-  function setDemoSignedIn() {
-    if (typeof window !== 'undefined') {
-      const demoUser = {
-        id: 'usr_demo_arvind',
-        email: 'arvind.kumar@example.com',
-        full_name: 'Arvind Kumar',
-        phone: '+91 98765 43210',
-      };
-      localStorage.setItem('currentUser', JSON.stringify(demoUser));
-      window.dispatchEvent(new Event('auth-changed'));
-      window.location.reload();
-    }
-  }
-
-  function setDemoPublic() {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('currentUser');
-      window.dispatchEvent(new Event('auth-changed'));
-      window.location.reload();
-    }
-  }
-
   return (
     <footer className="mt-12 border-t border-white/10 bg-[#0B2240] text-[#c8d5e6]">
       <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
@@ -45,52 +23,9 @@ export function DarkNavyFooter() {
             <p className="max-w-sm text-xs leading-relaxed text-[#c8d5e6]">
               {t('footer_tagline')}
             </p>
-
-            <div className="pt-1">
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                {t('footer_prototype_screens')}
-              </p>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#c8d5e6]">
-                <button
-                  type="button"
-                  onClick={setDemoPublic}
-                  className="hover:text-white"
-                >
-                  {t('footer_demo_public')}
-                </button>
-                <button
-                  type="button"
-                  onClick={setDemoSignedIn}
-                  className="hover:text-white"
-                >
-                  {t('footer_demo_signed_in')}
-                </button>
-                <a
-                  href="http://localhost:3001/login"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white"
-                >
-                  {t('footer_internal_login')}
-                </a>
-                <a
-                  href="http://localhost:3001"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white"
-                >
-                  {t('footer_internal_workspace')}
-                </a>
-                <a
-                  href={PARTNER_PORTAL_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold text-emerald-400 hover:text-emerald-300"
-                >
-                  Partner Portal
-                </a>
-              </div>
-            </div>
+            <a href="mailto:support@applyfields.in" className="inline-block text-xs font-semibold text-white hover:underline">
+              support@applyfields.in
+            </a>
           </div>
 
           {/* Column 1: Apply */}

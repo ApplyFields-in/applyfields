@@ -1,4 +1,4 @@
-﻿
+
 """Polite HTTP fetching with robots.txt enforcement and retry handling."""
 
 import ssl

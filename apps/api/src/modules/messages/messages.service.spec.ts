@@ -48,6 +48,9 @@ describe('MessagesService', () => {
       count: vi.fn().mockResolvedValue(1),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
+    partners: {
+      findUnique: vi.fn().mockResolvedValue({ business_name: 'Sri Sai MeeSeva' }),
+    },
     partner_members: {
       findFirst: vi.fn().mockImplementation(({ where }) => {
         if (where.user_id === 'partner-user-1') {
@@ -119,6 +122,7 @@ describe('MessagesService', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           sender_type: 'partner',
+          sender_name: 'Sri Sai MeeSeva', // the centre's real name, not the body's
         }),
       }),
     );

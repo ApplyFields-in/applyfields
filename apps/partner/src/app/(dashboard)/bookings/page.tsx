@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   XCircle,
   Eye,
-  Printer,
   Download,
   AlertCircle,
   User,
@@ -23,16 +22,17 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { listPartnerBookings, updatePartnerBookingStatus } from '@/lib/api';
+import { listPartnerBookings, sharedDocumentUrl, updatePartnerBookingStatus } from '@/lib/api';
 
 export type BookingStatus = 'scheduled' | 'arrived' | 'completed' | 'cancelled';
 
 
+/** A locker document the citizen shared for this booking. The file opens via a 10-minute signed link. */
 export interface BookingDocument {
+  shareId: string;
   name: string;
-  kind: 'pdf' | 'image';
+  kind: 'pdf' | 'image' | 'file';
   size: string;
-  previewUrl: string;
 }
 
 export interface CitizenBooking {
@@ -53,116 +53,31 @@ export interface CitizenBooking {
   createdAt: string;
 }
 
-const INITIAL_SAMPLE_BOOKINGS: CitizenBooking[] = [
-  {
-    id: 'bk-101',
-    token: 'AF-8821',
-    citizenName: 'K. Sai Ramesh',
-    citizenPhone: '+91 98480 22338',
-    serviceTitle: 'SSC CGL 2026 Online Form Filing Assistance',
-    serviceCategory: 'Exam Application',
-    fee: 150,
-    paymentMode: 'online',
-    isPaid: true,
-    slotDate: '2026-10-19',
-    slotTime: '10:30 AM – 11:00 AM',
-    status: 'scheduled',
-    notes: 'Needs live webcam photo capture and exam zone preference set to Hyderabad.',
-    documents: [
-      { name: '10th_Memo_Ramesh.pdf', kind: 'pdf', size: '142 KB', previewUrl: '/sample-doc-1.pdf' },
-      { name: 'Degree_Provisional_Certificate.pdf', kind: 'pdf', size: '280 KB', previewUrl: '/sample-doc-2.pdf' },
-      { name: 'Candidate_Signature_Scan.jpg', kind: 'image', size: '48 KB', previewUrl: '/sample-sig.jpg' },
-    ],
-    createdAt: '2026-10-19T08:15:00Z',
-  },
-  {
-    id: 'bk-102',
-    token: 'AF-8822',
-    citizenName: 'B. Ananya Rao',
-    citizenPhone: '+91 99891 44552',
-    serviceTitle: 'High-Quality Aadhaar PVC Smart Card Print',
-    serviceCategory: 'Aadhaar Services',
-    fee: 50,
-    paymentMode: 'online',
-    isPaid: true,
-    slotDate: '2026-10-19',
-    slotTime: '11:15 AM – 11:45 AM',
-    status: 'arrived',
-    notes: 'Customer is waiting at counter #1.',
-    documents: [
-      { name: 'eAadhaar_Password_Protected.pdf', kind: 'pdf', size: '410 KB', previewUrl: '/sample-aadhaar.pdf' },
-    ],
-    createdAt: '2026-10-19T09:00:00Z',
-  },
-  {
-    id: 'bk-103',
-    token: 'AF-8823',
-    citizenName: 'Mohammed Zeeshan',
-    citizenPhone: '+91 97005 11223',
-    serviceTitle: 'Integrated Income Certificate Application Filing',
-    serviceCategory: 'MeeSeva / Revenue',
-    fee: 100,
-    paymentMode: 'pay_at_counter',
-    isPaid: false,
-    slotDate: '2026-10-19',
-    slotTime: '02:00 PM – 02:30 PM',
-    status: 'scheduled',
-    notes: 'Urgent for state scholarship fee reimbursement deadline.',
-    documents: [
-      { name: 'White_Ration_Card_Scan.pdf', kind: 'pdf', size: '320 KB', previewUrl: '/sample-ration.pdf' },
-      { name: 'Aadhaar_Front_Back.pdf', kind: 'pdf', size: '190 KB', previewUrl: '/sample-aadhaar-2.pdf' },
-    ],
-    createdAt: '2026-10-19T09:30:00Z',
-  },
-  {
-    id: 'bk-104',
-    token: 'AF-8824',
-    citizenName: 'P. Sandhya Rani',
-    citizenPhone: '+91 91212 99881',
-    serviceTitle: 'Color Xerox & Spiral Project Binding (80 Pages)',
-    serviceCategory: 'Xerox & Print Desk',
-    fee: 120,
-    paymentMode: 'online',
-    isPaid: true,
-    slotDate: '2026-10-19',
-    slotTime: '04:00 PM – 04:30 PM',
-    status: 'scheduled',
-    notes: 'Color cover page with plastic glossy sheet binding.',
-    documents: [
-      { name: 'Final_Year_ECE_Project_Report.pdf', kind: 'pdf', size: '3.4 MB', previewUrl: '/sample-project.pdf' },
-    ],
-    createdAt: '2026-10-19T10:00:00Z',
-  },
-  {
-    id: 'bk-105',
-    token: 'AF-8799',
-    citizenName: 'V. Naresh Kumar',
-    citizenPhone: '+91 94401 77665',
-    serviceTitle: 'New Physical NSDL PAN Card Application',
-    serviceCategory: 'PAN Card Desk',
-    fee: 150,
-    paymentMode: 'online',
-    isPaid: true,
-    slotDate: '2026-10-18',
-    slotTime: '03:00 PM – 03:30 PM',
-    status: 'completed',
-    notes: 'Application submitted successfully. Acknowledgment #PAN-9941 handed over.',
-    documents: [
-      { name: 'Aadhaar_Card_Naresh.pdf', kind: 'pdf', size: '210 KB', previewUrl: '/sample-pan-docs.pdf' },
-    ],
-    createdAt: '2026-10-18T11:00:00Z',
-  },
-];
 
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState<CitizenBooking[]>(INITIAL_SAMPLE_BOOKINGS);
+  const [bookings, setBookings] = useState<CitizenBooking[]>([]);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'completed' | 'cancelled'>('today');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Document Viewer Modal State
-  const [viewingDoc, setViewingDoc] = useState<BookingDocument | null>(null);
-  const [viewingCitizen, setViewingCitizen] = useState<string>('');
+  const [openingDoc, setOpeningDoc] = useState<string | null>(null);
+
+  /** Open the shared file in a new tab (view there, or print with the browser's own Print). */
+  async function openDocument(bookingId: string, doc: BookingDocument) {
+    // Open the tab now (inside the click) so pop-up blockers allow it, then point it at the signed link.
+    const tab = window.open('', '_blank');
+    setOpeningDoc(doc.shareId);
+    const res = await sharedDocumentUrl(bookingId, doc.shareId);
+    setOpeningDoc(null);
+    if (res.data?.url && tab) {
+      tab.opener = null;
+      tab.location.href = res.data.url;
+    } else {
+      tab?.close();
+      showToast(res.error || 'Could not open the document. The citizen may have removed it.');
+    }
+  }
 
   // Complete Receipt Modal
   const [completingBooking, setCompletingBooking] = useState<CitizenBooking | null>(null);
@@ -180,68 +95,64 @@ export default function BookingsPage() {
     }
   }
 
-  // Load live bookings from API on mount, with fallback to saved or sample bookings
+  // Real bookings only (GET /bookings/partner/inbox). No sample or saved-in-browser fallback.
   useEffect(() => {
-    async function loadBookings() {
-      try {
-        const res = await listPartnerBookings();
-        if (res.data?.items && res.data.items.length > 0) {
-          const mapped: CitizenBooking[] = res.data.items.map((b) => ({
-            id: b.id,
-            token: `AF-${b.id.slice(0, 4).toUpperCase()}`,
-            citizenName:
-              b.user_note?.split(';')[0]?.replace(/^(Name|Applicant):\s*/i, '').trim() ||
-              'Citizen Applicant',
-            citizenPhone: b.partner_phone || '—',
-            serviceTitle: b.service_name || 'Citizen Application Service',
-            serviceCategory: 'Assistance Filing',
-            fee: (b.quoted_paise ?? b.final_paise ?? 10000) / 100,
-            paymentMode: 'online',
-            isPaid: b.status === 'completed' || b.status === 'accepted',
-            slotDate: b.appointment_at ? b.appointment_at.slice(0, 10) : 'Today',
-            slotTime: b.appointment_at
-              ? new Date(b.appointment_at).toLocaleTimeString('en-IN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : 'Flexible',
-            status: (b.status === 'in_progress'
-              ? 'arrived'
-              : b.status === 'accepted'
-                ? 'scheduled'
-                : b.status === 'new'
-                  ? 'scheduled'
-                  : b.status) as BookingStatus,
-            notes: b.user_note || undefined,
-            documents: [],
-            createdAt: b.created_at,
-          }));
-          setBookings(mapped);
+    listPartnerBookings()
+      .then((res) => {
+        if (!res.data) {
+          setLoadState('error');
           return;
         }
-      } catch {}
-
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('applyfields_partner_bookings_v1');
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setBookings(parsed);
-            }
-          } catch {}
-        }
-      }
-    }
-
-    loadBookings();
+        setBookings(
+          res.data.items.map((b) => ({
+            id: b.id,
+            token: `AF-${b.id.slice(0, 8).toUpperCase()}`,
+            citizenName:
+              b.user_note?.match(/(?:Name|Applicant):\s*([^;]+)/i)?.[1]?.trim() || 'Citizen',
+            // The citizen's own number from their booking note (partner_phone is the CENTRE's number).
+            citizenPhone: b.user_note?.match(/Contact:\s*([^;]+)/i)?.[1]?.trim() || '',
+            serviceTitle: b.service_name || 'Service request',
+            serviceCategory: 'Assistance',
+            fee: (b.final_paise ?? b.quoted_paise ?? 0) / 100,
+            paymentMode: 'pay_at_counter',
+            isPaid: b.status === 'completed',
+            // Local date (YYYY-MM-DD) so "today" matches the counter's day, not UTC.
+            slotDate: b.appointment_at ? new Date(b.appointment_at).toLocaleDateString('en-CA') : '',
+            slotTime: b.appointment_at
+              ? new Date(b.appointment_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+              : 'Walk-in',
+            status: (b.status === 'in_progress'
+              ? 'arrived'
+              : b.status === 'accepted' || b.status === 'new'
+                ? 'scheduled'
+                : b.status === 'rejected'
+                  ? 'cancelled'
+                  : b.status) as BookingStatus,
+            notes: b.user_note || undefined,
+            documents: (b.shared_documents ?? []).map((d) => ({
+              shareId: d.share_id,
+              name: d.title || d.file_name || d.document_type_code.replace(/_/g, ' '),
+              kind: d.mime_type === 'application/pdf' ? 'pdf' : d.mime_type?.startsWith('image/') ? 'image' : 'file',
+              size: d.size_bytes ? `${Math.max(1, Math.round(d.size_bytes / 1024))} KB` : '',
+            })),
+            createdAt: b.created_at,
+          })),
+        );
+        setLoadState('ready');
+      })
+      .catch(() => setLoadState('error'));
   }, []);
 
-  function saveAndPersist(updated: CitizenBooking[]) {
-    setBookings(updated);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('applyfields_partner_bookings_v1', JSON.stringify(updated));
+  /** Save to the API first; only change the screen if it worked. */
+  async function applyStatus(id: string, input: Parameters<typeof updatePartnerBookingStatus>[1], local: Partial<CitizenBooking>, ok: string) {
+    const res = await updatePartnerBookingStatus(id, input);
+    if (!res.data) {
+      showToast(res.error || 'Could not update the booking. Please try again.');
+      return false;
     }
+    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, ...local } : b)));
+    showToast(ok);
+    return true;
   }
 
   function showToast(msg: string) {
@@ -251,54 +162,43 @@ export default function BookingsPage() {
 
   // 1-Click Action: Mark Arrived
   function handleMarkArrived(id: string) {
-    const updated = bookings.map((b) => (b.id === id ? { ...b, status: 'arrived' as BookingStatus } : b));
-    saveAndPersist(updated);
-    updatePartnerBookingStatus(id, {
-      status: 'in_progress',
-      partner_note: 'Citizen arrived at counter',
-    }).catch(() => {});
-    showToast('Citizen marked as Arrived at counter!');
+    void applyStatus(
+      id,
+      { status: 'in_progress', partner_note: 'Citizen arrived at counter' },
+      { status: 'arrived' },
+      'Citizen marked as arrived.',
+    );
   }
 
   // 1-Click Action: Mark Completed
-  function handleConfirmComplete() {
+  async function handleConfirmComplete() {
     if (!completingBooking) return;
-    const updated = bookings.map((b) =>
-      b.id === completingBooking.id
-        ? {
-            ...b,
-            status: 'completed' as BookingStatus,
-            notes: completionAckNumber
-              ? `${b.notes || ''} [Govt Ack #: ${completionAckNumber.trim()}]`
-              : b.notes,
-          }
-        : b
+    const ack = completionAckNumber.trim();
+    const done = await applyStatus(
+      completingBooking.id,
+      { status: 'completed', partner_note: ack ? `Govt Ack #: ${ack}` : 'Completed at desk' },
+      { status: 'completed', isPaid: true, notes: ack ? `${completingBooking.notes || ''} [Govt Ack #: ${ack}]` : completingBooking.notes },
+      'Marked completed. The citizen is notified.',
     );
-    saveAndPersist(updated);
-    updatePartnerBookingStatus(completingBooking.id, {
-      status: 'completed',
-      partner_note: completionAckNumber ? `Govt Ack #: ${completionAckNumber.trim()}` : 'Completed at desk',
-    }).catch(() => {});
-    setCompletingBooking(null);
-    setCompletionAckNumber('');
-    showToast('Job marked Completed! Citizen receipt ready.');
+    if (done) {
+      setCompletingBooking(null);
+      setCompletionAckNumber('');
+    }
   }
 
   // 1-Click Action: Cancel
   function handleCancel(id: string) {
     if (!confirm('Are you sure you want to cancel this citizen appointment?')) return;
-    const updated = bookings.map((b) => (b.id === id ? { ...b, status: 'cancelled' as BookingStatus } : b));
-    saveAndPersist(updated);
-    updatePartnerBookingStatus(id, {
-      status: 'cancelled',
-      cancelled_reason: 'Cancelled by partner operator',
-    }).catch(() => {});
-    showToast('Booking cancelled.');
+    void applyStatus(
+      id,
+      { status: 'cancelled', cancelled_reason: 'Cancelled by partner operator' },
+      { status: 'cancelled' },
+      'Booking cancelled.',
+    );
   }
 
-
   // Filter Bookings
-  const todayStr = '2026-10-19'; // or dynamically new Date().toISOString().split('T')[0]
+  const todayStr = new Date().toLocaleDateString('en-CA'); // local YYYY-MM-DD
   const filteredBookings = bookings.filter((b) => {
     // Tab filter
     if (activeTab === 'today') {
@@ -423,7 +323,13 @@ export default function BookingsPage() {
       </div>
 
       {/* Bookings Queue Cards */}
-      {filteredBookings.length === 0 ? (
+      {loadState === 'loading' ? (
+        <p className="text-sm text-slate-400">Loading your bookings…</p>
+      ) : loadState === 'error' ? (
+        <div className="rounded-3xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-200">
+          Couldn&apos;t load your bookings. Check your internet and refresh the page.
+        </div>
+      ) : filteredBookings.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900/40 p-12 text-center space-y-3">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-800 text-slate-400">
             <FileCheck2 className="h-6 w-6" />
@@ -539,11 +445,13 @@ export default function BookingsPage() {
                   {/* Uploaded Documents Box */}
                   <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-2">
                     <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-                      <span>Attached Citizen Documents ({booking.documents.length})</span>
-                      <span className="text-[10px] text-cyan-400 font-mono">1-Click Preview</span>
+                      <span>Documents shared by the citizen ({booking.documents.length})</span>
                     </div>
 
                     <div className="space-y-1.5 pt-1">
+                      {booking.documents.length === 0 && (
+                        <p className="text-[11px] text-slate-500">None shared. Ask the citizen to bring originals or share from their Document Locker.</p>
+                      )}
                       {booking.documents.map((doc, idx) => (
                         <div
                           key={idx}
@@ -561,24 +469,12 @@ export default function BookingsPage() {
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               type="button"
-                              onClick={() => {
-                                setViewingDoc(doc);
-                                setViewingCitizen(booking.citizenName);
-                              }}
-                              className="rounded-lg bg-slate-800 p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 transition"
-                              title="Preview Document"
+                              disabled={openingDoc === doc.shareId}
+                              onClick={() => void openDocument(booking.id, doc)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-2 py-1.5 text-[11px] font-semibold text-slate-300 hover:text-white hover:bg-slate-700 transition disabled:opacity-60"
+                              title="Open in a new tab to view or print"
                             >
-                              <Eye className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                alert(`Sending "${doc.name}" directly to connected counter printer...`);
-                              }}
-                              className="rounded-lg bg-slate-800 p-1.5 text-slate-300 hover:text-cyan-300 hover:bg-slate-700 transition"
-                              title="1-Click Print"
-                            >
-                              <Printer className="h-3.5 w-3.5" />
+                              <Eye className="h-3.5 w-3.5" /> {openingDoc === doc.shareId ? 'Opening…' : 'View / Print'}
                             </button>
                           </div>
                         </div>
@@ -633,64 +529,6 @@ export default function BookingsPage() {
         </div>
       )}
 
-      {/* Document Preview Modal */}
-      {viewingDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <FileCheck2 className="h-4 w-4 text-cyan-400" />
-                  {viewingDoc.name}
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Uploaded by: <span className="text-white font-medium">{viewingCitizen}</span> · {viewingDoc.size}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setViewingDoc(null)}
-                className="text-slate-400 hover:text-white text-xs font-bold p-1"
-              >
-                Close
-              </button>
-            </div>
-
-            {/* Document Render Simulation */}
-            <div className="h-80 rounded-2xl border border-slate-800 bg-slate-950 flex flex-col items-center justify-center p-6 text-center space-y-3">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-400">
-                <FileCheck2 className="h-8 w-8" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-white">{viewingDoc.name}</p>
-                <p className="text-xs text-slate-400">
-                  Verified UIDAI / Education Department format · Ready for 1-Click Print
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center pt-2 border-t border-slate-800 text-xs">
-              <span className="text-slate-500 font-mono">Status: Verified clean scan</span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => alert(`Printing ${viewingDoc.name}...`)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 font-bold text-slate-950 hover:bg-cyan-300"
-                >
-                  <Printer className="h-4 w-4" /> Print Document
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewingDoc(null)}
-                  className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 font-semibold text-slate-300 hover:bg-slate-700"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Completion & Acknowledgment Slip Modal */}
       {completingBooking && (
@@ -859,34 +697,23 @@ export default function BookingsPage() {
                 {/* Uploaded Documents List */}
                 <div className="space-y-2 pt-2 border-t border-slate-800">
                   <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
-                    <FileCheck2 className="h-3.5 w-3.5 text-cyan-400" /> Uploaded Document Scans ({fillingBooking.documents.length})
+                    <FileCheck2 className="h-3.5 w-3.5 text-cyan-400" /> Documents shared by the citizen ({fillingBooking.documents.length})
                   </span>
                   <div className="space-y-1.5">
-                    {fillingBooking.documents.map((doc, idx) => (
+                    {fillingBooking.documents.map((doc) => (
                       <div
-                        key={idx}
+                        key={doc.shareId}
                         className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 p-2.5 text-xs"
                       >
                         <span className="text-slate-200 truncate max-w-[200px]">{doc.name}</span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setViewingDoc(doc);
-                              setViewingCitizen(fillingBooking.citizenName);
-                            }}
-                            className="rounded-lg bg-slate-800 px-2 py-1 text-[11px] text-cyan-400 hover:bg-slate-700"
-                          >
-                            View
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => alert(`Sending ${doc.name} to connected printer...`)}
-                            className="rounded-lg bg-slate-800 px-2 py-1 text-[11px] text-slate-300 hover:text-white hover:bg-slate-700"
-                          >
-                            Print
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          disabled={openingDoc === doc.shareId}
+                          onClick={() => void openDocument(fillingBooking.id, doc)}
+                          className="rounded-lg bg-slate-800 px-2 py-1 text-[11px] text-cyan-400 hover:bg-slate-700 disabled:opacity-60"
+                        >
+                          {openingDoc === doc.shareId ? 'Opening…' : 'View / Print'}
+                        </button>
                       </div>
                     ))}
                   </div>

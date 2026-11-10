@@ -1,14 +1,43 @@
 import datetime as dt
-from urllib.parse import urljoin, urlsplit
+import re
+from urllib.parse import quote, urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
+from app.fetcher import fetch
 from app.scrapers.base import BaseScraper, NoticeLink
+
+_IFRAME_SRC = re.compile(r"""<iframe[^>]+src\s*=\s*['"]([^'"]+)['"]""", re.IGNORECASE)
 
 
 class CDSCOScraper(BaseScraper):
     source_key = "cdsco"
     list_url = "https://www.cdsco.gov.in/opencms/en/Notifications/Vacancy/"
+
+    def is_document_url(self, url: str) -> bool:
+        """CDSCO serves its PDFs through download_file_division.jsp?... (no .pdf in the path)."""
+        parsed = urlsplit(url)
+        path = parsed.path.lower()
+        return (
+            parsed.scheme == "https"
+            and parsed.hostname in {"cdsco.gov.in", "www.cdsco.gov.in"}
+            and (path.endswith(".pdf") or path.endswith("/download_file_division.jsp"))
+        )
+
+    def resolve_document_url(self, url: str) -> str:
+        """download_file_division.jsp returns a tiny HTML page; its <iframe src> is the real PDF."""
+        if not urlsplit(url).path.lower().endswith("/download_file_division.jsp"):
+            return url
+        match = _IFRAME_SRC.search(fetch(url).text)
+        if not match:
+            raise ValueError(f"CDSCO download page has no file link: {url}")
+        # Join first (so an absolute off-site src stays off-site and is refused below), then encode
+        # the spaces/brackets in the file name, keeping any existing %-escapes.
+        parts = urlsplit(urljoin(url, match.group(1).strip()))
+        real = parts._replace(path=quote(parts.path, safe="/%")).geturl()
+        if not (self.is_document_url(real) and urlsplit(real).path.lower().endswith(".pdf")):
+            raise ValueError(f"CDSCO file link is not an official PDF: {real}")
+        return real
 
     @staticmethod
     def _parse_date(value: str):
@@ -68,7 +97,7 @@ class CDSCOScraper(BaseScraper):
                 }:
                     continue
 
-                if not parsed.path.lower().endswith(".pdf"):
+                if not self.is_document_url(url):
                     continue
 
                 if url in seen_urls:

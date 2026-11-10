@@ -51,7 +51,7 @@ export default function InstitutionUnderReviewPage() {
 
   const collegeName = partner?.business_name || 'Selected University / College';
   const officerName = partner?.owner_name || user?.email?.split('@')[0] || 'Admissions Coordinator';
-  const officerPhone = partner?.phone || user?.phone || '+91 98765 43210';
+  const officerPhone = partner?.phone || user?.phone || 'Not added yet';
   const officerEmail = partner?.email || user?.email || 'admissions@college.ac.in';
 
   return (

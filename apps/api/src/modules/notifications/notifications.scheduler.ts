@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import { NotificationsService } from './notifications.service.js';
+import { recordJobRun } from '../../common/job-runs.js';
 
 const TICK_MS = 15 * 60_000;
 const IST_OFFSET_MS = 5.5 * 3_600_000;
@@ -36,8 +37,10 @@ export class NotificationsScheduler implements OnApplicationBootstrap, OnApplica
 
   private async run(): Promise<void> {
     try {
+      let created = 0;
       if (isDaytimeIst()) {
-        const created = await this.notifications.runReminders();
+        created = await this.notifications.runReminders();
+        created += await this.notifications.runOpenReminders();
         if (created) this.logger.log(`Created ${created} reminder${created === 1 ? '' : 's'}`);
       }
       this.notifications.kick();
@@ -56,6 +59,7 @@ export class NotificationsScheduler implements OnApplicationBootstrap, OnApplica
         activeSlot = 'evening';
       }
 
+      recordJobRun('notifications', true, `${created} reminder${created === 1 ? '' : 's'} created`);
       if (activeSlot) {
         const slotKey = `${istDate}-${activeSlot}`;
         if (this.lastDigestCycle !== slotKey) {
@@ -67,6 +71,7 @@ export class NotificationsScheduler implements OnApplicationBootstrap, OnApplica
         }
       }
     } catch (err) {
+      recordJobRun('notifications', false, (err as Error).message);
       this.logger.warn(`Scheduler run failed: ${(err as Error).message}`);
     }
   }

@@ -15,7 +15,6 @@ import {
   Type,
   Sliders,
   Mail,
-  Smartphone,
   RotateCcw,
   Save,
 } from 'lucide-react';
@@ -459,27 +458,6 @@ export default function SettingsPage() {
                 </div>
                 <p className="text-xs text-[#526987] leading-relaxed">
                   {t('settings_notif_email_desc')}
-                </p>
-              </div>
-
-              {/* WhatsApp & SMS */}
-              <div className="rounded-2xl border border-[#e2eaf4] bg-[#F8FAFC] p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-                      <Smartphone className="size-4" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-black text-[#082046]">{t('settings_notif_whatsapp')}</p>
-                      <span className="text-[10px] text-emerald-600 font-bold uppercase">{t('settings_channel_mobile')}</span>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600">
-                    Coming soon
-                  </span>
-                </div>
-                <p className="text-xs text-[#526987] leading-relaxed">
-                  {t('settings_notif_whatsapp_desc')}
                 </p>
               </div>
 

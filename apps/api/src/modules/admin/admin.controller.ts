@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -20,6 +21,9 @@ import type {
   StaffRole,
 } from '@applyfields/types';
 import { StaffGuard } from '../../common/staff.guard.js';
+import { listJobs } from '../../common/job-runs.js';
+import { ZodPipe } from '../../common/zod.pipe.js';
+import { z } from 'zod';
 import { Roles } from '../../common/roles.decorator.js';
 import { ActorId, StaffMember, type StaffUser } from '../../common/actor.js';
 import { ReviewService } from './review.service.js';
@@ -28,6 +32,19 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { QueryRouterService } from '../chatbot/query-router.service.js';
 
 const HOUR_MS = 3_600_000;
+
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
+const payoutCreateSchema = z.object({
+  partner_id: z.string().uuid(),
+  period_start: isoDay,
+  period_end: isoDay,
+  commission_percent: z.number().min(0).max(100),
+});
+
+const payoutUpdateSchema = z.object({
+  status: z.enum(['pending', 'processing', 'paid', 'failed']),
+  reference: z.string().trim().max(120).optional(),
+});
 
 @Controller('admin')
 @UseGuards(StaffGuard)
@@ -38,6 +55,152 @@ export class AdminController {
     private readonly prisma: PrismaService,
     private readonly routerService?: QueryRouterService,
   ) {}
+
+  /**
+   * GET /api/v1/admin/payments — the money that actually exists today:
+   * online payments (empty until Razorpay is connected), counter-paid completed bookings, partner payouts.
+   */
+  @Get('payments')
+  @Roles('admin')
+  async payments() {
+    const [online, onlineTotals, counter, payouts] = await Promise.all([
+      this.prisma.payments.findMany({
+        orderBy: { created_at: 'desc' },
+        take: 50,
+        select: {
+          id: true, purpose: true, amount_paise: true, status: true, refunded_amount_paise: true,
+          razorpay_payment_id: true, paid_at: true, created_at: true,
+          partners: { select: { business_name: true } },
+        },
+      }),
+      this.prisma.payments.groupBy({ by: ['status'], _sum: { amount_paise: true }, _count: true }),
+      this.prisma.service_requests.aggregate({
+        where: { status: 'completed' },
+        _sum: { final_paise: true },
+        _count: true,
+      }),
+      this.prisma.partner_payouts.findMany({
+        orderBy: { created_at: 'desc' },
+        take: 100,
+        include: { partners: { select: { business_name: true } } },
+      }),
+    ]);
+    return {
+      online: {
+        items: online.map((p) => ({ ...p, partner_name: p.partners?.business_name ?? null, partners: undefined })),
+        by_status: onlineTotals.map((t) => ({ status: t.status, count: t._count, amount_paise: t._sum.amount_paise ?? 0 })),
+      },
+      counter: { completed_bookings: counter._count, amount_paise: counter._sum.final_paise ?? 0 },
+      payouts: payouts.map((p) => ({
+        id: p.id,
+        partner_name: p.partners.business_name,
+        period_start: p.period_start.toISOString().slice(0, 10),
+        period_end: p.period_end.toISOString().slice(0, 10),
+        gross_paise: p.gross_paise,
+        commission_paise: p.commission_paise,
+        net_paise: p.net_paise,
+        status: p.status,
+        paid_at: p.paid_at?.toISOString() ?? null,
+        reference: p.reference,
+      })),
+    };
+  }
+
+  /**
+   * POST /api/v1/admin/payments/payouts — open a settlement period for one centre. Gross is the sum of the
+   * centre's completed bookings in the period (never typed in); commission % is the admin's call per payout.
+   */
+  @Post('payments/payouts')
+  @Roles('admin')
+  async createPayout(
+    @ActorId() actorId: string | null,
+    @Body(new ZodPipe(payoutCreateSchema)) body: z.infer<typeof payoutCreateSchema>,
+  ) {
+    const start = new Date(`${body.period_start}T00:00:00+05:30`);
+    const endExclusive = new Date(new Date(`${body.period_end}T00:00:00+05:30`).getTime() + 86_400_000);
+    if (endExclusive <= start) throw new BadRequestException('The period must end on or after its start.');
+
+    const overlap = await this.prisma.partner_payouts.findFirst({
+      where: {
+        partner_id: body.partner_id,
+        status: { not: 'failed' },
+        period_start: { lte: new Date(body.period_end) },
+        period_end: { gte: new Date(body.period_start) },
+      },
+      select: { id: true },
+    });
+    if (overlap) throw new BadRequestException('This centre already has a payout covering part of that period.');
+
+    const sum = await this.prisma.service_requests.aggregate({
+      where: { partner_id: body.partner_id, status: 'completed', completed_at: { gte: start, lt: endExclusive } },
+      _sum: { final_paise: true },
+      _count: true,
+    });
+    const gross = sum._sum.final_paise ?? 0;
+    if (gross === 0) throw new BadRequestException('No priced completed bookings for this centre in that period.');
+    const commission = Math.round((gross * body.commission_percent) / 100);
+
+    const row = await this.prisma.partner_payouts.create({
+      data: {
+        partner_id: body.partner_id,
+        period_start: new Date(body.period_start),
+        period_end: new Date(body.period_end),
+        gross_paise: gross,
+        commission_paise: commission,
+        net_paise: gross - commission,
+      },
+    });
+    await this.prisma.audit_logs
+      .create({
+        data: {
+          actor_id: actorId,
+          action: 'payout_created',
+          target_type: 'partner_payout',
+          target_id: row.id,
+          details: { ...body, gross_paise: gross, bookings: sum._count },
+        },
+      })
+      .catch(() => null);
+    return { id: row.id, gross_paise: gross, commission_paise: commission, net_paise: row.net_paise, bookings: sum._count };
+  }
+
+  /** PATCH /api/v1/admin/payments/payouts/:id {status, reference} — record a bank transfer done outside the app. */
+  @Patch('payments/payouts/:id')
+  @Roles('admin')
+  async updatePayout(
+    @ActorId() actorId: string | null,
+    @Param('id') id: string,
+    @Body(new ZodPipe(payoutUpdateSchema)) body: z.infer<typeof payoutUpdateSchema>,
+  ) {
+    const row = await this.prisma.partner_payouts.update({
+      where: { id },
+      data: {
+        status: body.status,
+        reference: body.reference ?? undefined,
+        paid_at: body.status === 'paid' ? new Date() : null,
+        updated_at: new Date(),
+      },
+    });
+    await this.prisma.audit_logs
+      .create({
+        data: {
+          actor_id: actorId,
+          action: 'payout_status_changed',
+          target_type: 'partner_payout',
+          target_id: id,
+          details: { status: body.status, reference: body.reference ?? null },
+        },
+      })
+      .catch(() => null);
+    return { id: row.id, status: row.status, paid_at: row.paid_at?.toISOString() ?? null, reference: row.reference };
+  }
+
+  /** GET /api/v1/admin/scheduled-tasks — the API's background jobs and their recent runs. */
+  @Get('scheduled-tasks')
+  @Roles('reviewer')
+  scheduledTasks() {
+    return { items: listJobs() };
+  }
 
   /** GET /api/v1/admin/analytics/chatbot — returns chatbot observability metrics */
   @Get('analytics/chatbot')

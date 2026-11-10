@@ -52,7 +52,8 @@ export class StorageService {
 
   /**
    * A short-lived link to a private file, or null if Storage isn't configured or the file is missing.
-   * `path` may include the bucket name as its first segment — it is stripped.
+   * `path` is the exact object key that was uploaded. (It used to strip a leading "<bucket>/", which
+   * broke every locker document — keys are "documents/<user>/…" inside the documents bucket — and resumes.)
    * Pass `download` to force Content-Disposition: attachment with that filename.
    */
   async signedUrl(
@@ -65,9 +66,7 @@ export class StorageService {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!base || !key) return null;
 
-    const objectPath = path
-      .replace(/^\/+/, '')
-      .replace(new RegExp(`^${bucket}/`), '');
+    const objectPath = path.replace(/^\/+/, '');
     const encoded = objectPath.split('/').map(encodeURIComponent).join('/');
     const body: Record<string, unknown> = { expiresIn: expiresInSeconds };
     if (download) body.download = download;

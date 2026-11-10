@@ -1,4 +1,4 @@
-﻿import datetime as dt
+import datetime as dt
 import re
 from urllib.parse import urljoin, urlsplit
 

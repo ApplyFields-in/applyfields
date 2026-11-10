@@ -28,6 +28,7 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
 import { apiGet, PARTNER_URL, SERVICE_URL, WEB_URL } from '@/lib/api';
+import { PortalStatus, StatusDot } from '@/components/portal-status';
 
 /** '2026-10-04T05:56:18Z' → '10 min ago' or '4 Oct, 11:26 am' */
 function formatTimeAgo(iso?: string | null): string {
@@ -106,7 +107,7 @@ export default async function DashboardPage() {
         <div className="relative z-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur-md">
-              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className={cn('size-2 rounded-full', apiDown ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse')} />
               <span>ApplyFields Global Operations</span>
               <span className="text-white/40">|</span>
               <span className="text-olive-200">Port :3001</span>
@@ -322,9 +323,7 @@ export default async function DashboardPage() {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-bold text-sky-800">
                   <Globe className="size-3" /> Citizen Portal · :3000
                 </span>
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Live
-                </span>
+                <PortalStatus url={WEB_URL} />
               </div>
 
               <h3 className="mt-3 text-sm font-bold text-olive-950">
@@ -367,9 +366,7 @@ export default async function DashboardPage() {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-800">
                   <Zap className="size-3" /> Services Hub · :3003
                 </span>
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Live
-                </span>
+                <PortalStatus url={SERVICE_URL} />
               </div>
 
               <h3 className="mt-3 text-sm font-bold text-olive-950">
@@ -412,9 +409,7 @@ export default async function DashboardPage() {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
                   <Store className="size-3" /> Partner Portal · :3002
                 </span>
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Live
-                </span>
+                <PortalStatus url={PARTNER_URL} />
               </div>
 
               <h3 className="mt-3 text-sm font-bold text-olive-950">
@@ -812,27 +807,19 @@ export default async function DashboardPage() {
             <div className="mt-3 space-y-2 text-xs">
               <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
                 <span className="font-semibold text-olive-900">Citizen Web (:3000)</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-700 text-[11px]">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Active
-                </span>
+                <PortalStatus url={WEB_URL} upLabel="Active" />
               </div>
               <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
                 <span className="font-semibold text-olive-900">Services Hub (:3003)</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-700 text-[11px]">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Active
-                </span>
+                <PortalStatus url={SERVICE_URL} upLabel="Active" />
               </div>
               <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
                 <span className="font-semibold text-olive-900">Partner Desk (:3002)</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-700 text-[11px]">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Active
-                </span>
+                <PortalStatus url={PARTNER_URL} upLabel="Active" />
               </div>
               <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
                 <span className="font-semibold text-olive-900">API Backend (:4000)</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-700 text-[11px]">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Connected
-                </span>
+                <StatusDot state={apiDown ? 'down' : 'up'} upLabel="Connected" />
               </div>
             </div>
           </div>

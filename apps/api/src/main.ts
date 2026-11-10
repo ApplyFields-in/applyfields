@@ -13,6 +13,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import { HttpCacheInterceptor } from './common/http-cache.interceptor.js';
+import { rateLimit, securityHeaders } from './common/security.middleware.js';
 import { AppModule } from './app.module.js';
 
 // Auto-load .env if available
@@ -27,6 +28,13 @@ if (typeof process.loadEnvFile === 'function') {
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Render sits behind one proxy: trust it so req.ip is the caller, not the load balancer.
+  app.set('trust proxy', 1);
+  app.disable('x-powered-by');
+  app.use(securityHeaders);
+  app.use(rateLimit);
+
 
   // Gzip / Brotli compression for all JSON payloads over 1KB
   app.use(

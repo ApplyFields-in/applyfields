@@ -10,7 +10,7 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild --clean",
     "typecheck": "tsc --noEmit",
-    "test": "node --test scripts/mascot-rules.test.mjs"
+    "test": "node --test scripts/mascot-rules.test.mjs scripts/deep-link.test.mjs"
   },
   "dependencies": {
     "@applyfields/types": "workspace:*",
