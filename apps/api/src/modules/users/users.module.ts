@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersController } from './users.controller.js';
+import { PublicUsersController } from './public-users.controller.js';
 import { UsersService } from './users.service.js';
 import { UsersStore } from './users.store.js';
 import { StorageService } from '../../common/storage.service.js';
 
 @Module({
   imports: [JwtModule],
-  controllers: [UsersController],
+  controllers: [UsersController, PublicUsersController],
   providers: [UsersService, UsersStore, StorageService],
   exports: [UsersService, UsersStore],
 })

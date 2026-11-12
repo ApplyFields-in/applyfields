@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { showAppToast } from '@/components/toast-notification-provider';
 import { useLanguage } from '@/lib/i18n/language-context';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import type { UserCompetitiveExamScore } from '@applyfields/types';
 
 export type ExamType =
   | 'GATE'
@@ -61,35 +63,24 @@ const EXAM_PRESETS: { type: ExamType; name: string; category: string }[] = [
   { type: 'OTHER', name: 'Other State / National Entrance (CET / CUET / CLAT)', category: 'General' },
 ];
 
-const DEFAULT_SCORES: CompetitiveExamScore[] = [
-  {
-    id: 'exam-sample-1',
-    examType: 'GATE',
-    examName: 'GATE 2025 (Computer Science & IT)',
-    year: 2025,
-    rollNumber: 'CS25S37108420',
-    disciplineOrPaper: 'Computer Science and Information Technology (CS)',
-    score: '768 / 1000',
-    marks: '66.33 / 100',
-    percentile: '99.18',
-    allIndiaRank: '428',
-    awardOrStatus: 'Qualified for PSU Recruitment & M.Tech Admissions',
-    verified: true,
-  },
-  {
-    id: 'exam-sample-2',
-    examType: 'JEE_MAIN',
-    examName: 'JEE Main 2022',
-    year: 2022,
-    rollNumber: '220310084912',
-    disciplineOrPaper: 'Paper 1 (B.E. / B.Tech)',
-    percentile: '98.92',
-    allIndiaRank: '11,450',
-    categoryRank: 'GEN-EWS AIR 1,210',
-    awardOrStatus: 'Eligible for Central Seat Allocation Board (CSAB / JoSAA)',
-    verified: true,
-  },
-];
+function mapDbScoreToUi(item: UserCompetitiveExamScore): CompetitiveExamScore {
+  return {
+    id: item.id,
+    examType: (item.exam_type as ExamType) || 'OTHER',
+    examName: item.exam_name,
+    year: item.year,
+    rollNumber: item.roll_number ?? undefined,
+    registrationNumber: item.registration_number ?? undefined,
+    disciplineOrPaper: item.discipline_or_paper ?? undefined,
+    score: item.score ?? undefined,
+    marks: item.marks ?? undefined,
+    percentile: item.percentile ?? undefined,
+    allIndiaRank: item.all_india_rank ?? undefined,
+    categoryRank: item.category_rank ?? undefined,
+    awardOrStatus: item.award_or_status ?? undefined,
+    verified: item.verified ?? undefined,
+  };
+}
 
 interface CompetitiveExamScoresCardProps {
   onScoresChange?: (scores: CompetitiveExamScore[]) => void;
@@ -97,17 +88,9 @@ interface CompetitiveExamScoresCardProps {
 
 export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamScoresCardProps) {
   const { t } = useLanguage();
-  const [scores, setScores] = useState<CompetitiveExamScore[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('applyfields_competitive_exam_scores');
-        if (saved) return JSON.parse(saved);
-      } catch {
-        // fallback
-      }
-    }
-    return DEFAULT_SCORES;
-  });
+  const [scores, setScores] = useState<CompetitiveExamScore[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -127,19 +110,25 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
   const [categoryRank, setCategoryRank] = useState('');
   const [awardOrStatus, setAwardOrStatus] = useState('');
 
-  // Sync to localStorage and parent callback
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('applyfields_competitive_exam_scores', JSON.stringify(scores));
-      } catch (err) {
-        console.error('Failed to save exam scores to localStorage', err);
+  const loadScores = async () => {
+    setLoading(true);
+    try {
+      const data = await apiGet<UserCompetitiveExamScore[]>('/me/exam-scores');
+      if (Array.isArray(data)) {
+        const mapped = data.map(mapDbScoreToUi);
+        setScores(mapped);
+        onScoresChange?.(mapped);
       }
+    } catch {
+      // fallback
+    } finally {
+      setLoading(false);
     }
-    if (onScoresChange) {
-      onScoresChange(scores);
-    }
-  }, [scores, onScoresChange]);
+  };
+
+  useEffect(() => {
+    loadScores();
+  }, []);
 
   const handleOpenAddModal = () => {
     setEditingId(null);
@@ -195,41 +184,73 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
     }
   };
 
-  const handleSaveExamScore = (e: React.FormEvent) => {
+  const handleSaveExamScore = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
 
-    const record: CompetitiveExamScore = {
-      id: editingId || `exam-${Date.now()}`,
-      examType,
-      examName: examName.trim() || `${examType} ${year}`,
+    const payload = {
+      exam_type: examType,
+      exam_name: examName.trim() || `${examType} ${year}`,
       year: Number(year) || new Date().getFullYear(),
-      rollNumber: rollNumber.trim() || undefined,
-      registrationNumber: registrationNumber.trim() || undefined,
-      disciplineOrPaper: disciplineOrPaper.trim() || undefined,
+      roll_number: rollNumber.trim() || undefined,
+      registration_number: registrationNumber.trim() || undefined,
+      discipline_or_paper: disciplineOrPaper.trim() || undefined,
       score: score.trim() || undefined,
       marks: marks.trim() || undefined,
       percentile: percentile.trim() || undefined,
-      allIndiaRank: allIndiaRank.trim() || undefined,
-      categoryRank: categoryRank.trim() || undefined,
-      awardOrStatus: awardOrStatus.trim() || 'Qualified',
-      verified: true,
+      all_india_rank: allIndiaRank.trim() || undefined,
+      category_rank: categoryRank.trim() || undefined,
+      award_or_status: awardOrStatus.trim() || 'Qualified',
     };
 
-    if (editingId) {
-      setScores((prev) => prev.map((s) => (s.id === editingId ? record : s)));
-      showAppToast('Competitive exam score updated successfully.');
-    } else {
-      setScores((prev) => [record, ...prev]);
-      showAppToast('Competitive exam score added to your credentials.');
+    try {
+      if (editingId) {
+        const res = await apiPut<UserCompetitiveExamScore>(`/me/exam-scores/${editingId}`, payload);
+        if (res.data) {
+          const updated = mapDbScoreToUi(res.data);
+          const next = scores.map((s) => (s.id === editingId ? updated : s));
+          setScores(next);
+          onScoresChange?.(next);
+          showAppToast('Competitive exam score updated successfully.');
+          setShowModal(false);
+        } else {
+          showAppToast(res.error || 'Failed to update exam score');
+        }
+      } else {
+        const res = await apiPost<UserCompetitiveExamScore>('/me/exam-scores', payload);
+        if (res.data) {
+          const created = mapDbScoreToUi(res.data);
+          const next = [created, ...scores];
+          setScores(next);
+          onScoresChange?.(next);
+          showAppToast('Competitive exam score added to your credentials.');
+          setShowModal(false);
+        } else {
+          showAppToast(res.error || 'Failed to add exam score');
+        }
+      }
+    } catch {
+      showAppToast('Failed to save exam score');
+    } finally {
+      setSaving(false);
     }
-
-    setShowModal(false);
   };
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (confirm(`Remove record for ${name}?`)) {
-      setScores((prev) => prev.filter((s) => s.id !== id));
-      showAppToast('Exam record removed.');
+      try {
+        const res = await apiDelete(`/me/exam-scores/${id}`);
+        if (!res.error) {
+          const next = scores.filter((s) => s.id !== id);
+          setScores(next);
+          onScoresChange?.(next);
+          showAppToast('Exam record removed.');
+        } else {
+          showAppToast(res.error || 'Failed to remove exam record');
+        }
+      } catch {
+        showAppToast('Failed to remove exam record');
+      }
     }
   };
 
@@ -432,7 +453,7 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
       <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 text-[11px] text-slate-500">
         <ShieldCheck className="size-3.5 text-slate-400 shrink-0" />
         <span>
-          Recorded roll numbers are stored on your device profile and formatted for counseling verification and PSU job notifications.
+          Exam scores and roll numbers are saved directly to your ApplyFields account database and formatted for counseling verification and PSU job notifications.
         </span>
       </div>
 
@@ -629,9 +650,10 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#0e7bf4] hover:bg-blue-600 text-white text-xs font-semibold shadow-xs transition-colors"
+                  disabled={saving}
+                  className="px-5 py-2 rounded-xl bg-[#0e7bf4] hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-colors"
                 >
-                  {editingId ? 'Save Changes' : 'Record Score'}
+                  {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Record Score'}
                 </button>
               </div>
             </form>

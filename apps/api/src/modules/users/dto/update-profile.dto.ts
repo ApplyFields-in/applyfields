@@ -80,4 +80,12 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   avatar_url?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_public?: boolean;
+
+  @IsOptional()
+  @IsString()
+  handle?: string;
 }

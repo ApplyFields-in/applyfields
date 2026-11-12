@@ -32,7 +32,7 @@ import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/lib/i18n/translat
 import { showAppToast } from '@/components/toast-notification-provider';
 import { useWebPush } from '@/lib/push/use-web-push';
 import { apiGet, apiPut } from '@/lib/api';
-import type { NotificationPreferences } from '@applyfields/types';
+import type { NotificationPreferences, MeResponse } from '@applyfields/types';
 
 type SettingsTab = 'language' | 'notifications' | 'display' | 'preferences';
 type ReadingTheme = 'default' | 'sepia' | 'high-contrast';
@@ -150,9 +150,20 @@ export default function SettingsPage() {
       } catch {}
     }
 
-    // Load opportunity preferences
-    const savedState = localStorage.getItem('applyfields_pref_state');
-    if (savedState) setPreferredState(savedState);
+    // Load opportunity preferences from server profile
+    apiGet<MeResponse>('/me')
+      .then((me) => {
+        if (me?.profile?.state_code) {
+          setPreferredState(me.profile.state_code);
+        } else {
+          const savedState = localStorage.getItem('applyfields_pref_state');
+          if (savedState) setPreferredState(savedState);
+        }
+      })
+      .catch(() => {
+        const savedState = localStorage.getItem('applyfields_pref_state');
+        if (savedState) setPreferredState(savedState);
+      });
 
     const savedFocus = localStorage.getItem('applyfields_pref_focus');
     if (savedFocus) {
@@ -222,6 +233,11 @@ export default function SettingsPage() {
       void apiPut<NotificationPreferences>('/notifications/preferences', {
         email_enabled: emailEnabled,
         push_enabled: pushEnabled,
+      }).catch(() => null);
+
+      // Persist preferred state directly to user profile on server
+      void apiPut('/me/profile', {
+        state_code: preferredState === 'ALL' ? undefined : preferredState,
       }).catch(() => null);
     }
 

@@ -40,7 +40,6 @@ import type {
 } from '@applyfields/types';
 import { Badge, Card, buttonClass } from '@applyfields/ui';
 import { formatDate } from '@/lib/format';
-import { MOCK_APPLICATIONS, MOCK_BOOKINGS, MOCK_ENQUIRIES } from '@/lib/mock-data';
 import { useLanguage } from '@/lib/i18n/language-context';
 
 const PIPELINE_STAGES: { id: ApplicationTrackerStatus; label: string; step: number; color: string }[] = [
@@ -89,6 +88,7 @@ export default function ApplicationsPage() {
   // Tracker state
   const [applications, setApplications] = useState<ApplicationTrackerItem[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; error?: boolean } | null>(null);
 
   // Modals
@@ -113,15 +113,17 @@ export default function ApplicationsPage() {
   // Fetch applications
   async function loadApplications() {
     setLoadingApps(true);
+    setApiError(null);
     try {
       const res = await apiGet<ApplicationTrackerItem[]>('/applications');
-      if (res && Array.isArray(res) && res.length > 0) {
+      if (res && Array.isArray(res)) {
         setApplications(res);
       } else {
-        setApplications(MOCK_APPLICATIONS);
+        setApplications([]);
       }
     } catch {
-      setApplications(MOCK_APPLICATIONS);
+      setApiError('Unable to load applications from the server. Please check your connection.');
+      setApplications([]);
     } finally {
       setLoadingApps(false);
     }
@@ -130,29 +132,28 @@ export default function ApplicationsPage() {
   useEffect(() => {
     loadApplications();
 
-    // Load bookings & enquiries in background with mock fallbacks for testing
     apiGet<BookingListResponse>('/bookings/my')
       .then((res) => {
-        if (res?.items && res.items.length > 0) {
+        if (res?.items && Array.isArray(res.items)) {
           setBookings(res.items);
         } else {
-          setBookings(MOCK_BOOKINGS);
+          setBookings([]);
         }
       })
       .catch(() => {
-        setBookings(MOCK_BOOKINGS);
+        setBookings([]);
       });
 
     apiGet<InstitutionEnquiryListResponse>('/career/colleges/my-enquiries')
       .then((res) => {
-        if (res?.items && res.items.length > 0) {
+        if (res?.items && Array.isArray(res.items)) {
           setEnquiries(res.items);
         } else {
-          setEnquiries(MOCK_ENQUIRIES);
+          setEnquiries([]);
         }
       })
       .catch(() => {
-        setEnquiries(MOCK_ENQUIRIES);
+        setEnquiries([]);
       });
   }, []);
 
@@ -404,6 +405,22 @@ export default function ApplicationsPage() {
               {t('apps_btn_add', 'Add Tracked Application')}
             </button>
           </div>
+
+          {apiError && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 flex items-center justify-between text-xs text-rose-800">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="size-4 text-rose-600 shrink-0" />
+                <span>{apiError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={loadApplications}
+                className="px-3 py-1 rounded-lg bg-rose-600 text-white font-semibold text-xs hover:bg-rose-700"
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
           {/* Applications List */}
           {loadingApps ? (
