@@ -176,7 +176,7 @@ export default function MyBookingsPage() {
   // The signed-in user's real bookings only; none = the empty state.
   useEffect(() => {
     if (!user) {
-      setBookings([]);
+      queueMicrotask(() => setBookings([]));
       return;
     }
     getMyBookings()

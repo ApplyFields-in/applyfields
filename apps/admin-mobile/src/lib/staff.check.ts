@@ -1,7 +1,19 @@
 // Run: pnpm --filter @applyfields/admin-mobile check
 import assert from 'node:assert/strict';
 
-import { LOCK_AFTER_MS, canUse, departmentsForRoles, kycRows, loginId, shouldLock, tabsForRoles } from './staff.ts';
+import {
+  ESCALATION_ROLES,
+  GUIDE_VERIFY_ROLES,
+  LOCK_AFTER_MS,
+  alertRoute,
+  canUse,
+  departmentsForRoles,
+  guideNeedsCheck,
+  kycRows,
+  loginId,
+  shouldLock,
+  tabsForRoles,
+} from './staff.ts';
 
 assert.deepEqual(departmentsForRoles(['super_admin']), ['apply', 'career', 'partners', 'services']);
 assert.deepEqual(departmentsForRoles(['admin', 'support']), ['apply', 'career', 'partners', 'services']);
@@ -60,3 +72,27 @@ assert.equal(k.rows[0].doc?.id, 'c');
 assert.deepEqual(k.blocking.map((r) => r.spec.kind), ['trade_license']);
 
 console.log('admin-mobile tabs + KYC rules: ok');
+
+// ---------- staff push links → screens ----------
+const P = '3f9c2a10-1b2c-4d5e-8f90-0123456789ab';
+assert.equal(alertRoute('https://applyfields-admin.vercel.app/disputes'), '/escalations');
+assert.equal(alertRoute('https://admin.applyfields.com/review?x=1'), '/queue');
+assert.equal(alertRoute(`https://applyfields-admin.vercel.app/partners/${P}`), `/kyc/${P}`);
+assert.equal(alertRoute('https://applyfields-admin.vercel.app/partners/map'), null);
+assert.equal(alertRoute('/somewhere-else'), null);
+assert.equal(alertRoute(null), null);
+
+// ---------- guide freshness ----------
+const NOW = Date.UTC(2026, 10, 10);
+assert.equal(guideNeedsCheck(null, NOW), true);
+assert.equal(guideNeedsCheck(new Date(NOW - 10 * 86_400_000).toISOString(), NOW), false);
+assert.equal(guideNeedsCheck(new Date(NOW - 91 * 86_400_000).toISOString(), NOW), true);
+assert.equal(guideNeedsCheck('garbage', NOW), true);
+
+// ---------- who sees what ----------
+assert.equal(canUse(['support'], ESCALATION_ROLES), true);
+assert.equal(canUse(['reviewer'], ESCALATION_ROLES), false);
+assert.equal(canUse(['support'], GUIDE_VERIFY_ROLES), false);
+assert.equal(canUse(['admin'], GUIDE_VERIFY_ROLES), true);
+
+console.log('admin-mobile alerts + guides rules: ok');

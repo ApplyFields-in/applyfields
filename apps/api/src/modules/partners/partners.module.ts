@@ -4,8 +4,10 @@ import { PartnersAdminController } from './partners-admin.controller.js';
 import { PartnersService } from './partners.service.js';
 import { StaffGuard } from '../../common/staff.guard.js';
 import { StorageService } from '../../common/storage.service.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [PartnersController, PartnersAdminController],
   providers: [PartnersService, StaffGuard, StorageService],
   exports: [PartnersService],

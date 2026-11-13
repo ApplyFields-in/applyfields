@@ -1,12 +1,14 @@
 import {
   Injectable,
   Logger,
+  Optional,
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ScrapersAdminService } from './scrapers-admin.service.js';
 import { recordJobRun } from '../../common/job-runs.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -25,6 +27,7 @@ export class ScraperSchedulerService
   constructor(
     private readonly prisma: PrismaService,
     private readonly scrapersService: ScrapersAdminService,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -81,9 +84,11 @@ export class ScraperSchedulerService
       );
 
       let failed = 0;
+      const fresh: string[] = [];
       for (const source of dueSources) {
         try {
           const res = await this.scrapersService.triggerSource(source.id);
+          if ((res.new_items ?? 0) > 0) fresh.push(`${source.key} ${res.new_items}`);
           this.logger.log(
             `Scheduled run for '${source.key}': ${res.message} (found: ${res.items_found ?? 0}, new: ${res.new_items ?? 0})`,
           );
@@ -94,6 +99,16 @@ export class ScraperSchedulerService
         }
       }
       recordJobRun('ingestion', failed === 0, `Ran ${dueSources.length} source(s), ${failed} failed`);
+      if (fresh.length) {
+        const total = fresh.reduce((n, f) => n + Number(f.split(' ').pop()), 0);
+        await this.notifications
+          ?.notifyStaff(
+            ['reviewer', 'content_editor'],
+            { title: `${total} new draft${total === 1 ? '' : 's'} to review`, body: `From ${fresh.join(', ')}.`, path: '/review' },
+            `staff_drafts:${new Date().toISOString().slice(0, 13)}`, // at most one alert per hour
+          )
+          .catch((err: Error) => this.logger.warn(`Staff alert for new drafts failed: ${err.message}`));
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       recordJobRun('ingestion', false, msg);

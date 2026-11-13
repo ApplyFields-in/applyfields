@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BiometricGate } from '@/components/biometric-gate';
 import { Button, Empty, Loading } from '@/components/ui';
+import { useAlertTaps } from '@/lib/push';
 import { SessionProvider, useSession } from '@/lib/session';
 import { C, S } from '@/theme';
 
@@ -13,6 +14,7 @@ const THEME = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: C
 
 function Navigator() {
   const { status, error, fresh, reload, logout } = useSession();
+  useAlertTaps(status === 'staff');
 
   if (status === 'loading') return <Loading label="Opening the staff desk…" />;
   if (status === 'offline') {
@@ -41,6 +43,8 @@ function Navigator() {
       <Stack.Protected guard={status === 'staff'}>
         <Stack.Screen name="(desk)" options={{ headerShown: false }} />
         <Stack.Screen name="kyc/[id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="escalations" options={{ title: 'Booking complaints' }} />
+        <Stack.Screen name="guides" options={{ title: 'Guides to verify' }} />
       </Stack.Protected>
     </Stack>
   );

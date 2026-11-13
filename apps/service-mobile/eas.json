@@ -1,0 +1,36 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://10.0.2.2:4000/api/v1",
+        "EXPO_PUBLIC_SERVICE_URL": "https://applyfields-4alm.vercel.app"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://applyfields.onrender.com/api/v1",
+        "EXPO_PUBLIC_SERVICE_URL": "https://applyfields-4alm.vercel.app"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.applyfields.in/api/v1",
+        "EXPO_PUBLIC_SERVICE_URL": "https://service.applyfields.in"
+      }
+    }
+  }
+}

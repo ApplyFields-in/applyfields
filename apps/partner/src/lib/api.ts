@@ -406,6 +406,20 @@ export async function markBookingMessagesRead(
   );
 }
 
+export interface WalkInInput {
+  citizen_name: string;
+  contact_phone?: string;
+  partner_service_id?: string;
+  service_name: string;
+  amount_paise: number;
+  payment_mode: 'cash' | 'upi';
+}
+
+/** Counter: save a walk-in citizen as an in-progress, already-paid booking (shows in Bookings + Earnings). */
+export async function createWalkIn(input: WalkInInput): Promise<ApiResponse<BookingDetail>> {
+  return apiPost<BookingDetail, WalkInInput>('/bookings/partner/walk-in', input);
+}
+
 /** 10-minute link to a locker document the citizen shared for this booking (access is logged). */
 export async function sharedDocumentUrl(bookingId: string, shareId: string): Promise<ApiResponse<{ url: string }>> {
   return apiGet<{ url: string }>(`/bookings/${bookingId}/documents/${shareId}`);

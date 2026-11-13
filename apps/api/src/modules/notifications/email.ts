@@ -63,7 +63,7 @@ export async function sendWithResend(
     'Idempotency-Key': idempotencyKey,
   };
   const bodyPayload: Record<string, any> = {
-    from: fromOverride ?? process.env.EMAIL_FROM ?? 'ApplyFields <no-reply@applyfields.in>',
+    from: fromOverride ?? process.env.EMAIL_FROM ?? 'ApplyFields <no-reply@applyfields.com>',
     to: [to],
     subject: email.subject,
     html: email.html,
@@ -87,11 +87,12 @@ export async function sendWithResend(
 }
 
 /**
- * Sends one-time password (OTP) verification email via Resend with dynamic sender routing
- * based on the purpose:
- * - verify_email / login / reset_password -> support@applyfields.com
- * - query / help -> help@applyfields.com
- * - services -> services@applyfields.com
+ * Sends one-time password (OTP) verification email via Resend.
+ *
+ * All auth-related OTPs (verify_email, login, reset_password) are sent from
+ * no-reply@applyfields.com. Service / help emails use their own addresses.
+ *
+ * Returns the Resend message id on success, or null when RESEND_API_KEY is not configured.
  */
 export async function sendOtpEmail(
   to: string,
@@ -99,20 +100,21 @@ export async function sendOtpEmail(
   purpose: string,
 ): Promise<string | null> {
   const key = process.env.RESEND_API_KEY;
-  if (!key) return null;
+  if (!key) {
+    console.warn('[OTP EMAIL] RESEND_API_KEY is not set — email will NOT be delivered. Set it in .env to enable real OTP emails.');
+    return null;
+  }
 
-  let fromAddress = process.env.EMAIL_SUPPORT_FROM ?? 'ApplyFields Support <support@applyfields.com>';
+  // Default sender for all auth OTPs — the user-facing no-reply address
+  let fromAddress = process.env.EMAIL_FROM ?? 'ApplyFields <no-reply@applyfields.com>';
   let purposeTitle = 'Verification Code';
 
   if (purpose === 'verify_email') {
     purposeTitle = 'Email Verification';
-    fromAddress = process.env.EMAIL_SUPPORT_FROM ?? 'ApplyFields Support <support@applyfields.com>';
   } else if (purpose === 'login') {
     purposeTitle = 'Sign-in Verification';
-    fromAddress = process.env.EMAIL_SUPPORT_FROM ?? 'ApplyFields Support <support@applyfields.com>';
   } else if (purpose === 'reset_password') {
     purposeTitle = 'Password Reset';
-    fromAddress = process.env.EMAIL_SUPPORT_FROM ?? 'ApplyFields Support <support@applyfields.com>';
   } else if (purpose === 'query' || purpose === 'help') {
     purposeTitle = 'Support Query Update';
     fromAddress = process.env.EMAIL_HELP_FROM ?? 'ApplyFields Help Desk <help@applyfields.com>';
@@ -142,14 +144,14 @@ export async function sendOtpEmail(
     </p>
     <hr style="border:none;border-top:1px solid #e3eaf3;margin:24px 0" />
     <p style="font-size:11px;color:#8ba0b8;margin:0;text-align:center">
-      ApplyFields · Secure Citizen Opportunities & Services Portal<br/>
-      Sent from ${fromAddress}
+      ApplyFields &middot; Secure Citizen Opportunities &amp; Services Portal<br/>
+      &copy; ${new Date().getFullYear()} ApplyFields. All rights reserved.
     </p>
   </div>
 </body>
 </html>`;
 
-  const text = `${purposeTitle}: ${otp}\n\nYour 6-digit ApplyFields verification code is: ${otp}\nValid for 10 minutes.\n\nSent from ${fromAddress}`;
+  const text = `${purposeTitle}: ${otp}\n\nYour 6-digit ApplyFields verification code is: ${otp}\nValid for 10 minutes.\n\nIf you did not request this code, please ignore this email.`;
 
   return await sendWithResend(
     to,

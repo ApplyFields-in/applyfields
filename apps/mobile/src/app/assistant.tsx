@@ -211,6 +211,22 @@ export default function Assistant() {
     react('thinking'); // loops until the answer (or an error) arrives
     recordMascotEvent({ type: 'research' }); // asking Fieldy counts toward the "thinking" app icon
 
+    if (!signedIn) {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      setMessages((cur) => [
+        ...cur,
+        {
+          id: `b${Date.now()}`,
+          sender: 'assistant',
+          text: 'Please **sign in to continue** chatting with Fieldy.',
+          actions: [{ label: 'Sign in to continue', action: 'navigate', url: '/login' }],
+        },
+      ]);
+      setLoading(false);
+      react('success');
+      return;
+    }
+
     const payload: ChatbotQueryInput = {
       query: q,
       page_type: 'general',
@@ -263,6 +279,7 @@ export default function Assistant() {
     // Site paths that have an app screen open it; everything else opens in the in-app browser.
     const opp = url.match(/^\/(?:apply\/)?(?:jobs|exams|scholarships|admissions)\/([^/?#]+)/);
     if (opp) router.push(`/opportunity/${opp[1]}`);
+    else if (url === '/login') router.push('/login');
     else if (url === '/saved') router.push('/saved');
     else void WebBrowser.openBrowserAsync(url.startsWith('http') ? url : `${WEB}${url}`);
   }
@@ -280,196 +297,205 @@ export default function Assistant() {
   const blocked = !!quota?.limit_reached;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: C.canvas }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={[s.header, { paddingTop: insets.top + S.sm }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close Fieldy"
-          onPress={() => router.back()}
-          hitSlop={12}
-        >
-          <Ionicons name="close" size={24} color={C.white} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Say hi to Fieldy"
-          onPress={waveHello}
-        >
-          {/* The welcome card shows the big Fieldy before the first question; the thinking bubble during a wait. */}
-          <FieldyMascot
-            mood={messages.length && !loading ? mood : 'idle'}
-            replay={replay}
-            size={44}
-            radius={14}
-          />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={s.name}>
-            Fieldy <Text style={s.role}>· AI Advisor</Text>
-          </Text>
-          <Text style={s.caption} accessibilityLiveRegion="polite">
-            {CAPTION[mood]}
-          </Text>
-        </View>
-        {remaining ? (
-          <View style={[s.quota, blocked && { backgroundColor: 'rgba(192,57,43,0.25)' }]}>
-            <Text style={s.quotaText}>{remaining}</Text>
-          </View>
-        ) : null}
-        {messages.length ? (
-          <Pressable accessibilityLabel="Clear chat" onPress={() => setMessages([])} hitSlop={12}>
-            <Ionicons name="refresh" size={20} color={C.white} />
-          </Pressable>
-        ) : null}
-      </View>
-
-      <ScrollView
-        ref={scroll}
-        contentContainerStyle={[column, s.body]}
-        keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
+    // Bottom sheet over the screen it was opened from (~65% tall); tap the dimmed part to close.
+    <View style={s.overlay}>
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        accessibilityRole="button"
+        accessibilityLabel="Close Fieldy"
+        onPress={() => router.back()}
+      />
+      <KeyboardAvoidingView
+        style={s.sheet}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={s.welcome}>
-          {messages.length === 0 ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Say hi to Fieldy"
-              onPress={waveHello}
-            >
-              <FieldyMascot mood={mood} replay={replay} size={112} radius={20} />
-            </Pressable>
-          ) : null}
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={s.welcomeTitle}>Ask Fieldy</Text>
-            <Text style={s.welcomeBody}>
-              Government jobs, closing dates, fee waivers, eligibility or career paths. Free
-              accounts get <Text style={{ fontWeight: '800' }}>3 AI chats a day</Text>; shortcuts
-              below are always free.
+        <View style={[s.header, { paddingTop: S.sm }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close Fieldy"
+            onPress={() => router.back()}
+            hitSlop={12}
+          >
+            <Ionicons name="close" size={24} color={C.white} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Say hi to Fieldy"
+            onPress={waveHello}
+          >
+            {/* The welcome card shows the big Fieldy before the first question; the thinking bubble during a wait. */}
+            <FieldyMascot
+              mood={loading ? 'thinking' : mood}
+              replay={replay}
+              size={44}
+              radius={14}
+            />
+          </Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={s.name}>
+              Fieldy <Text style={s.role}>· AI Advisor</Text>
+            </Text>
+            <Text style={s.caption} accessibilityLiveRegion="polite">
+              {CAPTION[mood]}
             </Text>
           </View>
+          {remaining ? (
+            <View style={[s.quota, blocked && { backgroundColor: 'rgba(192,57,43,0.25)' }]}>
+              <Text style={s.quotaText}>{remaining}</Text>
+            </View>
+          ) : null}
+          {messages.length ? (
+            <Pressable accessibilityLabel="Clear chat" onPress={() => setMessages([])} hitSlop={12}>
+              <Ionicons name="refresh" size={20} color={C.white} />
+            </Pressable>
+          ) : null}
         </View>
 
-        {messages.length === 0 ? (
-          <View style={{ gap: S.sm }}>
-            <Text style={s.kicker}>TRY ASKING</Text>
-            {PROMPTS.map((p) => (
+        <ScrollView
+          ref={scroll}
+          contentContainerStyle={[column, s.body]}
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
+        >
+          <View style={s.welcome}>
+            {messages.length === 0 ? (
               <Pressable
-                key={p}
-                disabled={blocked}
-                onPress={() => send(p)}
-                style={[s.prompt, blocked && { opacity: 0.5 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Say hi to Fieldy"
+                onPress={waveHello}
               >
-                <Text style={s.promptText}>{p}</Text>
+                <FieldyMascot mood={mood} replay={replay} size={112} radius={20} />
               </Pressable>
-            ))}
-          </View>
-        ) : null}
-
-        {messages.map((m) =>
-          m.sender === 'user' ? (
-            <View key={m.id} style={s.userBubble}>
-              <Text style={s.userText}>{m.text}</Text>
+            ) : null}
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={s.welcomeTitle}>Ask Fieldy</Text>
+              <Text style={s.welcomeBody}>
+                Government jobs, closing dates, fee waivers, eligibility or career paths. Free
+                accounts get <Text style={{ fontWeight: '800' }}>3 AI chats a day</Text>; shortcuts
+                below are always free.
+              </Text>
             </View>
-          ) : (
-            <View key={m.id} style={{ gap: S.xs }}>
-              <View style={s.botBubble}>
-                <Markdown
-                  text={m.text}
-                  onLink={(url) => runAction({ label: '', action: 'navigate', url })}
-                />
-                {m.actions?.length ? (
-                  <View style={s.actions}>
-                    {m.actions.map((a, i) => (
-                      <Pressable key={i} onPress={() => runAction(a)} style={s.action}>
-                        <Text style={s.actionText}>{a.label}</Text>
+          </View>
+
+          {messages.length === 0 ? (
+            <View style={{ gap: S.sm }}>
+              <Text style={s.kicker}>TRY ASKING</Text>
+              {PROMPTS.map((p) => (
+                <Pressable
+                  key={p}
+                  disabled={blocked}
+                  onPress={() => send(p)}
+                  style={[s.prompt, blocked && { opacity: 0.5 }]}
+                >
+                  <Text style={s.promptText}>{p}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          {messages.map((m) =>
+            m.sender === 'user' ? (
+              <View key={m.id} style={s.userBubble}>
+                <Text style={s.userText}>{m.text}</Text>
+              </View>
+            ) : (
+              <View key={m.id} style={{ gap: S.xs }}>
+                <View style={s.botBubble}>
+                  <Markdown
+                    text={m.text}
+                    onLink={(url) => runAction({ label: '', action: 'navigate', url })}
+                  />
+                  {m.actions?.length ? (
+                    <View style={s.actions}>
+                      {m.actions.map((a, i) => (
+                        <Pressable key={i} onPress={() => runAction(a)} style={s.action}>
+                          <Text style={s.actionText}>{a.label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+                {m.related?.length ? (
+                  <View style={s.related}>
+                    {m.related.map((r) => (
+                      <Pressable
+                        key={r}
+                        disabled={blocked}
+                        onPress={() => send(r)}
+                        style={s.relatedChip}
+                      >
+                        <Text style={s.relatedText}>↳ {r}</Text>
                       </Pressable>
                     ))}
                   </View>
                 ) : null}
               </View>
-              {m.related?.length ? (
-                <View style={s.related}>
-                  {m.related.map((r) => (
-                    <Pressable
-                      key={r}
-                      disabled={blocked}
-                      onPress={() => send(r)}
-                      style={s.relatedChip}
-                    >
-                      <Text style={s.relatedText}>↳ {r}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              ) : null}
-            </View>
-          ),
-        )}
+            ),
+          )}
 
-        {loading ? (
-          <View
-            style={s.thinking}
-            accessibilityRole="progressbar"
-            accessibilityLabel="Fieldy is thinking"
-          >
-            <FieldyMascot mood="thinking" size={72} radius={14} />
-            <Text style={s.thinkingText}>Fieldy is thinking…</Text>
-          </View>
-        ) : null}
-
-        {blocked ? (
-          <View style={s.limit}>
-            <Text style={s.limitTitle}>Today's 3 free chats are used</Text>
-            <Text style={s.welcomeBody}>
-              They reset at midnight IST. The shortcuts below still work.
-            </Text>
-          </View>
-        ) : null}
-      </ScrollView>
-
-      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, S.sm) }]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.shortcuts}
-        >
-          {SHORTCUTS.map((sc) => (
-            <Pressable
-              key={sc.label}
-              accessibilityRole="link"
-              onPress={() => openShortcut(sc)}
-              style={s.shortcut}
+          {loading ? (
+            <View
+              style={s.thinking}
+              accessibilityRole="progressbar"
+              accessibilityLabel="Fieldy is thinking"
             >
-              <Ionicons name={sc.icon} size={14} color={C.blue} />
-              <Text style={s.shortcutText}>{sc.label}</Text>
-            </Pressable>
-          ))}
+              <FieldyMascot mood="thinking" size={72} radius={14} />
+              <Text style={s.thinkingText}>Fieldy is thinking…</Text>
+            </View>
+          ) : null}
+
+          {blocked ? (
+            <View style={s.limit}>
+              <Text style={s.limitTitle}>Today's 3 free chats are used</Text>
+              <Text style={s.welcomeBody}>
+                They reset at midnight IST. The shortcuts below still work.
+              </Text>
+            </View>
+          ) : null}
         </ScrollView>
-        <View style={[column, s.inputRow]}>
-          <TextInput
-            value={input}
-            onChangeText={onTyping}
-            editable={!blocked && !loading}
-            placeholder={blocked ? 'Daily limit reached' : 'Ask about any exam, job or career…'}
-            placeholderTextColor={C.muted}
-            onSubmitEditing={() => send(input)}
-            returnKeyType="send"
-            style={s.input}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Send"
-            disabled={!input.trim() || loading || blocked}
-            onPress={() => send(input)}
-            style={[s.send, (!input.trim() || loading || blocked) && { opacity: 0.4 }]}
+
+        <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, S.sm) }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.shortcuts}
           >
-            <Ionicons name="send" size={18} color={C.white} />
-          </Pressable>
+            {SHORTCUTS.map((sc) => (
+              <Pressable
+                key={sc.label}
+                accessibilityRole="link"
+                onPress={() => openShortcut(sc)}
+                style={s.shortcut}
+              >
+                <Ionicons name={sc.icon} size={14} color={C.blue} />
+                <Text style={s.shortcutText}>{sc.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <View style={[column, s.inputRow]}>
+            <TextInput
+              value={input}
+              onChangeText={onTyping}
+              editable={!blocked && !loading}
+              placeholder={blocked ? 'Daily limit reached' : 'Ask about any exam, job or career…'}
+              placeholderTextColor={C.muted}
+              onSubmitEditing={() => send(input)}
+              returnKeyType="send"
+              style={s.input}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Send"
+              disabled={!input.trim() || loading || blocked}
+              onPress={() => send(input)}
+              style={[s.send, (!input.trim() || loading || blocked) && { opacity: 0.4 }]}
+            >
+              <Ionicons name="send" size={18} color={C.white} />
+            </Pressable>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -491,6 +517,14 @@ const md = StyleSheet.create({
 });
 
 const s = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(8, 32, 70, 0.45)' },
+  sheet: {
+    height: '65%',
+    backgroundColor: C.canvas,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -27,7 +27,9 @@ const files = new Map<string, Promise<string>>();
 function loadPlayer(): Promise<LottiePlayer> {
   // Light canvas build: no expression engine (these files have none), one <canvas> per mascot.
   if (!player) {
-    player = import('lottie-web/build/player/lottie_light_canvas').then((m) => m.default);
+    player = import('lottie-web/build/player/lottie_light_canvas').then(
+      (m) => (m as unknown as { default?: LottiePlayer }).default ?? (m as unknown as LottiePlayer),
+    );
     player.catch(() => (player = null)); // a later attempt retries
   }
   return player;
@@ -97,7 +99,8 @@ export function FieldyMascot({
       .then(([lottie, json]) => {
         if (cancelled) return;
         const layer = document.createElement('div');
-        layer.className = 'absolute inset-0 opacity-0';
+        layer.className =
+          'absolute inset-0 w-full h-full opacity-0 transition-opacity duration-150 [&>canvas]:!w-full [&>canvas]:!h-full [&>canvas]:block';
         box.appendChild(layer);
         const anim = lottie.loadAnimation({
           container: layer,
@@ -116,7 +119,12 @@ export function FieldyMascot({
           pending = null;
         };
         anim.addEventListener('loaded_images', show);
-        timer = setTimeout(show, 1500); // never stay stuck on the previous mood
+        anim.addEventListener('DOMLoaded', show);
+        if ((anim as unknown as { isLoaded?: boolean }).isLoaded) {
+          show();
+        } else {
+          timer = setTimeout(show, 500); // never stay stuck hidden if base64 assets load synchronously
+        }
       })
       .catch(() => {
         // Offline or missing file: the poster (or the previous mood) simply stays.

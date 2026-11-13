@@ -185,12 +185,18 @@ export class AuthService {
     }
 
     // Real delivery when the provider is configured (Resend for email, MSG91 for SMS).
-    const delivery = dto.target.includes('@')
-      ? sendOtpEmail(dto.target, rawOtp, dto.purpose)
-      : sendOtpSms(dto.target, rawOtp);
-    delivery.catch((err) => {
+    // In production, attempt delivery and log warnings on failure (non-blocking so the
+    // user still gets a success response — they can always resend).
+    const isEmail = dto.target.includes('@');
+    try {
+      if (isEmail) {
+        await sendOtpEmail(dto.target, rawOtp, dto.purpose);
+      } else {
+        await sendOtpSms(dto.target, rawOtp);
+      }
+    } catch (err: any) {
       console.warn(`[OTP] Could not deliver code to ${maskedTarget}:`, err?.message ?? err);
-    });
+    }
 
     return {
       success: true,

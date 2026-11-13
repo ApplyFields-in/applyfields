@@ -66,8 +66,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         try {
           const parsed = JSON.parse(saved);
           if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
-            setItems(parsed.items);
-            setPartner(parsed.partner || null);
+            queueMicrotask(() => {
+              setItems(parsed.items);
+              setPartner(parsed.partner || null);
+            });
           }
         } catch {}
       }

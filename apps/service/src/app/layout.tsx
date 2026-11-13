@@ -13,6 +13,14 @@ export const metadata: Metadata = {
   title: 'ApplyFields Services — Book MeeSeva, CSC, PAN, Aadhaar & Xerox Online',
   description:
     'Dedicated citizen service booking portal for Telangana, Andhra Pradesh, Karnataka and Maharashtra. Reserve time slots at local verified centers with zero waiting lines.',
+  icons: {
+    icon: [
+      { url: '/icon.png', sizes: '512x512', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({

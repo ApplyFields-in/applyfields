@@ -19,6 +19,7 @@ import type {
   PushSubscriptionInput,
 } from '@applyfields/types';
 import type { Prisma } from '../../generated/prisma/client.js';
+import type { staff_role } from '../../generated/prisma/enums.js';
 import { jwtAccessSecret } from '../../common/jwt-secret.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { addDays, todayIst } from '../opportunities/opportunities.service.js';
@@ -46,6 +47,9 @@ const RETRY_AFTER_MS = 5 * 60_000;
 const SEND_GAP_MS = 550;
 
 const webUrl = () => (process.env.WEB_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+/** Staff alerts link to the admin website; the admin app maps the same paths to its own screens. */
+export const adminLink = (path: string) =>
+  `${(process.env.ADMIN_URL ?? 'https://applyfields-admin.vercel.app').replace(/\/$/, '')}${path}`;
 const apiPublicUrl = () => (process.env.API_PUBLIC_URL ?? 'http://localhost:4000/api/v1').replace(/\/$/, '');
 /** A different secret from login tokens, so an unsubscribe link can never be used to log in. */
 const unsubscribeSecret = () => `${jwtAccessSecret()}:unsubscribe`;
@@ -387,6 +391,32 @@ export class NotificationsService {
       );
     }
     return created;
+  }
+
+  /**
+   * Staff alert (in-app + push to the admin app + email): every active staff member with one of `roles`,
+   * plus admins/super admins. Type `system`, so staff can't mute it. Fire-and-forget at call sites:
+   * the action that triggered it has already succeeded.
+   */
+  async notifyStaff(
+    roles: string[],
+    alert: { title: string; body: string; path: string },
+    dedupeKey: string,
+  ): Promise<number> {
+    const rows = await this.prisma.user_roles.findMany({
+      where: {
+        role: { in: [...new Set([...roles, 'admin', 'super_admin'])] as staff_role[] },
+        users_user_roles_user_idTousers: { status: 'active' },
+      },
+      select: { user_id: true },
+    });
+    const staff = [...new Set(rows.map((r) => r.user_id))];
+    if (staff.length === 0) return 0;
+    return this.notify(
+      staff,
+      { type: 'system', title: alert.title, body: alert.body, link: adminLink(alert.path) },
+      () => dedupeKey,
+    );
   }
 
   /**

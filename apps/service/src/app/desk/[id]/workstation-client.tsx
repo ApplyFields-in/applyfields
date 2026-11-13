@@ -135,7 +135,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
         setOtpSecondsLeft((prev) => prev - 1);
       }, 1000);
     } else if (otpSecondsLeft === 0) {
-      setIsOtpActive(false);
+      queueMicrotask(() => setIsOtpActive(false));
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -521,7 +521,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
               <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Father's Name
+                    Father&apos;s Name
                   </span>
                   <button
                     type="button"
@@ -539,7 +539,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
               <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Mother's Name
+                    Mother&apos;s Name
                   </span>
                   <button
                     type="button"

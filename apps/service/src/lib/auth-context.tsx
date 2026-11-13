@@ -68,7 +68,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    syncAuth();
+    queueMicrotask(() => {
+      void syncAuth();
+    });
 
     function handleStorage() {
       syncAuth();

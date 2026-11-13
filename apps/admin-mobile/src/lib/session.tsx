@@ -10,6 +10,7 @@ import type { AdminMeResponse, AuthResponse } from '@applyfields/types';
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api, saveSession, setToken } from './api';
+import { registerForPush, unregisterPush } from './push';
 import { loginId } from './staff';
 
 export type SessionStatus = 'loading' | 'offline' | 'signed_out' | 'staff';
@@ -44,6 +45,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setStaff(res.data);
       setStatus('staff');
       setError(null);
+      void registerForPush(); // staff alerts on this phone; silently skipped on emulators / no permission
       return;
     }
     setStaff(null);
@@ -92,6 +94,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    await unregisterPush().catch(() => undefined); // before logout: the call needs the session
     await api.post('/auth/logout');
     await setToken(null);
     setStaff(null);

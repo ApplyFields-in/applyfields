@@ -103,3 +103,33 @@ export function kycRows<D extends KycDoc>(specs: readonly KycSpec[], docs: reado
   const blocking = rows.filter((r) => !r.spec.optional && r.state !== 'verified');
   return { rows, blocking, ready: blocking.length === 0 };
 }
+
+// ---------- Escalations, guides, staff push ----------
+
+/** Same @Roles as the API: disputes + guide list = support; marking a guide verified = admin. */
+export const ESCALATION_ROLES = ['support'] as const;
+export const GUIDE_LIST_ROLES = ['support'] as const;
+export const GUIDE_VERIFY_ROLES = ['admin'] as const;
+
+/** A published guide needs a fresh check when it was never verified or the last check is older than this. */
+export const GUIDE_STALE_DAYS = 90;
+
+export function guideNeedsCheck(lastVerifiedAt: string | null, now: number): boolean {
+  if (!lastVerifiedAt) return true;
+  const at = Date.parse(lastVerifiedAt);
+  return Number.isNaN(at) || now - at > GUIDE_STALE_DAYS * 86_400_000;
+}
+
+/**
+ * Staff alerts link to the admin website (apps/api notifyStaff → adminLink). Map them to this app's screens;
+ * null = no screen for it (open Pulse).
+ */
+export function alertRoute(link: string | null | undefined): string | null {
+  if (!link) return null;
+  const path = link.replace(/^https?:\/\/[^/]+/i, '').split(/[?#]/)[0];
+  if (path === '/disputes') return '/escalations';
+  if (path === '/review') return '/queue';
+  const partner = path.match(/^\/partners\/([0-9a-f-]{36})$/i);
+  if (partner) return `/kyc/${partner[1]}`;
+  return null;
+}
