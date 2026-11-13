@@ -19,12 +19,16 @@ import {
   QrCode,
   Share2,
   ShieldCheck,
+  ShieldAlert,
   Sparkles,
   UserCheck,
+  UserX,
+  Loader2,
 } from 'lucide-react';
 import { PixelAvatar } from '@/components/pixel-avatars';
 import { showAppToast } from '@/components/toast-notification-provider';
-import type { CompetitiveExamScore } from '@/components/profile/competitive-exam-scores-card';
+import { apiGet } from '@/lib/api';
+import type { PublicProfileResponse, UserCompetitiveExamScore } from '@applyfields/types';
 
 interface CandidatePublicPageProps {
   params: Promise<{ handle: string }>;
@@ -35,92 +39,25 @@ export default function CandidatePublicPage({ params }: CandidatePublicPageProps
   const handle = unwrappedParams.handle;
 
   const [copied, setCopied] = useState(false);
-  const [candidateData, setCandidateData] = useState<{
-    fullName: string;
-    avatarUrl?: string;
-    stateName: string;
-    district: string;
-    domicileState: string;
-    category: string;
-    highestDegree: string;
-    stream: string;
-    institution: string;
-    yearOfPassing: number | string;
-    score: number | string;
-    scoreType: string;
-    skills: string[];
-    targetJobTypes: string[];
-    examScores: CompetitiveExamScore[];
-  }>({
-    fullName: handle
-      ? handle
-          .split(/[-_]+/)
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ')
-      : 'Candidate Profile',
-    avatarUrl: 'pixel-scholar',
-    stateName: 'Karnataka',
-    district: 'Bengaluru',
-    domicileState: 'Karnataka',
-    category: 'General / Unreserved',
-    highestDegree: 'B.Tech',
-    stream: 'Computer Science & Engineering',
-    institution: 'National Institute of Technology Karnataka (NITK Surathkal)',
-    yearOfPassing: 2025,
-    score: 8.84,
-    scoreType: 'cgpa',
-    skills: ['Python', 'Data Structures & Algorithms', 'System Architecture', 'SQL', 'English', 'Kannada'],
-    targetJobTypes: ['Central Government PSUs', 'State Engineering Services', 'Higher Technical Education'],
-    examScores: [
-      {
-        id: 'exam-sample-1',
-        examType: 'GATE',
-        examName: 'GATE 2025 (Computer Science & IT)',
-        year: 2025,
-        rollNumber: 'CS25S37108420',
-        disciplineOrPaper: 'Computer Science and Information Technology (CS)',
-        score: '768 / 1000',
-        marks: '66.33 / 100',
-        percentile: '99.18',
-        allIndiaRank: '428',
-        awardOrStatus: 'Qualified for PSU Recruitment & M.Tech Admissions',
-        verified: true,
-      },
-      {
-        id: 'exam-sample-2',
-        examType: 'JEE_MAIN',
-        examName: 'JEE Main 2022',
-        year: 2022,
-        rollNumber: '220310084912',
-        disciplineOrPaper: 'Paper 1 (B.E. / B.Tech)',
-        percentile: '98.92',
-        allIndiaRank: '11,450',
-        categoryRank: 'GEN-EWS AIR 1,210',
-        awardOrStatus: 'Eligible for Central Seat Allocation Board (CSAB / JoSAA)',
-        verified: true,
-      },
-    ],
-  });
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<PublicProfileResponse | null>(null);
 
-  // Attempt to hydrate from current user's local session if viewing self
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    async function loadPublicProfile() {
+      setLoading(true);
       try {
-        const savedScores = localStorage.getItem('applyfields_competitive_exam_scores');
-        if (savedScores) {
-          const parsed = JSON.parse(savedScores);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setCandidateData((prev) => ({
-              ...prev,
-              examScores: parsed,
-            }));
-          }
-        }
+        const data = await apiGet<PublicProfileResponse>(`/users/public/${encodeURIComponent(handle)}`);
+        setProfile(data);
       } catch {
-        // use fallback
+        setProfile(null);
+      } finally {
+        setLoading(false);
       }
     }
-  }, []);
+    if (handle) {
+      loadPublicProfile();
+    }
+  }, [handle]);
 
   const publicUrl = typeof window !== 'undefined'
     ? window.location.href
@@ -136,19 +73,63 @@ export default function CandidatePublicPage({ params }: CandidatePublicPageProps
   };
 
   const handleShareWhatsApp = () => {
-    const text = `Verified Candidate Portfolio for ${candidateData.fullName}: ${publicUrl}`;
+    const name = profile?.fullName || `@${handle}`;
+    const text = `Verified Candidate Portfolio for ${name}: ${publicUrl}`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleShareEmail = () => {
-    const subject = `Verified Candidate Portfolio - ${candidateData.fullName}`;
-    const body = `Hi,\n\nPlease review my verified candidate credentials and competitive exam benchmarks on ApplyFields:\n${publicUrl}\n\nRegards,\n${candidateData.fullName}`;
+    const name = profile?.fullName || `@${handle}`;
+    const subject = `Verified Candidate Portfolio - ${name}`;
+    const body = `Hi,\n\nPlease review my verified candidate credentials and competitive exam benchmarks on ApplyFields:\n${publicUrl}\n\nRegards,\n${name}`;
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
   };
 
   const handlePrint = () => {
     window.print();
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F4F7FB] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3 text-slate-500">
+          <Loader2 className="size-8 animate-spin text-[#0E7BF4]" />
+          <p className="text-sm font-semibold">Loading verified candidate profile…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-[#F4F7FB] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200/80 p-8 shadow-sm text-center space-y-4">
+          <div className="size-14 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center border border-amber-200">
+            <ShieldAlert className="size-7" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Profile Not Available</h2>
+            <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+              The profile <span className="font-mono font-semibold text-slate-800">@{handle}</span> does not exist or has been made private by its owner under DPDP privacy settings.
+            </p>
+          </div>
+          <div className="pt-2">
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 transition-colors shadow-sm"
+            >
+              Explore Opportunities
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const fullName = profile.fullName || `@${handle}`;
+  const skills = profile.skills || [];
+  const targetJobTypes = profile.targetJobTypes || [];
+  const examScores = profile.examScores || [];
 
   return (
     <div className="min-h-screen bg-[#F2F1ED] py-8 sm:py-12 print:bg-white print:py-0">
@@ -217,7 +198,7 @@ export default function CandidatePublicPage({ params }: CandidatePublicPageProps
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b-2 border-[#dec9a5]">
             <div className="flex items-start gap-4">
               <div className="size-20 rounded-xl bg-[#082046] text-[#F4E8D1] font-bold text-3xl flex items-center justify-center border border-[#dec9a5] shrink-0">
-                {candidateData.fullName.slice(0, 2).toUpperCase()}
+                {fullName.slice(0, 2).toUpperCase()}
               </div>
 
               <div className="space-y-1">
@@ -231,22 +212,30 @@ export default function CandidatePublicPage({ params }: CandidatePublicPageProps
                 </div>
 
                 <h1 className="text-2xl sm:text-3xl font-black text-[#082046] tracking-tight">
-                  {candidateData.fullName}
+                  {fullName}
                 </h1>
 
                 <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 pt-0.5">
                   <span className="flex items-center gap-1 font-medium">
                     <MapPin className="size-3.5 text-[#76562d]" />
-                    {[candidateData.district, candidateData.stateName].filter(Boolean).join(', ')}
+                    {[profile.district, profile.stateName].filter(Boolean).join(', ') || 'India'}
                   </span>
-                  <span className="text-slate-400">·</span>
-                  <span>
-                    State Domicile: <strong className="text-slate-800">{candidateData.domicileState}</strong>
-                  </span>
-                  <span className="text-slate-400">·</span>
-                  <span>
-                    Category: <strong className="text-slate-800">{candidateData.category}</strong>
-                  </span>
+                  {profile.stateName && (
+                    <>
+                      <span className="text-slate-400">·</span>
+                      <span>
+                        State Domicile: <strong className="text-slate-800">{profile.domicileState || profile.stateName}</strong>
+                      </span>
+                    </>
+                  )}
+                  {profile.category && (
+                    <>
+                      <span className="text-slate-400">·</span>
+                      <span>
+                        Category: <strong className="text-slate-800">{profile.category}</strong>
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -271,33 +260,41 @@ export default function CandidatePublicPage({ params }: CandidatePublicPageProps
               </h2>
             </div>
 
-            <div className="p-5 rounded-xl border border-[#dec9a5] bg-[#f8f5ef] grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <span className="text-[11px] font-medium text-slate-500 block mb-0.5">Qualification & Branch</span>
-                <span className="text-sm font-bold text-[#082046] block">
-                  {candidateData.highestDegree} in {candidateData.stream}
-                </span>
-                <span className="text-xs text-slate-500">Regular Full-Time</span>
-              </div>
+            {profile.highestDegree || profile.institution ? (
+              <div className="p-5 rounded-xl border border-[#dec9a5] bg-[#f8f5ef] grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 block mb-0.5">Qualification & Branch</span>
+                  <span className="text-sm font-bold text-[#082046] block">
+                    {profile.highestDegree || 'Graduate'} {profile.stream ? `in ${profile.stream}` : ''}
+                  </span>
+                  <span className="text-xs text-slate-500">Regular Full-Time</span>
+                </div>
 
-              <div>
-                <span className="text-[11px] font-medium text-slate-500 block mb-0.5">College or Institution</span>
-                <span className="text-xs font-semibold text-slate-800 block">
-                  {candidateData.institution}
-                </span>
-                <span className="text-[11px] text-slate-500">Government / Autonomous Institute</span>
-              </div>
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 block mb-0.5">College or Institution</span>
+                  <span className="text-xs font-semibold text-slate-800 block">
+                    {profile.institution || 'Verified Higher Education Institution'}
+                  </span>
+                  <span className="text-[11px] text-slate-500">Recognized Institution</span>
+                </div>
 
-              <div>
-                <span className="text-[11px] font-medium text-slate-500 block mb-0.5">Year of Passing & Score</span>
-                <span className="text-xs font-bold text-[#082046] block">
-                  Class of {candidateData.yearOfPassing}
-                </span>
-                <span className="text-xs font-semibold text-emerald-700">
-                  {candidateData.score} {candidateData.scoreType === 'cgpa' ? 'CGPA / 10.0' : '% Marks'}
-                </span>
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 block mb-0.5">Year of Passing & Score</span>
+                  <span className="text-xs font-bold text-[#082046] block">
+                    {profile.yearOfPassing ? `Class of ${profile.yearOfPassing}` : 'Completed'}
+                  </span>
+                  {profile.score != null && (
+                    <span className="text-xs font-semibold text-emerald-700">
+                      {profile.score} {profile.scoreType === 'cgpa' ? 'CGPA / 10.0' : '% Marks'}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-500">
+                No verified educational degrees listed publicly.
+              </div>
+            )}
           </div>
 
           {/* Competitive Exam Benchmarks & Roll Numbers */}
@@ -310,71 +307,77 @@ export default function CandidatePublicPage({ params }: CandidatePublicPageProps
                 </h2>
               </div>
               <span className="text-[11px] text-slate-400 font-medium">
-                {candidateData.examScores.length} Records Verified
+                {examScores.length} Records Verified
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {candidateData.examScores.map((exam) => (
-                <div
-                  key={exam.id}
-                  className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded border border-[#dec9a5] bg-[#F4E8D1] text-[10px] font-bold text-[#76562d]">
-                        {exam.examType.replace('_', ' ')}
-                      </span>
-                      <h3 className="text-sm font-bold text-slate-900 mt-1">{exam.examName}</h3>
-                      {exam.disciplineOrPaper && (
-                        <p className="text-xs text-slate-500 line-clamp-1">{exam.disciplineOrPaper}</p>
-                      )}
+            {examScores.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {examScores.map((exam: UserCompetitiveExamScore) => (
+                  <div
+                    key={exam.id}
+                    className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs space-y-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded border border-[#dec9a5] bg-[#F4E8D1] text-[10px] font-bold text-[#76562d]">
+                          {(exam.exam_type || '').replace('_', ' ')}
+                        </span>
+                        <h3 className="text-sm font-bold text-slate-900 mt-1">{exam.exam_name}</h3>
+                        {exam.discipline_or_paper && (
+                          <p className="text-xs text-slate-500 line-clamp-1">{exam.discipline_or_paper}</p>
+                        )}
+                      </div>
+                      <span className="text-xs font-medium text-slate-500">{exam.year}</span>
                     </div>
-                    <span className="text-xs font-medium text-slate-500">{exam.year}</span>
+
+                    {/* Highlights Grid */}
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/60 grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block">
+                          {exam.all_india_rank ? 'National Rank' : 'Score'}
+                        </span>
+                        <span className="text-sm font-extrabold text-[#082046]">
+                          {exam.all_india_rank ? `AIR ${exam.all_india_rank}` : exam.score || 'Qualified'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block">
+                          Percentile / Status
+                        </span>
+                        <span className="text-sm font-bold text-[#0e7bf4]">
+                          {exam.percentile ? `${exam.percentile} %ile` : exam.award_or_status || 'Eligible'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {exam.roll_number && (
+                      <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-100 flex items-center justify-between">
+                        <span>Roll No: <span className="font-mono text-slate-700">{exam.roll_number}</span></span>
+                        {exam.category_rank && (
+                          <span className="font-medium text-slate-600">{exam.category_rank}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
-
-                  {/* Highlights Grid */}
-                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/60 grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block">
-                        {exam.allIndiaRank ? 'National Rank' : 'Score'}
-                      </span>
-                      <span className="text-sm font-extrabold text-[#082046]">
-                        {exam.allIndiaRank ? `AIR ${exam.allIndiaRank}` : exam.score || 'Qualified'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block">
-                        Percentile / Status
-                      </span>
-                      <span className="text-sm font-bold text-[#0e7bf4]">
-                        {exam.percentile ? `${exam.percentile} %ile` : exam.awardOrStatus || 'Eligible'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {exam.rollNumber && (
-                    <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-100 flex items-center justify-between">
-                      <span>Roll No: <span className="font-mono text-slate-700">{exam.rollNumber}</span></span>
-                      {exam.categoryRank && (
-                        <span className="font-medium text-slate-600">{exam.categoryRank}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-500">
+                No competitive exam scores published publicly.
+              </div>
+            )}
           </div>
 
           {/* Skills & Competencies */}
-          {candidateData.skills.length > 0 && (
+          {skills.length > 0 && (
             <div className="space-y-2.5">
               <h2 className="text-xs font-bold uppercase tracking-wider text-[#082046]">
                 Technical Skills & Languages
               </h2>
               <div className="flex flex-wrap gap-2">
-                {candidateData.skills.map((skill) => (
+                {skills.map((skill: string) => (
                   <span
                     key={skill}
                     className="px-3 py-1 rounded-md bg-slate-100 text-slate-800 text-xs font-medium border border-slate-200"
@@ -387,13 +390,13 @@ export default function CandidatePublicPage({ params }: CandidatePublicPageProps
           )}
 
           {/* Preferred Sectors & Career Trajectories */}
-          {candidateData.targetJobTypes.length > 0 && (
+          {targetJobTypes.length > 0 && (
             <div className="space-y-2.5">
               <h2 className="text-xs font-bold uppercase tracking-wider text-[#082046]">
                 Target Sectors & Career Interests
               </h2>
               <div className="flex flex-wrap gap-2">
-                {candidateData.targetJobTypes.map((t) => (
+                {targetJobTypes.map((t: string) => (
                   <span
                     key={t}
                     className="px-3 py-1 rounded-md bg-[#F4E8D1] border border-[#dec9a5] text-[#76562d] text-xs font-semibold"

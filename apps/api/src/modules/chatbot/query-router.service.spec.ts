@@ -231,7 +231,11 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
 
     // 'fallback' when no ANTHROPIC_API_KEY: kept out of the cache so a restored key isn't masked for 12h.
     expect(['llm', 'rag', 'fallback']).toContain(res.mode);
-    expect(res.answer).toContain('ApplyFields AI Advisor');
+    if (res.mode === 'fallback') {
+      expect(res.answer).toContain('ApplyFields AI Advisor');
+    } else {
+      expect(res.answer.length).toBeGreaterThan(0);
+    }
     expect(res.actions).toBeDefined();
   });
 

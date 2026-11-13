@@ -35,7 +35,96 @@ export interface UserProfile {
   domicile_state_code: string | null;
   preferred_language: string;
   avatar_url: string | null;
+  is_public?: boolean;
+  handle?: string | null;
   updated_at: string;
+}
+
+export interface UserCompetitiveExamScore {
+  id: string;
+  user_id: string;
+  exam_type: string;
+  exam_name: string;
+  year: number;
+  roll_number?: string | null;
+  registration_number?: string | null;
+  discipline_or_paper?: string | null;
+  score?: string | null;
+  marks?: string | null;
+  percentile?: string | null;
+  all_india_rank?: string | null;
+  category_rank?: string | null;
+  award_or_status?: string | null;
+  verified: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserSessionItem {
+  id: string;
+  device: string;
+  location: string;
+  ip: string;
+  lastActive: string;
+  isCurrent: boolean;
+  createdAt: string;
+}
+
+export interface UserDataExport {
+  platform: string;
+  exported_at: string;
+  compliance: string;
+  account: {
+    id: string;
+    email: string | null;
+    phone: string | null;
+    status: string;
+    created_at: string;
+  };
+  profile: UserProfile | null;
+  education: UserEducation[];
+  exam_scores: UserCompetitiveExamScore[];
+  saved_items: Array<{
+    id: string;
+    opportunity_id: string;
+    title?: string;
+    created_at: string;
+  }>;
+  applications: Array<{
+    id: string;
+    title: string;
+    organization: string;
+    status: string;
+    created_at: string;
+  }>;
+  documents: Array<{
+    id: string;
+    title: string | null;
+    file_name: string | null;
+    mime_type: string | null;
+    size_bytes: number | null;
+    created_at: string;
+  }>;
+}
+
+export interface PublicProfileResponse {
+  fullName: string;
+  handle: string;
+  avatarUrl?: string;
+  stateName?: string;
+  district?: string;
+  domicileState?: string;
+  category?: string;
+  highestDegree?: string;
+  stream?: string;
+  institution?: string;
+  yearOfPassing?: number | string;
+  score?: number | string;
+  scoreType?: string;
+  skills: string[];
+  targetJobTypes: string[];
+  examScores: UserCompetitiveExamScore[];
+  isVerified: boolean;
 }
 
 export interface UserEducation {

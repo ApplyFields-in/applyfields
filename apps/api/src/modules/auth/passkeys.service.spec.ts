@@ -55,7 +55,7 @@ describe('PasskeysService', () => {
 
     // Second passkey on the same account excludes the first one at the browser.
     const again = await passkeys.registerOptions(user.id);
-    expect(again.options.excludeCredentials?.map((c) => c.id)).toEqual([Buffer.from('cred-pk1@example.com').toString('base64url')]);
+    expect(again.options.excludeCredentials?.map((c: { id: string }) => c.id)).toEqual([Buffer.from('cred-pk1@example.com').toString('base64url')]);
     expect(again.options.authenticatorSelection).toMatchObject({ residentKey: 'required', userVerification: 'required' });
   });
 

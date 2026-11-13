@@ -1484,6 +1484,8 @@ model user_profiles {
   domicile_state_code  String?
   preferred_language   String           @default("en")
   avatar_url           String?
+  is_public            Boolean          @default(false)
+  handle               String?          @unique
   created_at           DateTime         @default(now()) @db.Timestamptz(6)
   updated_at           DateTime         @default(now()) @db.Timestamptz(6)
   users                users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -1629,12 +1631,36 @@ model users {
   updates                                                      updates[]
   user_documents                                               user_documents[]
   user_education                                               user_education[]
+  user_competitive_exam_scores                                 user_competitive_exam_scores[]
   user_passkeys                                                user_passkeys[]
   user_profiles                                                user_profiles?
   user_roadmaps                                                user_roadmaps[]
   user_roles_user_roles_granted_byTousers                      user_roles[]              @relation("user_roles_granted_byTousers")
   user_roles_user_roles_user_idTousers                         user_roles[]              @relation("user_roles_user_idTousers")
   user_sessions                                                user_sessions[]
+}
+
+model user_competitive_exam_scores {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id             String    @db.Uuid
+  exam_type           String    @db.VarChar(50)
+  exam_name           String    @db.VarChar(255)
+  year                Int
+  roll_number         String?   @db.VarChar(100)
+  registration_number String?   @db.VarChar(100)
+  discipline_or_paper String?   @db.VarChar(200)
+  score               String?   @db.VarChar(100)
+  marks               String?   @db.VarChar(100)
+  percentile          String?   @db.VarChar(50)
+  all_india_rank      String?   @db.VarChar(50)
+  category_rank       String?   @db.VarChar(50)
+  award_or_status     String?   @db.VarChar(255)
+  verified            Boolean   @default(false)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
+  users               users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id])
 }
 
 model analytics_events {

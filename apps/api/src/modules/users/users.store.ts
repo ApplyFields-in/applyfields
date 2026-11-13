@@ -3,8 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type {
+  UserCompetitiveExamScore,
+  UserDataExport,
   UserEducation,
   UserProfile,
+  UserSessionItem,
   UserSummary,
 } from '@applyfields/types';
 import { Prisma, PrismaService } from '../../prisma/prisma.service.js';
@@ -103,6 +106,7 @@ export class UsersStore implements OnModuleInit {
   private profiles = new Map<string, UserProfile>();
   private educations = new Map<string, UserEducation>();
   private documents = new Map<string, UserDocumentEntity>();
+  private examScores = new Map<string, UserCompetitiveExamScore>();
   private passkeys = new Map<string, PasskeyEntity>();
 
   constructor(@Optional() private readonly prisma?: PrismaService) {
@@ -166,6 +170,9 @@ export class UsersStore implements OnModuleInit {
         if (Array.isArray(data.documents)) {
           for (const d of data.documents) this.documents.set(d.id, d);
         }
+        if (Array.isArray(data.examScores)) {
+          for (const s of data.examScores) this.examScores.set(s.id, s);
+        }
       }
     } catch (err) {
       console.warn(
@@ -190,6 +197,7 @@ export class UsersStore implements OnModuleInit {
         profiles: Array.from(this.profiles.values()),
         educations: Array.from(this.educations.values()),
         documents: Array.from(this.documents.values()),
+        examScores: Array.from(this.examScores.values()),
       };
       writeFileSync(STORE_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
@@ -246,8 +254,36 @@ export class UsersStore implements OnModuleInit {
       domicile_state_code: p.domicile_state_code ?? null,
       preferred_language: p.preferred_language ?? 'en',
       avatar_url: p.avatar_url ?? null,
+      is_public: Boolean(p.is_public),
+      handle: p.handle ?? null,
       updated_at: p.updated_at
         ? p.updated_at.toISOString()
+        : new Date().toISOString(),
+    };
+  }
+
+  private mapDbExamScoreToDomain(s: any): UserCompetitiveExamScore {
+    return {
+      id: s.id,
+      user_id: s.user_id,
+      exam_type: s.exam_type,
+      exam_name: s.exam_name,
+      year: Number(s.year),
+      roll_number: s.roll_number ?? null,
+      registration_number: s.registration_number ?? null,
+      discipline_or_paper: s.discipline_or_paper ?? null,
+      score: s.score ?? null,
+      marks: s.marks ?? null,
+      percentile: s.percentile ?? null,
+      all_india_rank: s.all_india_rank ?? null,
+      category_rank: s.category_rank ?? null,
+      award_or_status: s.award_or_status ?? null,
+      verified: Boolean(s.verified),
+      created_at: s.created_at
+        ? s.created_at.toISOString()
+        : new Date().toISOString(),
+      updated_at: s.updated_at
+        ? s.updated_at.toISOString()
         : new Date().toISOString(),
     };
   }
@@ -694,6 +730,86 @@ export class UsersStore implements OnModuleInit {
     this.saveToDisk();
   }
 
+  async listSessionsForUser(
+    userId: string,
+    currentSessionId?: string,
+  ): Promise<UserSessionItem[]> {
+    if (this.prisma && !this.isTestEnv()) {
+      const now = new Date();
+      const dbSessions = await this.prisma.user_sessions.findMany({
+        where: {
+          user_id: userId,
+          revoked_at: null,
+          expires_at: { gt: now },
+        },
+        orderBy: { last_used_at: 'desc' },
+      });
+      return dbSessions.map((s, idx) => ({
+        id: s.id,
+        device: s.device_name || s.user_agent || 'Web Browser',
+        location: s.ip_address ? `IP: ${s.ip_address}` : 'Active Terminal (India)',
+        ip: s.ip_address || '127.0.0.1',
+        lastActive:
+          idx === 0
+            ? 'Active Now'
+            : s.last_used_at
+              ? s.last_used_at.toISOString()
+              : 'Recent',
+        isCurrent: currentSessionId ? s.id === currentSessionId : idx === 0,
+        createdAt: s.created_at.toISOString(),
+      }));
+    }
+
+    const now = new Date().toISOString();
+    const active = Array.from(this.sessions.values())
+      .filter((s) => s.user_id === userId && !s.revoked_at && s.expires_at > now)
+      .sort((a, b) =>
+        (b.last_used_at || b.created_at).localeCompare(
+          a.last_used_at || a.created_at,
+        ),
+      );
+
+    return active.map((s, idx) => ({
+      id: s.id,
+      device: s.device_name || s.user_agent || 'Web Browser',
+      location: s.ip_address ? `IP: ${s.ip_address}` : 'Active Terminal (India)',
+      ip: s.ip_address || '127.0.0.1',
+      lastActive: idx === 0 ? 'Active Now' : s.last_used_at || 'Recent',
+      isCurrent: currentSessionId ? s.id === currentSessionId : idx === 0,
+      createdAt: s.created_at,
+    }));
+  }
+
+  async revokeOtherSessionsForUser(
+    userId: string,
+    keepSessionId?: string,
+  ): Promise<void> {
+    if (this.prisma && !this.isTestEnv()) {
+      await this.prisma.user_sessions.updateMany({
+        where: {
+          user_id: userId,
+          revoked_at: null,
+          ...(keepSessionId ? { id: { not: keepSessionId } } : {}),
+        },
+        data: { revoked_at: new Date() },
+      });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    for (const [id, session] of this.sessions.entries()) {
+      if (
+        session.user_id === userId &&
+        !session.revoked_at &&
+        id !== keepSessionId
+      ) {
+        session.revoked_at = now;
+        this.sessions.set(id, session);
+      }
+    }
+    this.saveToDisk();
+  }
+
   // --- OTPs ---
   async saveOtp(data: {
     user_id?: string | null;
@@ -985,6 +1101,12 @@ export class UsersStore implements OnModuleInit {
         dataToUpdate.preferred_language = partial.preferred_language;
       if (partial.avatar_url !== undefined)
         dataToUpdate.avatar_url = partial.avatar_url;
+      if (partial.is_public !== undefined)
+        dataToUpdate.is_public = partial.is_public;
+      if (partial.handle !== undefined)
+        dataToUpdate.handle = partial.handle
+          ? partial.handle.toLowerCase().trim()
+          : null;
 
       const upserted = await this.prisma.user_profiles.upsert({
         where: { user_id: userId },
@@ -1007,6 +1129,8 @@ export class UsersStore implements OnModuleInit {
           domicile_state_code: partial.domicile_state_code ?? null,
           preferred_language: partial.preferred_language ?? 'en',
           avatar_url: partial.avatar_url ?? null,
+          is_public: partial.is_public ?? false,
+          handle: partial.handle ? partial.handle.toLowerCase().trim() : null,
         },
         update: dataToUpdate,
       });
@@ -1030,6 +1154,8 @@ export class UsersStore implements OnModuleInit {
       domicile_state_code: null,
       preferred_language: 'en',
       avatar_url: null,
+      is_public: false,
+      handle: null,
       updated_at: new Date().toISOString(),
     };
 
@@ -1335,5 +1461,318 @@ export class UsersStore implements OnModuleInit {
     }
     this.saveToDisk();
     return true;
+  }
+
+  // --- Competitive Exam Scores ---
+  async createExamScore(
+    userId: string,
+    data: Partial<UserCompetitiveExamScore>,
+  ): Promise<UserCompetitiveExamScore> {
+    if (this.prisma && !this.isTestEnv()) {
+      const created = await (this.prisma as any).user_competitive_exam_scores.create({
+        data: {
+          user_id: userId,
+          exam_type: data.exam_type || 'OTHER',
+          exam_name: data.exam_name || 'Competitive Exam',
+          year: Number(data.year) || new Date().getFullYear(),
+          roll_number: data.roll_number || null,
+          registration_number: data.registration_number || null,
+          discipline_or_paper: data.discipline_or_paper || null,
+          score: data.score || null,
+          marks: data.marks || null,
+          percentile: data.percentile || null,
+          all_india_rank: data.all_india_rank || null,
+          category_rank: data.category_rank || null,
+          award_or_status: data.award_or_status || null,
+          verified: Boolean(data.verified),
+        },
+      });
+      return this.mapDbExamScoreToDomain(created);
+    }
+
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    const item: UserCompetitiveExamScore = {
+      id,
+      user_id: userId,
+      exam_type: data.exam_type || 'OTHER',
+      exam_name: data.exam_name || 'Competitive Exam',
+      year: Number(data.year) || new Date().getFullYear(),
+      roll_number: data.roll_number ?? null,
+      registration_number: data.registration_number ?? null,
+      discipline_or_paper: data.discipline_or_paper ?? null,
+      score: data.score ?? null,
+      marks: data.marks ?? null,
+      percentile: data.percentile ?? null,
+      all_india_rank: data.all_india_rank ?? null,
+      category_rank: data.category_rank ?? null,
+      award_or_status: data.award_or_status ?? null,
+      verified: Boolean(data.verified),
+      created_at: now,
+      updated_at: now,
+    };
+    this.examScores.set(id, item);
+    this.saveToDisk();
+    return item;
+  }
+
+  async getExamScores(userId: string): Promise<UserCompetitiveExamScore[]> {
+    if (this.prisma && !this.isTestEnv()) {
+      const list = await (this.prisma as any).user_competitive_exam_scores.findMany({
+        where: { user_id: userId },
+        orderBy: { year: 'desc' },
+      });
+      return list.map((i: any) => this.mapDbExamScoreToDomain(i));
+    }
+
+    return Array.from(this.examScores.values())
+      .filter((i) => i.user_id === userId)
+      .sort((a, b) => b.year - a.year);
+  }
+
+  async updateExamScore(
+    id: string,
+    userId: string,
+    data: Partial<UserCompetitiveExamScore>,
+  ): Promise<UserCompetitiveExamScore | undefined> {
+    if (this.prisma && !this.isTestEnv()) {
+      const existing = await (this.prisma as any).user_competitive_exam_scores.findFirst({
+        where: { id, user_id: userId },
+      });
+      if (!existing) return undefined;
+
+      const updated = await (this.prisma as any).user_competitive_exam_scores.update({
+        where: { id },
+        data: {
+          ...(data.exam_type ? { exam_type: data.exam_type } : {}),
+          ...(data.exam_name ? { exam_name: data.exam_name } : {}),
+          ...(data.year ? { year: Number(data.year) } : {}),
+          roll_number: data.roll_number !== undefined ? data.roll_number : undefined,
+          registration_number: data.registration_number !== undefined ? data.registration_number : undefined,
+          discipline_or_paper: data.discipline_or_paper !== undefined ? data.discipline_or_paper : undefined,
+          score: data.score !== undefined ? data.score : undefined,
+          marks: data.marks !== undefined ? data.marks : undefined,
+          percentile: data.percentile !== undefined ? data.percentile : undefined,
+          all_india_rank: data.all_india_rank !== undefined ? data.all_india_rank : undefined,
+          category_rank: data.category_rank !== undefined ? data.category_rank : undefined,
+          award_or_status: data.award_or_status !== undefined ? data.award_or_status : undefined,
+          updated_at: new Date(),
+        },
+      });
+      return this.mapDbExamScoreToDomain(updated);
+    }
+
+    const existing = this.examScores.get(id);
+    if (!existing || existing.user_id !== userId) return undefined;
+    const updated: UserCompetitiveExamScore = {
+      ...existing,
+      ...data,
+      updated_at: new Date().toISOString(),
+    };
+    this.examScores.set(id, updated);
+    this.saveToDisk();
+    return updated;
+  }
+
+  async deleteExamScore(id: string, userId: string): Promise<boolean> {
+    if (this.prisma && !this.isTestEnv()) {
+      const existing = await (this.prisma as any).user_competitive_exam_scores.findFirst({
+        where: { id, user_id: userId },
+      });
+      if (!existing) return false;
+
+      await (this.prisma as any).user_competitive_exam_scores.delete({
+        where: { id },
+      });
+      return true;
+    }
+
+    const existing = this.examScores.get(id);
+    if (!existing || existing.user_id !== userId) return false;
+    this.examScores.delete(id);
+    this.saveToDisk();
+    return true;
+  }
+
+  // --- Public Profile ---
+  async findPublicProfileByHandle(handle: string): Promise<{
+    profile: UserProfile;
+    user: UserEntity;
+    education: UserEducation[];
+    examScores: UserCompetitiveExamScore[];
+  } | null> {
+    const cleanHandle = handle.trim().toLowerCase();
+    if (this.prisma && !this.isTestEnv()) {
+      const p = await this.prisma.user_profiles.findFirst({
+        where: {
+          handle: { equals: cleanHandle, mode: 'insensitive' },
+          is_public: true,
+        },
+        include: {
+          users: {
+            include: {
+              user_education: true,
+              user_competitive_exam_scores: true,
+            },
+          },
+        },
+      });
+      if (!p || !p.users || p.users.status === 'deleted') return null;
+      return {
+        profile: this.mapDbProfileToDomain(p),
+        user: this.mapDbUserToEntity(p.users),
+        education: p.users.user_education.map((e) =>
+          this.mapDbEducationToDomain(e),
+        ),
+        examScores: (p.users.user_competitive_exam_scores || []).map((s) =>
+          this.mapDbExamScoreToDomain(s),
+        ),
+      };
+    }
+
+    for (const p of this.profiles.values()) {
+      if (p.handle?.toLowerCase() === cleanHandle && p.is_public) {
+        const u = this.users.get(p.user_id);
+        if (!u || u.status === 'deleted') return null;
+        const edu = Array.from(this.educations.values()).filter(
+          (e) => e.user_id === p.user_id,
+        );
+        const scores = Array.from(this.examScores.values()).filter(
+          (s) => s.user_id === p.user_id,
+        );
+        return { profile: p, user: u, education: edu, examScores: scores };
+      }
+    }
+    return null;
+  }
+
+  // --- Account Data Export (DPDP) ---
+  async exportUserData(userId: string): Promise<UserDataExport> {
+    const profile = await this.getProfile(userId);
+    const user = await this.findUserById(userId);
+    const education = await this.getUserEducation(userId);
+    const examScores = await this.getExamScores(userId);
+
+    let savedItems: Array<{ id: string; opportunity_id: string; title?: string; created_at: string }> = [];
+    let applications: Array<{ id: string; title: string; organization: string; status: string; created_at: string }> = [];
+    let documents: Array<{ id: string; title: string | null; file_name: string | null; mime_type: string | null; size_bytes: number | null; created_at: string }> = [];
+
+    if (this.prisma && !this.isTestEnv()) {
+      const dbSaved = await this.prisma.saved_items.findMany({
+        where: { user_id: userId },
+      });
+      savedItems = dbSaved.map((s) => ({
+        id: s.id,
+        opportunity_id: s.item_id,
+        title: s.note ?? undefined,
+        created_at: s.created_at.toISOString(),
+      }));
+
+      const dbApps = await this.prisma.applications.findMany({
+        where: { user_id: userId },
+        include: { opportunities: { select: { title: true, organization: true } } },
+      });
+      applications = dbApps.map((a) => ({
+        id: a.id,
+        title: a.opportunities?.title || 'Application',
+        organization: a.opportunities?.organization || 'Recruitment Commission',
+        status: a.status,
+        created_at: a.created_at.toISOString(),
+      }));
+
+      const dbDocs = await this.prisma.user_documents.findMany({
+        where: { user_id: userId, deleted_at: null },
+      });
+      documents = dbDocs.map((d) => ({
+        id: d.id,
+        title: d.title,
+        file_name: d.file_name,
+        mime_type: d.mime_type,
+        size_bytes: d.size_bytes != null ? Number(d.size_bytes) : null,
+        created_at: d.created_at.toISOString(),
+      }));
+    }
+
+    return {
+      platform: 'ApplyFields National Opportunity Portal',
+      exported_at: new Date().toISOString(),
+      compliance: 'Indian Digital Personal Data Protection (DPDP) Act 2023',
+      account: {
+        id: user?.id || userId,
+        email: user?.email || null,
+        phone: user?.phone || null,
+        status: user?.status || 'active',
+        created_at: user?.created_at || new Date().toISOString(),
+      },
+      profile: profile || null,
+      education: education || [],
+      exam_scores: examScores || [],
+      saved_items: savedItems,
+      applications: applications,
+      documents: documents,
+    };
+  }
+
+  // --- Account Deletion (DPDP) ---
+  async deleteUserAccount(userId: string): Promise<void> {
+    if (this.prisma && !this.isTestEnv()) {
+      // 1. Revoke all user sessions
+      await this.prisma.user_sessions.updateMany({
+        where: { user_id: userId, revoked_at: null },
+        data: { revoked_at: new Date() },
+      });
+      // 2. Clear personal data in profile
+      await this.prisma.user_profiles.updateMany({
+        where: { user_id: userId },
+        data: {
+          full_name: 'Deleted Citizen',
+          avatar_url: null,
+          district: null,
+          state_code: null,
+          domicile_state_code: null,
+          handle: null,
+          is_public: false,
+          annual_family_income: null,
+          special_conditions: [],
+        },
+      });
+      // 3. Delete education & exam scores
+      await this.prisma.user_education.deleteMany({ where: { user_id: userId } });
+      try {
+        await (this.prisma as any).user_competitive_exam_scores.deleteMany({ where: { user_id: userId } });
+      } catch {}
+      // 4. Mark user deleted
+      await this.prisma.users.update({
+        where: { id: userId },
+        data: {
+          status: 'deleted',
+          deleted_at: new Date(),
+          email: `deleted_${userId.slice(0, 8)}@deleted.applyfields.in`,
+          phone: null,
+          password_hash: null,
+        },
+      });
+      return;
+    }
+
+    const u = this.users.get(userId);
+    if (u) {
+      u.status = 'deleted';
+      u.deleted_at = new Date().toISOString();
+      u.email = null;
+      u.phone = null;
+      u.password_hash = '';
+    }
+    this.profiles.delete(userId);
+    for (const [id, e] of this.educations.entries()) {
+      if (e.user_id === userId) this.educations.delete(id);
+    }
+    for (const [id, s] of this.examScores.entries()) {
+      if (s.user_id === userId) this.examScores.delete(id);
+    }
+    for (const s of this.sessions.values()) {
+      if (s.user_id === userId) s.revoked_at = new Date().toISOString();
+    }
+    this.saveToDisk();
   }
 }

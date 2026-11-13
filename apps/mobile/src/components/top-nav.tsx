@@ -7,8 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { C, CHROME_FONT_SCALE, R, S, TAP, capsule, column } from '../theme';
-import { useCompact } from './ui';
+import { C, CHROME_FONT_SCALE, R, S, column } from '../theme';
 
 const MODES = [
   { href: '/', label: 'Apply', icon: 'briefcase-outline' },
@@ -19,15 +18,16 @@ const MODES = [
 export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
-  // On narrow screens or with large text, the labels need the icons' room.
-  const compact = useCompact();
 
   return (
     <View style={s.bar}>
       <View style={s.inner} accessibilityRole="tablist">
         {MODES.map((m) => {
-          // '/' is the Apply feed, so it must match exactly or it would always win.
-          const active = m.href === '/' ? pathname === '/' : pathname.startsWith(m.href);
+          const isCareer = m.href === '/career' && (pathname.includes('/career') || pathname.endsWith('career'));
+          const isServices = m.href === '/services' && (pathname.includes('/services') || pathname.endsWith('services'));
+          const isApply = m.href === '/' && !isCareer && !isServices;
+          const active = isApply || isCareer || isServices;
+
           return (
             <Pressable
               key={m.href}
@@ -37,14 +37,14 @@ export function TopNav() {
               style={[s.item, active && s.itemActive]}
             >
               <View style={s.itemInner}>
-                {compact ? null : (
-                  <Ionicons name={m.icon} size={16} color={active ? C.blue : C.mutedNavy} />
-                )}
+                <Ionicons
+                  name={m.icon}
+                  size={15}
+                  color={active ? C.blue : '#435775'}
+                />
                 <Text
                   style={[s.label, active && s.labelActive]}
                   numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
                   maxFontSizeMultiplier={CHROME_FONT_SCALE}
                 >
                   {m.label}
@@ -74,10 +74,10 @@ const s = StyleSheet.create({
   },
   item: {
     flex: 1,
-    minHeight: 38,
+    height: 38,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
     borderRadius: R.pill,
     backgroundColor: 'transparent',
   },
@@ -95,6 +95,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  label: { color: C.mutedNavy, fontSize: 13, fontWeight: '600', flexShrink: 1 },
+  label: { color: '#435775', fontSize: 13, fontWeight: '600' },
   labelActive: { color: C.blue, fontWeight: '800' },
 });

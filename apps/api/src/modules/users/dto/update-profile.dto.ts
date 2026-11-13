@@ -88,5 +88,13 @@ export class UpdateProfileDto {
     { message: 'avatar_url must be a pixel avatar, an https URL or a PNG/JPEG/WebP photo' },
   )
   avatar_url?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_public?: boolean;
+
+  @IsOptional()
+  @IsString()
+  handle?: string;
 }
 
