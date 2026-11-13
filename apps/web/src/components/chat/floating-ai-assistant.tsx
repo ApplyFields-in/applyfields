@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowRight,
   BadgeCheck,
@@ -11,15 +11,11 @@ import {
   CalendarClock,
   Copy,
   Crown,
-  ExternalLink,
-  FileText,
   Lock,
-  MessageSquare,
   Newspaper,
   RefreshCw,
   Send,
   Sparkles,
-  Star,
   Store,
   ThumbsDown,
   ThumbsUp,
@@ -58,6 +54,13 @@ interface QuotaState {
 
 const STORAGE_KEY = 'applyfields_ai_chat_history_v2';
 const QUOTA_STORAGE_KEY = 'applyfields_ai_quota_v2';
+
+function makeMessageMeta(prefix: 'usr' | 'bot') {
+  return {
+    id: `${prefix}-${Date.now()}`,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  };
+}
 
 /** No typing, sending or tapping for this long → Fieldy dozes off. */
 const BORED_AFTER_MS = 25_000;
@@ -191,17 +194,20 @@ function renderMarkdown(content: string) {
 
 export function FloatingAiAssistant() {
   const pathname = usePathname();
+  const router = useRouter();
   const { openPip } = usePipApply();
   const [feedbackMap, setFeedbackMap] = useState<Record<string, 'helpful' | 'unhelpful'>>({});
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Fieldy's mood follows the conversation: wave on open, "working" while you type,
   // thinking (looping) until the answer lands, a cheer when it does, dozing when left alone.
   const [mood, setMood] = useState<FieldyMood>('greeting');
+  const [orbMood, setOrbMood] = useState<FieldyMood>('greeting');
   const [replay, setReplay] = useState(0);
   const [orbHover, setOrbHover] = useState(false);
   const boredTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -258,10 +264,8 @@ export function FloatingAiAssistant() {
     limit_reached: false,
   });
 
-  // 1. Route guard: Only show on /jobs/*, /exams/*, /scholarships/*, /admissions/*, /apply/*, and /career/*
-  const isAllowedRoute = /^\/(jobs|exams|scholarships|admissions|apply|career)(\/|$)/.test(
-    pathname || '',
-  );
+  // 1. Route guard: Show everywhere except dedicated auth screens
+  const isHiddenRoute = /^\/(login|register|forgot-password|auth)(\/|$)/.test(pathname || '');
 
   // 2. Extract opportunity context from URL if available
   const oppSlugMatch = pathname?.match(
@@ -270,25 +274,61 @@ export function FloatingAiAssistant() {
   const currentOpportunitySlug = oppSlugMatch ? oppSlugMatch[2] : undefined;
   const isCareerRoute = pathname?.startsWith('/career');
 
+  // Sync auth status and wave Fieldy on launcher mount before switching to resting loop
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const syncAuth = () => {
+      const hasToken = Boolean(
+        localStorage.getItem('accessToken') || localStorage.getItem('currentUser'),
+      );
+      setIsSignedIn(hasToken);
+      if (hasToken) {
+        apiGet<{ id?: string }>('/me')
+          .then((res) => {
+            if (res && typeof res === 'object' && 'error' in res && res.error) {
+              setIsSignedIn(false);
+            } else if (res) {
+              setIsSignedIn(true);
+            }
+          })
+          .catch(() => {});
+      }
+    };
+
+    queueMicrotask(syncAuth);
+    window.addEventListener('auth-changed', syncAuth);
+    window.addEventListener('storage', syncAuth);
+
+    const orbTimer = setTimeout(() => setOrbMood('bored-idle'), 3000);
+    return () => {
+      window.removeEventListener('auth-changed', syncAuth);
+      window.removeEventListener('storage', syncAuth);
+      clearTimeout(orbTimer);
+    };
+  }, []);
+
   // Load chat history & fetch live quota on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Load messages from sessionStorage
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setMessages(JSON.parse(saved));
-      }
-    } catch {}
+    queueMicrotask(() => {
+      // Load messages from sessionStorage
+      try {
+        const saved = sessionStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          setMessages(JSON.parse(saved));
+        }
+      } catch {}
 
-    // Load cached quota
-    try {
-      const savedQuota = sessionStorage.getItem(QUOTA_STORAGE_KEY);
-      if (savedQuota) {
-        setQuota(JSON.parse(savedQuota));
-      }
-    } catch {}
+      // Load cached quota
+      try {
+        const savedQuota = sessionStorage.getItem(QUOTA_STORAGE_KEY);
+        if (savedQuota) {
+          setQuota(JSON.parse(savedQuota));
+        }
+      } catch {}
+    });
 
     // Fetch fresh quota from API
     apiGet<QuotaState>('/chatbot/quota')
@@ -308,7 +348,7 @@ export function FloatingAiAssistant() {
     }
   }, [messages, isLoading, isOpen]);
 
-  if (!isAllowedRoute) {
+  if (isHiddenRoute) {
     return null;
   }
 
@@ -372,10 +412,9 @@ export function FloatingAiAssistant() {
     if (!q || isLoading || quota.limit_reached) return;
 
     const userMsg: Message = {
-      id: `usr-${Date.now()}`,
+      ...makeMessageMeta('usr'),
       sender: 'user',
       text: q,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
     const nextMessages = [...messages, userMsg];
@@ -387,6 +426,29 @@ export function FloatingAiAssistant() {
     let answered = false;
 
     try {
+      const hasAuthToken =
+        isSignedIn ||
+        (typeof window !== 'undefined' &&
+          Boolean(localStorage.getItem('accessToken') || localStorage.getItem('currentUser')));
+
+      if (!hasAuthToken) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        answered = true;
+        const meta = makeMessageMeta('bot');
+        const guestMsg: Message = {
+          ...meta,
+          sender: 'assistant',
+          text: 'Please **sign in to continue** chatting with Fieldy.\n\nSign in to your ApplyFields account to get personalized answers and your 3 daily free chats.',
+          actions: [{ label: 'Sign in to continue →', action: 'navigate', url: '/login' }],
+        };
+        const updated = [...nextMessages, guestMsg];
+        setMessages(updated);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        }
+        return;
+      }
+
       const payload: ChatbotQueryInput = {
         query: q,
         opportunity_slug: currentOpportunitySlug,
@@ -418,21 +480,19 @@ export function FloatingAiAssistant() {
 
         answered = res.data.mode !== 'limit_reached';
         botMsg = {
-          id: `bot-${Date.now()}`,
+          ...makeMessageMeta('bot'),
           sender: 'assistant',
           text: res.data.answer,
           mode: res.data.mode,
           actions: res.data.actions,
           citations: res.data.citations,
           related_queries: res.data.related_queries,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
       } else {
         botMsg = {
-          id: `bot-${Date.now()}`,
+          ...makeMessageMeta('bot'),
           sender: 'assistant',
           text: 'I could not retrieve the record at this moment. You can browse active circulars under `/apply`.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
       }
 
@@ -443,10 +503,9 @@ export function FloatingAiAssistant() {
       }
     } catch {
       const errorMsg: Message = {
-        id: `bot-${Date.now()}`,
+        ...makeMessageMeta('bot'),
         sender: 'assistant',
         text: 'Connection to the query engine was interrupted. Please try again.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages([...nextMessages, errorMsg]);
     } finally {
@@ -490,7 +549,12 @@ export function FloatingAiAssistant() {
         showAppToast({ message: 'Could not save. Please sign in.', type: 'remove' });
       }
     } else if (action.url) {
-      window.location.href = action.url;
+      if (action.url.startsWith('/')) {
+        setIsOpen(false);
+        router.push(action.url);
+      } else {
+        window.location.assign(action.url);
+      }
     }
   }
 
@@ -569,7 +633,7 @@ export function FloatingAiAssistant() {
           >
             {/* Fieldy waves when you point at him; still poster otherwise (no download until then) */}
             <FieldyMascot
-              mood={orbHover ? 'greeting' : 'idle'}
+              mood={orbHover ? 'greeting' : orbMood}
               className="size-full rounded-full"
             />
 
@@ -617,7 +681,7 @@ export function FloatingAiAssistant() {
                 className="relative shrink-0 cursor-pointer rounded-2xl border border-white/30 shadow-inner transition active:scale-95"
               >
                 <FieldyMascot
-                  mood={messages.length && !isLoading ? mood : 'idle'}
+                  mood={isLoading ? 'thinking' : mood}
                   replay={replay}
                   className="size-12 rounded-2xl"
                 />

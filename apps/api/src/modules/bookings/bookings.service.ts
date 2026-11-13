@@ -152,6 +152,22 @@ export const LEAN_BOOKING_INCLUDE = {
   },
 } as const;
 
+export const walkInSchema = z.object({
+  citizen_name: z.string().trim().min(2).max(100),
+  contact_phone: z
+    .string()
+    .trim()
+    .regex(/^(\+91)?[6-9]\d{9}$/, 'Invalid Indian mobile number')
+    .optional(),
+  /** From the centre's own rate card; or leave out and type service_name. */
+  partner_service_id: z.string().uuid().optional(),
+  service_name: z.string().trim().min(2).max(120),
+  /** What the counter actually collected (govt fee + service charge), in paise. */
+  amount_paise: z.number().int().min(0).max(10_000_000),
+  payment_mode: z.enum(['cash', 'upi']),
+});
+export type WalkInInput = z.infer<typeof walkInSchema>;
+
 export const shareDocumentsSchema = z.object({
   document_ids: z.array(z.string().uuid()).max(15),
 });
@@ -276,6 +292,18 @@ export class BookingsService {
         internal_notes: [first],
       },
     });
+    // Saved either way; the staff alert must not undo or fail the complaint.
+    void this.notifications
+      ?.notifyStaff(
+        ['support'],
+        {
+          title: 'New booking complaint',
+          body: `${input.reason} · booking AF-${bookingId.slice(0, 8).toUpperCase()}`,
+          path: '/disputes',
+        },
+        `staff_dispute:${row.id}`,
+      )
+      .catch((err: Error) => this.logger.warn(`Staff alert failed for dispute ${row.id}: ${err.message}`));
     return this.toDispute(row);
   }
 
@@ -545,6 +573,63 @@ export class BookingsService {
       total: rows.length,
       items: rows.map((r) => this.mapToDetail(r)),
     };
+  }
+
+  /**
+   * Counter walk-in: the centre registers a citizen who came in person. Saved as an in-progress booking
+   * with the amount already collected (quoted = final), so it shows in Bookings and, once completed,
+   * in Earnings. No citizen account is linked (user_id null), so no citizen notifications.
+   */
+  async createWalkIn(userId: string, input: WalkInInput): Promise<BookingDetail> {
+    const membership = await this.prisma.partner_members.findFirst({ where: { user_id: userId } });
+    if (!membership) throw new ForbiddenException('No partner center account linked to this user.');
+
+    let serviceName = input.service_name;
+    if (input.partner_service_id) {
+      const svc = await this.prisma.partner_services.findFirst({
+        where: { id: input.partner_service_id, partner_id: membership.partner_id },
+        select: { name: true },
+      });
+      if (!svc) throw new BadRequestException('That service is not on your rate card.');
+      serviceName = svc.name;
+    }
+    const mode = input.payment_mode === 'upi' ? 'UPI' : 'Cash';
+    // Same "Applicant: …; Contact: …" format the booking desks already read.
+    const note = [
+      `Applicant: ${input.citizen_name}`,
+      input.contact_phone ? `Contact: ${input.contact_phone}` : null,
+      `Service: ${serviceName}`,
+      `Walk-in at counter, paid ${mode}`,
+    ]
+      .filter(Boolean)
+      .join('; ');
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.service_requests.create({
+        data: {
+          partner_id: membership.partner_id,
+          user_id: null,
+          partner_service_id: input.partner_service_id ?? null,
+          status: 'in_progress',
+          appointment_at: new Date(),
+          user_note: note,
+          quoted_paise: input.amount_paise,
+          final_paise: input.amount_paise,
+        },
+        include: LEAN_BOOKING_INCLUDE,
+      });
+      await tx.service_request_events.create({
+        data: {
+          request_id: row.id,
+          from_status: null,
+          to_status: 'in_progress',
+          note: `Walk-in registered at the counter (${mode}, ₹${(input.amount_paise / 100).toFixed(2)}).`,
+          actor_user_id: userId,
+        },
+      });
+      return row;
+    });
+    return this.mapToDetail(created);
   }
 
   async updatePartnerBooking(

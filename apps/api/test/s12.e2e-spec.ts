@@ -6,7 +6,7 @@ import type {
   CourseDetail,
   CourseSummary,
   InstitutionDetail,
-  InstitutionSummary,
+  InstitutionListResponse,
   RoadmapDetail,
   RoadmapSummary,
 } from '@applyfields/types';
@@ -94,7 +94,7 @@ describe('Session 12 API E2E (Roadmaps, Courses, Colleges, AI Guidance)', { time
   // 3. Colleges & Compare
   it('GET /career/colleges lists premier institutions', async () => {
     const res = await request(app.getHttpServer()).get('/career/colleges').expect(200);
-    const colleges = res.body as InstitutionSummary[];
+    const colleges = (res.body as InstitutionListResponse).items;
     expect(colleges.length).toBeGreaterThanOrEqual(4);
 
     expect(colleges.some((c) => c.slug === 'iit-madras')).toBe(true);

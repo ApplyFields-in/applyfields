@@ -44,7 +44,7 @@ export function Navbar() {
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('applyfields_service_location');
-      if (saved) setLocationName(saved);
+      if (saved) queueMicrotask(() => setLocationName(saved));
     }
   }, []);
 

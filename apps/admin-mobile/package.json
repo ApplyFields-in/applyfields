@@ -6,8 +6,8 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "prebuild": "expo prebuild --clean",
     "typecheck": "tsc --noEmit",
     "check": "node --no-warnings --experimental-strip-types src/lib/staff.check.ts"
@@ -17,8 +17,10 @@
     "@expo/vector-icons": "^15.1.1",
     "expo": "~58.0.22",
     "expo-constants": "~58.0.14",
+    "expo-device": "~58.0.5",
     "expo-linking": "~58.0.15",
     "expo-local-authentication": "~58.0.2",
+    "expo-notifications": "~58.1.8",
     "expo-router": "~58.0.29",
     "expo-secure-store": "~58.0.2",
     "expo-splash-screen": "~58.0.12",

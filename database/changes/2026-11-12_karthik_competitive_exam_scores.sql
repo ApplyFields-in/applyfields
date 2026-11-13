@@ -24,6 +24,8 @@ create table if not exists user_competitive_exam_scores (
 );
 
 create index if not exists idx_user_competitive_exam_scores_user on user_competitive_exam_scores(user_id);
+-- Like every user table: no anon/authenticated access via Supabase's REST API; the API connects as owner.
+alter table user_competitive_exam_scores enable row level security;
 
 -- 2. Add public profile portfolio sharing columns to user_profiles
 alter table user_profiles add column if not exists is_public boolean not null default false;

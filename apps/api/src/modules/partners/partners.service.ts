@@ -2,7 +2,9 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type {
@@ -32,6 +34,7 @@ import type {
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../common/storage.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { PARTNER_DOCUMENT_KINDS, PARTNER_DOCUMENT_MIME_TYPES } from './partner-documents.js';
 
 import type {
@@ -347,10 +350,20 @@ export function matchesSlot(
 
 @Injectable()
 export class PartnersService {
+  private readonly logger = new Logger(PartnersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService = new StorageService(),
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
+
+  /** Tell support staff (admin app push + in-app + email). Never blocks or fails the partner's action. */
+  private alertSupport(title: string, body: string, partnerId: string, key: string): void {
+    void this.notifications
+      ?.notifyStaff(['support'], { title, body, path: `/partners/${partnerId}` }, key)
+      .catch((err: Error) => this.logger.warn(`Staff alert failed (${key}): ${err.message}`));
+  }
 
   // =========================================================================
   // PUBLIC DIRECTORY & SEARCH
@@ -550,6 +563,12 @@ export class PartnersService {
       return created;
     });
 
+    this.alertSupport(
+      'New partner registered',
+      `${partner.business_name} (${partner.type.replace(/_/g, ' ')}) is waiting for KYC.`,
+      partner.id,
+      `staff_partner_new:${partner.id}`,
+    );
     return this.mapToDetail({ ...partner, partner_services: [] });
   }
 
@@ -846,6 +865,18 @@ export class PartnersService {
         status: 'pending',
       },
     });
+
+    if (this.notifications) {
+      const centre = await this.prisma.partners
+        .findUnique({ where: { id: membership.partner_id }, select: { business_name: true } })
+        .catch(() => null);
+      this.alertSupport(
+        'KYC document to check',
+        `${centre?.business_name ?? 'A partner'} uploaded ${doc.document_kind.replace(/_/g, ' ')}.`,
+        membership.partner_id,
+        `staff_kyc_doc:${created.id}`,
+      );
+    }
 
     return {
       id: created.id,

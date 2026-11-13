@@ -18,8 +18,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const pool = new Pool({
       connectionString,
       ssl: { rejectUnauthorized: false },
-      max: 20,
-      idleTimeoutMillis: 120000,
+      max: Number(process.env.DB_POOL_MAX ?? 5),
+      idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
       keepAlive: true,
     });
