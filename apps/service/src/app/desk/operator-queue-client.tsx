@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -23,11 +23,12 @@ import {
   User,
 } from 'lucide-react';
 import {
-  SAMPLE_SERVICE_REQUESTS,
   ServiceDeskRequest,
   ServiceRequestStatus,
   ServicePriority,
+  fromBooking,
 } from '@/lib/service-desk-data';
+import { getPartnerInbox } from '@/lib/api';
 
 const STATUS_CONFIG: Record<
   ServiceRequestStatus,
@@ -72,7 +73,12 @@ const STATUS_CONFIG: Record<
 
 export function OperatorQueueClient() {
   const router = useRouter();
-  const [requests, setRequests] = useState<ServiceDeskRequest[]>(SAMPLE_SERVICE_REQUESTS);
+  const [requests, setRequests] = useState<ServiceDeskRequest[]>([]);
+
+  // The signed-in centre's real requests only.
+  useEffect(() => {
+    getPartnerInbox().then((res) => setRequests((res.data?.items ?? []).map(fromBooking)));
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');

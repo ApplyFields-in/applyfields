@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type {
   AdminPartnerItem,
@@ -30,6 +31,8 @@ import type {
 } from '@applyfields/types';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { StorageService } from '../../common/storage.service.js';
+import { PARTNER_DOCUMENT_KINDS, PARTNER_DOCUMENT_MIME_TYPES } from './partner-documents.js';
 
 import type {
   partner_type,
@@ -85,7 +88,7 @@ export const partnerRegisterSchema = z.object({
   whatsapp: z.string().trim().optional(),
   email: z.string().trim().email().optional(),
   address: z.string().trim().min(3).max(300),
-  state_code: z.string().trim().length(2).toUpperCase(),
+  state_code: z.string().trim().length(2).toUpperCase().transform((s) => (s === 'TG' ? 'TS' : s)),
   district: z.string().trim().min(2).max(100),
   city: z.string().trim().min(2).max(100),
   pincode: z
@@ -113,7 +116,7 @@ export const partnerUpdateSchema = z.object({
     .optional(),
   whatsapp: z.string().trim().optional(),
   address: z.string().trim().min(3).max(300).optional(),
-  state_code: z.string().trim().length(2).toUpperCase().optional(),
+  state_code: z.string().trim().length(2).toUpperCase().transform((s) => (s === 'TG' ? 'TS' : s)).optional(),
   district: z.string().trim().min(2).max(100).optional(),
   city: z.string().trim().min(2).max(100).optional(),
   pincode: z
@@ -126,6 +129,16 @@ export const partnerUpdateSchema = z.object({
   working_hours: z.record(z.string(), z.array(z.string())).optional(),
   is_available: z.boolean().optional(),
 });
+
+const MAX_PARTNER_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+export const partnerDocumentUploadSchema = z.object({
+  document_kind: z.enum(PARTNER_DOCUMENT_KINDS),
+  file_name: z.string().trim().min(1).max(200),
+  mime_type: z.enum(PARTNER_DOCUMENT_MIME_TYPES),
+  file_base64: z.string().min(10),
+});
+export type PartnerDocumentUploadInput = z.infer<typeof partnerDocumentUploadSchema>;
 
 export const partnerServiceInputSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -334,7 +347,10 @@ export function matchesSlot(
 
 @Injectable()
 export class PartnersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService = new StorageService(),
+  ) {}
 
   // =========================================================================
   // PUBLIC DIRECTORY & SEARCH
@@ -796,15 +812,37 @@ export class PartnersService {
 
   async uploadDocument(
     userId: string,
-    doc: { document_kind: string; storage_path: string },
+    doc: PartnerDocumentUploadInput,
   ): Promise<PartnerDocumentSummary> {
     const membership = await this.requirePartnerOwner(userId);
+
+    const base64 = doc.file_base64.includes(';base64,')
+      ? doc.file_base64.split(';base64,')[1]
+      : doc.file_base64;
+    const buffer = Buffer.from(base64, 'base64');
+    if (buffer.length === 0) throw new BadRequestException('The file is empty.');
+    if (buffer.length > MAX_PARTNER_DOCUMENT_BYTES) {
+      throw new BadRequestException('The file is larger than 10 MB.');
+    }
+
+    const safeName = doc.file_name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `partners/${membership.partner_id}/${doc.document_kind}/${Date.now()}_${safeName}`;
+    const uploaded = await this.storage.upload(
+      this.storage.documentsBucket,
+      path,
+      buffer,
+      doc.mime_type,
+    );
+    // No record without a file: admin would approve against nothing.
+    if (!uploaded) {
+      throw new ServiceUnavailableException('Could not store the file right now. Please try again.');
+    }
 
     const created = await this.prisma.partner_documents.create({
       data: {
         partner_id: membership.partner_id,
         document_kind: doc.document_kind,
-        storage_path: doc.storage_path,
+        storage_path: path,
         status: 'pending',
       },
     });
@@ -1388,13 +1426,20 @@ export class PartnersService {
       where: { id: partnerId },
       include: {
         partner_services: true,
-        partner_documents: true,
+        partner_documents: { orderBy: { created_at: 'desc' } },
       },
     });
     if (!existing) {
       throw new NotFoundException(`Partner with ID "${partnerId}" not found`);
     }
-    return this.mapToDetail(existing);
+    const detail = this.mapToDetail(existing);
+    detail.documents = await Promise.all(
+      (detail.documents ?? []).map(async (d) => ({
+        ...d,
+        url: await this.storage.signedUrl(this.storage.documentsBucket, d.storage_path, 600),
+      })),
+    );
+    return detail;
   }
 
   async adminVerifyDocument(

@@ -2,7 +2,7 @@ import type { NotificationList, NotificationPreferences } from '@applyfields/typ
 import { cookies } from 'next/headers';
 import { connection } from 'next/server';
 import { NotificationInbox, NotificationSettings } from '@/components/notification-center';
-import { PortalNotificationBanner } from '@/components/notifications/portal-notification-banner';
+import { NotificationAllowBoard } from '@/components/notifications/notification-allow-board';
 import { ApiOffline } from '@/components/opportunity';
 import { apiGetAsUser } from '@/lib/server-api';
 import {
@@ -33,7 +33,7 @@ export default async function Page() {
   return (
     <>
       <NotificationsPageHeader />
-      <PortalNotificationBanner />
+      <NotificationAllowBoard className="mb-5" />
       {list === null || prefs === null ? (
         <ApiOffline />
       ) : (

@@ -85,7 +85,7 @@ export class CareerController {
 
 @Controller('admin/careers')
 @UseGuards(StaffGuard)
-@Roles('reviewer')
+@Roles('reviewer', 'content_editor')
 export class AdminCareerController {
   constructor(
     private readonly careerService: CareerService,

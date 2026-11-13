@@ -14,9 +14,35 @@ function getAuthHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+let refreshing: Promise<boolean> | null = null;
+
+/** One silent POST /auth/refresh (httpOnly refresh cookie) when the access token has expired. */
+function refreshSession(): Promise<boolean> {
+  refreshing ??= (async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
+      const json = res.ok ? await res.json().catch(() => null) : null;
+      if (json?.accessToken) localStorage.setItem('accessToken', json.accessToken);
+      return Boolean(json?.accessToken);
+    } catch {
+      return false;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+/** fetch + one retry after a silent refresh on 401. `init` is a function so the retry sends the new token. */
+async function send(url: string, init: () => RequestInit): Promise<Response> {
+  const res = await fetch(url, init());
+  if (res.status !== 401 || typeof window === 'undefined' || url.includes('/auth/')) return res;
+  return (await refreshSession()) ? fetch(url, init()) : res;
+}
+
 export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, {
+    const res = await send(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, () => ({
       method: 'GET',
       cache: 'no-store',
       credentials: 'include',
@@ -24,8 +50,7 @@ export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
         Accept: 'application/json',
         ...getAuthHeader(),
       },
-      signal: AbortSignal.timeout(20000),
-    });
+      signal: AbortSignal.timeout(20000),}));
 
     if (!res.ok) {
       let errText = `Request failed (${res.status})`;
@@ -51,7 +76,7 @@ export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
 
 export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, {
+    const res = await send(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, () => ({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,8 +85,7 @@ export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<A
       },
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',
-      signal: AbortSignal.timeout(30000),
-    });
+      signal: AbortSignal.timeout(30000),}));
 
     if (!res.ok) {
       let errText = `Request failed (${res.status})`;
@@ -85,18 +109,21 @@ export async function apiPost<T, B = unknown>(path: string, body?: B): Promise<A
   }
 }
 
-export async function apiPatch<T, B = unknown>(path: string, body?: B): Promise<ApiResponse<T>> {
+export const apiPatch = <T, B = unknown>(path: string, body?: B) => apiWrite<T, B>('PATCH', path, body);
+export const apiPut = <T, B = unknown>(path: string, body?: B) => apiWrite<T, B>('PUT', path, body);
+
+async function apiWrite<T, B = unknown>(method: 'PATCH' | 'PUT', path: string, body?: B): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, {
-      method: 'PATCH',
+    const res = await send(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, () => ({
+      method,
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...getAuthHeader(),
       },
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',
-      signal: AbortSignal.timeout(30000),
-    });
+      signal: AbortSignal.timeout(30000),}));
 
     if (!res.ok) {
       let errText = `Request failed (${res.status})`;
@@ -126,12 +153,16 @@ export async function apiPatch<T, B = unknown>(path: string, body?: B): Promise<
 
 import type {
   BookingDetail,
+  BookingDispute,
+  CreateBookingDisputeInput,
   BookingListResponse,
   ChatMessageItem,
   CreateBookingInput,
+  MarkFiledInput,
   PartnerDirectoryResponse,
   PartnerDetail,
   SendChatMessageInput,
+  UserDocumentListResponse,
 } from '@applyfields/types';
 
 export async function listDirectoryPartners(
@@ -157,8 +188,41 @@ export async function getBookingById(
   return apiGet<BookingDetail>(`/bookings/${encodeURIComponent(id)}`);
 }
 
+/** Citizen: the locker documents the centre may open for this booking (replaces the set). */
+export async function shareBookingDocuments(id: string, documentIds: string[]): Promise<ApiResponse<BookingDetail>> {
+  return apiPut<BookingDetail>(`/bookings/${encodeURIComponent(id)}/documents`, { document_ids: documentIds });
+}
+
+/** 10-minute link to a document the citizen shared for this booking (centre or the citizen; logged). */
+export async function getSharedDocumentUrl(bookingId: string, shareId: string): Promise<ApiResponse<{ url: string }>> {
+  return apiGet<{ url: string }>(`/bookings/${encodeURIComponent(bookingId)}/documents/${encodeURIComponent(shareId)}`);
+}
+
+/** The signed-in citizen's Document Locker (GET /documents). */
+export async function listMyDocuments(): Promise<ApiResponse<UserDocumentListResponse>> {
+  return apiGet<UserDocumentListResponse>('/documents');
+}
+
 export async function getMyBookings(): Promise<ApiResponse<BookingListResponse>> {
   return apiGet<BookingListResponse>('/bookings/my');
+}
+
+/** Short-lived download link for the acknowledgment slip (citizen or partner centre only). */
+export async function getBookingSlipUrl(id: string): Promise<ApiResponse<{ url: string }>> {
+  return apiGet<{ url: string }>(`/bookings/${encodeURIComponent(id)}/slip`);
+}
+
+/** Operator desk: requests for the signed-in partner centre. */
+export async function getPartnerInbox(): Promise<ApiResponse<BookingListResponse>> {
+  return apiGet<BookingListResponse>('/bookings/partner/inbox');
+}
+
+/** Operator desk: save the official application number + slip, complete the request, notify the citizen. */
+export async function markBookingFiled(
+  id: string,
+  input: MarkFiledInput,
+): Promise<ApiResponse<BookingDetail>> {
+  return apiPost<BookingDetail, MarkFiledInput>(`/bookings/partner/${encodeURIComponent(id)}/filed`, input);
 }
 
 export async function cancelBooking(
@@ -169,6 +233,14 @@ export async function cancelBooking(
     `/bookings/${encodeURIComponent(id)}/cancel`,
     { reason },
   );
+}
+
+/** Raise a complaint about your own booking (goes to the ApplyFields disputes desk). */
+export async function fileBookingDispute(
+  id: string,
+  input: CreateBookingDisputeInput,
+): Promise<ApiResponse<BookingDispute>> {
+  return apiPost<BookingDispute, CreateBookingDisputeInput>(`/bookings/${encodeURIComponent(id)}/dispute`, input);
 }
 
 export async function getBookingMessages(

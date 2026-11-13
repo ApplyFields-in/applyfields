@@ -29,16 +29,7 @@ import type { OpportunityCard, OpportunityDetail, OpportunityList } from '@apply
 import { Badge, buttonClass, Card, SectionTitle } from '@applyfields/ui';
 import { useCompare } from '@/components/opportunity-compare/compare-context';
 import { apiGet } from '@/lib/api';
-import {
-  DATE_KIND_LABEL,
-  daysLeftLabel,
-  estimateSalary,
-  formatCurrency,
-  formatDate,
-  STATE_NAMES,
-  TYPE_META,
-  urgencyTone,
-} from '@/lib/format';
+import { DeadlineBadge, STATE_NAMES, TYPE_META, estimateSalary, formatCurrency, formatDate } from '@/lib/format';
 
 function CompareContent() {
   const searchParams = useSearchParams();
@@ -82,11 +73,9 @@ function CompareContent() {
   }, [slugA, slugB]);
 
   // Search opportunities when query changes
+  const queryReady = searchQuery.trim().length >= 2;
   useEffect(() => {
-    if (!searchQuery.trim() || searchQuery.length < 2) {
-      setSearchResults([]);
-      return;
-    }
+    if (!queryReady) return; // short query: results are hidden below, nothing to fetch
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
@@ -99,7 +88,9 @@ function CompareContent() {
       }
     }, 250);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, queryReady]);
+  const shownResults = queryReady ? searchResults : [];
+
 
   const selectOpp = (targetSlot: 'a' | 'b', slug: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -183,7 +174,7 @@ function CompareContent() {
                 slot="a"
                 query={searchQuery}
                 onQueryChange={setSearchQuery}
-                results={searchResults}
+                results={shownResults}
                 searching={searching}
                 onSelect={(slug) => selectOpp('a', slug)}
               />
@@ -204,7 +195,7 @@ function CompareContent() {
                 slot="b"
                 query={searchQuery}
                 onQueryChange={setSearchQuery}
-                results={searchResults}
+                results={shownResults}
                 searching={searching}
                 onSelect={(slug) => selectOpp('b', slug)}
               />
@@ -323,9 +314,8 @@ function OpportunityCompareCard({
           {item.application_end ? formatDate(item.application_end) : 'Dates to be announced'}
         </p>
         <div className="mt-1">
-          <Badge tone={urgencyTone(item.days_left)} className="text-[10px]">
-            {daysLeftLabel(item.days_left)}
-          </Badge>
+          <DeadlineBadge days={item.days_left} className="text-[10px]" />
+
         </div>
       </div>
 

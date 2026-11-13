@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import type { AvailableSlotsResponse } from '@applyfields/types';
+import { apiGet } from '@/lib/api';
 import { Calendar, Clock, ChevronRight, ChevronLeft, Check, AlertCircle } from 'lucide-react';
 
 export interface TimeSlot {
@@ -20,6 +22,8 @@ interface SlotPickerProps {
   onSelectDate: (date: string) => void;
   onSelectSlot: (slot: TimeSlot) => void;
   partnerName?: string;
+  /** The centre's id: slots come from its real schedule (GET /partners/:id/available-slots). */
+  partnerId?: string;
 }
 
 // Generate next 7 dates
@@ -39,29 +43,6 @@ function generateUpcomingDays() {
   return days;
 }
 
-const SAMPLE_SLOTS: TimeSlot[] = [
-  // Morning (9:00 - 12:00)
-  { id: 'slot-m1', time: '09:00 AM – 09:30 AM', startTime: '09:00', endTime: '09:30', period: 'morning', remainingCapacity: 2, totalCapacity: 3, isAvailable: true },
-  { id: 'slot-m2', time: '09:30 AM – 10:00 AM', startTime: '09:30', endTime: '10:00', period: 'morning', remainingCapacity: 1, totalCapacity: 3, isAvailable: true },
-  { id: 'slot-m3', time: '10:00 AM – 10:30 AM', startTime: '10:00', endTime: '10:30', period: 'morning', remainingCapacity: 3, totalCapacity: 3, isAvailable: true },
-  { id: 'slot-m4', time: '10:30 AM – 11:00 AM', startTime: '10:30', endTime: '11:00', period: 'morning', remainingCapacity: 0, totalCapacity: 3, isAvailable: false },
-  { id: 'slot-m5', time: '11:00 AM – 11:30 AM', startTime: '11:00', endTime: '11:30', period: 'morning', remainingCapacity: 2, totalCapacity: 3, isAvailable: true },
-  { id: 'slot-m6', time: '11:30 AM – 12:00 PM', startTime: '11:30', endTime: '12:00', period: 'morning', remainingCapacity: 1, totalCapacity: 3, isAvailable: true },
-
-  // Afternoon (12:00 - 16:00)
-  { id: 'slot-a1', time: '01:30 PM – 02:00 PM', startTime: '13:30', endTime: '14:00', period: 'afternoon', remainingCapacity: 2, totalCapacity: 3, isAvailable: true },
-  { id: 'slot-a2', time: '02:00 PM – 02:30 PM', startTime: '14:00', endTime: '14:30', period: 'afternoon', remainingCapacity: 3, totalCapacity: 3, isAvailable: true },
-  { id: 'slot-a3', time: '02:30 PM – 03:00 PM', startTime: '14:30', endTime: '15:00', period: 'afternoon', remainingCapacity: 1, totalCapacity: 3, isAvailable: true },
-  { id: 'slot-a4', time: '03:00 PM – 03:30 PM', startTime: '15:00', endTime: '15:30', period: 'afternoon', remainingCapacity: 0, totalCapacity: 3, isAvailable: false },
-  { id: 'slot-a5', time: '03:30 PM – 04:00 PM', startTime: '15:30', endTime: '16:00', period: 'afternoon', remainingCapacity: 2, totalCapacity: 3, isAvailable: true },
-
-  // Evening (16:00 - 20:00)
-  { id: 'slot-e1', time: '04:30 PM – 05:00 PM', startTime: '16:30', endTime: '17:00', period: 'evening', remainingCapacity: 1, totalCapacity: 3, isAvailable: true },
-  { id: 'slot-e2', time: '05:00 PM – 05:30 PM', startTime: '17:00', endTime: '17:30', period: 'evening', remainingCapacity: 3, totalCapacity: 3, isAvailable: true },
-  { id: 'slot-e3', time: '05:30 PM – 06:00 PM', startTime: '17:30', endTime: '18:00', period: 'evening', remainingCapacity: 2, totalCapacity: 3, isAvailable: true },
-  { id: 'slot-e4', time: '06:00 PM – 06:30 PM', startTime: '18:00', endTime: '18:30', period: 'evening', remainingCapacity: 0, totalCapacity: 3, isAvailable: false },
-  { id: 'slot-e5', time: '06:30 PM – 07:00 PM', startTime: '18:30', endTime: '19:00', period: 'evening', remainingCapacity: 2, totalCapacity: 3, isAvailable: true },
-];
 
 export function SlotPicker({
   selectedDate,
@@ -69,12 +50,32 @@ export function SlotPicker({
   onSelectDate,
   onSelectSlot,
   partnerName = 'Partner Center',
+  partnerId,
 }: SlotPickerProps) {
   const days = generateUpcomingDays();
+  const key = partnerId && selectedDate ? `${partnerId}|${selectedDate}` : null;
+  const [loaded, setLoaded] = useState<{ key: string; data: AvailableSlotsResponse | null } | null>(null);
 
-  const morningSlots = SAMPLE_SLOTS.filter((s) => s.period === 'morning');
-  const afternoonSlots = SAMPLE_SLOTS.filter((s) => s.period === 'afternoon');
-  const eveningSlots = SAMPLE_SLOTS.filter((s) => s.period === 'evening');
+  useEffect(() => {
+    if (!partnerId || !selectedDate) return;
+    let active = true;
+    const k = `${partnerId}|${selectedDate}`;
+    apiGet<AvailableSlotsResponse>(`/partners/${encodeURIComponent(partnerId)}/available-slots?date=${selectedDate}`).then((res) => {
+      if (active) setLoaded({ key: k, data: res.data ?? null });
+    });
+    return () => {
+      active = false;
+    };
+  }, [partnerId, selectedDate]);
+
+  const loading = Boolean(key) && loaded?.key !== key;
+  const data = loaded?.key === key ? loaded.data : null;
+  const slots = data?.slots ?? [];
+  const PERIODS = [
+    { id: 'morning', label: 'Morning' },
+    { id: 'afternoon', label: 'Afternoon' },
+    { id: 'evening', label: 'Evening' },
+  ] as const;
 
   return (
     <div className="space-y-6 cut-corner-card rounded-[28px] border border-white bg-white p-6 shadow-clay-card">
@@ -123,7 +124,7 @@ export function SlotPicker({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-[#0e7bf4]" />
-            <h3 className="text-sm font-black text-[#082046]">Reserved 30-Min Time Windows</h3>
+            <h3 className="text-sm font-black text-[#082046]">Open time slots</h3>
           </div>
 
           {/* Legend */}
@@ -140,56 +141,39 @@ export function SlotPicker({
           </div>
         </div>
 
-        {/* Morning Slots */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-[#526987]">
-            Morning (09:00 AM – 12:00 PM)
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {morningSlots.map((slot) => (
-              <SlotCard
-                key={slot.id}
-                slot={slot}
-                isSelected={selectedSlotId === slot.id}
-                onSelect={() => onSelectSlot(slot)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Afternoon Slots */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-[#526987]">
-            Afternoon (12:00 PM – 04:00 PM)
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {afternoonSlots.map((slot) => (
-              <SlotCard
-                key={slot.id}
-                slot={slot}
-                isSelected={selectedSlotId === slot.id}
-                onSelect={() => onSelectSlot(slot)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Evening Slots */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-[#526987]">
-            Evening (04:00 PM – 07:30 PM)
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {eveningSlots.map((slot) => (
-              <SlotCard
-                key={slot.id}
-                slot={slot}
-                isSelected={selectedSlotId === slot.id}
-                onSelect={() => onSelectSlot(slot)}
-              />
-            ))}
-          </div>
-        </div>
+        {!partnerId ? (
+          <p className="rounded-xl bg-[#edf2f8] p-3 text-xs font-medium text-[#526987]">
+            Choose a centre first to see its open times.
+          </p>
+        ) : loading ? (
+          <p className="text-xs font-medium text-[#526987]">Loading {partnerName}&apos;s open times…</p>
+        ) : !data ? (
+          <p className="rounded-xl bg-amber-50 p-3 text-xs font-medium text-amber-800">
+            Couldn&apos;t load open times right now. Please try again in a minute.
+          </p>
+        ) : data.isClosed || slots.length === 0 ? (
+          <p className="rounded-xl bg-[#edf2f8] p-3 text-xs font-medium text-[#526987]">
+            {data.closedReason || `${partnerName} has no open times on this day.`} Please pick another day.
+          </p>
+        ) : (
+          PERIODS.filter((p) => slots.some((sl) => sl.period === p.id)).map((p) => (
+            <div key={p.id} className="space-y-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#526987]">{p.label}</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {slots
+                  .filter((slot) => slot.period === p.id)
+                  .map((slot) => (
+                    <SlotCard
+                      key={slot.id}
+                      slot={slot}
+                      isSelected={selectedSlotId === slot.id}
+                      onSelect={() => onSelectSlot(slot)}
+                    />
+                  ))}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

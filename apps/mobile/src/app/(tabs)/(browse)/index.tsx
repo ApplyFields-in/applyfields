@@ -5,8 +5,8 @@
  */
 import type { OpportunityList, OpportunityType } from '@applyfields/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -21,6 +21,7 @@ import { OpportunityCard } from '@/components/opportunity-card';
 import { Chips, Empty, Loading, Muted } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { useApi, useDebounced } from '@/lib/use-api';
+import { recordMascotEvent } from '@/services/mascot/IconManager';
 import { C, R, S, TAP, column } from '@/theme';
 
 type Filter = 'all' | OpportunityType;
@@ -39,9 +40,21 @@ export default function ApplyFeed() {
   const [type, setType] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [onlyEligible, setOnlyEligible] = useState(false);
+  const [closingSoon, setClosingSoon] = useState(false);
+
+  // Fieldy's shortcuts open this screen with ?deadline=closing_soon or ?eligible=1.
+  const params = useLocalSearchParams<{ deadline?: string; eligible?: string }>();
+  useEffect(() => {
+    if (params.deadline === 'closing_soon') setClosingSoon(true);
+    if (params.eligible === '1') setOnlyEligible(true);
+  }, [params.deadline, params.eligible]);
 
   // One request after typing settles for 300ms, not one per keystroke.
   const q = useDebounced(search.trim(), 300);
+  // Searching or filtering by eligibility is the "thinking" mascot's signal.
+  useEffect(() => {
+    if (q || onlyEligible) recordMascotEvent({ type: 'research' });
+  }, [q, onlyEligible]);
 
   // Eligibility badges need the core profile fields; nudge if they are missing.
   const profileIncomplete =
@@ -52,9 +65,10 @@ export default function ApplyFeed() {
     if (type !== 'all') params.set('type', type);
     if (q) params.set('q', q);
     if (onlyEligible && signedIn) params.set('eligible', 'true');
+    if (closingSoon) params.set('deadline', 'closing_soon');
     const qs = params.toString();
     return `/opportunities${qs ? `?${qs}` : ''}`;
-  }, [type, q, onlyEligible, signedIn]);
+  }, [type, q, onlyEligible, closingSoon, signedIn]);
 
   const { data, loading, error, stale, refreshing, refresh } = useApi<OpportunityList>(path);
   const items = data?.items ?? [];
@@ -134,6 +148,19 @@ export default function ApplyFeed() {
             color={onlyEligible ? C.blue : C.muted}
           />
           <Text style={s.eligibleText}>Only what I am eligible for</Text>
+        </Pressable>
+      ) : null}
+
+      {closingSoon ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Remove the closing in 7 days filter"
+          onPress={() => setClosingSoon(false)}
+          style={s.eligibleRow}
+        >
+          <Ionicons name="time" size={18} color={C.blue} />
+          <Text style={[s.eligibleText, { flex: 1 }]}>Closing in the next 7 days</Text>
+          <Ionicons name="close-circle" size={18} color={C.muted} />
         </Pressable>
       ) : null}
 

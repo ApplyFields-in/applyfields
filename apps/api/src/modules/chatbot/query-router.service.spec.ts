@@ -150,7 +150,10 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
 
     expect(res.mode).toBe('deterministic');
     expect(res.intent).toBe('closing_soon');
-    expect(res.answer).toContain('Opportunities Closing Soon');
+    expect(res.answer).toContain('Closing in the next 7 days');
+    // Website paths: /exams/<slug>, never /apply/... (that 404s on the site)
+    expect(res.answer).toContain('](/exams/ssc-cgl-2026)');
+    expect(res.answer).not.toContain('/apply/');
   });
 
   it('resolves authenticated USER STATUS with saved and application counts', async () => {
@@ -228,7 +231,11 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
 
     // 'fallback' when no ANTHROPIC_API_KEY: kept out of the cache so a restored key isn't masked for 12h.
     expect(['llm', 'rag', 'fallback']).toContain(res.mode);
-    expect(res.answer).toContain('ApplyFields AI Advisor');
+    if (res.mode === 'fallback') {
+      expect(res.answer).toContain('ApplyFields AI Advisor');
+    } else {
+      expect(res.answer.length).toBeGreaterThan(0);
+    }
     expect(res.actions).toBeDefined();
   });
 
@@ -292,6 +299,35 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
     expect(res.mode).toBe('deterministic');
     expect(res.intent).toBe('fee');
     expect(res.answer).toContain('Fee Breakdown');
+  });
+
+  it('synthesizes answers via Groq when GROQ_API_KEY is configured', async () => {
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: 'Synthesized Groq answer for career paths.' } }],
+      }),
+    } as any);
+
+    const res = await service.handleQuery({
+      query: 'What career paths open up after BSc Chemistry?',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.groq.com/openai/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-groq-key',
+        }),
+      }),
+    );
+    expect(res.mode).toBe('llm');
+    expect(res.answer).toBe('Synthesized Groq answer for career paths.');
+
+    fetchSpy.mockRestore();
+    delete process.env.GROQ_API_KEY;
   });
 });
 

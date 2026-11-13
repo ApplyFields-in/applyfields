@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # Polite crawling
     user_agent: str = "ApplyFieldsBot/0.1 (+https://applyfields.in/bot)"
     crawl_delay_seconds: float = 5.0
+    # Newest N documents per run. Bounds one HTTP request (each PDF = one polite fetch) and the
+    # review queue on a source's first run; the rest are older notices.
+    max_notices_per_run: int = 15
 
 
 settings = Settings()

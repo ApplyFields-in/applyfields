@@ -69,6 +69,21 @@ export interface OtpCodeEntity {
   created_at: string;
 }
 
+/** One WebAuthn passkey: credential id + the PUBLIC key the device created (user_passkeys). */
+export interface PasskeyEntity {
+  id: string;
+  user_id: string;
+  credential_id: string;
+  public_key: Uint8Array<ArrayBuffer>;
+  counter: number;
+  transports: string[];
+  device_type: string | null;
+  backed_up: boolean;
+  name: string | null;
+  last_used_at: string | null;
+  created_at: string;
+}
+
 export interface ConsentEntity {
   id: string;
   user_id: string;
@@ -92,6 +107,7 @@ export class UsersStore implements OnModuleInit {
   private educations = new Map<string, UserEducation>();
   private documents = new Map<string, UserDocumentEntity>();
   private examScores = new Map<string, UserCompetitiveExamScore>();
+  private passkeys = new Map<string, PasskeyEntity>();
 
   constructor(@Optional() private readonly prisma?: PrismaService) {
     if (!this.prisma || this.isTestEnv()) {
@@ -840,6 +856,90 @@ export class UsersStore implements OnModuleInit {
     this.otps.set(otp.id, otp);
     this.saveToDisk();
     return otp;
+  }
+
+  // ---------- Passkeys (user_passkeys) ----------
+
+  private mapPasskey(r: {
+    id: string; user_id: string; credential_id: string; public_key: Uint8Array; counter: bigint;
+    transports: string[]; device_type: string | null; backed_up: boolean; name: string | null;
+    last_used_at: Date | null; created_at: Date;
+  }): PasskeyEntity {
+    return {
+      ...r,
+      public_key: new Uint8Array(r.public_key),
+      counter: Number(r.counter),
+      last_used_at: r.last_used_at?.toISOString() ?? null,
+      created_at: r.created_at.toISOString(),
+    };
+  }
+
+  async addPasskey(
+    data: Omit<PasskeyEntity, 'id' | 'last_used_at' | 'created_at'>,
+  ): Promise<PasskeyEntity> {
+    if (this.prisma && !this.isTestEnv()) {
+      const row = await this.prisma.user_passkeys.create({
+        data: { ...data, public_key: Buffer.from(data.public_key), counter: BigInt(data.counter) },
+      });
+      return this.mapPasskey(row);
+    }
+    if ([...this.passkeys.values()].some((p) => p.credential_id === data.credential_id)) {
+      throw new Error('duplicate credential_id');
+    }
+    const pk: PasskeyEntity = { ...data, id: randomUUID(), last_used_at: null, created_at: new Date().toISOString() };
+    this.passkeys.set(pk.id, pk);
+    return pk;
+  }
+
+  async findPasskeyByCredentialId(credentialId: string): Promise<PasskeyEntity | undefined> {
+    if (this.prisma && !this.isTestEnv()) {
+      const row = await this.prisma.user_passkeys.findUnique({ where: { credential_id: credentialId } });
+      return row ? this.mapPasskey(row) : undefined;
+    }
+    return [...this.passkeys.values()].find((p) => p.credential_id === credentialId);
+  }
+
+  async listPasskeys(userId: string): Promise<PasskeyEntity[]> {
+    if (this.prisma && !this.isTestEnv()) {
+      const rows = await this.prisma.user_passkeys.findMany({ where: { user_id: userId }, orderBy: { created_at: 'asc' } });
+      return rows.map((r) => this.mapPasskey(r));
+    }
+    return [...this.passkeys.values()].filter((p) => p.user_id === userId);
+  }
+
+  async touchPasskey(id: string, counter: number): Promise<void> {
+    const now = new Date();
+    if (this.prisma && !this.isTestEnv()) {
+      await this.prisma.user_passkeys.update({ where: { id }, data: { counter: BigInt(counter), last_used_at: now } });
+      return;
+    }
+    const pk = this.passkeys.get(id);
+    if (pk) Object.assign(pk, { counter, last_used_at: now.toISOString() });
+  }
+
+  /** Deletes only when the passkey belongs to this user. */
+  async deletePasskey(userId: string, id: string): Promise<boolean> {
+    if (this.prisma && !this.isTestEnv()) {
+      const res = await this.prisma.user_passkeys.deleteMany({ where: { id, user_id: userId } });
+      return res.count > 0;
+    }
+    const pk = this.passkeys.get(id);
+    if (!pk || pk.user_id !== userId) return false;
+    return this.passkeys.delete(id);
+  }
+
+  /** How many OTPs were issued to this target since `since` (send rate limit). */
+  async countOtpsSince(target: string, since: Date): Promise<number> {
+    const normalized = target.trim().toLowerCase();
+    if (this.prisma && !this.isTestEnv()) {
+      return this.prisma.otp_codes.count({
+        where: { target: normalized, created_at: { gt: since } },
+      });
+    }
+    const sinceIso = since.toISOString();
+    return Array.from(this.otps.values()).filter(
+      (o) => o.target === normalized && o.created_at > sinceIso,
+    ).length;
   }
 
   async findLatestValidOtp(

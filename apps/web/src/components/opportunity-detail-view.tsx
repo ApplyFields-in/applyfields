@@ -1,4 +1,4 @@
-import type { OpportunityCard, OpportunityDetail } from '@applyfields/types';
+import type { OpenReminderStatus, OpportunityCard, OpportunityDetail } from '@applyfields/types';
 import { Badge, Card, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
 import {
   AlertCircle,
@@ -37,7 +37,7 @@ import {
   ReminderButton,
   ShareButton,
 } from './opportunity-actions';
-import { SaveButton } from './save-button';
+import { OpenReminderButton, SaveButton } from './save-button';
 import { CompareToggleButton } from './opportunity-compare/compare-button';
 import { ReportWrongInfoButton } from './report-wrong-info-modal';
 import { OpportunityAnalyticsTracker, ExternalApplyLink } from './analytics-tracker';
@@ -48,20 +48,30 @@ import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { PrintExportButton } from '@/components/print-export-button';
 import { QuickSummaryModal } from '@/components/summary/quick-summary-modal';
 import { StickyMobileActionBar } from '@/components/layout/sticky-mobile-action-bar';
-import { isSaved, apiGetPublic } from '@/lib/server-api';
-import {
-  DATE_KIND_LABEL,
-  daysLeftLabel,
-  estimateSalary,
-  formatCurrency,
-  formatDate,
-  STATE_NAMES,
-  TYPE_META,
-  urgencyTone,
-} from '@/lib/format';
+import { isSaved, apiGetAsUser, apiGetPublic } from '@/lib/server-api';
+import { DATE_KIND_LABEL, DeadlineBadge, STATE_NAMES, TYPE_META, daysLeftLabel, estimateSalary, formatCurrency, formatDate } from '@/lib/format';
+
+const RELATED_LINK_LABEL: Record<string, string> = {
+  corrigendum: 'Corrigendum',
+  extension: 'Date extension',
+  application_form: 'Application form',
+  interview_schedule: 'Interview schedule',
+  shortlist: 'Shortlist',
+  answer_key: 'Answer key',
+  result: 'Result',
+  selection_panel: 'Selection panel',
+  supporting_document: 'Supporting document',
+};
+
+const todayIstIso = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
 
 export async function OpportunityDetailView({ item }: { item: OpportunityDetail }) {
   const saved = await isSaved('opportunity', item.slug);
+  // "Remind me when it opens" only while applications haven't opened yet (IST date).
+  const opensLater = item.application_start && item.application_start.slice(0, 10) > todayIstIso() ? item.application_start.slice(0, 10) : null;
+  const openReminder = opensLater
+    ? await apiGetAsUser<OpenReminderStatus>(`/saved/opportunity/${encodeURIComponent(item.slug)}/open-reminder`)
+    : null;
   const meta = TYPE_META[item.type];
   const generalEligibility = item.eligibility.find((e) => e.post_id === null) ?? item.eligibility[0];
 
@@ -233,6 +243,7 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
               buttonLabel="Quick Summary"
             />
             <SaveButton itemType="opportunity" slug={item.slug} title={item.title} initial={saved} />
+            {opensLater && <OpenReminderButton slug={item.slug} opensOn={opensLater} initial={openReminder} />}
             <ShareButton title={item.title} />
             <ReminderButton title={item.title} deadline={item.application_end} />
             {generalEligibility && (
@@ -310,9 +321,7 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
               <Clock className="size-3.5" /> Status / Timeline
             </span>
             <div className="mt-1">
-              <Badge tone={urgencyTone(item.days_left)} className="text-xs">
-                {daysLeftLabel(item.days_left)}
-              </Badge>
+              <DeadlineBadge days={item.days_left} className="text-xs" />
             </div>
           </div>
         </div>
@@ -816,6 +825,39 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
             </div>
           </Card>
 
+          {/* Related official documents (corrigenda, forms, results…) found next to the notification */}
+          {item.related_links?.length > 0 && (
+            <Card className="p-5">
+              <SectionTitle
+                title={
+                  <div className="flex items-center gap-2 text-teal">
+                    <FileText className="size-4" />
+                    <span>Related Documents</span>
+                  </div>
+                }
+              />
+              <ul className="mt-3 space-y-2">
+                {item.related_links.map((l) => (
+                  <li key={l.url}>
+                    <a
+                      href={l.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between gap-2 rounded-xl border border-line bg-canvas/60 p-2.5 text-xs font-medium text-teal hover:bg-canvas"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate">{l.title}</span>
+                        <span className="text-[10px] text-teal/60">{RELATED_LINK_LABEL[l.category] ?? 'Document'}</span>
+                      </span>
+                      <ExternalLink className="size-3 shrink-0" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[10px] text-teal/60">From the official website. Opens the original PDF.</p>
+            </Card>
+          )}
+
           {/* Updates for this opportunity */}
           {item.updates && item.updates.length > 0 && (
             <Card className="p-5">
@@ -877,9 +919,8 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {s.days_left != null && (
-                          <Badge tone={urgencyTone(s.days_left)} className="text-[10px]">
-                            {daysLeftLabel(s.days_left)}
-                          </Badge>
+                          <DeadlineBadge days={s.days_left} className="text-[10px]" />
+
                         )}
                         <ChevronRight className="size-3.5 text-teal/40 group-hover:text-sea transition-colors" />
                       </div>

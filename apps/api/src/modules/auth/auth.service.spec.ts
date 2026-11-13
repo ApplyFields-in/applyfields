@@ -22,6 +22,17 @@ describe('AuthService', () => {
     store = module.get<UsersStore>(UsersStore);
   }, 30000);
 
+  /** Signed-up accounts verify their email/phone once; mimic that for tests about later sign-ins. */
+  const markVerified = async (identifier: string) => {
+    const u = await store.findUserByIdentifier(identifier);
+    await store.updateUser(u!.id, { email_verified_at: new Date().toISOString() });
+  };
+  /** login() result when a session was issued (fails the test if a code was asked instead). */
+  const session = <T extends object>(r: T) => {
+    if ('verificationRequired' in r) throw new Error('expected a session, got a code request');
+    return r as Exclude<T, { verificationRequired: true }>;
+  };
+
   it('should be defined', () => {
     expect(authService).toBeDefined();
     expect(store).toBeDefined();
@@ -73,10 +84,11 @@ describe('AuthService', () => {
         password: 'Password123!',
       });
 
-      const loginRes = await authService.login({
+      await markVerified('user1@example.com');
+      const loginRes = session(await authService.login({
         identifier: 'user1@example.com',
         password: 'Password123!',
-      });
+      }));
 
       expect(loginRes.accessToken).toBeDefined();
       expect(loginRes.refreshToken).toBeDefined();
@@ -109,20 +121,37 @@ describe('AuthService', () => {
       });
 
       // Login with full international phone number (+919876543210)
-      const resWithCode = await authService.login({
+      await markVerified('+919876543210');
+      const resWithCode = session(await authService.login({
         identifier: '+919876543210',
         password: 'PhonePassword123!',
-      });
+      }));
       expect(resWithCode.accessToken).toBeDefined();
       expect(resWithCode.user.phone).toBe('+919876543210');
 
       // Login with local 10-digit phone number (9876543210)
-      const resWithoutCode = await authService.login({
+      const resWithoutCode = session(await authService.login({
         identifier: '9876543210',
         password: 'PhonePassword123!',
-      });
+      }));
       expect(resWithoutCode.accessToken).toBeDefined();
       expect(resWithoutCode.user.phone).toBe('+919876543210');
+    });
+
+    it('asks for a code only until the account is verified once', async () => {
+      await authService.register({ email: 'firsttime@example.com', password: 'Password123!' });
+      vi.spyOn(authService as any, 'generate6DigitOtp').mockReturnValue('246810');
+
+      // Never verified (sign-up code skipped): password alone is not enough, a code is sent.
+      const first = await authService.login({ identifier: 'firsttime@example.com', password: 'Password123!' });
+      expect(first).toEqual({ verificationRequired: true, channel: 'email', sentTo: 'f***@example.com' });
+
+      await authService.verifyPasswordLogin({ identifier: 'firsttime@example.com', password: 'Password123!', code: '246810' });
+
+      // From now on: password only.
+      const later = session(await authService.login({ identifier: 'firsttime@example.com', password: 'Password123!' }));
+      expect(later.accessToken).toBeDefined();
+      vi.restoreAllMocks();
     });
 
     it('should reject invalid password', async () => {
@@ -169,141 +198,130 @@ describe('AuthService', () => {
     });
   });
 
-  describe('Social and Passkey login', () => {
-    it('should log in or register via social provider (google / apple)', async () => {
-      const googleRes = await authService.socialLogin({
-        provider: 'google',
-        email: 'test.google@applyfields.in',
-        name: 'Google User',
-      });
+  describe('password + code login (staff)', () => {
+    const claims = (jwt: string) => JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString());
 
-      expect(googleRes.accessToken).toBeDefined();
-      expect(googleRes.refreshToken).toBeDefined();
-      expect(googleRes.user.email).toBe('test.google@applyfields.in');
+    it('needs both the password and the code, and only then issues an mfa session', async () => {
+      await authService.register({ phone: '+919000000103', password: 'StaffPass123!' });
+      vi.spyOn(authService as any, 'generate6DigitOtp').mockReturnValue('424242');
 
-      const appleRes = await authService.socialLogin({
-        provider: 'apple',
+      await expect(
+        authService.startPasswordLogin({ identifier: '9000000103', password: 'wrong' }),
+      ).rejects.toThrow('Invalid email/phone or password');
+
+      const start = await authService.startPasswordLogin({ identifier: '9000000103', password: 'StaffPass123!' });
+      expect(start).toEqual({ channel: 'sms', sentTo: '******0103' });
+
+      await expect(
+        authService.verifyPasswordLogin({ identifier: '9000000103', password: 'StaffPass123!', code: '000000' }),
+      ).rejects.toThrow('Incorrect OTP code');
+
+      const res = await authService.verifyPasswordLogin({
+        identifier: '9000000103', password: 'StaffPass123!', code: '424242',
       });
-      expect(appleRes.accessToken).toBeDefined();
-      expect(appleRes.user.email).toBe('apple.citizen@applyfields.in');
+      expect(claims(res.accessToken).mfa).toBe(true);
+
+      // mfa survives refresh; a password-only login never gets it
+      const refreshed = await authService.refreshTokens(res.refreshToken);
+      expect(claims(refreshed.accessToken).mfa).toBe(true);
+      const plain = session(await authService.login({ identifier: '9000000103', password: 'StaffPass123!' }));
+      expect(claims(plain.accessToken).mfa).toBeUndefined();
+      vi.restoreAllMocks();
     });
 
-    it('should decode Google ID token payload and create or log in candidate', async () => {
-      // Mock Google ID token with JWT payload
-      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-      const payload = Buffer.from(
-        JSON.stringify({
-          sub: '10987654321',
-          email: 'karthik.candidate@gmail.com',
-          name: 'Karthik Candidate',
-          picture: 'https://lh3.googleusercontent.com/a/avatar',
-          email_verified: true,
-        }),
-      ).toString('base64url');
-      const signature = 'mock_signature_bytes';
-      const mockIdToken = `${header}.${payload}.${signature}`;
+    it('caps code requests per target (5 per 15 minutes)', async () => {
+      for (let i = 0; i < 5; i++) {
+        await authService.sendOtp({ target: 'limit@example.com', purpose: 'login' });
+      }
+      await expect(authService.sendOtp({ target: 'limit@example.com', purpose: 'login' })).rejects.toThrow(
+        'Too many codes requested',
+      );
+    });
+  });
 
-      const res = await authService.socialLogin({
-        provider: 'google',
-        idToken: mockIdToken,
+  describe('Social and Passkey login', () => {
+    const mockTokeninfo = (status: number, body: object) =>
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify(body), { status }) as any,
+      );
+
+    beforeEach(() => {
+      process.env.GOOGLE_CLIENT_ID = 'web-client.apps.googleusercontent.com,android-client';
+    });
+    afterEach(() => {
+      vi.restoreAllMocks();
+      delete process.env.GOOGLE_CLIENT_ID;
+    });
+
+    it('never trusts an email sent by the client without a Google token', async () => {
+      await expect(
+        authService.socialLogin({ provider: 'google', email: 'super.admin@applyfields.com' }),
+      ).rejects.toThrow('Google token is required');
+    });
+
+    it('rejects a token Google does not accept (forged / expired)', async () => {
+      mockTokeninfo(400, { error: 'invalid_token' });
+      await expect(
+        authService.socialLogin({ provider: 'google', idToken: 'a.b.c', email: 'victim@x.com' }),
+      ).rejects.toThrow('could not be verified');
+    });
+
+    it('rejects a valid Google token issued to another app', async () => {
+      mockTokeninfo(200, { aud: 'someone-else', email: 'a@gmail.com', email_verified: 'true' });
+      await expect(authService.socialLogin({ provider: 'google', idToken: 'a.b.c' })).rejects.toThrow(
+        'could not be verified',
+      );
+    });
+
+    it('signs in a verified Google user with an mfa session', async () => {
+      mockTokeninfo(200, {
+        aud: 'web-client.apps.googleusercontent.com',
+        iss: 'https://accounts.google.com',
+        email: 'Karthik.Candidate@gmail.com',
+        email_verified: 'true',
+        name: 'Karthik Candidate',
+        picture: 'https://lh3.googleusercontent.com/a/avatar',
       });
+      const res = await authService.socialLogin({ provider: 'google', idToken: 'a.b.c', email: 'ignored@x.com' });
 
-      expect(res.accessToken).toBeDefined();
-      expect(res.refreshToken).toBeDefined();
       expect(res.user.email).toBe('karthik.candidate@gmail.com');
-
+      const claims = JSON.parse(Buffer.from(res.accessToken.split('.')[1], 'base64url').toString());
+      expect(claims.mfa).toBe(true);
       const profile = await store.getProfile(res.user.id);
       expect(profile?.full_name).toBe('Karthik Candidate');
-      expect(profile?.avatar_url).toBe('https://lh3.googleusercontent.com/a/avatar');
     });
 
-    it('should decode Microsoft ID token with preferred_username and register candidate', async () => {
-      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-      const payload = Buffer.from(
-        JSON.stringify({
-          sub: 'ms-unique-sub-12345',
-          preferred_username: 'karthik.ms@outlook.com',
-          name: 'Karthik Microsoft',
-        }),
-      ).toString('base64url');
-      const mockIdToken = `${header}.${payload}.sig`;
+    it('keeps a blocked account out of Google and one-time-code login', async () => {
+      const reg = await authService.register({ email: 'blocked@gmail.com', password: 'Password123!' });
+      await store.updateUser(reg.user.id, { status: 'suspended' } as any);
 
-      const res = await authService.socialLogin({
-        provider: 'microsoft',
-        idToken: mockIdToken,
-      });
+      mockTokeninfo(200, { aud: 'web-client.apps.googleusercontent.com', email: 'blocked@gmail.com', email_verified: 'true' });
+      await expect(authService.socialLogin({ provider: 'google', idToken: 'a.b.c' })).rejects.toThrow('not active');
 
-      expect(res.accessToken).toBeDefined();
-      expect(res.refreshToken).toBeDefined();
-      expect(res.user.email).toBe('karthik.ms@outlook.com');
-
-      const profile = await store.getProfile(res.user.id);
-      expect(profile?.full_name).toBe('Karthik Microsoft');
+      vi.spyOn(authService as any, 'generate6DigitOtp').mockReturnValue('135790');
+      await authService.sendOtp({ target: 'blocked@gmail.com', purpose: 'login' });
+      await expect(authService.loginWithOtp({ identifier: 'blocked@gmail.com', code: '135790' })).rejects.toThrow('not active');
     });
 
-    it('should decode Apple ID token and register candidate', async () => {
-      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-      const payload = Buffer.from(
-        JSON.stringify({
-          sub: 'apple-sub-998877',
-          email: 'karthik.apple@icloud.com',
-          email_verified: true,
-        }),
-      ).toString('base64url');
-      const mockIdToken = `${header}.${payload}.sig`;
-
-      const res = await authService.socialLogin({
-        provider: 'apple',
-        idToken: mockIdToken,
-        name: 'Karthik Apple',
-      });
-
-      expect(res.accessToken).toBeDefined();
-      expect(res.user.email).toBe('karthik.apple@icloud.com');
-
-      const profile = await store.getProfile(res.user.id);
-      expect(profile?.full_name).toBe('Karthik Apple');
+    it('accepts a popup access token whose azp is one of our client IDs', async () => {
+      mockTokeninfo(200, { azp: 'android-client', email: 'pop@gmail.com', email_verified: 'true' });
+      const res = await authService.socialLogin({ provider: 'google', accessToken: 'ya29.x' });
+      expect(res.user.email).toBe('pop@gmail.com');
     });
 
-    it('should require passkey enrollment before allowing passkey login for existing user', async () => {
-      // 1. Register user
-      const reg = await authService.register({
-        email: 'registered.passkey@example.com',
-        password: 'ValidPassword123!',
-      });
-
-      // 2. Before passkey enrollment, passkey login rejects
+    it('admin portal Google login never creates an account', async () => {
+      mockTokeninfo(200, { aud: 'web-client.apps.googleusercontent.com', email: 'stranger@gmail.com', email_verified: 'true' });
       await expect(
-        authService.passkeyLogin({
-          email: 'registered.passkey@example.com',
-          credentialId: 'cred-12345',
-        }),
-      ).rejects.toThrow('This account has not set up a biometric passkey yet');
-
-      // 3. User registers passkey
-      const enrolled = await authService.registerPasskey(reg.user.id, {
-        credentialId: 'cred-12345',
-      });
-      expect(enrolled.success).toBe(true);
-
-      // 4. Now passkey login succeeds
-      const passkeyRes = await authService.passkeyLogin({
-        email: 'registered.passkey@example.com',
-        credentialId: 'cred-12345',
-      });
-
-      expect(passkeyRes.accessToken).toBeDefined();
-      expect(passkeyRes.refreshToken).toBeDefined();
-      expect(passkeyRes.user.email).toBe('registered.passkey@example.com');
+        authService.socialLogin({ provider: 'google', idToken: 'a.b.c', existingOnly: true }),
+      ).rejects.toThrow('No ApplyFields account');
+      expect(await store.findUserByEmail('stranger@gmail.com')).toBeUndefined();
     });
 
-    it('should reject passkey login for unregistered user', async () => {
-      await expect(
-        authService.passkeyLogin({
-          email: 'notfound@example.com',
-          credentialId: 'cred-12345',
-        }),
-      ).rejects.toThrow('No registered citizen account found');
+    it('refuses providers we cannot verify yet', async () => {
+      await expect(authService.socialLogin({ provider: 'apple', idToken: 'a.b.c' })).rejects.toThrow(
+        'not available yet',
+      );
     });
+
   });
 });

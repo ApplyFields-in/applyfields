@@ -1,20 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { AdminMeResponse } from '@applyfields/types';
-import { Badge, buttonClass, Card, ScrollToTopButton, Shell, Sidebar } from '@applyfields/ui';
+import { buttonClass, Card, ScrollToTopButton, Shell, Sidebar } from '@applyfields/ui';
 import {
-  Activity,
   Bell,
-  Briefcase,
   Building,
-  CheckCircle2,
   Crown,
   ExternalLink,
   Globe,
   HandHelping,
   Inbox,
-  Layers,
   Lock,
   LogIn,
   Search,
@@ -27,9 +23,12 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { API_URL } from '@/lib/api';
+import { API_URL, PARTNER_URL, SERVICE_URL, WEB_URL } from '@/lib/api';
 import {
   DEPARTMENTS,
+  canOpenPath,
+  departmentForPath,
+  departmentsForRoles,
   getNavForDepartment,
   type DepartmentType,
 } from '@/lib/nav';
@@ -46,83 +45,25 @@ export function AdminShell({
   const pathname = usePathname();
   const router = useRouter();
 
-  // Detect initial department based on user roles or URL path
-  const isSuperAdmin = Boolean(
-    !staff ||
-    staff.roles?.includes('super_admin') ||
-    staff.roles?.includes('admin')
-  );
+  // Dashboards come from the server-verified roles (/admin/me), never from what the login page picked.
+  const departments = useMemo(() => departmentsForRoles(staff?.roles), [staff?.roles]);
+  const homeDepartment = departments[0] ?? 'super_admin';
 
-  const [activeDepartment, setActiveDepartment] = useState<DepartmentType>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('currentDepartment') as DepartmentType;
-      if (saved && DEPARTMENTS[saved]) return saved;
-    }
-
-    // Auto-detect from pathname
-    if (pathname.startsWith('/partners')) return 'partners';
-    if (pathname.startsWith('/services') || pathname.startsWith('/assistance')) return 'services';
-    if (pathname.startsWith('/review') || pathname.startsWith('/scrapers') || pathname.startsWith('/opportunities')) return 'apply';
-    if (pathname.startsWith('/colleges') || pathname.startsWith('/careers')) return 'career';
-
-    // Default based on staff role
-    if (staff?.roles?.includes('partner_manager') || staff?.roles?.includes('partner_ops')) return 'partners';
-    if (staff?.roles?.includes('services_officer') || staff?.roles?.includes('case_agent')) return 'services';
-    if (staff?.roles?.includes('content_reviewer') || staff?.roles?.includes('scraper_lead')) return 'apply';
-    if (staff?.roles?.includes('career_curator') || staff?.roles?.includes('institution_analyst')) return 'career';
-
-    return 'super_admin';
-  });
-
-  // Keep department in sync with URL navigation
-  useEffect(() => {
-    if (isSuperAdmin) {
-      if (pathname.startsWith('/partners')) {
-        setActiveDepartment('partners');
-      } else if (pathname.startsWith('/services') || pathname.startsWith('/assistance')) {
-        setActiveDepartment('services');
-      } else if (pathname.startsWith('/review') || pathname.startsWith('/scrapers')) {
-        setActiveDepartment('apply');
-      } else if (pathname.startsWith('/colleges') || pathname.startsWith('/careers')) {
-        setActiveDepartment('career');
-      } else if (pathname === '/' || pathname.startsWith('/audit') || pathname.startsWith('/analytics') || pathname.startsWith('/settings')) {
-        setActiveDepartment('super_admin');
-      }
-    }
-  }, [pathname, isSuperAdmin]);
+  // The last department the user picked wins while it owns the current page; otherwise the page decides.
+  const [chosenDepartment, setChosenDepartment] = useState<DepartmentType>(homeDepartment);
+  const activeDepartment = departmentForPath(departments, pathname, chosenDepartment);
 
   const handleSwitchDepartment = (dept: DepartmentType) => {
-    setActiveDepartment(dept);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('currentDepartment', dept);
-    }
-    const targetPath = DEPARTMENTS[dept].homePath;
-    router.push(targetPath);
+    setChosenDepartment(dept);
+    router.push(DEPARTMENTS[dept].homePath);
   };
 
   const navGroups = useMemo(() => getNavForDepartment(activeDepartment), [activeDepartment]);
   const currentDeptMeta = DEPARTMENTS[activeDepartment] || DEPARTMENTS.super_admin;
 
-  // Departmental Route Access Guard for scoped staff
-  const userScopedDepartment: DepartmentType | null = useMemo(() => {
-    if (isSuperAdmin) return null;
-    if (staff?.roles?.some((r) => r.startsWith('partner'))) return 'partners';
-    if (staff?.roles?.some((r) => r.startsWith('services') || r === 'case_agent')) return 'services';
-    if (staff?.roles?.some((r) => r.startsWith('content') || r === 'reviewer' || r === 'scraper_lead')) return 'apply';
-    if (staff?.roles?.some((r) => r.startsWith('career') || r === 'institution_analyst')) return 'career';
-    return null;
-  }, [staff, isSuperAdmin]);
-
-  const isRestricted = useMemo(() => {
-    if (!userScopedDepartment) return false;
-    const allowed = [
-      ...(userScopedDepartment === 'partners' ? ['/partners', '/assistance'] : []),
-      ...(userScopedDepartment === 'services' ? ['/services', '/assistance'] : []),
-      ...(userScopedDepartment === 'apply' ? ['/review', '/opportunities', '/updates', '/scrapers', '/sources'] : []),
-      ...(userScopedDepartment === 'career' ? ['/colleges', '/careers'] : []),
-    ];
-    return !allowed.some((prefix) => pathname.startsWith(prefix));
-  }, [userScopedDepartment, pathname]);
+  // The API enforces the same mapping; this just shows a clear page instead of empty 403 widgets.
+  const isRestricted = !canOpenPath(departments, pathname);
+  const userScopedDepartment: DepartmentType | null = isRestricted ? homeDepartment : null;
 
   return (
     <Shell
@@ -137,7 +78,7 @@ export function AdminShell({
         <Topbar
           staff={staff}
           activeDepartment={activeDepartment}
-          isSuperAdmin={isSuperAdmin}
+          departments={departments}
           onSwitchDepartment={handleSwitchDepartment}
         />
       }
@@ -195,14 +136,30 @@ function SidebarFooter({ department }: { department: typeof DEPARTMENTS.super_ad
   );
 }
 
+const DEPARTMENT_TABS: Record<DepartmentType, string> = {
+  super_admin: 'Master Cockpit',
+  partners: 'Partners',
+  services: 'Citizen Services',
+  apply: 'Apply & Review',
+  career: 'Career & Colleges',
+};
+
+const DEPARTMENT_ICONS: Record<DepartmentType, ReactNode> = {
+  super_admin: <Crown className="size-3.5 text-amber-300" />,
+  partners: <Store className="size-3.5 text-emerald-400" />,
+  services: <HandHelping className="size-3.5 text-blue-400" />,
+  apply: <Inbox className="size-3.5 text-indigo-400" />,
+  career: <Building className="size-3.5 text-rose-400" />,
+};
+
 interface TopbarProps {
   staff?: AdminMeResponse | null;
   activeDepartment: DepartmentType;
-  isSuperAdmin: boolean;
+  departments: DepartmentType[];
   onSwitchDepartment: (dept: DepartmentType) => void;
 }
 
-function Topbar({ staff, activeDepartment, isSuperAdmin, onSwitchDepartment }: TopbarProps) {
+function Topbar({ staff, activeDepartment, departments, onSwitchDepartment }: TopbarProps) {
   const primaryRole = staff?.roles?.[0]?.replace('_', ' ') ?? 'Global Administrator';
   const displayName = staff?.name || staff?.email || 'Admin';
   const initials = displayName
@@ -229,76 +186,27 @@ function Topbar({ staff, activeDepartment, isSuperAdmin, onSwitchDepartment }: T
         </kbd>
       </form>
 
-      {/* DEPARTMENT SWITCHER OR LOCKED DEPARTMENT BADGE */}
-      {isSuperAdmin ? (
+      {/* DEPARTMENT SWITCHER (only the user's own departments) OR LOCKED BADGE */}
+      {departments.length > 1 ? (
         <div className="hidden lg:flex items-center gap-1 rounded-full border border-olive-200/80 bg-white/90 p-1 shadow-xs backdrop-blur-md">
-          <button
-            type="button"
-            onClick={() => onSwitchDepartment('super_admin')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${
-              activeDepartment === 'super_admin'
-                ? 'bg-olive-800 text-white shadow-xs'
-                : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
-            }`}
-          >
-            <Crown className="size-3.5 text-amber-300" />
-            <span>Master Cockpit</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onSwitchDepartment('partners')}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
-              activeDepartment === 'partners'
-                ? 'bg-olive-800 text-white shadow-xs'
-                : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
-            }`}
-          >
-            <Store className="size-3.5 text-emerald-400" />
-            <span>Partners</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onSwitchDepartment('services')}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
-              activeDepartment === 'services'
-                ? 'bg-olive-800 text-white shadow-xs'
-                : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
-            }`}
-          >
-            <HandHelping className="size-3.5 text-blue-400" />
-            <span>Citizen Services</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onSwitchDepartment('apply')}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
-              activeDepartment === 'apply'
-                ? 'bg-olive-800 text-white shadow-xs'
-                : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
-            }`}
-          >
-            <Inbox className="size-3.5 text-indigo-400" />
-            <span>Apply & Review</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onSwitchDepartment('career')}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
-              activeDepartment === 'career'
-                ? 'bg-olive-800 text-white shadow-xs'
-                : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
-            }`}
-          >
-            <Building className="size-3.5 text-rose-400" />
-            <span>Career & Colleges</span>
-          </button>
+          {departments.map((dept) => (
+            <button
+              key={dept}
+              type="button"
+              onClick={() => onSwitchDepartment(dept)}
+              aria-pressed={activeDepartment === dept}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                activeDepartment === dept
+                  ? 'bg-olive-800 text-white shadow-xs'
+                  : 'text-olive-700 hover:text-olive-950 hover:bg-olive-50'
+              }`}
+            >
+              {DEPARTMENT_ICONS[dept]}
+              <span>{DEPARTMENT_TABS[dept]}</span>
+            </button>
+          ))}
         </div>
       ) : (
-        /* Department Locked Badge for Departmental Staff */
         <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-olive-50 border border-olive-200 text-xs font-bold text-olive-900">
           <ShieldCheck className="size-3.5 text-emerald-600" />
           <span>{DEPARTMENTS[activeDepartment].name}</span>
@@ -311,33 +219,33 @@ function Topbar({ staff, activeDepartment, isSuperAdmin, onSwitchDepartment }: T
       {/* External Portals Switcher */}
       <div className="hidden 2xl:flex items-center gap-1 rounded-full border border-olive-200/80 bg-white/80 p-1 shadow-xs backdrop-blur-md">
         <a
-          href="http://localhost:3000"
+          href={WEB_URL}
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-olive-800 hover:bg-olive-100/70 hover:text-olive-950 transition-colors"
-          title="Open Citizen Web Portal (localhost:3000)"
+          title="Open the citizen website"
         >
           <Globe className="size-3 text-olive-600" />
           <span>Web :3000</span>
           <ExternalLink className="size-2.5 opacity-40" />
         </a>
         <a
-          href="http://localhost:3003"
+          href={SERVICE_URL}
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-olive-800 hover:bg-olive-100/70 hover:text-olive-950 transition-colors"
-          title="Open Citizen Services Hub (localhost:3003)"
+          title="Open the services portal"
         >
           <Zap className="size-3 text-amber-600" />
           <span>Services :3003</span>
           <ExternalLink className="size-2.5 opacity-40" />
         </a>
         <a
-          href="http://localhost:3002"
+          href={PARTNER_URL}
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-olive-800 hover:bg-olive-100/70 hover:text-olive-950 transition-colors"
-          title="Open Partner & Operator Portal (localhost:3002)"
+          title="Open the partner portal"
         >
           <Store className="size-3 text-emerald-600" />
           <span>Partner :3002</span>

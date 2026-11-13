@@ -2,7 +2,7 @@
  * One opportunity: what it is, who can apply, when, and the official route out.
  * GET /opportunities/:slug plus GET /opportunities/:slug/eligibility.
  */
-import type { EligibilityResponse, OpportunityDetail, ReviewEligibility } from '@applyfields/types';
+import type { EligibilityResponse, OpenReminderStatus, OpportunityDetail, ReviewEligibility } from '@applyfields/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -24,6 +24,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { ELIGIBILITY, TYPE_LABEL, deadline, formatDate, rupees } from '@/lib/format';
 import { openOffline, saveOffline, useOfflineFiles } from '@/lib/offline';
+import { opportunityUrl, shareLink } from '@/lib/share';
 import { useApi } from '@/lib/use-api';
 import { C, R, S, column } from '@/theme';
 
@@ -59,6 +60,29 @@ export default function OpportunityScreen() {
 
   const [saved, setSaved] = useState<boolean | null>(null);
   const [savePending, setSavePending] = useState(false);
+
+  // "Remind me when it opens" (ApplyFields Plus) — only while applications haven't opened yet.
+  const todayIstIso = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+  const opensOn = data?.application_start && data.application_start.slice(0, 10) > todayIstIso ? data.application_start.slice(0, 10) : null;
+  const { data: openReminder, setData: setOpenReminder } = useApi<OpenReminderStatus>(
+    opensOn && signedIn ? `/saved/opportunity/${slug}/open-reminder` : null,
+  );
+  const [reminderPending, setReminderPending] = useState(false);
+
+  async function toggleOpenReminder() {
+    if (!signedIn) return router.push('/login');
+    if (!openReminder) return;
+    if (!openReminder.plus) {
+      Alert.alert('ApplyFields Plus', 'Opening-day reminders are part of ApplyFields Plus.');
+      return;
+    }
+    setReminderPending(true);
+    const path = `/saved/opportunity/${slug}/open-reminder`;
+    const res = openReminder.on ? await api.del<OpenReminderStatus>(path) : await api.put<OpenReminderStatus>(path);
+    setReminderPending(false);
+    if (res.data) setOpenReminder(res.data);
+    else Alert.alert('Could not set the reminder', res.error ?? 'Please try again.');
+  }
 
   async function toggleSave() {
     if (!signedIn) {
@@ -129,7 +153,26 @@ export default function OpportunityScreen() {
           disabled={savePending}
           onPress={toggleSave}
         />
+        <Button
+          label="Share"
+          icon="share-social-outline"
+          variant="secondary"
+          onPress={() => shareLink(data.title, opportunityUrl(data.type, data.slug))}
+        />
       </View>
+      {opensOn ? (
+        <Button
+          label={
+            openReminder?.on
+              ? `Reminding you on ${formatDate(opensOn)}`
+              : `Remind me when it opens (${formatDate(opensOn)})${openReminder?.plus ? '' : ' · Plus'}`
+          }
+          icon={openReminder?.on ? 'notifications' : 'notifications-outline'}
+          variant="secondary"
+          disabled={reminderPending}
+          onPress={toggleOpenReminder}
+        />
+      ) : null}
       <Muted>
         ApplyFields is a guide. Applications are always submitted on the official portal.
       </Muted>
@@ -185,6 +228,23 @@ export default function OpportunityScreen() {
                 {date.is_tentative ? ' (tentative)' : ''}
               </Text>
             </View>
+          ))}
+        </Card>
+      ) : null}
+
+      {data.related_links?.length ? (
+        <Card style={s.card}>
+          <SectionTitle>Related documents</SectionTitle>
+          {data.related_links.map((l) => (
+            <Pressable
+              key={l.url}
+              accessibilityRole="link"
+              onPress={() => WebBrowser.openBrowserAsync(l.url).catch(() => undefined)}
+              style={s.row}
+            >
+              <Text style={[s.rowKey, { color: C.blue }]}>{l.title}</Text>
+              <Ionicons name="open-outline" size={15} color={C.muted} />
+            </Pressable>
           ))}
         </Card>
       ) : null}

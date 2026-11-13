@@ -6,8 +6,8 @@ Run locally:
     uv run uvicorn app.main:app --reload --port 8000
 """
 
+import datetime as dt
 import secrets
-from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,17 +17,36 @@ from app.db.repository import (
     finish_scrape_run,
     get_active_source,
     start_scrape_run,
+    update_opportunity_related_links,
 )
 from app.fetcher import fetch
 from app.pipeline import process_pdf_notice
+from app.scrapers.appsc import AppscScraper
+from app.scrapers.cdsco import CDSCOScraper
+from app.scrapers.indiapost import IndiaPostScraper
+from app.scrapers.isro import (
+    IsroScraper,
+    RecruitmentPdfBundle,
+    group_related_pdf_links,
+)
+from app.scrapers.npcil import NPCILScraper
 from app.scrapers.ssc import SSCScraper
+from app.scrapers.upsc import UPSCScraper
 
 app = FastAPI(title="ApplyFields Ingestion (internal)", version="0.1.0")
 
 # Only sources with implemented scrapers belong here.
 SCRAPERS = {
     "ssc": SSCScraper,
+    "appsc": AppscScraper,
+    "upsc": UPSCScraper,
+    "isro": IsroScraper,
+    "indiapost": IndiaPostScraper,
+    "npcil": NPCILScraper,
+    "cdsco": CDSCOScraper,
 }
+
+
 
 
 def require_internal_token(
@@ -113,31 +132,84 @@ def run_scraper(source_key: str) -> dict[str, object]:
     failed_items = 0
     skipped_non_pdf = 0
     results: list[dict[str, object]] = []
+    isro_bundles_by_pdf_url: dict[str, RecruitmentPdfBundle] = {}
 
     try:
 
+
         if source_key == "ssc":
             notices = scraper.discover_notices()
+        elif source_key == "isro":
+            response = fetch(scraper.list_url)
+            detail_notices = scraper.find_notices(response.text)
+
+            notices = []
+            seen_pdf_urls: set[str] = set()
+
+            for detail in detail_notices:
+                detail_response = fetch(detail.url)
+
+                pdf_notices = scraper.find_pdf_notices(
+                    detail_response.text,
+                    detail_url=detail.url,
+                    title=detail.title,
+                    published_on=detail.published_on,
+                )
+
+                unique_pdf_notices = []
+
+                for pdf_notice in pdf_notices:
+                    normalized_url = pdf_notice.url.split("#", 1)[0]
+
+                    if normalized_url in seen_pdf_urls:
+                        continue
+
+                    seen_pdf_urls.add(normalized_url)
+                    unique_pdf_notices.append(pdf_notice)
+
+                bundle = group_related_pdf_links(
+                    detail,
+                    unique_pdf_notices,
+                )
+
+                # Only the main advertisement can create a draft opportunity.
+                if bundle.notification_pdf is None:
+                    continue
+
+                main_notice = bundle.notification_pdf
+                notices.append(main_notice)
+                isro_bundles_by_pdf_url[main_notice.url] = bundle
+
+
         else:
             response = fetch(scraper.list_url)
             notices = scraper.find_notices(response.text)
+
         items_found = len(notices)
 
+        documents = []
         for notice in notices:
-            # This initial version processes direct PDF links only.
-            path = urlsplit(notice.url).path.lower()
-
-            if not path.endswith(".pdf"):
+            if scraper.is_document_url(notice.url):
+                documents.append(notice)
+            else:
                 skipped_non_pdf += 1
                 results.append(
-                    {
-                        "title": notice.title,
-                        "url": notice.url,
-                        "status": "skipped_non_pdf",
-                    }
+                    {"title": notice.title, "url": notice.url, "status": "skipped_non_pdf"}
                 )
-                continue
 
+        # ponytail: newest-first cap; a source that posts more than N notices between two runs loses
+        # the oldest ones (raise MAX_NOTICES_PER_RUN or run more often if that ever happens).
+        documents.sort(key=lambda n: n.published_on or dt.date.min, reverse=True)
+        deferred = max(0, len(documents) - settings.max_notices_per_run)
+        documents = documents[: settings.max_notices_per_run]
+
+        for notice in documents:
+            bundle = isro_bundles_by_pdf_url.get(notice.url)
+            notice_title = (
+                bundle.recruitment_title
+                if bundle is not None
+                else notice.title
+            )
             try:
                 result = process_pdf_notice(
                     source_id=str(source["id"]),
@@ -149,10 +221,26 @@ def run_scraper(source_key: str) -> dict[str, object]:
                         if source_key == "rrb"
                         else "central_govt"
                     ),
-                    url=notice.url,
-                    title=notice.title,
+                    url=scraper.resolve_document_url(notice.url),
+                    title=notice_title,
                     published_on=notice.published_on,
                 )
+                if (
+                    bundle is not None
+                    and bundle.related_links
+                    and result.get("opportunity_id")
+                ):
+                    update_opportunity_related_links(
+                        opportunity_id=str(result["opportunity_id"]),
+                        related_links=[
+                            {
+                                "title": link.title,
+                                "url": link.url,
+                                "category": link.category,
+                            }
+                            for link in bundle.related_links
+                        ],
+                    )
 
                 results.append(result)
 
@@ -197,6 +285,7 @@ def run_scraper(source_key: str) -> dict[str, object]:
             "duplicates": duplicates,
             "failed_items": failed_items,
             "skipped_non_pdf": skipped_non_pdf,
+            "deferred": deferred,
             "notices": results,
         }
 
@@ -225,3 +314,4 @@ def run_scraper(source_key: str) -> dict[str, object]:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Scraping source '{source_key}' failed",
         ) from exc
+

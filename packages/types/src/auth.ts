@@ -184,10 +184,23 @@ export interface UserResumeDocument {
   updated_at: string;
 }
 
+/** Profile fields read from a resume. null/empty = not in the resume (never guessed). */
+export interface ExtractedResumeProfile {
+  full_name: string | null;
+  date_of_birth: string | null; // YYYY-MM-DD
+  gender: UserGender | null;
+  state_code: string | null;
+  district: string | null;
+  pin_code: string | null;
+  skills: string[];
+  languages: string[];
+}
+
 export interface ResumeApiResponse {
   success: boolean;
   resume: UserResumeDocument | null;
   qualifications?: ExtractedEducationItem[];
+  profile?: ExtractedResumeProfile;
   text?: string;
 }
 

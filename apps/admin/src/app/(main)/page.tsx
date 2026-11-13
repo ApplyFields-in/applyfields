@@ -27,8 +27,8 @@ import {
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
-import { apiGet } from '@/lib/api';
-import { MOCK_ADMIN_OPPORTUNITIES, MOCK_ADMIN_SUMMARY, MOCK_HOME_SUMMARY } from '@/lib/mock-data';
+import { apiGet, PARTNER_URL, SERVICE_URL, WEB_URL } from '@/lib/api';
+import { PortalStatus, StatusDot } from '@/components/portal-status';
 
 /** '2026-10-04T05:56:18Z' → '10 min ago' or '4 Oct, 11:26 am' */
 function formatTimeAgo(iso?: string | null): string {
@@ -60,10 +60,11 @@ export default async function DashboardPage() {
     apiGet<HomeSummary>('/home'),
   ]);
 
-  const summaryData = summary ?? MOCK_ADMIN_SUMMARY;
-  const oppsData = oppsList && oppsList.items.length > 0 ? oppsList : MOCK_ADMIN_OPPORTUNITIES;
-  const homeSummaryData = homeData ?? MOCK_HOME_SUMMARY;
-  const isMock = !summary;
+  // Real numbers only: if the API is down, tiles read 0 and the header says "API unreachable".
+  const summaryData: AdminSummary = summary ?? { stats: [], review_queue: [], scrapers: [], sample: false };
+  const recentOpportunities = oppsList?.items.slice(0, 5) ?? [];
+  const deadlines = homeData?.closing_soon?.slice(0, 4) ?? [];
+  const apiDown = !summary;
 
   const statsMap = new Map(summaryData.stats.map((s) => [s.key, s]));
   const pendingReviewsCount = statsMap.get('pending_reviews')?.value ?? 0;
@@ -78,10 +79,8 @@ export default async function DashboardPage() {
   const failingScrapers = summaryData.scrapers.filter((s) => s.consecutive_failures > 0);
 
   // Real upcoming deadlines from database or fallback
-  const deadlines = homeSummaryData.closing_soon?.slice(0, 4) ?? [];
 
   // Real recent opportunities or fallback
-  const recentOpportunities = oppsData.items?.slice(0, 5) ?? [];
 
   // Current formatted date string
   const now = new Date();
@@ -108,13 +107,13 @@ export default async function DashboardPage() {
         <div className="relative z-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur-md">
-              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className={cn('size-2 rounded-full', apiDown ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse')} />
               <span>ApplyFields Global Operations</span>
               <span className="text-white/40">|</span>
               <span className="text-olive-200">Port :3001</span>
-              {isMock && (
+              {apiDown && (
                 <span className="rounded bg-amber-400/20 px-1.5 py-0.2 text-[10px] text-amber-300">
-                  Demo Data
+                  API unreachable
                 </span>
               )}
             </div>
@@ -251,7 +250,7 @@ export default async function DashboardPage() {
               </p>
               <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-olive-900">
                 <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-800">
-                  {summaryData.scrapers?.length ?? 8} Scrapers
+                  {summaryData.scrapers.length} Scrapers
                 </span>
                 <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-800">
                   {publishedWeekCount} Published/Wk
@@ -324,9 +323,7 @@ export default async function DashboardPage() {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-bold text-sky-800">
                   <Globe className="size-3" /> Citizen Portal · :3000
                 </span>
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Live
-                </span>
+                <PortalStatus url={WEB_URL} />
               </div>
 
               <h3 className="mt-3 text-sm font-bold text-olive-950">
@@ -350,9 +347,9 @@ export default async function DashboardPage() {
             </div>
 
             <div className="mt-5 pt-3 border-t border-olive-100 flex items-center justify-between">
-              <span className="text-[11px] text-olive-700">http://localhost:3000</span>
+              <span className="text-[11px] text-olive-700">{WEB_URL}</span>
               <a
-                href="http://localhost:3000"
+                href={`${WEB_URL}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-bold text-olive-900 hover:text-emerald-700 hover:underline"
@@ -369,9 +366,7 @@ export default async function DashboardPage() {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-800">
                   <Zap className="size-3" /> Services Hub · :3003
                 </span>
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Live
-                </span>
+                <PortalStatus url={SERVICE_URL} />
               </div>
 
               <h3 className="mt-3 text-sm font-bold text-olive-950">
@@ -395,9 +390,9 @@ export default async function DashboardPage() {
             </div>
 
             <div className="mt-5 pt-3 border-t border-olive-100 flex items-center justify-between">
-              <span className="text-[11px] text-olive-700">http://localhost:3003</span>
+              <span className="text-[11px] text-olive-700">{SERVICE_URL}</span>
               <a
-                href="http://localhost:3003"
+                href={`${SERVICE_URL}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-bold text-olive-900 hover:text-amber-700 hover:underline"
@@ -414,9 +409,7 @@ export default async function DashboardPage() {
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
                   <Store className="size-3" /> Partner Portal · :3002
                 </span>
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Live
-                </span>
+                <PortalStatus url={PARTNER_URL} />
               </div>
 
               <h3 className="mt-3 text-sm font-bold text-olive-950">
@@ -440,9 +433,9 @@ export default async function DashboardPage() {
             </div>
 
             <div className="mt-5 pt-3 border-t border-olive-100 flex items-center justify-between">
-              <span className="text-[11px] text-olive-700">http://localhost:3002</span>
+              <span className="text-[11px] text-olive-700">{PARTNER_URL}</span>
               <a
-                href="http://localhost:3002"
+                href={`${PARTNER_URL}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-bold text-olive-900 hover:text-emerald-700 hover:underline"
@@ -814,27 +807,19 @@ export default async function DashboardPage() {
             <div className="mt-3 space-y-2 text-xs">
               <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
                 <span className="font-semibold text-olive-900">Citizen Web (:3000)</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-700 text-[11px]">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Active
-                </span>
+                <PortalStatus url={WEB_URL} upLabel="Active" />
               </div>
               <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
                 <span className="font-semibold text-olive-900">Services Hub (:3003)</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-700 text-[11px]">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Active
-                </span>
+                <PortalStatus url={SERVICE_URL} upLabel="Active" />
               </div>
               <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
                 <span className="font-semibold text-olive-900">Partner Desk (:3002)</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-700 text-[11px]">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Active
-                </span>
+                <PortalStatus url={PARTNER_URL} upLabel="Active" />
               </div>
               <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
                 <span className="font-semibold text-olive-900">API Backend (:4000)</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-700 text-[11px]">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Connected
-                </span>
+                <StatusDot state={apiDown ? 'down' : 'up'} upLabel="Connected" />
               </div>
             </div>
           </div>

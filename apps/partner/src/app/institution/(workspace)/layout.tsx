@@ -102,7 +102,7 @@ export default function InstitutionWorkspaceLayout({
     setTimeout(() => setStatusToast(null), 3000);
   }
 
-  const MAIN_WEB_URL = process.env.NEXT_PUBLIC_MAIN_WEB_URL || 'http://localhost:3000';
+  const MAIN_WEB_URL = process.env.NEXT_PUBLIC_MAIN_WEB_URL || (process.env.NODE_ENV === 'production' ? 'https://applyfields.com' : 'http://localhost:3000');
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">

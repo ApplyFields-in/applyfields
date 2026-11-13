@@ -51,7 +51,7 @@ export default function PartnerSettingsPage() {
   const [address, setAddress] = useState(partner?.address || '');
   const [city, setCity] = useState(partner?.city || '');
   const [district, setDistrict] = useState(partner?.district || '');
-  const [stateCode, setStateCode] = useState(partner?.state_code || 'TG');
+  const [stateCode, setStateCode] = useState(partner?.state_code || 'TS');
   const [pincode, setPincode] = useState(partner?.pincode || '');
   const [latitude, setLatitude] = useState<number | null>(partner?.latitude || null);
   const [longitude, setLongitude] = useState<number | null>(partner?.longitude || null);
@@ -124,7 +124,7 @@ export default function PartnerSettingsPage() {
       setAddress(partner.address || '');
       setCity(partner.city || '');
       setDistrict(partner.district || '');
-      setStateCode(partner.state_code || 'TG');
+      setStateCode(partner.state_code || 'TS');
       setPincode(partner.pincode || '');
       setLatitude(partner.latitude);
       setLongitude(partner.longitude);
@@ -294,7 +294,7 @@ export default function PartnerSettingsPage() {
               onClick={handleDetectGps}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300"
             >
-              <LocateFixed className="h-3.5 w-3.5" /> Re-calibrate GPS
+              <LocateFixed className="h-3.5 w-3.5" /> Detect my location
             </button>
           </div>
 
@@ -340,7 +340,7 @@ export default function PartnerSettingsPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-300">
-                State Code (e.g. TG, AP, KA)
+                State Code (e.g. TS, AP, KA)
               </label>
               <input
                 type="text"
@@ -424,7 +424,7 @@ export default function PartnerSettingsPage() {
                   <ZoomOut className="h-3.5 w-3.5" />
                 </button>
                 <a
-                  href={`https://www.openstreetmap.org/?mlat=${latitude ?? 17.437462}&mlon=${longitude ?? 78.448288}#map=${mapZoom}/${latitude ?? 17.437462}/${longitude ?? 78.448288}`}
+                  href={latitude != null && longitude != null ? `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=${mapZoom}/${latitude}/${longitude}` : 'https://www.openstreetmap.org/'}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition"
@@ -435,23 +435,24 @@ export default function PartnerSettingsPage() {
               </div>
             </div>
 
-            {/* Map Frame */}
+            {/* Map Frame: only once a real pin exists (no made-up default spot) */}
+            {latitude != null && longitude != null ? (
             <div className="relative rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden h-[240px]">
               <iframe
                 title="Center Location on OpenStreetMap"
                 src={`https://www.openstreetmap.org/export/embed.html?bbox=${(
-                  (longitude ?? 78.448288) -
+                  (longitude) -
                   0.012 / Math.pow(1.5, mapZoom - 14)
                 ).toFixed(6)}%2C${(
-                  (latitude ?? 17.437462) -
+                  (latitude) -
                   (0.012 / Math.pow(1.5, mapZoom - 14)) * 0.7
                 ).toFixed(6)}%2C${(
-                  (longitude ?? 78.448288) +
+                  (longitude) +
                   0.012 / Math.pow(1.5, mapZoom - 14)
                 ).toFixed(6)}%2C${(
-                  (latitude ?? 17.437462) +
+                  (latitude) +
                   (0.012 / Math.pow(1.5, mapZoom - 14)) * 0.7
-                ).toFixed(6)}&layer=mapnik&marker=${latitude ?? 17.437462}%2C${longitude ?? 78.448288}`}
+                ).toFixed(6)}&layer=mapnik&marker=${latitude}%2C${longitude}`}
                 className="w-full h-full border-0 filter contrast-[0.95] brightness-[0.92]"
                 loading="lazy"
               />
@@ -460,7 +461,7 @@ export default function PartnerSettingsPage() {
                 <div className="pointer-events-auto flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/95 px-2.5 py-1 text-[11px] font-mono text-emerald-400 shadow backdrop-blur-md">
                   <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>
-                    {(latitude ?? 17.437462).toFixed(5)} N, {(longitude ?? 78.448288).toFixed(5)} E
+                    {(latitude).toFixed(5)} N, {(longitude).toFixed(5)} E
                   </span>
                 </div>
                 <div className="pointer-events-auto rounded-lg border border-slate-800 bg-slate-900/95 px-2.5 py-1 text-[10px] text-slate-300 shadow backdrop-blur-md">
@@ -468,6 +469,11 @@ export default function PartnerSettingsPage() {
                 </div>
               </div>
             </div>
+            ) : (
+              <p className="rounded-2xl border border-dashed border-slate-700 bg-slate-950 p-6 text-center text-xs text-slate-400">
+                No location pinned yet. Use &quot;Detect my location&quot; above while you are at the centre.
+              </p>
+            )}
           </div>
         </div>
 

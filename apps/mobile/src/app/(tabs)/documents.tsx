@@ -152,7 +152,7 @@ export default function Documents() {
             <Empty
               icon="document-text-outline"
               title="No documents yet"
-              body="Add them on applyfields.in and they appear here, ready for every form."
+              body="Add them on applyfields.com and they appear here, ready for every form."
             />
           )
         }

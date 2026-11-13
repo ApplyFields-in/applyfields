@@ -337,7 +337,16 @@ export function getMockOpportunities(
     eligible?: boolean;
   } = {},
 ): OpportunityList {
-  let list = type ? MOCK_OPPORTUNITIES.filter((item) => item.type === type) : [...MOCK_OPPORTUNITIES];
+  // days_left from today's date (the stored numbers go stale), like the API does.
+  const today = new Date(new Date().toDateString()).getTime();
+  const withDays = MOCK_OPPORTUNITIES.map((item) => ({
+    ...item,
+    days_left: item.last_date ? Math.round((new Date(`${item.last_date}T00:00:00`).getTime() - today) / 86_400_000) : null,
+  }));
+  const ended = params.deadline === 'ended';
+  let list = withDays.filter(
+    (item) => (!type || item.type === type) && (ended ? (item.days_left ?? 0) < 0 : (item.days_left ?? 0) >= 0),
+  );
 
   if (params.q) {
     const qLower = params.q.toLowerCase();
@@ -375,9 +384,9 @@ export function getMockOpportunities(
   }
 
   if (params.deadline) {
-    if (params.deadline === 'closing_soon') {
+    if (params.deadline === 'closing_soon' || params.deadline === '7_days') {
       list = list.filter((item) => (item.days_left ?? 99) <= 7);
-    } else if (params.deadline === 'this_month') {
+    } else if (params.deadline === 'this_month' || params.deadline === '30_days') {
       list = list.filter((item) => (item.days_left ?? 99) <= 30);
     } else if (params.deadline === 'today') {
       list = list.filter((item) => item.days_left === 0);
@@ -388,9 +397,13 @@ export function getMockOpportunities(
     list = list.filter((item) => item.eligibility === 'eligible' || item.eligibility === 'likely_eligible');
   }
 
+  // ended: most recently closed first; open: closing soonest first (same as the API)
+  list.sort((a, b) => ((a.days_left ?? 999) - (b.days_left ?? 999)) * (ended ? -1 : 1));
+
   return {
     total: list.length,
     type: type ?? 'govt_job',
+
     query: params.q || '',
     sample: false,
     items: list,

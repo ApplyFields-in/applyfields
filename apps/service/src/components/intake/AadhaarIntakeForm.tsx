@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useAuth } from '@/lib/auth-context';
 import { ShieldCheck, User, FileText, Check, AlertCircle } from 'lucide-react';
 
 export interface AadhaarIntakeData {
@@ -29,6 +30,7 @@ export function AadhaarIntakeForm({
   onChange,
   onValidationChange,
 }: AadhaarIntakeFormProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState<AadhaarIntakeData>({
     serviceSubtype: initialData?.serviceSubtype || 'address_update_assistance',
     applicantName: initialData?.applicantName || '',
@@ -58,13 +60,11 @@ export function AadhaarIntakeForm({
   }
 
   function handleVaultAutofill() {
+    // Only the signed-in user's own account details; the rest the user types.
     const autofilled: AadhaarIntakeData = {
       ...formData,
-      applicantName: 'Arvind V. Kumar',
-      maskedUid: 'XXXX-XXXX-8492',
-      mobileLinked: '+91 98765 43210',
-      targetUpdateField: 'Residential Address',
-      supportingDocType: 'Electricity Bill (Verified in Vault)',
+      applicantName: user?.full_name || formData.applicantName,
+      mobileLinked: user?.phone || formData.mobileLinked,
       autofilledFromVault: true,
     };
     setFormData(autofilled);

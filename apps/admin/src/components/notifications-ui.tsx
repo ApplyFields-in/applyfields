@@ -10,22 +10,31 @@ import { Field, FormSection, TextArea, TextInput } from './review-ui';
 
 export function RetryDeliveryButton({ id }: { id: string }) {
   const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   return (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={() =>
-        start(async () => {
-          const res = await retryDeliveryAction(id);
-          if (res.ok) router.refresh();
-          else alert(res.error ?? 'Could not retry');
-        })
-      }
-      className={buttonClass({ variant: 'secondary', size: 'sm' })}
-    >
-      <RotateCw className="size-4" aria-hidden="true" /> {pending ? 'Retrying…' : 'Retry'}
-    </button>
+    <span className="inline-flex flex-col items-end gap-1">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            setError(null);
+            const res = await retryDeliveryAction(id);
+            if (res.ok) router.refresh();
+            else setError(res.error ?? 'Could not retry');
+          })
+        }
+        className={buttonClass({ variant: 'secondary', size: 'sm' })}
+      >
+        <RotateCw className="size-4" aria-hidden="true" /> {pending ? 'Retrying…' : 'Retry'}
+      </button>
+      {error && (
+        <span role="alert" className="text-xs font-semibold text-teal">
+          {error}
+        </span>
+      )}
+    </span>
   );
 }
 

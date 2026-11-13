@@ -22,7 +22,8 @@ import { useCart } from '@/lib/cart-context';
 import { useAuth } from '@/lib/auth-context';
 import { DynamicIntakeForm, type CombinedIntakePayload } from '@/components/intake/DynamicIntakeForm';
 import { SlotPicker, type TimeSlot } from '@/components/slot-picker';
-import { createBooking } from '@/lib/api';
+import { createBooking, shareBookingDocuments } from '@/lib/api';
+import { ShareLockerDocuments } from '@/components/share-locker-documents';
 import { trackServiceEvent } from '@/lib/analytics/tracker';
 
 export default function CheckoutPage() {
@@ -36,20 +37,14 @@ export default function CheckoutPage() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow.toISOString().split('T')[0];
   });
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>({
-    id: 'slot-m3',
-    time: '10:00 AM – 10:30 AM',
-    startTime: '10:00',
-    endTime: '10:30',
-    period: 'morning',
-    remainingCapacity: 3,
-    totalCapacity: 3,
-    isAvailable: true,
-  });
+  // No pre-picked time: the centre's real open times load in the picker.
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [candidateName, setCandidateName] = useState(user?.full_name || 'Arvind V. Kumar');
-  const [candidatePhone, setCandidatePhone] = useState(user?.phone || '+91 98765 43210');
+  const [candidateName, setCandidateName] = useState(user?.full_name || '');
+  const [candidatePhone, setCandidatePhone] = useState(user?.phone || '');
   const [intakePayload, setIntakePayload] = useState<CombinedIntakePayload>({});
+  const [sharedDocIds, setSharedDocIds] = useState<string[]>([]);
   const [paymentMode, setPaymentMode] = useState<'counter' | 'online'>('counter');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -86,22 +81,26 @@ export default function CheckoutPage() {
   }
 
   async function handleConfirmBooking() {
+    setSubmitError(null);
     if (!candidateName.trim() || !candidatePhone.trim()) {
-      alert('Please provide your name and contact mobile number.');
+      setSubmitError('Please enter your name and mobile number.');
       return;
     }
     if (!selectedSlot) {
-      alert('Please select an appointment time slot.');
+      setSubmitError('Please pick a time slot.');
+      return;
+    }
+
+    // Check if partner has a valid database UUID
+    const isUuid = !!partner?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(partner.id);
+    if (!isUuid || !partner) {
+      setSubmitError('Please choose a centre from the list before booking.');
       return;
     }
 
     setIsSubmitting(true);
-    const randomSuffix = Math.floor(10000 + Math.random() * 90000);
-    let token = `AF-HYD-${randomSuffix}`;
-    let bookingRecordId = token;
-
-    // Check if partner has a valid database UUID
-    const isUuid = !!partner?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(partner.id);
+    let token = '';
+    let bookingRecordId = '';
     const cleanPhone = candidatePhone.replace(/\s+/g, '');
 
     // Formulate ISO appointment timestamp
@@ -130,10 +129,18 @@ export default function CheckoutPage() {
         if (bookingRes.data?.id) {
           bookingRecordId = bookingRes.data.id;
           token = `AF-${bookingRes.data.id.slice(0, 8).toUpperCase()}`;
+        } else {
+          setSubmitError(bookingRes.error || 'The centre could not take this booking. Please try another time.');
         }
-      } catch (err) {
-        console.warn('Backend booking submission error, continuing with resilient token:', err);
+      } catch {
+        setSubmitError('We could not reach the server. Please check your internet and try again.');
       }
+    }
+
+    // Never show a "confirmed" booking that the centre didn't receive.
+    if (!bookingRecordId) {
+      setIsSubmitting(false);
+      return;
     }
 
     const newBooking = {
@@ -143,14 +150,7 @@ export default function CheckoutPage() {
       candidatePhone: cleanPhone,
       slotDate: selectedDate,
       slotTime: selectedSlot.time,
-      partner: partner || {
-        id: 'partner-1',
-        name: 'Sri Sai MeeSeva & Digital Kiosk',
-        address: 'Shop #4, Opp. Municipal Corporation, Gachibowli Main Rd',
-        city: 'Hyderabad',
-        district: 'Rangareddy',
-        phone: '+91 98480 22334',
-      },
+      partner,
       items: items.map((it) => ({
         title: it.title,
         price: it.price,
@@ -178,6 +178,9 @@ export default function CheckoutPage() {
     });
 
     clearCart();
+    // The booking exists either way; a failed share shows on the booking page as "no documents shared".
+    if (sharedDocIds.length) await shareBookingDocuments(bookingRecordId, sharedDocIds).catch(() => null);
+
     setIsSubmitting(false);
     router.push(`/bookings/${bookingRecordId}`);
   }
@@ -249,6 +252,7 @@ export default function CheckoutPage() {
               items={items}
               onChange={(payload) => setIntakePayload(payload)}
             />
+            <ShareLockerDocuments signedIn={Boolean(user)} selected={sharedDocIds} onChange={setSharedDocIds} />
           </div>
 
           {/* Step 3: Slot Reservation Engine */}
@@ -261,9 +265,13 @@ export default function CheckoutPage() {
             <SlotPicker
               selectedDate={selectedDate}
               selectedSlotId={selectedSlot?.id || null}
-              onSelectDate={(date) => setSelectedDate(date)}
+              onSelectDate={(date) => {
+                setSelectedDate(date);
+                setSelectedSlot(null); // a time from another day isn't valid
+              }}
               onSelectSlot={(slot) => setSelectedSlot(slot)}
               partnerName={partner?.name}
+              partnerId={partner?.id}
             />
           </div>
         </div>
@@ -365,6 +373,12 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {submitError && (
+              <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                {submitError}
+              </p>
+            )}
+
             {/* Confirm Button */}
             <button
               type="button"
@@ -383,7 +397,8 @@ export default function CheckoutPage() {
 
             <div className="flex items-center gap-2 text-[10px] text-[#526987] justify-center font-medium">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Official pricing verified · Guaranteed zero-wait counter token</span>
+              <span>Prices are set by the centre · Pay at the counter</span>
+
             </div>
           </div>
         </div>

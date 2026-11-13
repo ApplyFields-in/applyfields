@@ -40,6 +40,10 @@ ApplyFields_Team_Docs/
 team-docs/
 *_Week*_Plan.xlsx
 
+# ---------- Local Ops & Maintenance Archive Scripts ----------
+scripts/archive/
+scripts/local/
+
 # ---------- Claude session handoff notes — never in git ----------
 claude-sessions/
 .claude/

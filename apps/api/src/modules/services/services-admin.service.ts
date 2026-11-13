@@ -71,6 +71,7 @@ export class ServicesAdminService {
           state_codes: true,
           updated_at: true,
           published_at: true,
+          last_verified_at: true,
         },
         orderBy: [{ updated_at: 'desc' }],
         skip: (filters.page - 1) * filters.pageSize,
@@ -106,6 +107,7 @@ export class ServicesAdminService {
         state_codes: r.state_codes,
         updated_at: r.updated_at.toISOString(),
         published_at: r.published_at?.toISOString() ?? null,
+        last_verified_at: r.last_verified_at?.toISOString() ?? null,
       })),
     };
   }
@@ -292,6 +294,38 @@ export class ServicesAdminService {
           target_type: 'service',
           target_id: id,
           details: toJson({ from: before.status, to: 'published' }),
+        },
+      });
+
+      return { id: row.id, status: row.status };
+    });
+  }
+
+  /**
+   * Staff confirm a live guide still matches the official site, without editing it.
+   * Sets last_verified_at, which the citizen page shows as "Verified on …".
+   */
+  async verify(id: string, actor: string | null): Promise<WriteResult> {
+    return this.prisma.$transaction(async (tx) => {
+      const before = await tx.gov_services.findUnique({ where: { id } });
+      if (!before) throw new NotFoundException(`No government service with id ${id}`);
+      if (before.status !== 'published') {
+        throw new BadRequestException('Only a published guide can be marked verified');
+      }
+
+      const row = await tx.gov_services.update({
+        where: { id },
+        data: { last_verified_at: new Date() },
+        select: { id: true, status: true },
+      });
+
+      await tx.audit_logs.create({
+        data: {
+          actor_id: actor,
+          action: 'service.verify',
+          target_type: 'service',
+          target_id: id,
+          details: toJson({ previous_verified_at: before.last_verified_at?.toISOString() ?? null }),
         },
       });
 

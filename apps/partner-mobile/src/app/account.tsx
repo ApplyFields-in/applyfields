@@ -61,6 +61,7 @@ export default function Account() {
           <>
             <Link label="Centre details & location" icon="storefront-outline" onPress={go('/centre-profile')} />
             <Link label="Operating schedule" icon="time-outline" onPress={go('/schedule')} />
+            <Link label="Earnings & payouts" icon="wallet-outline" onPress={go('/earnings')} />
           </>
         ) : (
           <Link label="Campus profile" icon="school-outline" onPress={go('/campus')} />
@@ -73,7 +74,7 @@ export default function Account() {
       </Card>
       <Muted>
         {centre
-          ? 'Walk-in counter, document scanner and cash settlement are on the partner website.'
+          ? 'Walk-in counter and document scanner are on the partner website.'
           : 'Programs & seat matrix are managed on the partner website.'}
       </Muted>
 

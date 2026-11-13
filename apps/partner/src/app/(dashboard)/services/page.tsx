@@ -360,7 +360,7 @@ export default function ServicesPage() {
   // Add Custom Service
   function handleCreateCustomService() {
     if (!customTitle.trim()) {
-      alert('Please enter a service title.');
+      showToast('Enter a service title first.');
       return;
     }
     const newService: ServiceItem = {

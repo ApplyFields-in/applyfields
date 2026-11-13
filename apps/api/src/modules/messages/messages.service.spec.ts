@@ -48,6 +48,9 @@ describe('MessagesService', () => {
       count: vi.fn().mockResolvedValue(1),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
+    partners: {
+      findUnique: vi.fn().mockResolvedValue({ business_name: 'Sri Sai MeeSeva' }),
+    },
     partner_members: {
       findFirst: vi.fn().mockImplementation(({ where }) => {
         if (where.user_id === 'partner-user-1') {
@@ -89,6 +92,37 @@ describe('MessagesService', () => {
           request_id: 'bk-uuid-1',
           message: 'Can I come 15 minutes before my slot?',
           sender_type: 'citizen',
+        }),
+      }),
+    );
+  });
+
+  it('enforces sender_type based on authenticated identity to prevent spoofing', async () => {
+    // Citizen claiming to be partner is forced to citizen
+    await service.sendMessage('bk-uuid-1', 'user-uuid-1', {
+      message: 'Spoofed message',
+      sender_type: 'partner',
+      sender_name: 'Fake Operator',
+    });
+    expect(mockPrisma.booking_messages.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sender_type: 'citizen',
+        }),
+      }),
+    );
+
+    // Verified partner member sending message is set to partner
+    await service.sendMessage('bk-uuid-1', 'partner-user-1', {
+      message: 'Legitimate operator reply',
+      sender_type: 'citizen',
+      sender_name: 'Verified Operator',
+    });
+    expect(mockPrisma.booking_messages.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sender_type: 'partner',
+          sender_name: 'Sri Sai MeeSeva', // the centre's real name, not the body's
         }),
       }),
     );

@@ -10,6 +10,7 @@ import {
   MapPin,
   Phone,
   MessageSquare,
+  Mail,
   Printer,
   Share2,
   AlertCircle,
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 import {
   getBookingById,
+  getBookingSlipUrl,
   getBookingMessages,
   markBookingMessagesRead,
   sendBookingMessage,
@@ -41,6 +43,7 @@ interface StoredBooking {
     city: string;
     district: string;
     phone?: string;
+    email?: string;
   };
   items: Array<{
     title: string;
@@ -51,6 +54,8 @@ interface StoredBooking {
   total: number;
   intakeSummary?: string[];
   createdAt: string;
+  officialAppNumber?: string | null;
+  hasSlip?: boolean;
 }
 
 export default function BookingDetailsPage() {
@@ -59,7 +64,9 @@ export default function BookingDetailsPage() {
   const bookingId = params?.id as string;
 
   const [booking, setBooking] = useState<StoredBooking | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [slipError, setSlipError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [newMsgText, setNewMsgText] = useState('');
   const [messages, setMessages] = useState<Array<{ id: string; sender: 'citizen' | 'partner'; text: string; time: string }>>([
@@ -158,7 +165,7 @@ export default function BookingDetailsPage() {
               id: res.data.id,
               token: `AF-${res.data.id.slice(0, 8).toUpperCase()}`,
               candidateName: cached?.candidateName || res.data.user_note?.match(/Applicant:\s*([^;]+)/)?.[1] || 'Citizen Applicant',
-              candidatePhone: cached?.candidatePhone || res.data.partner_phone || '+91 98765 43210',
+              candidatePhone: cached?.candidatePhone || '',
               slotDate: res.data.appointment_at
                 ? new Date(res.data.appointment_at).toLocaleDateString('en-IN', {
                     weekday: 'short',
@@ -166,75 +173,48 @@ export default function BookingDetailsPage() {
                     day: 'numeric',
                     year: 'numeric',
                   })
-                : cached?.slotDate || 'Tomorrow, 10:00 AM',
+                : cached?.slotDate || 'Time not set yet',
               slotTime: res.data.appointment_at
                 ? new Date(res.data.appointment_at).toLocaleTimeString('en-IN', {
                     hour: '2-digit',
                     minute: '2-digit',
                   })
-                : cached?.slotTime || '10:00 AM – 10:30 AM',
+                : cached?.slotTime || '',
               status: res.data.status,
               partner: {
                 id: res.data.partner_id,
                 name: res.data.partner_business_name,
-                address: res.data.partner_address || 'Partner Center Location',
-                city: 'Hyderabad',
-                district: 'Hyderabad',
+                address: res.data.partner_address ?? '',
+                city: '',
+                district: '',
                 phone: res.data.partner_phone || undefined,
+                email: res.data.partner_email || undefined,
               },
               items: cached?.items || [
                 {
                   title: res.data.service_name || 'Government / MeeSeva Facilitation Service',
-                  price: (res.data.quoted_paise || res.data.final_paise || 10700) / 100,
+                  price: (res.data.final_paise ?? res.data.quoted_paise ?? 0) / 100,
                   quantity: 1,
                   category: 'MeeSeva',
                 },
               ],
-              total: cached?.total || (res.data.quoted_paise || res.data.final_paise || 10700) / 100,
+              total: cached?.total ?? (res.data.final_paise ?? res.data.quoted_paise ?? 0) / 100,
               intakeSummary: cached?.intakeSummary,
               createdAt: res.data.created_at,
+              officialAppNumber: res.data.official_app_number,
+              hasSlip: res.data.has_acknowledgment_slip,
             };
 
             setBooking(apiBooking);
             return;
           }
         } catch (err) {
-          console.warn('Could not fetch booking from API, using cached/sample:', err);
+          console.warn('Could not fetch booking from API:', err);
         }
       }
 
-      // 3. Fallback sample if neither cached nor API succeeded
-      if (!cached && mounted) {
-        setBooking({
-          id: bookingId,
-          token: bookingId.startsWith('AF-') ? bookingId : 'AF-HYD-50001',
-          candidateName: 'Arvind V. Kumar',
-          candidatePhone: '+91 98765 43210',
-          slotDate: 'Tomorrow, 10:00 AM',
-          slotTime: '10:00 AM – 10:30 AM',
-          status: 'new',
-          partner: {
-            id: 'pt-1',
-            name: 'Sri Balaji MeeSeva & Xerox Centre',
-            address: 'Shop #12, Ground Floor, Opp Metro Pillar 1042',
-            city: 'Ameerpet',
-            district: 'Hyderabad',
-            phone: '+91 98480 12345',
-          },
-          items: [
-            { title: 'PAN Card New Application (Form 49A)', price: 107, quantity: 1, category: 'PAN Services' },
-            { title: 'Aadhaar Biometric Facilitation Slot', price: 50, quantity: 1, category: 'Aadhaar Services' },
-          ],
-          total: 157,
-          intakeSummary: [
-            'Applicant: Arvind V. Kumar (Aadhaar Verified)',
-            'Father: Venkata Raman Kumar',
-            'DOB: 1998-05-14 · Gender: Male',
-            'Document Vault: 1-Click Linked',
-          ],
-          createdAt: new Date().toISOString(),
-        });
-      }
+      // 3. Neither cached nor found on the API: say so, never show a sample slip.
+      if (!cached && mounted) setNotFound(true);
     }
 
     loadBooking();
@@ -242,6 +222,18 @@ export default function BookingDetailsPage() {
       mounted = false;
     };
   }, [bookingId]);
+
+  if (!booking && notFound) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-24 text-center text-[#526987] space-y-3">
+        <p className="text-base font-bold text-[#082046]">We couldn&apos;t find this booking</p>
+        <p className="text-sm">Check the link, or sign in to see your bookings.</p>
+        <a href="/my-bookings" className="inline-block rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white">
+          My bookings
+        </a>
+      </div>
+    );
+  }
 
   if (!booking) {
     return (
@@ -383,6 +375,40 @@ export default function BookingDetailsPage() {
           </div>
         </div>
 
+        {/* Filed on the official portal: application number + acknowledgment slip */}
+        {booking.officialAppNumber && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="space-y-0.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                Filed on the official portal
+              </span>
+              <div className="font-mono text-lg font-black text-[#082046] break-all">
+                {booking.officialAppNumber}
+              </div>
+              <p className="text-[11px] text-emerald-900 font-medium">
+                Official Application No. Keep it to track your application on the government portal.
+              </p>
+            </div>
+            {booking.hasSlip && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setSlipError(null);
+                  const res = await getBookingSlipUrl(booking.id);
+                  // Signed URL is sent as an attachment, so this downloads without leaving the page
+                  // (window.open after an await gets popup-blocked).
+                  if (res.data?.url) window.location.assign(res.data.url);
+                  else setSlipError(res.error ?? 'Could not open the slip.');
+                }}
+                className="cut-corner-btn inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-sm"
+              >
+                <FileText className="h-3.5 w-3.5" /> Download Acknowledgment Slip
+              </button>
+            )}
+            {slipError && <p className="text-[11px] font-bold text-rose-700">{slipError}</p>}
+          </div>
+        )}
+
         {/* Appointment Grid Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="rounded-2xl bg-[#edf2f8] p-4 space-y-2 shadow-[inset_1px_1px_3px_#d5deea,inset_-1px_-1px_3px_#ffffff]">
@@ -419,7 +445,7 @@ export default function BookingDetailsPage() {
               <div className="font-black text-[#082046] text-sm">{booking.partner.name}</div>
               <div className="flex items-start gap-1.5 text-[#526987] font-medium">
                 <MapPin className="h-4 w-4 text-[#0e7bf4] shrink-0 mt-0.5" />
-                <span>{booking.partner.address}, {booking.partner.city}</span>
+                <span>{[booking.partner.address, booking.partner.city].filter(Boolean).join(', ')}</span>
               </div>
             </div>
             <div className="pt-2 flex items-center gap-3">
@@ -431,14 +457,14 @@ export default function BookingDetailsPage() {
                   <Phone className="h-3 w-3 text-emerald-600" /> Call Center
                 </a>
               )}
-              <a
-                href={`https://wa.me/919848012345?text=Hello%2C%20I%20have%20an%20appointment%20token%20%23${booking.token}%20at%20your%20center`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
-              >
-                <MessageSquare className="h-3 w-3" /> WhatsApp
-              </a>
+              {booking.partner.email && (
+                <a
+                  href={`mailto:${booking.partner.email}?subject=${encodeURIComponent(`Appointment ${booking.token}`)}&body=${encodeURIComponent(`Hello, I have an appointment (token ${booking.token}) at your centre.`)}`}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#082046] hover:text-[#0e7bf4]"
+                >
+                  <Mail className="h-3 w-3 text-[#0e7bf4]" /> Email centre
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -492,15 +518,16 @@ export default function BookingDetailsPage() {
             >
               <MessageSquare className="h-4 w-4" /> Open Live Chat Desk
             </button>
-            <a
-              href={`https://wa.me/919848012345?text=Hello%20Operator%2C%20I%20hold%20appointment%20token%20%23${booking.token}%20for%20${booking.slotDate}%20at%20${booking.slotTime}.`}
-              target="_blank"
-              rel="noreferrer"
-              className="cut-corner-btn inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-500 transition shrink-0 shadow-sm"
-              title="Chat on WhatsApp"
-            >
-              WhatsApp
-            </a>
+            {booking.partner.email && (
+              <a
+                href={`mailto:${booking.partner.email}?subject=${encodeURIComponent(`Appointment ${booking.token}`)}&body=${encodeURIComponent(`Hello, I hold appointment token ${booking.token} for ${booking.slotDate} ${booking.slotTime}.`)}`}
+                className="cut-corner-btn inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d5deea] bg-white px-3.5 py-2 text-xs font-bold text-[#082046] hover:bg-slate-50 transition shrink-0 shadow-sm"
+                title="Email the centre"
+              >
+                <Mail className="h-4 w-4" /> Email
+              </a>
+            )}
+
           </div>
         </div>
       </div>
