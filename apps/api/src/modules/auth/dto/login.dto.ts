@@ -1,4 +1,4 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsObject, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 
 export class LoginDto {
   @IsNotEmpty({ message: 'Email or phone number is required' })
@@ -12,6 +12,14 @@ export class LoginDto {
   @IsOptional()
   @IsBoolean()
   rememberMe?: boolean;
+}
+
+/** Step 2 of password + code login. */
+export class LoginVerifyDto extends LoginDto {
+  @IsNotEmpty({ message: 'Verification code is required' })
+  @IsString()
+  @Length(6, 6, { message: 'Verification code must be exactly 6 digits' })
+  code!: string;
 }
 
 export class LoginOtpDto {
@@ -40,6 +48,11 @@ export class SocialLoginDto {
   @IsNotEmpty({ message: 'Provider is required' })
   @IsString()
   provider!: 'google' | 'apple' | 'microsoft';
+
+  /** Admin portal: sign in an existing account only, never create one. */
+  @IsOptional()
+  @IsBoolean()
+  existingOnly?: boolean;
 
   @IsOptional()
   @IsString()
@@ -70,25 +83,22 @@ export class SocialLoginDto {
   sub?: string;
 }
 
-export class PasskeyLoginDto {
-  @IsNotEmpty({
-    message:
-      'Registered email or phone number is required to sign in with passkey',
-  })
-  @IsString()
-  email!: string;
+/** POST /auth/passkey/register/verify and /auth/passkey/login/verify: the browser's WebAuthn JSON + our signed challenge. */
+export class PasskeyVerifyDto {
+  @IsObject()
+  response!: Record<string, unknown>;
 
+  @IsNotEmpty()
+  @IsString()
+  challengeToken!: string;
+
+  /** Label for a new passkey, e.g. "My phone". */
   @IsOptional()
   @IsString()
-  credentialId?: string;
-}
-
-export class PasskeyRegisterDto {
-  @IsNotEmpty({ message: 'Credential ID is required to register passkey' })
-  @IsString()
-  credentialId!: string;
+  @MaxLength(60)
+  name?: string;
 
   @IsOptional()
-  @IsString()
-  credentialName?: string;
+  @IsBoolean()
+  rememberMe?: boolean;
 }

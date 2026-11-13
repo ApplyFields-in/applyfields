@@ -11,3 +11,4 @@ export { BuildStatus, Preview, SectionPage } from './components/section-page';
 export type { PreviewItem, SectionInfo, SectionPreview } from './components/section-page';
 export { ComingSoon, NotBuiltYet } from './components/coming-soon';
 export { ScrollToTop, ScrollToTopButton, scrollToPageTop } from './components/scroll-to-top';
+export { GoogleButton } from './components/google-button';

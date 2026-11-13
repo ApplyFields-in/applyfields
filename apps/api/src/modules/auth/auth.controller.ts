@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Req,
   Res,
@@ -11,15 +14,18 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import type { Request, Response } from 'express';
 import { jwtAccessSecret } from '../../common/jwt-secret.js';
-import { AuthService } from './auth.service.js';
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server';
+import { AuthService, SESSION_DAYS } from './auth.service.js';
+import { PasskeysService } from './passkeys.service.js';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard, type AuthenticatedRequest } from './auth.guard.js';
 import { RegisterDto } from './dto/register.dto.js';
 import {
   LoginDto,
   LoginOtpDto,
+  LoginVerifyDto,
   SocialLoginDto,
-  PasskeyLoginDto,
-  PasskeyRegisterDto,
+  PasskeyVerifyDto,
 } from './dto/login.dto.js';
 import { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
 
@@ -34,41 +40,61 @@ const COOKIE_BASE = {
   path: '/',
 };
 
+/** "Remember me": cookies outlive the browser and the session slides for SESSION_DAYS. Off: gone when the browser closes. */
 function cookieOpts(rememberMe?: boolean) {
   if (rememberMe) {
     return {
-      access: { ...COOKIE_BASE, maxAge: 7 * 24 * 60 * 60 * 1000 },
-      refresh: { ...COOKIE_BASE, maxAge: 30 * 24 * 60 * 60 * 1000 },
+      access: { ...COOKIE_BASE, maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000 },
+      refresh: { ...COOKIE_BASE, maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000 },
     };
   }
   return { access: { ...COOKIE_BASE }, refresh: { ...COOKIE_BASE } };
 }
+
+/**
+ * The Expo apps send `x-client: app`. They keep the refresh token in SecureStore (cookie stores
+ * on Android aren't reliable across restarts), so for them it is also returned in the body.
+ * Browsers never get it in the body: it stays in the httpOnly cookie, out of reach of page scripts.
+ */
+const forApp = (req: Request, refreshToken: string) =>
+  req.headers['x-client'] === 'app' ? { refreshToken } : {};
+
+/**
+ * Password, code, sign-up and reset routes: 10 tries a minute per IP (the global limit is 300).
+ * Brute-forcing a password or a 6-digit code needs far more; normal people never hit it.
+ */
+const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
+    private readonly passkeys: PasskeysService,
   ) {}
 
+  @Throttle(AUTH_THROTTLE)
   @Post('register')
   async register(@Body() dto: RegisterDto, @Req() req: Request) {
     const ip = req.ip || req.socket.remoteAddress;
     return this.authService.register(dto, ip);
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post('otp/send')
   @HttpCode(HttpStatus.OK)
   async sendOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendOtp(dto);
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post('otp/verify')
   @HttpCode(HttpStatus.OK)
   async verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
@@ -81,14 +107,47 @@ export class AuthController {
       ipAddress: req.ip || req.socket.remoteAddress,
     };
     const result = await this.authService.login(dto, meta);
+    // Never-verified account: a code was sent; the client finishes with POST /auth/login/verify.
+    if ('verificationRequired' in result) return result;
 
     const opts = cookieOpts(dto.rememberMe);
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
-    return { user: result.user, accessToken: result.accessToken };
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
+  /** Password + code, step 1: checks the password and sends a code to the same email/phone. */
+  @Throttle(AUTH_THROTTLE)
+  @Post('login/start')
+  @HttpCode(HttpStatus.OK)
+  async startPasswordLogin(@Body() dto: LoginDto) {
+    return this.authService.startPasswordLogin(dto);
+  }
+
+  /** Password + code, step 2: issues an `mfa` session (required for /admin). */
+  @Throttle(AUTH_THROTTLE)
+  @Post('login/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyPasswordLogin(
+    @Body() dto: LoginVerifyDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const meta = {
+      userAgent: req.headers['user-agent'],
+      ipAddress: req.ip || req.socket.remoteAddress,
+    };
+    const result = await this.authService.verifyPasswordLogin(dto, meta);
+
+    const opts = cookieOpts(dto.rememberMe);
+    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
+
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
+  }
+
+  @Throttle(AUTH_THROTTLE)
   @Post('login/otp')
   @HttpCode(HttpStatus.OK)
   async loginWithOtp(
@@ -106,9 +165,10 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
-    return { user: result.user, accessToken: result.accessToken };
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post(['social/login', 'social-login'])
   @HttpCode(HttpStatus.OK)
   async socialLogin(
@@ -126,41 +186,64 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
 
-    return {
-      user: result.user,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    };
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
-  @Post('passkey/login')
+  // ---------- Passkeys (WebAuthn) ----------
+
+  @Post('passkey/login/options')
+  @HttpCode(HttpStatus.OK)
+  passkeyLoginOptions() {
+    return this.passkeys.loginOptions();
+  }
+
+  @Throttle(AUTH_THROTTLE)
+  @Post('passkey/login/verify')
   @HttpCode(HttpStatus.OK)
   async passkeyLogin(
-    @Body() dto: PasskeyLoginDto,
+    @Body() dto: PasskeyVerifyDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const meta = {
-      userAgent: req.headers['user-agent'],
-      ipAddress: req.ip || req.socket.remoteAddress,
-    };
-    const result = await this.authService.passkeyLogin(dto, meta);
-
-    const opts = cookieOpts(true);
+    const meta = { userAgent: req.headers['user-agent'], ipAddress: req.ip || req.socket.remoteAddress };
+    const result = await this.passkeys.verifyLogin(
+      { response: dto.response as unknown as AuthenticationResponseJSON, challengeToken: dto.challengeToken },
+      meta,
+    );
+    const opts = cookieOpts(dto.rememberMe ?? true);
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
-
-    return { user: result.user, accessToken: result.accessToken };
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
-  @Post('passkey/register')
+  @Post('passkey/register/options')
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
-  async registerPasskey(
-    @Body() dto: PasskeyRegisterDto,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return this.authService.registerPasskey(req.user.userId, dto);
+  passkeyRegisterOptions(@Req() req: AuthenticatedRequest) {
+    return this.passkeys.registerOptions(req.user.userId);
+  }
+
+  @Post('passkey/register/verify')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  passkeyRegister(@Body() dto: PasskeyVerifyDto, @Req() req: AuthenticatedRequest) {
+    return this.passkeys.verifyRegistration(req.user.userId, {
+      response: dto.response as unknown as RegistrationResponseJSON,
+      challengeToken: dto.challengeToken,
+      name: dto.name,
+    });
+  }
+
+  @Get('passkeys')
+  @UseGuards(AuthGuard)
+  listPasskeys(@Req() req: AuthenticatedRequest) {
+    return this.passkeys.list(req.user.userId);
+  }
+
+  @Delete('passkeys/:id')
+  @UseGuards(AuthGuard)
+  removePasskey(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.passkeys.remove(req.user.userId, id);
   }
 
   @Post('refresh')
@@ -186,7 +269,7 @@ export class AuthController {
     res.cookie(REFRESH_COOKIE_NAME, tokens.newRefreshToken, opts.refresh);
     res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, opts.access);
 
-    return { success: true, accessToken: tokens.accessToken };
+    return { success: true, accessToken: tokens.accessToken, ...forApp(req, tokens.newRefreshToken) };
   }
 
   @Post('logout')
@@ -232,6 +315,7 @@ export class AuthController {
     return { success: true };
   }
 
+  @Throttle(AUTH_THROTTLE)
   @Post('password/reset')
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() dto: ResetPasswordDto) {

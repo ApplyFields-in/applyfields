@@ -1,10 +1,28 @@
-
 """Discover SSC notices from its official notice-board API."""
 import datetime as dt
+import re
 from urllib.parse import quote, urlencode, urljoin
 
 from app.fetcher import fetch
 from app.scrapers.base import BaseScraper, NoticeLink
+
+# A new recruitment = a new draft job. Everything else on SSC's notice board (admit cards, results,
+# answer keys, vacancy revisions, cancellations…) is an update to an exam that already exists.
+_NEW_RECRUITMENT = re.compile(
+    r"^notice of |\brecruitment\b|^notification\b|\bengagement of\b", re.I
+)
+_NOT_RECRUITMENT = re.compile(
+    r"result|answer key|response sheet|admit card|admission certificate|city of exam"
+    r"|identity verification"
+    r"|allocation|cancellation|schedule|tentative vacanc|marks|calling options|addendum|corrigendum"
+    r"|revised|important notice|declaration|skill test|document verification|selection list",
+    re.I,
+)
+
+
+def is_new_recruitment(title: str) -> bool:
+    """SSC headline → is this a new recruitment/exam notification (not an update to one)?"""
+    return bool(_NEW_RECRUITMENT.search(title)) and not _NOT_RECRUITMENT.search(title)
 
 
 class SSCScraper(BaseScraper):
@@ -12,6 +30,9 @@ class SSCScraper(BaseScraper):
     list_url = "https://ssc.gov.in/home/notice-board"
     api_url = "https://ssc.gov.in/api/general-website/portal/records"
     pdf_base_url = "https://ssc.gov.in/api/attachment/"
+    # Newest 100 notices (~3 months). Each page costs one polite 5 s fetch; older pages were all
+    # updates to past exams anyway.
+    max_pages = 10
 
     def find_notices(self, html: str) -> list[NoticeLink]:
         """Preserve HTML parsing for compatibility and existing tests."""
@@ -83,7 +104,6 @@ class SSCScraper(BaseScraper):
 
 
             response = fetch(f"{self.api_url}?{urlencode(params)}")
-            payload = response.json()
             response.raise_for_status()
             payload = response.json()
 
@@ -98,10 +118,12 @@ class SSCScraper(BaseScraper):
                 if not isinstance(record, dict):
                     continue
 
-                title = str(record.get("headline") or "").strip()
+                title = " ".join(str(record.get("headline") or "").split())
                 attachments = record.get("attachments") or []
 
                 if not title or not isinstance(attachments, list):
+                    continue
+                if not is_new_recruitment(title):
                     continue
 
                 published_on = None
@@ -141,7 +163,7 @@ class SSCScraper(BaseScraper):
                     )
 
             # Continue only when the API returned a full page.
-            if len(records) < limit:
+            if len(records) < limit or page >= self.max_pages:
                 break
 
             page += 1

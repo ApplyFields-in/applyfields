@@ -52,14 +52,14 @@ describe('UsersService', () => {
   describe('Sessions Management', () => {
     it('lists user sessions with current session flagged', async () => {
       mockStore.listSessionsForUser.mockResolvedValue([
-        { id: 'sess-1', user_id: 'u-1', user_agent: 'Chrome', ip_address: '1.1.1.1', created_at: new Date().toISOString(), last_active_at: new Date().toISOString(), is_current: true },
-        { id: 'sess-2', user_id: 'u-1', user_agent: 'Safari', ip_address: '2.2.2.2', created_at: new Date().toISOString(), last_active_at: new Date().toISOString(), is_current: false },
+        { id: 'sess-1', user_id: 'u-1', user_agent: 'Chrome', ip_address: '1.1.1.1', created_at: new Date().toISOString(), last_active_at: new Date().toISOString(), isCurrent: true },
+        { id: 'sess-2', user_id: 'u-1', user_agent: 'Safari', ip_address: '2.2.2.2', created_at: new Date().toISOString(), last_active_at: new Date().toISOString(), isCurrent: false },
       ]);
 
       const result = await service.listSessions('u-1', 'sess-1');
       expect(result).toHaveLength(2);
-      expect(result[0].is_current).toBe(true);
-      expect(result[1].is_current).toBe(false);
+      expect(result[0].isCurrent).toBe(true);
+      expect(result[1].isCurrent).toBe(false);
       expect(mockStore.listSessionsForUser).toHaveBeenCalledWith('u-1', 'sess-1');
     });
 
@@ -81,8 +81,16 @@ describe('UsersService', () => {
   describe('Data Export (DPDP compliance)', () => {
     it('returns structured personal data export from store', async () => {
       const mockExport = {
-        export_date: new Date().toISOString(),
-        user: { id: 'u-1', email: 'test@example.com', phone: '9999999999' },
+        platform: 'applyfields',
+        exported_at: new Date().toISOString(),
+        compliance: 'DPDP Act 2023',
+        account: {
+          id: 'u-1',
+          email: 'test@example.com',
+          phone: '9999999999',
+          status: 'active',
+          created_at: new Date().toISOString(),
+        },
         profile: { id: 'u-1', full_name: 'Karthik Rao' },
         education: [{ id: 'edu-1', degree: 'B.Tech' }],
         saved_items: [{ id: 'save-1', item_id: 'job-1' }],
@@ -93,14 +101,14 @@ describe('UsersService', () => {
       mockStore.exportUserData.mockResolvedValue(mockExport);
 
       const res = await service.exportUserData('u-1');
-      expect(res.user.email).toBe('test@example.com');
+      expect(res.account.email).toBe('test@example.com');
       expect(res.profile?.full_name).toBe('Karthik Rao');
       expect(res.education).toHaveLength(1);
       expect(res.saved_items).toHaveLength(1);
       expect(res.applications).toHaveLength(1);
       expect(res.documents).toHaveLength(1);
       expect(res.exam_scores).toHaveLength(1);
-      expect(res.export_date).toBeDefined();
+      expect(res.exported_at).toBeDefined();
     });
   });
 
@@ -177,13 +185,25 @@ describe('UsersService', () => {
       mockStore.createExamScore.mockResolvedValue({
         id: 'score-1',
         user_id: 'u-1',
+        exam_type: 'upsc_cse',
         exam_name: 'UPSC CSE',
+        year: 2026,
         score: '112',
       });
 
-      const res = await service.addExamScore('u-1', { exam_name: 'UPSC CSE', score: '112' });
+      const res = await service.addExamScore('u-1', {
+        exam_type: 'upsc_cse',
+        exam_name: 'UPSC CSE',
+        year: 2026,
+        score: '112',
+      });
       expect(res.id).toBe('score-1');
-      expect(mockStore.createExamScore).toHaveBeenCalledWith('u-1', { exam_name: 'UPSC CSE', score: '112' });
+      expect(mockStore.createExamScore).toHaveBeenCalledWith('u-1', {
+        exam_type: 'upsc_cse',
+        exam_name: 'UPSC CSE',
+        year: 2026,
+        score: '112',
+      });
     });
 
     it('updates an existing exam score', async () => {

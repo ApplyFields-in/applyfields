@@ -1,6 +1,7 @@
 import type { EligibilityStatus, OpportunityType, SearchResultType, UpdateKind } from '@applyfields/types';
 import { Award, BookOpen, Briefcase, Building, CircleCheck, CircleDashed, CircleHelp, CircleX, Compass, GraduationCap, Landmark, School } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Badge } from '@applyfields/ui';
 
 export const TYPE_META: Record<
   OpportunityType,
@@ -61,13 +62,54 @@ export function formatDate(iso: string): string {
 
 export function daysLeftLabel(days: number | null): string {
   if (days === null) return 'Dates not announced';
-  if (days < 0) return 'Closed';
+  if (days < 0) return days === -1 ? 'Ended yesterday' : `Ended ${-days} days ago`;
   if (days === 0) return 'Closes today';
   if (days === 1) return '1 day left';
   return `${days} days left`;
 }
 
+/** Deadline traffic light: red = ended, yellow = 5 days or less left, green = more time left. */
+export function deadlineLight(days: number | null): { dot: string; label: string } {
+  if (days === null) return { dot: 'bg-slate-300', label: 'Dates not announced' };
+  if (days < 0) return { dot: 'bg-red-500', label: 'Ended' };
+  if (days <= 5) return { dot: 'bg-amber-400', label: 'Ending soon (5 days or less)' };
+  return { dot: 'bg-emerald-500', label: 'Open' };
+}
+
+export function DeadlineDot({ days }: { days: number | null }) {
+  const light = deadlineLight(days);
+  return (
+    <span
+      role="img"
+      aria-label={light.label}
+      title={light.label}
+      className={`inline-block size-2.5 shrink-0 rounded-full ring-2 ring-white ${light.dot}`}
+    />
+  );
+}
+
+/** The light plus the words ("4 days left"), so colour is never the only signal. */
+export function DeadlineBadge({ days, className }: { days: number | null; className?: string }) {
+  return (
+    <Badge tone={urgencyTone(days)} className={className}>
+      <DeadlineDot days={days} /> {daysLeftLabel(days)}
+    </Badge>
+  );
+}
+
+/** Key for the three lights, shown above lists. */
+export function DeadlineLegend() {
+  return (
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-teal/80">
+      <span className="inline-flex items-center gap-1.5"><DeadlineDot days={30} /> Open</span>
+      <span className="inline-flex items-center gap-1.5"><DeadlineDot days={3} /> Ending in 5 days or less</span>
+      <span className="inline-flex items-center gap-1.5"><DeadlineDot days={-1} /> Ended</span>
+    </p>
+  );
+}
+
 export function urgencyTone(days: number | null): 'teal' | 'celadon' | 'tea' {
+
   if (days !== null && days <= 3) return 'teal';
   if (days !== null && days <= 7) return 'celadon';
   return 'tea';

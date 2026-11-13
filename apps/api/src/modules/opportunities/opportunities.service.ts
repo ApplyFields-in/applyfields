@@ -6,6 +6,7 @@ import type {
   OpportunityCategory,
   OpportunityDetail,
   OpportunityType,
+  RelatedLink,
   RequiredDocument,
   UpdateItem,
 } from '@applyfields/types';
@@ -18,6 +19,24 @@ import {
 
 const DAY_MS = 86_400_000;
 const IST_OFFSET_MS = 5.5 * 3_600_000;
+
+/**
+ * `opportunities.related_links` (jsonb written by the scraper) → safe list for the page:
+ * only https links with a title; anything malformed is dropped rather than shown.
+ */
+export function relatedLinks(value: unknown): RelatedLink[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((v) => {
+    const { title, url, category } = (v ?? {}) as Record<string, unknown>;
+    if (typeof title !== 'string' || !title.trim() || typeof url !== 'string') return [];
+    try {
+      if (new URL(url).protocol !== 'https:') return [];
+    } catch {
+      return [];
+    }
+    return [{ title: title.trim(), url, category: typeof category === 'string' ? category : 'supporting_document' }];
+  });
+}
 
 /** Today's date in India, as a UTC-midnight Date (matches Postgres DATE columns). */
 export function todayIst(): Date {
@@ -286,6 +305,8 @@ export class OpportunitiesService {
             equals: today,
           },
         });
+      } else if (deadline === 'ended') {
+        // handled below: swaps the open filter for "last date has passed"
       } else if (deadline === 'this_month' || deadline === '30_days') {
         deadlineConditions.push({
           application_end: {
@@ -299,7 +320,9 @@ export class OpportunitiesService {
     const rows = await this.prisma.opportunities.findMany({
       where: {
         AND: [
-          openWhere(today),
+          deadline === 'ended'
+            ? { status: 'published', application_end: { lt: today } }
+            : openWhere(today),
           ...(type ? [{ type }] : []),
           ...categoryConditions,
           ...stateConditions,
@@ -324,12 +347,14 @@ export class OpportunitiesService {
       },
       select: CARD_SELECT,
       orderBy: [
-        { application_end: { sort: 'asc', nulls: 'last' } },
+        // ended: most recently closed first; open: closing soonest first
+        { application_end: { sort: deadline === 'ended' ? 'desc' : 'asc', nulls: 'last' } },
         { published_at: 'desc' },
       ],
       take,
     });
     return rows.map((r) => this.toCard(r, today, filters?.lang));
+
   }
 
   /** Find complete published opportunity details by slug. */
@@ -493,6 +518,7 @@ export class OpportunitiesService {
         ? isoDate(row.application_end)
         : null,
       days_left: daysLeft,
+      related_links: relatedLinks(row.related_links),
       links: {
         notification_pdf_url: row.notification_pdf_url,
         official_page_url: row.official_page_url,

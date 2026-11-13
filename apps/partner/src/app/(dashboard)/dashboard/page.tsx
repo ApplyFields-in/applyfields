@@ -57,19 +57,20 @@ export default function PartnerDashboardPage() {
     loadStats();
   }, []);
 
-  const businessName = partner?.business_name || 'Sri Balaji MeeSeva & Xerox Centre';
+  const businessName = partner?.business_name || 'Your centre';
   const ownerName = partner?.owner_name || user?.email?.split('@')[0] || 'Center Operator';
   const category = partner?.type || 'meeseva';
   const isAvailable = partner?.is_available ?? true;
   const isVerified = partner?.verification_status === 'verified';
-  const stateCode = partner?.state_code || 'TG';
-  const district = partner?.district || 'Hyderabad';
-  const city = partner?.city || 'Ameerpet';
-  const pincode = partner?.pincode || '500016';
-  const phone = partner?.phone || user?.phone || '+91 9876543210';
-  const address = partner?.address || 'Shop #12, Ground Floor, Main Road';
-  const lat = partner?.latitude || 17.437462;
-  const lng = partner?.longitude || 78.448288;
+  const stateCode = partner?.state_code || '';
+  // Only the centre's own details; gaps say so instead of showing an invented address.
+  const district = partner?.district || '';
+  const city = partner?.city || '';
+  const pincode = partner?.pincode || '';
+  const phone = partner?.phone || user?.phone || 'Not added yet';
+  const address = partner?.address || 'Address not added yet';
+  const lat = partner?.latitude ?? null;
+  const lng = partner?.longitude ?? null;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -211,7 +212,7 @@ export default function PartnerDashboardPage() {
                 </span>
                 <p className="mt-1 font-medium text-slate-200 leading-relaxed">{address}</p>
                 <p className="text-slate-400 mt-0.5">
-                  {city}, {district}, {stateCode} - {pincode}
+                  {[city, district, stateCode].filter(Boolean).join(', ')}{pincode ? ` - ${pincode}` : ''}
                 </p>
               </div>
 
@@ -219,13 +220,21 @@ export default function PartnerDashboardPage() {
                 <span className="text-slate-500 uppercase tracking-wider text-[10px] font-bold">
                   GPS Pinpoint Coordinates
                 </span>
-                <div className="mt-2 space-y-1 font-mono text-xs">
-                  <div className="text-emerald-400">LAT: {lat}</div>
-                  <div className="text-emerald-400">LNG: {lng}</div>
-                </div>
-                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold">
-                  <CheckCircle2 className="h-3 w-3" /> Distance-based routing enabled
-                </div>
+                {lat != null && lng != null ? (
+                  <>
+                    <div className="mt-2 space-y-1 font-mono text-xs">
+                      <div className="text-emerald-400">LAT: {lat}</div>
+                      <div className="text-emerald-400">LNG: {lng}</div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold">
+                      <CheckCircle2 className="h-3 w-3" /> Citizens nearby can find you
+                    </div>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[11px] text-amber-300">
+                    No location pinned yet. Set it in Settings so nearby citizens can find you.
+                  </p>
+                )}
               </div>
             </div>
           </div>

@@ -23,83 +23,11 @@ import {
 import { listPartnerEnquiries, respondToPartnerEnquiry } from '@/lib/api';
 import type { InstitutionEnquiry, InstitutionEnquiryStatus } from '@applyfields/types';
 
-const INITIAL_DEMO_ENQUIRIES: InstitutionEnquiry[] = [
-  {
-    id: 'enq-01',
-    institution_id: 'inst-cbit',
-    institution_name: 'Chaitanya Bharathi Institute of Technology',
-    institution_slug: 'cbit-hyderabad',
-    user_id: 'usr-01',
-    course_id: 'prog-01',
-    course_name: 'B.Tech in Artificial Intelligence & Data Science',
-    name: 'Sai Kiran Reddy',
-    phone: '+91 98490 11223',
-    email: 'kiran.reddy@gmail.com',
-    message: 'What was the TS EAMCET closing rank for AI & DS in the previous counselling round? Are management quota seats available?',
-    status: 'new',
-    response: null,
-    responded_at: null,
-    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-  },
-  {
-    id: 'enq-02',
-    institution_id: 'inst-cbit',
-    institution_name: 'Chaitanya Bharathi Institute of Technology',
-    institution_slug: 'cbit-hyderabad',
-    user_id: 'usr-02',
-    course_id: 'prog-02',
-    course_name: 'B.Tech in Computer Science & Engineering',
-    name: 'Ananya Sharma',
-    phone: '+91 99887 66554',
-    email: 'ananya.sharma@outlook.com',
-    message: 'I have secured 96.8 percentile in JEE Main. Can I apply for Category B quota seats? Please share fee details.',
-    status: 'new',
-    response: null,
-    responded_at: null,
-    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-  },
-  {
-    id: 'enq-03',
-    institution_id: 'inst-cbit',
-    institution_name: 'Chaitanya Bharathi Institute of Technology',
-    institution_slug: 'cbit-hyderabad',
-    user_id: 'usr-03',
-    course_id: 'prog-03',
-    course_name: 'Master of Business Administration (MBA)',
-    name: 'P. Mohammed Imran',
-    phone: '+91 91234 56789',
-    email: 'imran.p@gmail.com',
-    message: 'Do you offer fee waivers for merit students with TS ICET rank below 500?',
-    status: 'responded',
-    response: 'Spoke on phone on 24 Oct. Sent MBA brochure via WhatsApp. Student scheduled campus tour.',
-    responded_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-  },
-  {
-    id: 'enq-04',
-    institution_id: 'inst-cbit',
-    institution_name: 'Chaitanya Bharathi Institute of Technology',
-    institution_slug: 'cbit-hyderabad',
-    user_id: 'usr-04',
-    course_id: 'prog-04',
-    course_name: 'B.Tech in Electronics & Communication Engineering',
-    name: 'R. Sneha Latha',
-    phone: '+91 97000 88991',
-    email: 'sneha.latha@gmail.com',
-    message: 'Is hostel accommodation available inside the campus for first-year women engineering students?',
-    status: 'closed',
-    response: 'Hostel booking guide shared and confirmed application admission form submitted.',
-    responded_at: new Date(Date.now() - 3600000 * 36).toISOString(),
-    created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
-    updated_at: new Date(Date.now() - 3600000 * 36).toISOString(),
-  },
-];
 
 export default function InstitutionInquiriesPage() {
   const [enquiries, setEnquiries] = useState<InstitutionEnquiry[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('kanban');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -116,13 +44,12 @@ export default function InstitutionInquiriesPage() {
       setLoading(true);
       try {
         const res = await listPartnerEnquiries(statusFilter === 'all' ? undefined : statusFilter);
-        if (res.data?.items && res.data.items.length > 0) {
-          setEnquiries(res.data.items);
-        } else {
-          setEnquiries(INITIAL_DEMO_ENQUIRIES);
-        }
+        // Real enquiries only; none = the empty state.
+        setEnquiries(res.data?.items ?? []);
+        setLoadError(res.data ? null : res.error || 'Could not load enquiries.');
       } catch {
-        setEnquiries(INITIAL_DEMO_ENQUIRIES);
+        setEnquiries([]);
+        setLoadError('Could not load enquiries. Check your internet and refresh.');
       } finally {
         setLoading(false);
       }
@@ -141,37 +68,22 @@ export default function InstitutionInquiriesPage() {
     if (!selectedEnquiry) return;
     setSavingResponse(true);
 
+    setSaveError(null);
     try {
-      await respondToPartnerEnquiry(selectedEnquiry.id, {
+      const res = await respondToPartnerEnquiry(selectedEnquiry.id, {
         status: targetStatus,
         response: responseNotes.trim() || 'Response logged by admissions coordinator.',
       });
-
-      // Update in local state
-      setEnquiries((prev) =>
-        prev.map((item) =>
-          item.id === selectedEnquiry.id
-            ? {
-                ...item,
-                status: targetStatus,
-                response: responseNotes.trim() || item.response,
-                responded_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              }
-            : item
-        )
-      );
+      if (!res.data) {
+        // Keep the dialog open so nothing typed is lost; the change did NOT save.
+        setSaveError(res.error || 'Could not save. Please try again.');
+        return;
+      }
+      const saved = res.data;
+      setEnquiries((prev) => prev.map((item) => (item.id === saved.id ? { ...item, ...saved } : item)));
       setSelectedEnquiry(null);
     } catch {
-      // optimistic update for preview
-      setEnquiries((prev) =>
-        prev.map((item) =>
-          item.id === selectedEnquiry.id
-            ? { ...item, status: targetStatus, response: responseNotes }
-            : item
-        )
-      );
-      setSelectedEnquiry(null);
+      setSaveError('Could not reach the server. Please try again.');
     } finally {
       setSavingResponse(false);
     }
@@ -277,6 +189,10 @@ export default function InstitutionInquiriesPage() {
           ))}
         </div>
       </div>
+
+      {loadError && !loading && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-200">{loadError}</div>
+      )}
 
       {/* Loading State */}
       {loading && (
@@ -547,6 +463,11 @@ export default function InstitutionInquiriesPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
+                {saveError && (
+                  <p role="alert" className="mr-auto text-xs font-semibold text-red-400">
+                    {saveError}
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={() => setSelectedEnquiry(null)}

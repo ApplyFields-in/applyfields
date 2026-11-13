@@ -10,7 +10,7 @@ import { Button, Card, Empty, Loading, Muted, Page, SectionTitle } from '@/compo
 import { useApi } from '@/lib/use-api';
 import { C, S } from '@/theme';
 
-const MAIN_WEB = 'https://applyfields.in';
+const MAIN_WEB = 'https://applyfields.com';
 
 function Stat({ label, value, icon }: { label: string; value: number; icon: keyof typeof Ionicons.glyphMap }) {
   return (

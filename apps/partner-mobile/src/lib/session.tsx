@@ -10,8 +10,14 @@
 import type { AuthResponse, MeResponse, PartnerDetail } from '@applyfields/types';
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { api, setToken } from './api';
+import { api, saveSession, setToken } from './api';
 import { registerForPush, unregisterPush } from './push';
+
+/** LoginDto takes one `identifier` (email or phone), same as the website. Emails are lower-cased. */
+function loginId(identifier: string): string {
+  const id = identifier.trim();
+  return id.includes('@') ? id.toLowerCase() : id;
+}
 
 export type SessionStatus =
   | 'loading'
@@ -41,7 +47,13 @@ interface SessionValue {
   me: MeResponse | null;
   partner: PartnerDetail | null;
   error: string | null;
-  login: (identifier: string, password: string) => Promise<string | null>;
+  /**
+   * Password sign-in. Verified accounts are signed in straight away ({ error: null }). An account that
+   * never confirmed its email/phone gets a one-time code instead: { sentTo } → finish with login().
+   */
+  startLogin: (identifier: string, password: string) => Promise<{ error: string | null; sentTo?: string }>;
+  /** First sign-in only: password + the one-time code → session. Returns an error string or null. */
+  login: (identifier: string, password: string, code: string) => Promise<string | null>;
   sendLoginOtp: (identifier: string) => Promise<string | null>;
   loginWithOtp: (identifier: string, code: string) => Promise<string | null>;
   logout: () => Promise<void>;
@@ -91,27 +103,39 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [me]);
 
   const afterLogin = useCallback(
-    async (res: { data: (AuthResponse & { accessToken?: string }) | null; error: string | null }) => {
+    async (res: { data: (AuthResponse & { accessToken?: string; refreshToken?: string }) | null; error: string | null }) => {
       if (res.error || !res.data) return res.error ?? 'Could not sign you in';
-      if (res.data.accessToken) await setToken(res.data.accessToken);
+      await saveSession(res.data);
       await reload();
       return null;
     },
     [reload],
   );
 
-  const login = useCallback<SessionValue['login']>(
+  const startLogin = useCallback<SessionValue['startLogin']>(
     async (identifier, password) => {
-      const id = identifier.trim();
-      // LoginDto takes one `identifier` (email or phone), same as the website.
-      return afterLogin(
-        await api.post<AuthResponse & { accessToken?: string }>('/auth/login', {
-          identifier: id.includes('@') ? id.toLowerCase() : id,
+      const res = await api.post<
+        (AuthResponse & { accessToken?: string; refreshToken?: string }) | { verificationRequired: true; sentTo: string }
+      >('/auth/login', { identifier: loginId(identifier), password, rememberMe: true });
+      if (res.error || !res.data) return { error: res.error ?? 'Could not sign you in' };
+      if ('verificationRequired' in res.data) return { error: null, sentTo: res.data.sentTo };
+      await saveSession(res.data);
+      await reload();
+      return { error: null };
+    },
+    [reload],
+  );
+
+  const login = useCallback<SessionValue['login']>(
+    async (identifier, password, code) =>
+      afterLogin(
+        await api.post<AuthResponse & { accessToken?: string; refreshToken?: string }>('/auth/login/verify', {
+          identifier: loginId(identifier),
           password,
+          code: code.trim(),
           rememberMe: true,
         }),
-      );
-    },
+      ),
     [afterLogin],
   );
 
@@ -123,7 +147,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const loginWithOtp = useCallback<SessionValue['loginWithOtp']>(
     async (identifier, code) =>
       afterLogin(
-        await api.post<AuthResponse & { accessToken?: string }>('/auth/login/otp', {
+        await api.post<AuthResponse & { accessToken?: string; refreshToken?: string }>('/auth/login/otp', {
           identifier: identifier.trim(),
           code: code.trim(),
           rememberMe: true,
@@ -147,8 +171,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<SessionValue>(
-    () => ({ status, me, partner, error, login, sendLoginOtp, loginWithOtp, logout, reload, setPartner }),
-    [status, me, partner, error, login, sendLoginOtp, loginWithOtp, logout, reload, setPartner],
+    () => ({ status, me, partner, error, startLogin, login, sendLoginOtp, loginWithOtp, logout, reload, setPartner }),
+    [status, me, partner, error, startLogin, login, sendLoginOtp, loginWithOtp, logout, reload, setPartner],
   );
 
   return <SessionContext value={value}>{children}</SessionContext>;

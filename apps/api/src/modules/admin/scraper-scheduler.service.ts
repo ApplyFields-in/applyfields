@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ScrapersAdminService } from './scrapers-admin.service.js';
+import { recordJobRun } from '../../common/job-runs.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -70,6 +71,7 @@ export class ScraperSchedulerService
       });
 
       if (dueSources.length === 0) {
+        recordJobRun('ingestion', true, 'No sources due');
         this.logger.debug('No scraper sources due for execution');
         return;
       }
@@ -78,6 +80,7 @@ export class ScraperSchedulerService
         `Found ${dueSources.length} scraper source(s) due for scheduled execution: ${dueSources.map((s) => s.key).join(', ')}`,
       );
 
+      let failed = 0;
       for (const source of dueSources) {
         try {
           const res = await this.scrapersService.triggerSource(source.id);
@@ -86,11 +89,14 @@ export class ScraperSchedulerService
           );
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
+          failed++;
           this.logger.warn(`Failed scheduled run for '${source.key}': ${msg}`);
         }
       }
+      recordJobRun('ingestion', failed === 0, `Ran ${dueSources.length} source(s), ${failed} failed`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      recordJobRun('ingestion', false, msg);
       this.logger.error(`Scraper scheduler error: ${msg}`);
     } finally {
       this.isRunning = false;

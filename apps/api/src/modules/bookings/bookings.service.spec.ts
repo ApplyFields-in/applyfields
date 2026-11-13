@@ -3,6 +3,8 @@ import {
   BookingsService,
   createBookingSchema,
   createReviewSchema,
+  decodeSlip,
+  markFiledSchema,
   updateBookingStatusSchema,
 } from './bookings.service.js';
 
@@ -167,5 +169,69 @@ describe('BookingsService Logic', () => {
     await expect(
       service.reviewBooking('user-1', 'booking-1', { rating: 5 }),
     ).rejects.toThrow('You can only review completed assistance requests.');
+  });
+});
+
+describe('Mark filed (official app number + acknowledgment slip)', () => {
+  const pdf = Buffer.from('%PDF-1.7 test').toString('base64');
+  const input = {
+    official_app_number: 'MVA-2026-98741',
+    slip_base64: `data:application/pdf;base64,${pdf}`,
+    slip_mime_type: 'application/pdf' as const,
+  };
+
+  function setup(member: boolean, status = 'in_progress') {
+    const update = vi.fn().mockImplementation(async ({ data }) => ({
+      id: 'booking-1', user_id: 'citizen-1', partner_id: 'p-1', status: data.status,
+      completed_at: data.completed_at, official_app_number: data.official_app_number,
+      acknowledgment_slip_url: data.acknowledgment_slip_url, service_request_events: [], partner_reviews: null,
+      created_at: new Date(), updated_at: new Date(),
+    }));
+    const prisma: any = {
+      service_requests: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'booking-1', user_id: 'citizen-1', partner_id: 'p-1', status }),
+      },
+      partner_members: { findFirst: vi.fn().mockResolvedValue(member ? { user_id: 'op-1' } : null) },
+      $transaction: vi.fn().mockImplementation(async (fn) =>
+        fn({ service_requests: { update }, service_request_events: { create: vi.fn() } }),
+      ),
+    };
+    const storage: any = { documentsBucket: 'documents', upload: vi.fn().mockImplementation(async (_b, p) => p) };
+    const notifications: any = { notify: vi.fn().mockResolvedValue(1) };
+    return { service: new BookingsService(prisma, storage, notifications), storage, notifications, update };
+  }
+
+  it('stores the slip, completes the request and notifies the citizen', async () => {
+    const { service, storage, notifications } = setup(true);
+    const res = await service.markFiled('op-1', 'booking-1', input);
+    expect(res.status).toBe('completed');
+    expect(res.official_app_number).toBe('MVA-2026-98741');
+    expect(res.has_acknowledgment_slip).toBe(true);
+    expect(storage.upload.mock.calls[0][1]).toMatch(/^acknowledgments\/booking-1\/\d+\.pdf$/);
+    expect(notifications.notify).toHaveBeenCalledWith(
+      ['citizen-1'],
+      expect.objectContaining({ type: 'request_update', link: expect.stringMatching(/^https?:\/\/.+\/bookings\/booking-1$/) }),
+      expect.any(Function),
+    );
+  });
+
+  it('refuses operators from another centre', async () => {
+    const { service, storage } = setup(false);
+    await expect(service.markFiled('op-2', 'booking-1', input)).rejects.toThrow('not found or unauthorized');
+    expect(storage.upload).not.toHaveBeenCalled();
+  });
+
+  it('refuses an already completed request', async () => {
+    const { service } = setup(true, 'completed');
+    await expect(service.markFiled('op-1', 'booking-1', input)).rejects.toThrow('already completed');
+  });
+
+  it('rejects a file whose bytes are not the declared type', () => {
+    expect(() => decodeSlip(Buffer.from('<html>').toString('base64'), 'application/pdf')).toThrow('does not match');
+  });
+
+  it('validates the application number format', () => {
+    expect(markFiledSchema.safeParse({ ...input, official_app_number: 'MVA-2026-98741' }).success).toBe(true);
+    expect(markFiledSchema.safeParse({ ...input, official_app_number: '<script>' }).success).toBe(false);
   });
 });

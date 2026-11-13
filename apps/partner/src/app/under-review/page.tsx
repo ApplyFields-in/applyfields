@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { KycDocuments } from '@/components/kyc-documents';
 import { usePartnerAuth } from '@/lib/auth-context';
 import {
   AlertCircle,
@@ -207,7 +208,7 @@ export default function UnderReviewPage() {
               <div>
                 <span className="text-slate-400">Location:</span>
                 <div className="text-slate-200 mt-0.5">
-                  {partner?.city || 'Ameerpet'}, {partner?.state_code || 'TG'} ({partner?.pincode || '500016'})
+                  {partner?.city || 'Ameerpet'}, {partner?.state_code || 'TS'} ({partner?.pincode || '500016'})
                 </div>
               </div>
             </div>
@@ -219,6 +220,8 @@ export default function UnderReviewPage() {
               </div>
             )}
           </div>
+
+          {partner && <KycDocuments partner={partner} onUploaded={refreshSession} />}
 
           {/* Need help bar */}
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900 p-4 text-xs">

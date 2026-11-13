@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AdminModule } from './modules/admin/admin.module.js';
@@ -29,6 +31,13 @@ import { ChatbotModule } from './modules/chatbot/chatbot.module.js';
 
 @Module({
   imports: [
+    // Per client IP (main.ts trusts Render's proxy, so req.ip is the real client). Generous enough
+    // for a CSC centre or college sharing one IP; sign-in routes are tighter (AUTH_THROTTLE).
+    // ponytail: in-memory per API instance; add a Redis storage when Render runs >1 instance.
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: 'default', ttl: 60_000, limit: 300 }],
+      skipIf: () => process.env.NODE_ENV === 'test' || process.env.RATE_LIMIT === 'off',
+    }),
     PrismaModule,
     HomeModule,
     OpportunitiesModule,
@@ -55,6 +64,6 @@ import { ChatbotModule } from './modules/chatbot/chatbot.module.js';
     ChatbotModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

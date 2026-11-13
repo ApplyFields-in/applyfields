@@ -16,7 +16,13 @@
       "requireFullScreen": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:applyfields.com",
+        "applinks:www.applyfields.com",
+        "applinks:applyfields.in",
+        "applinks:www.applyfields.in"
+      ]
     },
     "android": {
       "package": "in.applyfields.app",
@@ -33,7 +39,139 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/jobs/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/exams/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/scholarships/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/admissions/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/career/colleges/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.com",
+              "pathPrefix": "/services/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/jobs/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/exams/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/scholarships/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/admissions/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/career/colleges/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.com",
+              "pathPrefix": "/services/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/jobs/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/exams/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/scholarships/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/admissions/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/career/colleges/"
+            },
+            {
+              "scheme": "https",
+              "host": "applyfields.in",
+              "pathPrefix": "/services/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/jobs/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/exams/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/scholarships/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/admissions/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/career/colleges/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.applyfields.in",
+              "pathPrefix": "/services/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "plugins": [
       "expo-router",
@@ -60,11 +198,97 @@
           "isAndroidBackgroundLocationEnabled": false,
           "isIosBackgroundLocationEnabled": false
         }
-      ]
+      ],
+      [
+        "expo-awesome-app-icon",
+        {
+          "icons": {
+            "default": {
+              "ios": {
+                "light": "./assets/icons/ios/default.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/default.png",
+                "foregroundImage": "./assets/icons/android/default.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
+            "sleeping": {
+              "ios": {
+                "light": "./assets/icons/ios/sleeping.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/sleeping.png",
+                "foregroundImage": "./assets/icons/android/sleeping.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
+            "active": {
+              "ios": {
+                "light": "./assets/icons/ios/active.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/active.png",
+                "foregroundImage": "./assets/icons/android/active.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
+            "notification": {
+              "ios": {
+                "light": "./assets/icons/ios/notification.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/notification.png",
+                "foregroundImage": "./assets/icons/android/notification.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
+            "thinking": {
+              "ios": {
+                "light": "./assets/icons/ios/thinking.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/thinking.png",
+                "foregroundImage": "./assets/icons/android/thinking.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            },
+            "achievement": {
+              "ios": {
+                "light": "./assets/icons/ios/achievement.png"
+              },
+              "android": {
+                "image": "./assets/icons/ios/achievement.png",
+                "foregroundImage": "./assets/icons/android/achievement.png",
+                "backgroundColor": "#071A43",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+              }
+            }
+          }
+        }
+      ],
+      "./plugins/without-ios-background-fetch.js",
+      "./plugins/with-room-keep-rule.js"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "3244c2e9-bb7c-4bfa-aa5c-fe8ddf09b9ab"
+      }
+    },
+    "owner": "likhithkumar"
   }
 }

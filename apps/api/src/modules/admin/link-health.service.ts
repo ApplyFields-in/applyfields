@@ -9,6 +9,7 @@ import type {
   LinkHealthReport,
 } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { recordJobRun } from '../../common/job-runs.js';
 
 const DAY_MS = 86_400_000;
 
@@ -202,9 +203,11 @@ export class LinkHealthService
         );
       }
 
+      recordJobRun('link-health', true, `${opportunities.length} checked, ${brokenLinks.length} broken`);
       return this.lastReport;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      recordJobRun('link-health', false, msg);
       this.logger.error(`Link health check failed: ${msg}`);
       return this.getLatestReport();
     } finally {

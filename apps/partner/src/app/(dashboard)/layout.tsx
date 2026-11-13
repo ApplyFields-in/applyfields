@@ -27,7 +27,6 @@ import {
   X,
   Camera,
   Receipt,
-  ClipboardList,
   Wallet,
   Zap,
 } from 'lucide-react';
@@ -83,12 +82,6 @@ export default function PartnerDashboardLayout({
       href: '/scanner',
       icon: Camera,
       badge: 'Assets',
-    },
-    {
-      name: 'Orders Pipeline & OTP',
-      href: '/orders',
-      icon: ClipboardList,
-      badge: 'Filing',
     },
     {
       name: activeRole === 'staff' ? 'Cash Drawer (Owner Only)' : 'Cash Drawer & Settlement',
@@ -267,7 +260,7 @@ export default function PartnerDashboardLayout({
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                {partner?.city || 'Ameerpet'}, {partner?.state_code || 'TG'} -{' '}
+                {partner?.city || 'Ameerpet'}, {partner?.state_code || 'TS'} -{' '}
                 <span className="font-mono text-emerald-400">{partner?.pincode || '500016'}</span>
               </p>
             </div>

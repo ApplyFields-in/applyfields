@@ -17,7 +17,6 @@ interface AuthContextType {
   isLoggedIn: boolean;
   login: (user: CitizenUser, token?: string) => void;
   logout: () => Promise<void>;
-  setDemoUser: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,7 +25,6 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   login: () => {},
   logout: async () => {},
-  setDemoUser: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -108,16 +106,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(u);
   }
 
-  function setDemoUser() {
-    const demo: CitizenUser = {
-      id: 'usr_demo_arvind',
-      email: 'arvind.kumar@example.com',
-      full_name: 'Arvind Kumar',
-      phone: '+91 98765 43210',
-    };
-    login(demo);
-  }
-
   return (
     <AuthContext.Provider
       value={{
@@ -126,7 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoggedIn: !!user,
         login,
         logout,
-        setDemoUser,
       }}
     >
       {children}

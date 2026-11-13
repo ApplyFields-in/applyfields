@@ -1,14 +1,17 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomInt } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { jwtAccessSecret } from '../../common/jwt-secret.js';
 import { UsersStore } from '../users/users.store.js';
@@ -17,8 +20,6 @@ import type {
   LoginDto,
   LoginOtpDto,
   SocialLoginDto,
-  PasskeyLoginDto,
-  PasskeyRegisterDto,
 } from './dto/login.dto.js';
 import type {
   ResetPasswordDto,
@@ -27,9 +28,16 @@ import type {
 } from './dto/otp.dto.js';
 import type { UserSummary } from '@applyfields/types';
 import { sendOtpEmail } from '../notifications/email.js';
+import { sendOtpSms } from '../notifications/sms.js';
 
 // Internal type — includes tokens so the controller can set cookies. Never sent to clients.
 type LoginResult = { user: UserSummary; accessToken: string; refreshToken: string };
+
+/** Password was right but the account never verified its email/phone: a one-time code was sent instead of a session. */
+export type VerificationRequired = { verificationRequired: true; channel: 'email' | 'sms'; sentTo: string };
+
+/** Refresh sessions slide: every refresh starts a new window, so an active user stays signed in until they sign out. */
+export const SESSION_DAYS = 180;
 
 const ARGON2_OPTIONS = {
   type: argon2.argon2id,
@@ -52,7 +60,7 @@ export class AuthService {
   }
 
   private generate6DigitOtp(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return randomInt(100000, 1000000).toString();
   }
 
   async register(
@@ -133,6 +141,16 @@ export class AuthService {
     target: string;
     devOtp?: string;
   }> {
+    // Each code allows 5 guesses; capping sends stops "request a fresh code" brute force and SMS pumping.
+    // ponytail: per-target limit only; add per-IP + Turnstile when public SMS goes live.
+    const recent = await this.store.countOtpsSince(dto.target, new Date(Date.now() - 15 * 60 * 1000));
+    if (recent >= 5) {
+      throw new HttpException(
+        'Too many codes requested. Please wait 15 minutes and try again.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const rawOtp = this.generate6DigitOtp();
     const code_hash = this.hashToken(rawOtp);
     const expires_at = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
@@ -159,18 +177,20 @@ export class AuthService {
       ? dto.target.replace(/(^.).+(?=@)/, '$1***')
       : dto.target.replace(/(^\+\d{2})\d+(\d{4}$)/, '$1******$2');
 
-    console.log(
-      `\x1b[36m[DEV OTP]\x1b[0m Generated code for \x1b[33m${maskedTarget}\x1b[0m (${dto.purpose}): \x1b[32m\x1b[1m${rawOtp}\x1b[0m (valid for 10m)`,
-    );
-
-    // If target is an email address and RESEND_API_KEY is configured, dispatch the real OTP email:
-    if (dto.target.includes('@')) {
-      sendOtpEmail(dto.target, rawOtp, dto.purpose).catch((err) => {
-        console.warn(`[OTP EMAIL] Could not deliver OTP email to ${maskedTarget}:`, err?.message ?? err);
-      });
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (isDev) {
+      console.log(
+        `\x1b[36m[DEV OTP]\x1b[0m Generated code for \x1b[33m${maskedTarget}\x1b[0m (${dto.purpose}): \x1b[32m\x1b[1m${rawOtp}\x1b[0m (valid for 10m)`,
+      );
     }
 
-    const isDev = process.env.NODE_ENV !== 'production';
+    // Real delivery when the provider is configured (Resend for email, MSG91 for SMS).
+    const delivery = dto.target.includes('@')
+      ? sendOtpEmail(dto.target, rawOtp, dto.purpose)
+      : sendOtpSms(dto.target, rawOtp);
+    delivery.catch((err) => {
+      console.warn(`[OTP] Could not deliver code to ${maskedTarget}:`, err?.message ?? err);
+    });
 
     return {
       success: true,
@@ -220,24 +240,86 @@ export class AuthService {
     };
   }
 
-  async login(
-    dto: LoginDto,
-    meta: { userAgent?: string; ipAddress?: string } = {},
-  ): Promise<LoginResult> {
-    const user = await this.store.findUserByIdentifier(dto.identifier);
+  private async checkPassword(identifier: string, password: string) {
+    const user = await this.store.findUserByIdentifier(identifier);
     if (!user || user.status !== 'active') {
       throw new UnauthorizedException('Invalid email/phone or password');
     }
 
     let isValid = false;
     try {
-      isValid = Boolean(user.password_hash) && (await argon2.verify(user.password_hash, dto.password));
+      isValid = Boolean(user.password_hash) && (await argon2.verify(user.password_hash, password));
     } catch {
       isValid = false;
     }
 
     if (!isValid) {
       throw new UnauthorizedException('Invalid email/phone or password');
+    }
+    return user;
+  }
+
+  /** The code goes to the same channel the user signed in with: email → inbox, phone → SMS. */
+  private codeTarget(identifier: string, user: { email: string | null; phone: string | null }): string {
+    const target = identifier.includes('@') ? user.email : user.phone;
+    if (!target) throw new BadRequestException('No email or phone on this account to send a code to');
+    return target;
+  }
+
+  /** Sends a 6-digit login code to the channel the user signed in with. devOtp stays in the dev API console. */
+  private async sendLoginCode(identifier: string, user: { id: string; email: string | null; phone: string | null }) {
+    const target = this.codeTarget(identifier, user);
+    await this.sendOtp({ target, purpose: 'login' }, user.id);
+    const sentTo = target.includes('@')
+      ? target.replace(/(^.).+(?=@)/, '$1***')
+      : target.replace(/^.*(\d{4})$/, '******$1');
+    return { channel: (target.includes('@') ? 'email' : 'sms') as 'email' | 'sms', sentTo };
+  }
+
+  /** Staff (admin portal) step 1: always password + code. No tokens yet. */
+  async startPasswordLogin(dto: LoginDto): Promise<{ channel: 'email' | 'sms'; sentTo: string }> {
+    const user = await this.checkPassword(dto.identifier, dto.password);
+    return this.sendLoginCode(dto.identifier, user);
+  }
+
+  /** Step 2: password and code are checked together, so there is no half-logged-in state to store. */
+  async verifyPasswordLogin(
+    dto: LoginDto & { code: string },
+    meta: { userAgent?: string; ipAddress?: string } = {},
+  ): Promise<LoginResult> {
+    const user = await this.checkPassword(dto.identifier, dto.password);
+    await this.verifyOtp({ target: this.codeTarget(dto.identifier, user), purpose: 'login', code: dto.code });
+    // The code proved this email/phone, so later password sign-ins won't ask again.
+    const now = new Date().toISOString();
+    await this.store.updateUser(
+      user.id,
+      dto.identifier.includes('@') ? { email_verified_at: now } : { phone_verified_at: now },
+    );
+
+    const [, tokens] = await Promise.all([
+      this.store.updateUser(user.id, { last_login_at: new Date().toISOString() }),
+      this.issueTokens(user, meta, true),
+    ]);
+    void this.recordStaffLoginAudit(user.id, meta).catch(() => {});
+
+    return {
+      user: this.store.toUserSummary(user),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
+
+  /**
+   * Citizen/partner password sign-in. The code is asked only once: accounts that verified their
+   * email or phone (at sign-up, via a code login or Google) get a session straight away.
+   */
+  async login(
+    dto: LoginDto,
+    meta: { userAgent?: string; ipAddress?: string } = {},
+  ): Promise<LoginResult | VerificationRequired> {
+    const user = await this.checkPassword(dto.identifier, dto.password);
+    if (!user.email_verified_at && !user.phone_verified_at) {
+      return { verificationRequired: true, ...(await this.sendLoginCode(dto.identifier, user)) };
     }
 
     const [, tokens] = await Promise.all([
@@ -306,6 +388,11 @@ export class AuthService {
       ? await this.store.findUserByEmail(target.toLowerCase())
       : await this.store.findUserByPhone(target);
 
+    // Blocked/suspended accounts stay out whichever way they sign in (password login checks this too).
+    if (user && user.status !== 'active') {
+      throw new UnauthorizedException('This account is not active. Contact ApplyFields support.');
+    }
+
     if (!user) {
       // Create user if not existing
       const dummyPassword = randomBytes(24).toString('hex');
@@ -340,80 +427,65 @@ export class AuthService {
     };
   }
 
+  /**
+   * Checks a Google ID token (Sign-In button) or access token (popup flow) with Google's tokeninfo
+   * endpoint, which validates signature + expiry, then checks it was issued to one of our client IDs.
+   * GOOGLE_CLIENT_ID may hold several IDs (web, Android, iOS) separated by commas.
+   */
+  private async verifyGoogleToken(
+    dto: SocialLoginDto,
+  ): Promise<{ email: string; name?: string; picture?: string }> {
+    if (dto.provider !== 'google') {
+      throw new BadRequestException(`${dto.provider} sign-in is not available yet`);
+    }
+    const clientIds = (process.env.GOOGLE_CLIENT_ID ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (clientIds.length === 0) {
+      throw new ServiceUnavailableException('Google sign-in is not configured on the server');
+    }
+
+    const idToken = dto.idToken || dto.credential;
+    const query = idToken
+      ? `id_token=${encodeURIComponent(idToken)}`
+      : dto.accessToken
+        ? `access_token=${encodeURIComponent(dto.accessToken)}`
+        : null;
+    if (!query) throw new BadRequestException('Google token is required');
+
+    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?${query}`).catch(() => null);
+    if (!res) throw new ServiceUnavailableException('Could not reach Google to verify sign-in');
+    if (!res.ok) throw new UnauthorizedException('Google sign-in could not be verified');
+
+    const info = (await res.json()) as {
+      aud?: string; azp?: string; iss?: string; email?: string;
+      email_verified?: string | boolean; name?: string; picture?: string;
+    };
+    const ourClient = clientIds.includes(info.aud ?? '') || clientIds.includes(info.azp ?? '');
+    const issuerOk = !info.iss || info.iss === 'accounts.google.com' || info.iss === 'https://accounts.google.com';
+    const verified = info.email_verified === true || info.email_verified === 'true';
+    if (!ourClient || !issuerOk || !info.email || !verified) {
+      throw new UnauthorizedException('Google sign-in could not be verified');
+    }
+    return { email: info.email.toLowerCase().trim(), name: info.name, picture: info.picture };
+  }
+
   async socialLogin(
     dto: SocialLoginDto,
     meta: { userAgent?: string; ipAddress?: string } = {},
   ): Promise<LoginResult> {
-    let resolvedEmail = dto.email ? dto.email.toLowerCase().trim() : undefined;
-    let resolvedName = dto.name?.trim();
-    let avatarUrl: string | undefined = dto.avatarUrl?.trim();
-
-    // Decode Google / Microsoft / Apple ID Token / Credential payload if present
-    const rawToken = dto.idToken || dto.credential;
-    if (rawToken && typeof rawToken === 'string') {
-      try {
-        const parts = rawToken.split('.');
-        if (parts.length === 3) {
-          const payloadBuf = Buffer.from(parts[1], 'base64url');
-          const payload = JSON.parse(payloadBuf.toString('utf8'));
-          if (!resolvedEmail) {
-            if (payload.email) {
-              resolvedEmail = String(payload.email).toLowerCase().trim();
-            } else if (payload.preferred_username) {
-              resolvedEmail = String(payload.preferred_username).toLowerCase().trim();
-            } else if (payload.upn) {
-              resolvedEmail = String(payload.upn).toLowerCase().trim();
-            }
-          }
-          if (!resolvedName) {
-            if (payload.name) {
-              resolvedName = String(payload.name).trim();
-            } else if (payload.given_name || payload.family_name) {
-              resolvedName = `${payload.given_name || ''} ${payload.family_name || ''}`.trim();
-            }
-          }
-          if (!avatarUrl && payload.picture && typeof payload.picture === 'string') {
-            avatarUrl = payload.picture;
-          }
-        }
-      } catch {
-        // Fall back to provided parameters if token parsing fails
-      }
-    }
-
-    // If an OAuth access token was provided and email is still unresolved, query user info
-    if (!resolvedEmail && dto.accessToken) {
-      try {
-        if (dto.provider === 'google') {
-          const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${dto.accessToken}` },
-          });
-          if (resp.ok) {
-            const info = (await resp.json()) as { email?: string; name?: string; picture?: string };
-            if (info.email) resolvedEmail = String(info.email).toLowerCase().trim();
-            if (info.name && !resolvedName) resolvedName = String(info.name).trim();
-            if (info.picture && !avatarUrl) avatarUrl = String(info.picture);
-          }
-        } else if (dto.provider === 'microsoft') {
-          const resp = await fetch('https://graph.microsoft.com/v1.0/me', {
-            headers: { Authorization: `Bearer ${dto.accessToken}` },
-          });
-          if (resp.ok) {
-            const info = (await resp.json()) as { mail?: string; userPrincipalName?: string; displayName?: string };
-            const msEmail = info.mail || info.userPrincipalName;
-            if (msEmail) resolvedEmail = String(msEmail).toLowerCase().trim();
-            if (info.displayName && !resolvedName) resolvedName = String(info.displayName).trim();
-          }
-        }
-      } catch {
-        // Non-fatal network fallback
-      }
-    }
-
-    const providerEmail =
-      resolvedEmail || `${dto.provider}.citizen@applyfields.in`;
+    // Never trust an email sent by the browser: only an identity Google has verified for our client ID.
+    const google = await this.verifyGoogleToken(dto);
+    const providerEmail = google.email;
+    const resolvedName = (google.name ?? dto.name)?.trim();
+    const avatarUrl = (google.picture ?? dto.avatarUrl)?.trim();
 
     let user = await this.store.findUserByEmail(providerEmail);
+    if (!user && dto.existingOnly) {
+      throw new UnauthorizedException('No ApplyFields account uses this Google email.');
+    }
+    // Blocked/suspended accounts stay out whichever way they sign in (password login checks this too).
+    if (user && user.status !== 'active') {
+      throw new UnauthorizedException('This account is not active. Contact ApplyFields support.');
+    }
     if (!user) {
       const dummyPassword = randomBytes(24).toString('hex');
       const password_hash = await argon2.hash(dummyPassword, ARGON2_OPTIONS);
@@ -423,7 +495,7 @@ export class AuthService {
       });
       const fullName =
         resolvedName ||
-        `${dto.provider.charAt(0).toUpperCase() + dto.provider.slice(1)} Citizen`;
+        'Google Citizen';
       await Promise.all([
         this.store.updateUser(user.id, {
           email_verified_at: new Date().toISOString(),
@@ -454,65 +526,7 @@ export class AuthService {
       this.store.updateUser(user.id, {
         last_login_at: new Date().toISOString(),
       }),
-      this.issueTokens(user, meta),
-    ]);
-    return {
-      user: this.store.toUserSummary(user),
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    };
-  }
-
-  async registerPasskey(
-    userId: string,
-    _dto: PasskeyRegisterDto,
-  ): Promise<{ success: boolean; message: string; user: UserSummary }> {
-    const user = await this.store.findUserById(userId);
-    if (!user || user.status !== 'active') {
-      throw new NotFoundException('Citizen account not found');
-    }
-
-    const updated = await this.store.updateUser(user.id, {
-      mfa_enabled: true,
-    });
-
-    return {
-      success: true,
-      message: 'Biometric passkey successfully registered for this account.',
-      user: this.store.toUserSummary(updated || user),
-    };
-  }
-
-  async passkeyLogin(
-    dto: PasskeyLoginDto,
-    meta: { userAgent?: string; ipAddress?: string } = {},
-  ): Promise<LoginResult> {
-    if (!dto.email || !dto.email.trim()) {
-      throw new BadRequestException(
-        'Registered email or phone number is required to sign in with passkey',
-      );
-    }
-
-    const identifier = dto.email.trim();
-    const user = await this.store.findUserByIdentifier(identifier);
-
-    if (!user || user.status !== 'active') {
-      throw new NotFoundException(
-        'No registered citizen account found with this email or phone. Please register first.',
-      );
-    }
-
-    if (!user.mfa_enabled) {
-      throw new BadRequestException(
-        'This account has not set up a biometric passkey yet. Please sign in with your password or OTP first, then enable passkey in your account.',
-      );
-    }
-
-    const [, tokens] = await Promise.all([
-      this.store.updateUser(user.id, {
-        last_login_at: new Date().toISOString(),
-      }),
-      this.issueTokens(user, meta),
+      this.issueTokens(user, meta, true),
     ]);
     return {
       user: this.store.toUserSummary(user),
@@ -545,7 +559,7 @@ export class AuthService {
       );
     }
 
-    const tokens = await this.issueTokens(user, meta);
+    const tokens = await this.issueTokens(user, meta, rawRefreshToken.startsWith('m.'));
     return {
       accessToken: tokens.accessToken,
       newRefreshToken: tokens.refreshToken,
@@ -594,14 +608,34 @@ export class AuthService {
     };
   }
 
+  /** Session for a user another sign-in method has already proven (passkeys). Refuses inactive accounts. */
+  async sessionFor(
+    userId: string,
+    meta: { userAgent?: string; ipAddress?: string },
+    mfa: boolean,
+  ): Promise<LoginResult> {
+    const user = await this.store.findUserById(userId);
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('This account is not active. Contact ApplyFields support.');
+    }
+    const [, tokens] = await Promise.all([
+      this.store.updateUser(user.id, { last_login_at: new Date().toISOString() }),
+      this.issueTokens(user, meta, mfa),
+    ]);
+    return { user: this.store.toUserSummary(user), ...tokens };
+  }
+
+  /** `mfa` = signed in with password + code, or a verified Google account. StaffGuard requires it. */
   private async issueTokens(
     user: { id: string; email: string | null; phone: string | null },
     meta: { userAgent?: string; ipAddress?: string },
+    mfa = false,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const payload = {
       sub: user.id,
       email: user.email,
       phone: user.phone,
+      ...(mfa ? { mfa: true } : {}),
     };
 
     const accessTtl = process.env.JWT_ACCESS_TTL ?? '7d';
@@ -612,10 +646,11 @@ export class AuthService {
     });
 
     // Refresh token: 30 days random crypto token, stored only as a hash in user_sessions
-    const refreshToken = randomBytes(40).toString('hex');
+    // The "m." prefix carries mfa through refresh; only the hash is stored, so it can't be forged.
+    const refreshToken = (mfa ? 'm.' : '') + randomBytes(40).toString('hex');
     const refresh_token_hash = this.hashToken(refreshToken);
     const expires_at = new Date(
-      Date.now() + 30 * 24 * 60 * 60 * 1000,
+      Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000,
     ).toISOString();
 
     await this.store.createSession({

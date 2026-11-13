@@ -16,7 +16,7 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { API_URL } from '@/lib/api';
-import { daysLeftLabel, ELIGIBILITY_META, formatDate, TYPE_META, urgencyTone } from '@/lib/format';
+import { DeadlineBadge, DeadlineLegend, ELIGIBILITY_META, TYPE_META, formatDate } from '@/lib/format';
 import { apiGetAsUser } from '@/lib/server-api';
 import { SaveButton } from '@/components/save-button';
 import { CompareToggleButton } from '@/components/opportunity-compare/compare-button';
@@ -79,7 +79,8 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
           <CalendarDays className="size-3.5" aria-hidden="true" />
           {item.last_date ? `Last date ${formatDate(item.last_date)}` : 'Dates not announced'}
         </span>
-        <Badge tone={urgencyTone(item.days_left)}>{daysLeftLabel(item.days_left)}</Badge>
+        <DeadlineBadge days={item.days_left} />
+
       </div>
     </Card>
   );
@@ -92,12 +93,14 @@ export function ApiOffline() {
     <Card tone="tea" className="flex items-start gap-3 p-5">
       <WifiOff className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
       <div>
-        <p className="font-bold">Can’t reach the API</p>
-        <p className="mt-1 text-sm">
-          The website reads its data from <code className="font-mono">{API_URL}</code>. Start the API with{' '}
-          <code className="font-mono font-semibold">pnpm dev:api</code> (or <code className="font-mono font-semibold">pnpm dev</code> to run
-          everything).
-        </p>
+        <p className="font-bold">We couldn’t load this right now</p>
+        <p className="mt-1 text-sm">Our server may be waking up. Please refresh in a minute.</p>
+        {process.env.NODE_ENV !== 'production' && (
+          <p className="mt-1 text-xs">
+            Dev: the website reads from <code className="font-mono">{API_URL}</code>. Start it with{' '}
+            <code className="font-mono font-semibold">pnpm dev:api</code>.
+          </p>
+        )}
       </div>
     </Card>
   );
@@ -243,6 +246,7 @@ export function FilterBar({
             <option value="closing_soon">Closing in 7 days</option>
             <option value="this_month">Closing this month</option>
             <option value="today">Closing today</option>
+            <option value="ended">Ended (last date passed)</option>
           </select>
 
           <button
@@ -376,7 +380,7 @@ export async function OpportunityListPage({
       {displayData.total === 0 && only ? (
         <EmptyState
           icon={<UserCheck />}
-          title={`No open ${meta.plural} match your profile`}
+          title={sp.deadline === 'ended' ? `No ended ${meta.plural} match your profile` : `No open ${meta.plural} match your profile`}
           text="Turn off “Eligible for me” to see everything, or add more details to your profile."
           action={
             <Link href="/profile" className={buttonClass({ variant: 'secondary', size: 'sm' })}>
@@ -387,7 +391,13 @@ export async function OpportunityListPage({
       ) : displayData.total === 0 ? (
         <EmptyState
           icon={meta.icon}
-          title={hasActiveFilters ? `No matching ${meta.plural} found` : `No open ${meta.plural} yet`}
+          title={
+            sp.deadline === 'ended'
+              ? `No ended ${meta.plural} to show`
+              : hasActiveFilters
+                ? `No matching ${meta.plural} found`
+                : `No open ${meta.plural} yet`
+          }
           text={
             hasActiveFilters
               ? 'Try relaxing your filter criteria or searching with broader keywords.'
@@ -406,14 +416,26 @@ export async function OpportunityListPage({
         />
       ) : (
         <>
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-semibold text-teal">
-              {displayData.total} {meta.plural}
-              {only ? ' you may be eligible for' : ''} · closing soonest first
+              {displayData.total} {sp.deadline === 'ended' ? `ended ${meta.plural}` : meta.plural}
+              {only ? ' you may be eligible for' : ''} ·{' '}
+              {sp.deadline === 'ended' ? 'most recently closed first' : 'closing soonest first'}
               {hasActiveFilters && ' (filtered)'}
             </p>
-            {(!data || data.sample) && <Badge tone="celadon">Demo / Mock Data</Badge>}
+            <div className="flex flex-wrap items-center gap-3">
+              <DeadlineLegend />
+              <Link
+                href={sp.deadline === 'ended' ? basePath : `${basePath}?deadline=ended`}
+                className="text-xs font-semibold text-sea underline-offset-2 hover:underline"
+              >
+                {sp.deadline === 'ended' ? 'Show open ones' : 'Show ended ones'}
+              </Link>
+              {(!data
+ || data.total === 0 || data.sample) && <Badge tone="celadon">Demo / Mock Data</Badge>}
+            </div>
           </div>
+
           <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {displayData.items.map((item) => (
               <OpportunityCardView key={item.slug} item={item} />

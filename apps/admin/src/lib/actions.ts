@@ -212,6 +212,14 @@ export async function publishServiceAction(id: string): Promise<ActionResponse<W
   return { ok: true, data: res.data! };
 }
 
+export async function verifyServiceAction(id: string): Promise<ActionResponse<WriteResult>> {
+  const res = await apiPost<WriteResult>(`/admin/services/${encodeURIComponent(id)}/verify`);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/services');
+  revalidatePath(`/services/${id}`);
+  return { ok: true, data: res.data! };
+}
+
 export async function setServiceStatusAction(
   id: string,
   status: OpportunityStatus,

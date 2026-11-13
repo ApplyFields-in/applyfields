@@ -34,23 +34,23 @@ export const ROLE_LEVELS: Record<StaffRole, number> = {
 };
 
 /**
- * Checks if user's roles satisfy the required roles (considering hierarchy).
+ * A user passes when they hold one of the listed roles, or they are admin / super_admin
+ * at or above the lowest listed level. Roles are departments, not a ladder:
+ *   reviewer, content_editor → Apply & Career content
+ *   support                  → Partners & Citizen Services
+ *   admin, super_admin       → everything (only super_admin passes @Roles('super_admin'))
  */
 export function hasStaffPermission(
   userRoles: StaffRole[],
   requiredRoles?: StaffRole[],
 ): boolean {
-  if (!requiredRoles || requiredRoles.length === 0) {
-    // Any valid staff member is permitted if no specific role is specified
-    return userRoles.length > 0;
-  }
-  if (!userRoles || userRoles.length === 0) {
-    return false;
-  }
+  if (!userRoles || userRoles.length === 0) return false;
+  if (!requiredRoles || requiredRoles.length === 0) return true;
 
-  // If user has any role equal to or higher in the hierarchy than the minimum required role
-  const minRequiredLevel = Math.min(
-    ...requiredRoles.map((r) => ROLE_LEVELS[r] ?? 0),
-  );
-  return userRoles.some((role) => (ROLE_LEVELS[role] ?? 0) >= minRequiredLevel);
+  const minRequiredLevel = Math.min(...requiredRoles.map((r) => ROLE_LEVELS[r] ?? 0));
+  return userRoles.some((role) => {
+    if (requiredRoles.includes(role)) return true;
+    const level = ROLE_LEVELS[role] ?? 0;
+    return level >= ROLE_LEVELS.admin && level >= minRequiredLevel;
+  });
 }

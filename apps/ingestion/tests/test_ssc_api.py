@@ -4,7 +4,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from app.scrapers.ssc import SSCScraper
+from app.scrapers.ssc import SSCScraper, is_new_recruitment
 
 
 def api_response(records):
@@ -48,7 +48,7 @@ def test_discovers_pdf_notice_and_publication_date(mock_get):
 def test_skips_non_pdf_and_duplicate_attachments(mock_get):
     mock_get.return_value = api_response([
         {
-            "headline": "Notice A",
+            "headline": "Notice of Junior Engineer Examination, 2026",
             "createdAt": "2026-10-12T00:00:00Z",
             "attachments": [
                 {"path": "uploads/notice.pdf"},
@@ -89,7 +89,7 @@ def test_rejects_unexpected_api_data_structure(mock_get):
 def test_fetches_next_page_when_current_page_is_full(mock_get):
     first_page = [
         {
-            "headline": f"Notice {i}",
+            "headline": f"Notice of Selection Post Examination {i}, 2026",
             "createdAt": "2026-10-12T00:00:00Z",
             "attachments": [{"path": f"uploads/notice{i}.pdf"}],
         }
@@ -97,7 +97,7 @@ def test_fetches_next_page_when_current_page_is_full(mock_get):
     ]
     second_page = [
         {
-            "headline": "Notice 10",
+            "headline": "Recruitment of Scientific Assistant in IMD, 2026",
             "createdAt": "2026-10-11T00:00:00Z",
             "attachments": [{"path": "uploads/notice10.pdf"}],
         }
@@ -117,3 +117,42 @@ def test_fetches_next_page_when_current_page_is_full(mock_get):
 
     assert parse_qs(urlparse(first_url).query)["page"] == ["1"]
     assert parse_qs(urlparse(second_url).query)["page"] == ["2"]
+
+
+# Real SSC headlines (Nov 2026): only new recruitments become drafts; updates to past exams don't.
+@pytest.mark.parametrize(
+    ("headline", "expected"),
+    [
+        ("Notice of Sub-Inspector in Delhi Police and CAPFs Examination, 2026.", True),
+        ("Recruitment of Scientific Assistant in IMD through Junior Engineer Exam, 2026", True),
+        ("NOTIFICATION FOR RECRUITMENT OF ENROLLED PERSONS IN THE INDIAN COAST GUARD", True),
+        ("Engagement of retired Central Government Officer as Consultant in SSC (HQ)", True),
+        ("Addendum- Notice of Junior Engineer Examination, 2026", False),
+        ("Combined Higher Secondary (10+2) Level Exam, 2025: Declaration of Final Result", False),
+        ("Information regarding city of examination and Admit Card for CGEPT-01/27", False),
+        ("Cancellation Notice for the post of 'Agriculture Assistant', Post Code KK11426", False),
+        ("Tentative Vacancies of Junior Engineer Examination, 2026.", False),
+        ("Stenographer Grade C and D Examination 2026 : Uploading of Tentative Answer Keys", False),
+        ("Important Notice - Schedule of Examinations", False),
+    ],
+)
+def test_only_new_recruitments_pass(headline, expected):
+    assert is_new_recruitment(headline) is expected
+
+
+@patch("app.scrapers.ssc.fetch")
+def test_stops_after_max_pages(mock_get):
+    full_page = [
+        {
+            "headline": "Notice of Selection Post Examination, 2026",
+            "createdAt": "2026-10-12T00:00:00Z",
+            "attachments": [{"path": "uploads/n.pdf"}],
+        }
+    ] * 10
+    mock_get.return_value = api_response(full_page)
+
+    scraper = SSCScraper()
+    scraper.max_pages = 3
+    scraper.discover_notices()
+
+    assert mock_get.call_count == 3

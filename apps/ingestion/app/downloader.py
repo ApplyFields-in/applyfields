@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from app.fetcher import fetch
 
-MAX_PDF_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_PDF_BYTES = 20 * 1024 * 1024  # 20 MB
 
 
 @dataclass(frozen=True)

@@ -24,7 +24,6 @@ import {
 import {
   getBookingMessages,
   getPartnerConversations,
-  listPartnerBookings,
   markBookingMessagesRead,
   sendBookingMessage,
 } from '@/lib/api';
@@ -59,126 +58,6 @@ export interface ConversationThread {
   messages: ChatMessage[];
 }
 
-const INITIAL_THREADS: ConversationThread[] = [
-  {
-    bookingId: 'bk-101',
-    token: 'AF-8821',
-    citizenName: 'K. Sai Ramesh',
-    citizenPhone: '+91 98480 22338',
-    serviceTitle: 'SSC CGL 2026 Online Form Filing',
-    slotDate: '2026-10-21',
-    slotTime: '10:30 AM – 11:00 AM',
-    unreadCount: 1,
-    lastMessage: 'Can I come 15 minutes before my slot?',
-    lastTimestamp: '10:14 AM',
-    messages: [
-      {
-        id: 'm1',
-        senderType: 'system',
-        senderName: 'System',
-        text: 'Booking AF-8821 confirmed. Reserved slot: 21 Oct 2026, 10:30 AM – 11:00 AM.',
-        timestamp: '09:00 AM',
-        isRead: true,
-      },
-      {
-        id: 'm2',
-        senderType: 'citizen',
-        senderName: 'K. Sai Ramesh',
-        text: 'Hello sir, I have uploaded my Degree provisional certificate and signature specimen.',
-        timestamp: '09:45 AM',
-        isRead: true,
-        attachments: [
-          { name: 'Degree_Provisional_Certificate.pdf', size: '280 KB', kind: 'pdf' },
-          { name: 'Candidate_Signature_Scan.jpg', size: '48 KB', kind: 'image' },
-        ],
-      },
-      {
-        id: 'm3',
-        senderType: 'partner',
-        senderName: 'Sri Sai MeeSeva Desk',
-        text: 'Received! We have verified the documents. Everything matches the SSC criteria.',
-        timestamp: '10:02 AM',
-        isRead: true,
-      },
-      {
-        id: 'm4',
-        senderType: 'citizen',
-        senderName: 'K. Sai Ramesh',
-        text: 'Can I come 15 minutes before my slot? I have another exam later in the afternoon.',
-        timestamp: '10:14 AM',
-        isRead: false,
-      },
-    ],
-  },
-  {
-    bookingId: 'bk-102',
-    token: 'AF-8822',
-    citizenName: 'B. Ananya Rao',
-    citizenPhone: '+91 99891 44552',
-    serviceTitle: 'Aadhaar PVC Smart Card Print',
-    slotDate: '2026-10-21',
-    slotTime: '11:15 AM – 11:45 AM',
-    unreadCount: 0,
-    lastMessage: 'Your card print is ready for pickup!',
-    lastTimestamp: 'Yesterday',
-    messages: [
-      {
-        id: 'm201',
-        senderType: 'citizen',
-        senderName: 'B. Ananya Rao',
-        text: 'Hi, please print this in high-gloss waterproof PVC sheet.',
-        timestamp: 'Yesterday',
-        isRead: true,
-      },
-      {
-        id: 'm202',
-        senderType: 'partner',
-        senderName: 'Operator',
-        text: 'Sure, we use genuine UIDAI authorized 300-micron PVC sheets. Your card print is ready for pickup!',
-        timestamp: 'Yesterday',
-        isRead: true,
-      },
-    ],
-  },
-  {
-    bookingId: 'bk-103',
-    token: 'AF-HYD-91824',
-    citizenName: 'Arvind V. Kumar',
-    citizenPhone: '+91 98765 43210',
-    serviceTitle: 'New PAN Card Application (Form 49A)',
-    slotDate: '2026-10-22',
-    slotTime: '11:00 AM – 11:30 AM',
-    unreadCount: 2,
-    lastMessage: 'I have linked my Document Vault for instant verification.',
-    lastTimestamp: '11:20 AM',
-    messages: [
-      {
-        id: 'm301',
-        senderType: 'system',
-        senderName: 'System',
-        text: 'Slot AF-HYD-91824 locked. Vault documents auto-mapped.',
-        timestamp: '11:18 AM',
-        isRead: true,
-      },
-      {
-        id: 'm302',
-        senderType: 'citizen',
-        senderName: 'Arvind V. Kumar',
-        text: 'Hello, I booked a slot for New PAN card application.',
-        timestamp: '11:19 AM',
-        isRead: false,
-      },
-      {
-        id: 'm303',
-        senderType: 'citizen',
-        senderName: 'Arvind V. Kumar',
-        text: 'I have linked my Document Vault for instant verification. Do I still need physical photos?',
-        timestamp: '11:20 AM',
-        isRead: false,
-      },
-    ],
-  },
-];
 
 const QUICK_PRESETS = [
   'Please bring your original physical Aadhaar Card for biometric verification.',
@@ -189,89 +68,14 @@ const QUICK_PRESETS = [
 ];
 
 export default function PartnerMessagesPage() {
-  const [threads, setThreads] = useState<ConversationThread[]>(INITIAL_THREADS);
-  const [activeToken, setActiveToken] = useState<string>('AF-8821');
+  const [threads, setThreads] = useState<ConversationThread[]>([]);
+  const [activeToken, setActiveToken] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [inputText, setInputText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Load threads from live bookings and localStorage
-  useEffect(() => {
-    async function loadThreads() {
-      try {
-        const res = await listPartnerBookings();
-        if (res.data?.items && res.data.items.length > 0) {
-          const liveThreads: ConversationThread[] = res.data.items.map((b: any) => {
-            const token = `AF-${b.id.slice(0, 4).toUpperCase()}`;
-
-            const citizenName =
-              b.user_note?.split(';')[0]?.replace(/^(Name|Applicant):\s*/i, '').trim() ||
-              'Citizen Applicant';
-            const initialMsgs: ChatMessage[] = [
-              {
-                id: `sys-${b.id}`,
-                senderType: 'system',
-                senderName: 'System',
-                text: `Assistance booking created. Status: ${b.status}.`,
-                timestamp: b.created_at ? new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today',
-                isRead: true,
-              },
-            ];
-            if (b.user_note) {
-              initialMsgs.push({
-                id: `usr-${b.id}`,
-                senderType: 'citizen',
-                senderName: citizenName,
-                text: b.user_note,
-                timestamp: b.created_at ? new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today',
-                isRead: true,
-              });
-            }
-            return {
-              bookingId: b.id,
-              token,
-              citizenName,
-              citizenPhone: b.partner_phone || '—',
-              serviceTitle: b.service_name || 'Assistance Service',
-              slotDate: b.appointment_at ? b.appointment_at.slice(0, 10) : 'Today',
-              slotTime: b.appointment_at
-                ? new Date(b.appointment_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                : 'Flexible',
-              unreadCount: 0,
-              lastMessage: b.user_note || 'Booking registered at desk',
-              lastTimestamp: 'Recent',
-              messages: initialMsgs,
-            };
-          });
-
-          setThreads((prev) => {
-            const combined = [...liveThreads, ...prev.filter((p) => !liveThreads.some((lt) => lt.token === p.token))];
-            if (combined.length > 0 && !combined.some((c) => c.token === activeToken)) {
-              setActiveToken(combined[0].token);
-            }
-            return combined;
-          });
-        }
-      } catch {}
-
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('applyfields_partner_chat_threads_v1');
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setThreads(parsed);
-            }
-          } catch {}
-        }
-      }
-    }
-
-    loadThreads();
-  }, []);
 
   const activeThread = threads.find((t) => t.token === activeToken) || threads[0];
 
@@ -288,8 +92,8 @@ export default function PartnerMessagesPage() {
             citizenName: t.citizen_name,
             citizenPhone: t.citizen_phone,
             serviceTitle: t.service_title,
-            slotDate: t.slot_date || 'Today',
-            slotTime: t.slot_time || '10:00 AM',
+            slotDate: t.slot_date || '',
+            slotTime: t.slot_time || '',
             unreadCount: t.unread_count,
             lastMessage: t.last_message,
             lastTimestamp: t.last_timestamp ? new Date(t.last_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today',
@@ -306,9 +110,7 @@ export default function PartnerMessagesPage() {
             });
           });
 
-          if (!activeToken || activeToken === 'AF-8821') {
-            setActiveToken(liveThreads[0].token);
-          }
+          setActiveToken((cur) => cur || liveThreads[0].token);
         }
       } catch (err) {
         console.warn('Could not load live threads, fallback to demo mode:', err);
@@ -388,9 +190,6 @@ export default function PartnerMessagesPage() {
               }
             : t,
         );
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('applyfields_partner_chat_threads_v1', JSON.stringify(updated));
-        }
         if (activeThread.bookingId) {
           markBookingMessagesRead(activeThread.bookingId, 'partner').catch(() => {});
         }
@@ -424,9 +223,6 @@ export default function PartnerMessagesPage() {
             }
           : t,
       );
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('applyfields_partner_chat_threads_v1', JSON.stringify(updated));
-      }
       return updated;
     });
 
@@ -435,16 +231,22 @@ export default function PartnerMessagesPage() {
     }
 
     // Dispatch to server if booking ID exists
-    if (activeThread.bookingId && !activeThread.bookingId.startsWith('bk-')) {
-      try {
-        await sendBookingMessage(activeThread.bookingId, {
-          message: text,
-          sender_type: 'partner',
-          sender_name: 'Partner Desk',
-        });
-      } catch (err) {
-        console.error('Failed to send live message to server:', err);
-      }
+    // The server sets the sender (your centre's name) from your login.
+    const res = await sendBookingMessage(activeThread.bookingId, {
+      message: text,
+      sender_type: 'partner',
+      sender_name: 'Partner Desk',
+    }).catch(() => null);
+    if (!res?.data) {
+      // Don't leave an unsent message looking sent.
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.bookingId === activeThread.bookingId
+            ? { ...t, messages: t.messages.map((m) => (m.id === optimisticMsg.id ? { ...m, text: `${m.text}  (not sent, tap send to retry)` } : m)) }
+            : t,
+        ),
+      );
+      if (textToSend === undefined) setInputText(text);
     }
   }
 
@@ -519,6 +321,11 @@ export default function PartnerMessagesPage() {
 
           {/* Conversation list */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-800/60">
+            {filteredThreads.length === 0 && (
+              <p className="p-4 text-xs text-slate-400">
+                No conversations yet. When a citizen books your centre, their chat appears here.
+              </p>
+            )}
             {filteredThreads.map((thread) => {
               const isActive = thread.token === activeThread?.token;
               return (

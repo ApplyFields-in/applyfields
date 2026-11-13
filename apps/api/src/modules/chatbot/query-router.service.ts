@@ -7,6 +7,12 @@ import { SemanticCacheService } from './semantic-cache.service.js';
 import { ChatbotAnalyticsService } from './chatbot-analytics.service.js';
 import { GuidanceService } from '../guidance/guidance.service.js';
 
+/** Website path for an opportunity (the site has /jobs/x, /exams/x, … — there is no /apply/jobs/x). */
+const OPP_SECTION: Record<string, string> = { govt_job: 'jobs', exam: 'exams', scholarship: 'scholarships', admission: 'admissions' };
+export function oppPath(type: string, slug: string): string {
+  return `/${OPP_SECTION[type] ?? 'jobs'}/${slug}`;
+}
+
 const logger = new Logger('QueryRouterService');
 
 export const FREE_DAILY_LIMIT = 3;
@@ -225,7 +231,7 @@ export class QueryRouterService {
         answer: `### 🌟 Daily Free Chat Limit Reached (3/3)\n\nYou have used all **3 free AI chats** for today.\n\nFree chats reset daily at midnight (12:00 AM IST).\n\nUpgrade to **ApplyFields Plus** (₹50/month) for unlimited AI queries, in-depth multi-stage exam insights, syllabus breakdowns, and assisted CSC desk bookings!`,
         actions: [
           { label: 'Upgrade to ApplyFields Plus (₹50/mo)', action: 'navigate', url: '/account' },
-          { label: 'Browse Jobs & Deadlines Directly', action: 'navigate', url: '/apply/jobs' },
+          { label: 'Browse Jobs & Deadlines Directly', action: 'navigate', url: '/jobs' },
         ],
         daily_limit: quota.daily_limit,
         queries_used: quota.queries_used,
@@ -685,45 +691,56 @@ How can I help you regarding this opportunity? You can ask about **deadlines**, 
    */
   private async handleClosingSoon(): Promise<ChatbotQueryResponse> {
     const today = new Date();
-    const opps = await this.prisma.opportunities.findMany({
-      where: {
-        status: 'published',
-        application_end: { gte: today },
-      },
+    today.setHours(0, 0, 0, 0);
+    const weekOut = new Date(today.getTime() + 7 * 86_400_000);
+    const select = {
+      id: true,
+      slug: true,
+      title: true,
+      type: true,
+      application_end: true,
+      organizations: { select: { short_name: true } },
+    } as const;
+
+    // "Closing soon" = within 7 days. If nothing is, say so and show the next deadlines honestly.
+    let opps = await this.prisma.opportunities.findMany({
+      where: { status: 'published', application_end: { gte: today, lte: weekOut } },
       orderBy: { application_end: 'asc' },
-      take: 4,
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        type: true,
-        application_end: true,
-        organizations: { select: { short_name: true } },
-      },
+      take: 6,
+      select,
     });
+    const withinWeek = opps.length > 0;
+    if (!withinWeek) {
+      opps = await this.prisma.opportunities.findMany({
+        where: { status: 'published', application_end: { gte: today } },
+        orderBy: { application_end: 'asc' },
+        take: 3,
+        select,
+      });
+    }
 
     if (opps.length === 0) {
       return {
         mode: 'deterministic',
         intent: 'closing_soon',
-        answer: 'There are currently no active opportunities closing in the immediate countdown. Browse all active jobs under `/apply`.',
+        answer: 'There are no open opportunities with a last date right now. Browse everything on `/apply`.',
       };
     }
 
     const items = opps
       .map((o) => {
         const days = daysUntil(o.application_end);
-        return `• [**${o.title}**](/apply/${o.type === 'govt_job' ? 'jobs' : o.type === 'exam' ? 'exams' : 'scholarships'}/${o.slug}) — Closes **${formatDate(o.application_end)}** (${days}d left)`;
+        return `• [**${o.title}**](${oppPath(o.type, o.slug)}) — Closes **${formatDate(o.application_end)}** (${days === 0 ? 'today' : `${days}d left`})`;
       })
       .join('\n');
 
     return {
       mode: 'deterministic',
       intent: 'closing_soon',
-      answer: `### ⏳ Opportunities Closing Soon\n\nThese critical applications close within the next few days:\n\n${items}\n\n*Click on any item to view details or save for reminders.*`,
-      actions: [
-        { label: 'Browse All Closing Deadlines', action: 'navigate', url: '/apply?sort=deadline' },
-      ],
+      answer: withinWeek
+        ? `### ⏳ Closing in the next 7 days\n\n${items}\n\n*Open one to see details or save it for reminders.*`
+        : `### Nothing closes in the next 7 days\n\nThe next deadlines are:\n\n${items}`,
+      actions: [{ label: 'See everything closing soon', action: 'navigate', url: '/apply?deadline=7d' }],
       related_queries: ['Show top government jobs', 'What exams are available for graduates?'],
     };
   }
@@ -777,7 +794,7 @@ How can I help you regarding this opportunity? You can ask about **deadlines**, 
     const list = opps
       .map(
         (o) =>
-          `• [**${o.title}**](/apply/jobs/${o.slug}) — ${o.vacancies_total ? `${o.vacancies_total} Posts` : 'Open'} · Closes ${formatDate(o.application_end)}`,
+          `• [**${o.title}**](${oppPath('govt_job', o.slug)}) — ${o.vacancies_total ? `${o.vacancies_total} Posts` : 'Open'} · Closes ${formatDate(o.application_end)}`,
       )
       .join('\n');
 
@@ -785,7 +802,7 @@ How can I help you regarding this opportunity? You can ask about **deadlines**, 
       mode: 'deterministic',
       intent: 'trending_jobs',
       answer: `### 📈 Major Government Recruitments\n\nHere are high-vacancy national recruitments currently open:\n\n${list}`,
-      actions: [{ label: 'View All Government Jobs', action: 'navigate', url: '/apply/jobs' }],
+      actions: [{ label: 'View All Government Jobs', action: 'navigate', url: '/jobs' }],
       related_queries: ['When is the SSC CGL deadline?', 'What are the application fees?'],
     };
   }
@@ -860,7 +877,7 @@ ApplyFields partners with certified CSC and MeeSeva kiosks across India to provi
       intent: kind,
       answer,
       actions: [
-        { label: 'Browse Jobs & Deadlines', action: 'navigate', url: '/apply/jobs' },
+        { label: 'Browse Jobs & Deadlines', action: 'navigate', url: '/jobs' },
         { label: 'Explore Careers', action: 'navigate', url: '/career' },
       ],
       related_queries: [
@@ -891,18 +908,20 @@ ApplyFields partners with certified CSC and MeeSeva kiosks across India to provi
     const actions: ChatbotAction[] = sourceActions.length
       ? sourceActions
       : [
-          { label: 'Browse Jobs & Deadlines', action: 'navigate', url: '/apply/jobs' },
+          { label: 'Browse Jobs & Deadlines', action: 'navigate', url: '/jobs' },
           { label: 'Explore Career Roadmaps', action: 'navigate', url: '/career' },
         ];
 
+    const groqKey = (process.env.GROQ_API_KEY || process.env.GROK_API_KEY)?.trim();
     const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-    if (apiKey) {
+
+    if (groqKey || apiKey) {
       try {
         const context = digestContext
           ? `OFFICIAL NOTIFICATION DIGEST (the only source of truth for this opportunity):\n${digestContext}`
           : sources.length
             ? `APPLYFIELDS PAGES MATCHING THE QUESTION (link them as [title](url) where useful):\n${sources.map((s) => `- [${s.title}](${s.url}) (${s.type})`).join('\n')}`
-            : 'No matching ApplyFields page was found. Point the user to /apply/jobs, /apply/exams or /career when useful.';
+            : 'No matching ApplyFields page was found. Point the user to /jobs, /exams, /scholarships, /admissions or /career when useful.';
 
         const systemPrompt = `You are Fieldy, the ApplyFields assistant for students and job aspirants in India.
 
@@ -921,45 +940,94 @@ ${context}`;
         const recent = (history ?? []).slice(-4).map((m) => ({ role: m.role, content: m.content.slice(0, 500) }));
         while (recent.length && recent[0].role !== 'user') recent.shift();
 
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-          },
-          body: JSON.stringify({
-            model: LLM_MODEL,
-            max_tokens: 1024,
-            output_config: { effort: 'low' },
-            system: systemPrompt,
-            messages: [...recent, { role: 'user', content: query }],
-          }),
-        });
+        // 1. Try Groq / Grok (high-speed LPU inference)
+        if (groqKey) {
+          try {
+            const groqModel = process.env.GROQ_MODEL?.trim() || 'openai/gpt-oss-120b';
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${groqKey}`,
+              },
+              body: JSON.stringify({
+                model: groqModel,
+                temperature: 0.2,
+                max_tokens: 1024,
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  ...recent,
+                  { role: 'user', content: query },
+                ],
+              }),
+            });
 
-        if (res.ok) {
-          const data = (await res.json()) as {
-            stop_reason?: string;
-            content?: Array<{ type: string; text?: string }>;
-          };
-          // content[0] can be a thinking block; take the text block.
-          const text = data.content?.find((b) => b.type === 'text')?.text?.trim();
-          if (text && data.stop_reason !== 'refusal') {
-            return {
-              mode: 'llm',
-              intent: 'general_ai',
-              answer: text,
-              actions,
-              related_queries: digestContext
-                ? ['When is the final deadline?', 'What is the application fee?', 'Am I eligible?']
-                : ['Which exams are closing this week?', 'What exams can I write after graduation?'],
-            };
+            if (res.ok) {
+              const data = (await res.json()) as {
+                choices?: Array<{ message?: { content?: string } }>;
+              };
+              const text = data.choices?.[0]?.message?.content?.trim();
+              if (text) {
+                return {
+                  mode: 'llm',
+                  intent: 'general_ai',
+                  answer: text,
+                  actions,
+                  related_queries: digestContext
+                    ? ['When is the final deadline?', 'What is the application fee?', 'Am I eligible?']
+                    : ['Which exams are closing this week?', 'What exams can I write after graduation?'],
+                };
+              }
+            } else {
+              logger.warn(`Groq API responded with status ${res.status}`);
+            }
+          } catch (err: any) {
+            logger.warn(`Groq call failed, attempting fallback: ${err.message}`);
           }
-        } else {
-          logger.warn(`Anthropic API responded with status ${res.status}`);
+        }
+
+        // 2. Try Anthropic Claude if available
+        if (apiKey) {
+          const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+              model: LLM_MODEL,
+              max_tokens: 1024,
+              output_config: { effort: 'low' },
+              system: systemPrompt,
+              messages: [...recent, { role: 'user', content: query }],
+            }),
+          });
+
+          if (res.ok) {
+            const data = (await res.json()) as {
+              stop_reason?: string;
+              content?: Array<{ type: string; text?: string }>;
+            };
+            // content[0] can be a thinking block; take the text block.
+            const text = data.content?.find((b) => b.type === 'text')?.text?.trim();
+            if (text && data.stop_reason !== 'refusal') {
+              return {
+                mode: 'llm',
+                intent: 'general_ai',
+                answer: text,
+                actions,
+                related_queries: digestContext
+                  ? ['When is the final deadline?', 'What is the application fee?', 'Am I eligible?']
+                  : ['Which exams are closing this week?', 'What exams can I write after graduation?'],
+              };
+            }
+          } else {
+            logger.warn(`Anthropic API responded with status ${res.status}`);
+          }
         }
       } catch (err: any) {
-        logger.warn(`Anthropic call failed, using grounded fallback: ${err.message}`);
+        logger.warn(`LLM synthesis failed, using grounded fallback: ${err.message}`);
       }
     }
 
@@ -990,7 +1058,7 @@ I am here to guide your educational journey and competitive exam strategy.
 
 *Try asking about specific exams, or click the suggested actions below to get started!*`,
       actions: [
-        { label: 'Browse All Opportunities', action: 'navigate', url: '/apply/jobs' },
+        { label: 'Browse All Opportunities', action: 'navigate', url: '/jobs' },
         { label: 'Explore Career Roadmaps', action: 'navigate', url: '/career' },
         { label: 'Saved Workspace', action: 'navigate', url: '/saved' },
       ],

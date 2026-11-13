@@ -32,7 +32,7 @@ export class ScrapersAdminController {
    * GET /api/v1/admin/sources — list all scrape sources with operational health and counters
    */
   @Get('sources')
-  @Roles('reviewer')
+  @Roles('reviewer', 'content_editor')
   listSources(): Promise<ScrapeSourcesListResponse> {
     return this.scrapersService.listSources();
   }
@@ -41,7 +41,7 @@ export class ScrapersAdminController {
    * GET /api/v1/admin/sources/:id/runs — run history and failure logs for one source
    */
   @Get('sources/:id/runs')
-  @Roles('reviewer')
+  @Roles('reviewer', 'content_editor')
   getSourceRuns(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
@@ -53,7 +53,7 @@ export class ScrapersAdminController {
    * POST /api/v1/admin/sources/:id/trigger — manually run a registered scraper now
    */
   @Post('sources/:id/trigger')
-  @Roles('reviewer')
+  @Roles('reviewer', 'content_editor')
   triggerSource(
     @Param('id', ParseUUIDPipe) id: string,
     @ActorId() actorId: string,
@@ -65,7 +65,7 @@ export class ScrapersAdminController {
    * GET /api/v1/admin/link-health — get latest live broken links report
    */
   @Get('link-health')
-  @Roles('reviewer')
+  @Roles('reviewer', 'content_editor')
   getLinkHealth(): LinkHealthReport {
     return this.linkHealthService.getLatestReport();
   }
@@ -74,7 +74,7 @@ export class ScrapersAdminController {
    * POST /api/v1/admin/link-health/check — trigger live URL validation across published items
    */
   @Post('link-health/check')
-  @Roles('reviewer')
+  @Roles('reviewer', 'content_editor')
   checkLinks(
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
   ): Promise<LinkHealthReport> {

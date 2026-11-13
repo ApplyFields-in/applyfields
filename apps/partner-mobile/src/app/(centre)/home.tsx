@@ -100,6 +100,7 @@ export default function Home() {
 
         <SectionTitle>Manage</SectionTitle>
         <Card style={{ overflow: 'hidden' }}>
+          <Shortcut label="Earnings & payouts" icon="wallet-outline" onPress={go('/earnings')} />
           <Shortcut label="Operating schedule & holidays" icon="time-outline" onPress={go('/schedule')} />
           <Shortcut label="Centre details & location" icon="location-outline" onPress={go('/centre-profile')} />
           <Shortcut

@@ -29,7 +29,7 @@ import {
 
 @Controller('admin/institutions')
 @UseGuards(StaffGuard)
-@Roles('reviewer')
+@Roles('reviewer', 'content_editor')
 export class InstitutionsAdminController {
   constructor(private readonly institutionsService: InstitutionsService) {}
 

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { KycDocuments } from '@/components/kyc-documents';
 import { usePartnerAuth } from '@/lib/auth-context';
 import {
   ArrowRight,
@@ -50,7 +51,7 @@ export default function InstitutionUnderReviewPage() {
 
   const collegeName = partner?.business_name || 'Selected University / College';
   const officerName = partner?.owner_name || user?.email?.split('@')[0] || 'Admissions Coordinator';
-  const officerPhone = partner?.phone || user?.phone || '+91 98765 43210';
+  const officerPhone = partner?.phone || user?.phone || 'Not added yet';
   const officerEmail = partner?.email || user?.email || 'admissions@college.ac.in';
 
   return (
@@ -156,6 +157,8 @@ export default function InstitutionUnderReviewPage() {
               </div>
             </div>
           </div>
+
+          {partner && <KycDocuments partner={partner} onUploaded={refreshSession} />}
 
           {/* Actions & Developer Testing Bypass */}
           <div className="mt-10 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">

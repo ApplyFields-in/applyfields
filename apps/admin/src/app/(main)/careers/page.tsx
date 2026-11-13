@@ -15,9 +15,8 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
 import { StatusBadge } from '@/components/opportunities-ui';
-import { apiGet } from '@/lib/api';
+import { apiGet, WEB_URL } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
-import { MOCK_ADMIN_CAREERS } from '@/lib/mock-data';
 
 export const metadata = { title: SECTIONS.careers.title };
 
@@ -37,27 +36,9 @@ export default async function CareersAdminPage({
 
   const data = await apiGet<AdminCareerList>(`/admin/careers${query.size ? `?${query}` : ''}`);
 
-  const displayData = data && data.items.length > 0 ? data : (() => {
-    let list = [...MOCK_ADMIN_CAREERS.items];
-    if (status) {
-      list = list.filter((item) => item.status === status);
-    }
-    if (q) {
-      const qLower = q.toLowerCase();
-      list = list.filter(
-        (item) =>
-          item.title.toLowerCase().includes(qLower) ||
-          item.slug.toLowerCase().includes(qLower) ||
-          item.category_name.toLowerCase().includes(qLower),
-      );
-    }
-    return {
-      total: list.length,
-      counts: MOCK_ADMIN_CAREERS.counts,
-      items: list,
-    };
-  })();
-  const isMock = !data || data.items.length === 0;
+  // Real data only; no invented rows when the list is empty.
+  const displayData = data ?? { total: 0, counts: { all: 0, published: 0, draft: 0, archived: 0 }, items: [] };
+  const apiDown = !data;
 
   const buildUrl = (next: { q?: string; status?: string }) => {
     const params = new URLSearchParams();
@@ -79,13 +60,13 @@ export default async function CareersAdminPage({
         icon={<Compass />}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {isMock && (
+            {apiDown && (
               <Badge tone="outline" className="border-amber-500/40 text-amber-800 bg-amber-500/10">
-                Demo Mode
+                API unreachable
               </Badge>
             )}
             <a
-              href="http://localhost:3000/career/roadmaps"
+              href={`${WEB_URL}/career/roadmaps`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonClass({ variant: 'secondary', size: 'sm' })}
@@ -93,7 +74,7 @@ export default async function CareersAdminPage({
               <Compass className="size-3.5 mr-1" aria-hidden="true" /> Roadmaps
             </a>
             <a
-              href="http://localhost:3000/career/courses"
+              href={`${WEB_URL}/career/courses`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonClass({ variant: 'secondary', size: 'sm' })}
@@ -101,7 +82,7 @@ export default async function CareersAdminPage({
               <BookOpen className="size-3.5 mr-1" aria-hidden="true" /> Courses
             </a>
             <a
-              href="http://localhost:3000/career/colleges"
+              href={`${WEB_URL}/career/colleges`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonClass({ variant: 'secondary', size: 'sm' })}
@@ -109,7 +90,7 @@ export default async function CareersAdminPage({
               <Building className="size-3.5 mr-1" aria-hidden="true" /> Colleges
             </a>
             <a
-              href="http://localhost:3000/career"
+              href={`${WEB_URL}/career`}
               target="_blank"
               rel="noopener noreferrer"
               className={buttonClass({ variant: 'primary', size: 'sm' })}
@@ -230,7 +211,7 @@ export default async function CareersAdminPage({
                         </td>
                         <td className="px-4 py-3.5 text-right">
                           <a
-                            href={`http://localhost:3000/career/${item.slug}`}
+                            href={`${WEB_URL}/career/${item.slug}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className={buttonClass({ variant: 'secondary', size: 'sm' })}
