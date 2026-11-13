@@ -23,7 +23,7 @@ import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/lib/i18n/translat
 import { showAppToast } from '@/components/toast-notification-provider';
 import { useWebPush } from '@/lib/push/use-web-push';
 import { apiGet, apiPut } from '@/lib/api';
-import type { NotificationPreferences } from '@applyfields/types';
+import type { NotificationPreferences, MeResponse } from '@applyfields/types';
 
 type SettingsTab = 'language' | 'notifications' | 'display' | 'preferences';
 type ReadingTheme = 'default' | 'sepia' | 'high-contrast';
@@ -99,8 +99,20 @@ export default function SettingsPage() {
       })
       .catch(() => null);
 
-    const savedState = localStorage.getItem('applyfields_pref_state');
-    if (savedState) setPreferredState(savedState);
+    // Load preferred state from server profile, fallback to localStorage
+    apiGet<MeResponse>('/me')
+      .then((me) => {
+        if (me?.profile?.state_code) {
+          setPreferredState(me.profile.state_code);
+        } else {
+          const savedState = localStorage.getItem('applyfields_pref_state');
+          if (savedState) setPreferredState(savedState);
+        }
+      })
+      .catch(() => {
+        const savedState = localStorage.getItem('applyfields_pref_state');
+        if (savedState) setPreferredState(savedState);
+      });
   }, [push.isSubscribed]);
 
   // Language Change Handler
@@ -138,6 +150,10 @@ export default function SettingsPage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('applyfields_pref_state', preferredState);
       window.dispatchEvent(new CustomEvent('preferences-changed'));
+      // Persist preferred state directly to user profile on server
+      void apiPut('/me/profile', {
+        state_code: preferredState === 'ALL' ? undefined : preferredState,
+      }).catch(() => null);
     }
     const res = await apiPut<NotificationPreferences>('/notifications/preferences', {
       email_enabled: emailEnabled,

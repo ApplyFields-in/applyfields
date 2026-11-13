@@ -21,52 +21,75 @@ import {
   AlertTriangle,
   FileText,
   Sliders,
+  X,
 } from 'lucide-react';
 import { showAppToast } from '@/components/toast-notification-provider';
-
-interface SessionItem {
-  id: string;
-  device: string;
-  location: string;
-  ip: string;
-  lastActive: string;
-  isCurrent: boolean;
-}
+import { apiGet, apiPost, apiDelete } from '@/lib/api';
+import type { UserSessionItem, UserDataExport } from '@applyfields/types';
 
 export function AdvancedAccountSettings() {
   // -------------------------------------------------------------
   // A. Active Sessions & Cyber Cafe Auto-Logout State
   // -------------------------------------------------------------
-  const [sessions, setSessions] = useState<SessionItem[]>([
-    {
-      id: 'sess-current',
-      device: 'Chrome on Windows 11',
-      location: 'Hyderabad, Telangana, India',
-      ip: '157.48.21.90',
-      lastActive: 'Active Now',
-      isCurrent: true,
-    },
-    {
-      id: 'sess-cyber',
-      device: 'Edge on Windows 10 (Public Terminal / Center)',
-      location: 'Vijayawada, Andhra Pradesh, India',
-      ip: '103.24.112.5',
-      lastActive: '2 days ago',
-      isCurrent: false,
-    },
-  ]);
+  const [sessions, setSessions] = useState<UserSessionItem[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
   const [loggingOutSessions, setLoggingOutSessions] = useState(false);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
 
-  const handleLogoutOtherSessions = () => {
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    setLoadingSessions(true);
+    try {
+      const data = await apiGet<UserSessionItem[]>('/me/sessions');
+      if (Array.isArray(data)) {
+        setSessions(data);
+      }
+    } catch {
+      // fallback
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const handleLogoutOtherSessions = async () => {
     setLoggingOutSessions(true);
-    setTimeout(() => {
-      setSessions((prev) => prev.filter((s) => s.isCurrent));
-      setLoggingOutSessions(false);
+    try {
+      await apiPost('/me/sessions/logout-others', {});
+      await loadSessions();
       showAppToast({
         message: 'Successfully logged out of all other terminals and public devices.',
         type: 'success',
       });
-    }, 600);
+    } catch {
+      showAppToast({
+        message: 'Could not log out other sessions. Please try again.',
+        type: 'info',
+      });
+    } finally {
+      setLoggingOutSessions(false);
+    }
+  };
+
+  const handleRevokeSingleSession = async (sessionId: string) => {
+    setRevokingSessionId(sessionId);
+    try {
+      await apiDelete(`/me/sessions/${sessionId}`);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      showAppToast({
+        message: 'Session revoked successfully.',
+        type: 'success',
+      });
+    } catch {
+      showAppToast({
+        message: 'Failed to revoke session.',
+        type: 'info',
+      });
+    } finally {
+      setRevokingSessionId(null);
+    }
   };
 
   // -------------------------------------------------------------
@@ -108,52 +131,71 @@ export function AdvancedAccountSettings() {
   // -------------------------------------------------------------
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const handleExportDataArchive = () => {
-    const archiveData = {
-      platform: 'ApplyFields National Opportunity Portal',
-      exported_at: new Date().toISOString(),
-      compliance: 'Indian Digital Personal Data Protection (DPDP) Act 2023',
-      profile_summary: {
-        note: 'All entered profile qualifications, domicile, preferences, and saved opportunities',
-      },
-      export_version: '1.0',
-    };
+  const handleExportDataArchive = async () => {
+    setIsExporting(true);
+    try {
+      const data = await apiGet<UserDataExport>('/me/export');
+      if (!data) throw new Error('No data received from export endpoint');
 
-    const blob = new Blob([JSON.stringify(archiveData, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `applyfields-data-archive-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `applyfields-data-archive-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
-    showAppToast({
-      message: 'Personal data archive downloaded successfully.',
-      type: 'success',
-    });
+      showAppToast({
+        message: 'Personal data archive downloaded successfully.',
+        type: 'success',
+      });
+    } catch {
+      showAppToast({
+        message: 'Failed to export data archive from server.',
+        type: 'info',
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleConfirmAccountDeletion = () => {
+  const handleConfirmAccountDeletion = async () => {
     if (deleteConfirmationText !== 'DELETE') return;
     setIsDeleting(true);
-    setTimeout(() => {
-      setIsDeleting(false);
+    setDeleteError(null);
+    try {
+      const res = await apiPost<{ success: boolean; message?: string }>('/me/delete', {
+        password: deletePassword.trim() || undefined,
+      });
+
+      if (res.error) {
+        setDeleteError(res.error);
+        setIsDeleting(false);
+        return;
+      }
+
       setShowDeleteModal(false);
       localStorage.clear();
       showAppToast({
-        message: 'Account and personal records scheduled for complete erasure under DPDP guidelines.',
-        type: 'remove',
+        message: 'Account and personal records have been completely erased under DPDP guidelines.',
+        type: 'success',
       });
       if (typeof window !== 'undefined') {
         window.location.href = '/';
       }
-    }, 1000);
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Deletion failed. Check your password.');
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -185,31 +227,57 @@ export function AdvancedAccountSettings() {
         </div>
 
         <div className="space-y-2.5">
-          {sessions.map((sess) => (
-            <div
-              key={sess.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-[#f8fbff] p-3 text-xs"
-            >
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 rounded-md bg-white border border-slate-200 p-1.5 text-[#082046]">
-                  {sess.isCurrent ? <Laptop className="size-4 text-emerald-600" /> : <Smartphone className="size-4 text-[#536780]" />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-[#082046]">{sess.device}</p>
-                    {sess.isCurrent && (
-                      <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
-                        Current Device
-                      </span>
+          {loadingSessions ? (
+            <div className="py-6 text-center text-xs text-[#536780]">
+              Loading active sessions from server...
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="py-6 text-center text-xs text-[#536780]">
+              No other active sessions detected.
+            </div>
+          ) : (
+            sessions.map((sess) => (
+              <div
+                key={sess.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-[#f8fbff] p-3 text-xs"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-md bg-white border border-slate-200 p-1.5 text-[#082046]">
+                    {sess.isCurrent ? (
+                      <Laptop className="size-4 text-emerald-600" />
+                    ) : (
+                      <Smartphone className="size-4 text-[#536780]" />
                     )}
                   </div>
-                  <p className="text-[11px] text-[#536780] mt-0.5">
-                    {sess.location} · IP: {sess.ip} · {sess.lastActive}
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-[#082046]">{sess.device}</p>
+                      {sess.isCurrent && (
+                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                          Current Device
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[#536780] mt-0.5">
+                      {sess.location} · IP: {sess.ip} · {sess.lastActive}
+                    </p>
+                  </div>
                 </div>
+
+                {!sess.isCurrent && (
+                  <button
+                    type="button"
+                    onClick={() => handleRevokeSingleSession(sess.id)}
+                    disabled={revokingSessionId === sess.id}
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors self-end sm:self-auto cursor-pointer"
+                  >
+                    <X className="size-3" />
+                    <span>{revokingSessionId === sess.id ? 'Revoking...' : 'Revoke'}</span>
+                  </button>
+                )}
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -529,10 +597,11 @@ export function AdvancedAccountSettings() {
           <button
             type="button"
             onClick={handleExportDataArchive}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#082046] bg-[#082046] px-4 py-2 text-xs font-bold text-white hover:bg-[#0c2e63] transition-colors shrink-0 shadow-sm cursor-pointer"
+            disabled={isExporting}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#082046] bg-[#082046] px-4 py-2 text-xs font-bold text-white hover:bg-[#0c2e63] transition-colors shrink-0 shadow-sm cursor-pointer disabled:opacity-50"
           >
             <Download className="size-3.5" />
-            <span>Download Archive</span>
+            <span>{isExporting ? 'Exporting Archive...' : 'Download Archive'}</span>
           </button>
         </div>
 
@@ -545,7 +614,10 @@ export function AdvancedAccountSettings() {
           </div>
           <button
             type="button"
-            onClick={() => setShowDeleteModal(true)}
+            onClick={() => {
+              setDeleteError(null);
+              setShowDeleteModal(true);
+            }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100 transition-colors shrink-0 cursor-pointer shadow-xs"
           >
             <Trash2 className="size-3.5" />
@@ -576,8 +648,27 @@ export function AdvancedAccountSettings() {
             </div>
 
             <p className="text-xs text-[#435775] leading-relaxed">
-              All stored education qualifications, saved opportunities, personalized notifications, and verification logs will be immediately and irreversibly purged from our systems.
+              All stored education qualifications, saved opportunities, personalized notifications, and verification logs will be immediately and irreversibly purged from our server systems.
             </p>
+
+            {deleteError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-2.5 text-xs font-medium text-red-700">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase text-[#536780]">
+                Enter Your Password (or One-Time Code):
+              </label>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Account password"
+                className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-xs text-[#082046] focus:border-red-600 focus:outline-none"
+              />
+            </div>
 
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold uppercase text-[#536780]">
@@ -598,6 +689,8 @@ export function AdvancedAccountSettings() {
                 onClick={() => {
                   setShowDeleteModal(false);
                   setDeleteConfirmationText('');
+                  setDeletePassword('');
+                  setDeleteError(null);
                 }}
                 className="rounded-md border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-[#536780] hover:bg-slate-50"
               >
@@ -609,7 +702,7 @@ export function AdvancedAccountSettings() {
                 onClick={handleConfirmAccountDeletion}
                 className="rounded-md border border-red-600 bg-red-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
-                {isDeleting ? 'Deleting...' : 'Confirm Permanent Deletion'}
+                {isDeleting ? 'Erasing Records...' : 'Confirm Permanent Deletion'}
               </button>
             </div>
           </div>
