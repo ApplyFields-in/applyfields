@@ -31,7 +31,7 @@ export default function PartnerLandingPage() {
     <div className="min-h-screen bg-[#F0F4F8] text-[#082046] selection:bg-[#38bdf8] selection:text-[#082046]">
       {/* Top Announcement Bar */}
       <div className="bg-gradient-to-r from-[#082046] via-[#0e7bf4] to-[#082046] px-4 py-2 text-center text-xs font-semibold text-white tracking-wide">
-        ApplyFields Partner Network is now live across Telangana, Andhra Pradesh, Karnataka &amp; Maharashtra!
+        ApplyFields Partner Network is now live in Srikakulam, Vizianagaram &amp; Visakhapatnam. More districts coming soon.
       </div>
 
       {/* Navigation Header */}

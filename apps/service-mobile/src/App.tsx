@@ -1,6 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useRef, useState, type ComponentType, type Ref } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type Ref } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
@@ -12,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SplitIntro } from './split-intro';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 import type { WebViewProps } from 'react-native-webview/lib/WebView';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
@@ -23,8 +23,6 @@ type WebViewHandle = {
 
 const NativeWebView = WebView as unknown as ComponentType<WebViewProps & { ref?: Ref<WebViewHandle> }>;
 
-void SplashScreen.preventAutoHideAsync().catch(() => {});
-
 const SERVICE_URL = process.env.EXPO_PUBLIC_SERVICE_URL || 'https://applyfields-4alm.vercel.app';
 
 const EXTERNAL_SCHEMES = ['tel:', 'mailto:', 'sms:', 'upi:', 'whatsapp:', 'intent:', 'geo:'];
@@ -34,15 +32,6 @@ function ServiceWebShell() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-
-  const hideSplash = useCallback(() => {
-    void SplashScreen.hideAsync().catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(hideSplash, 1500);
-    return () => clearTimeout(timer);
-  }, [hideSplash]);
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
@@ -105,12 +94,10 @@ function ServiceWebShell() {
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => {
             setLoading(false);
-            hideSplash();
           }}
           onError={() => {
             setLoading(false);
             setHasError(true);
-            hideSplash();
           }}
         />
       )}
@@ -128,6 +115,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ServiceWebShell />
+      <SplitIntro />
     </SafeAreaProvider>
   );
 }

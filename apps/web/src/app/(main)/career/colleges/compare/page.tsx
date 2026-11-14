@@ -23,6 +23,9 @@ import { TOP_50_COLLEGES, getTop50CollegeBySlug } from '@/lib/top-50-colleges-da
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { PrintExportButton } from '@/components/print-export-button';
 
+/** Shown when the college hasn't published a value. Never substitute a made-up one. */
+const NOT_PUBLISHED = <span className="text-xs italic text-[#536780]">Not published</span>;
+
 export default function CollegeComparePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -339,7 +342,7 @@ export default function CollegeComparePage() {
                       <td key={col.id} className="p-4 text-[#082046] font-semibold">
                         <div className="flex items-center gap-1.5">
                           <Award className="size-4 text-[#76562d] shrink-0" />
-                          <span>{col.ranking_text || 'Accredited State/Central'}</span>
+                          {col.ranking_text ? <span>{col.ranking_text}</span> : NOT_PUBLISHED}
                         </div>
                       </td>
                     ))}
@@ -356,7 +359,7 @@ export default function CollegeComparePage() {
                     {colleges.map((col) => (
                       <td key={col.id} className="p-4 text-[#082046]">
                         <span className="inline-flex rounded border border-[#dec9a5] bg-[#f8f5ef] px-2 py-0.5 text-[11px] font-semibold text-[#243b5b]">
-                          {col.ownership === 'government' ? 'Government / Central' : col.ownership}
+                          {col.ownership === 'government' ? 'Government' : col.ownership}
                         </span>
                       </td>
                     ))}
@@ -372,7 +375,7 @@ export default function CollegeComparePage() {
                     <td className="p-4 font-bold text-[#082046] bg-[#f8f5ef]">Annual Tuition Fee</td>
                     {colleges.map((col) => (
                       <td key={col.id} className="p-4 text-[#082046]">
-                        <span className="font-bold text-sm block">{col.fees_text || 'Subsidized Fee'}</span>
+                        {col.fees_text ? <span className="font-bold text-sm block">{col.fees_text}</span> : NOT_PUBLISHED}
                       </td>
                     ))}
                     {colleges.length < 4 && (
@@ -389,12 +392,13 @@ export default function CollegeComparePage() {
                       const stats = col.placement_stats || {};
                       return (
                         <td key={col.id} className="p-4 text-[#082046] space-y-1">
-                          <p className="font-bold text-sm text-[#082046]">
-                            Avg: {stats.avg_package || 'INR 18.5 LPA'}
-                          </p>
-                          <p className="text-[11px] text-[#76562d] font-semibold">
-                            Highest: {stats.highest_package || 'INR 50+ LPA'}
-                          </p>
+                          {!stats.avg_package && !stats.highest_package && NOT_PUBLISHED}
+                          {stats.avg_package && (
+                            <p className="font-bold text-sm text-[#082046]">Avg: {stats.avg_package}</p>
+                          )}
+                          {stats.highest_package && (
+                            <p className="text-[11px] text-[#76562d] font-semibold">Highest: {stats.highest_package}</p>
+                          )}
                         </td>
                       );
                     })}
@@ -410,11 +414,10 @@ export default function CollegeComparePage() {
                     <td className="p-4 font-bold text-[#082046] bg-[#f8f5ef]">Top Recruiters</td>
                     {colleges.map((col) => {
                       const stats = col.placement_stats || {};
-                      const recruiters = (stats.top_recruiters && stats.top_recruiters.length > 0)
-                        ? stats.top_recruiters
-                        : ['Google', 'Microsoft', 'Amazon', 'Qualcomm'];
+                      const recruiters: string[] = stats.top_recruiters ?? [];
                       return (
                         <td key={col.id} className="p-4 text-[#082046]">
+                          {recruiters.length === 0 && NOT_PUBLISHED}
                           <div className="flex flex-wrap gap-1">
                             {recruiters.slice(0, 5).map((r: string, i: number) => (
                               <span
@@ -440,11 +443,10 @@ export default function CollegeComparePage() {
                     <td className="p-4 font-bold text-[#082046] bg-[#f8f5ef]">Accepted Entrance Exams</td>
                     {colleges.map((col) => {
                       const acc = col.accreditation || {};
-                      const exams = (acc.accepted_exams && acc.accepted_exams.length > 0)
-                        ? acc.accepted_exams
-                        : ['JEE Main', 'JEE Advanced', 'GATE'];
+                      const exams: string[] = acc.accepted_exams ?? [];
                       return (
                         <td key={col.id} className="p-4 text-[#082046]">
+                          {exams.length === 0 && NOT_PUBLISHED}
                           <div className="flex flex-wrap gap-1">
                             {exams.map((exam: string, i: number) => (
                               <span
@@ -467,7 +469,7 @@ export default function CollegeComparePage() {
 
                   {/* Total Offered Branches */}
                   <tr className="hover:bg-[#f8f5ef]">
-                    <td className="p-4 font-bold text-[#082046] bg-[#f8f5ef]">Engineering Branches</td>
+                    <td className="p-4 font-bold text-[#082046] bg-[#f8f5ef]">Programmes offered</td>
                     {colleges.map((col) => {
                       const acc = col.accreditation || {};
                       const branches = acc.specific_branches || [];

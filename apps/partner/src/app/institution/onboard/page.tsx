@@ -148,31 +148,28 @@ export default function InstitutionOnboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#F0F4F8] text-[#082046] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         {/* Back Link */}
         <Link
           href="/login"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-blue-400 mb-6 transition"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-[#536780] hover:text-[#0c6fdc] mb-6 transition"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Sign In Desk
         </Link>
 
         {/* Header Banner */}
         <div className="flex items-center gap-4 mb-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black shadow-xl shadow-blue-500/20">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#0e7bf4] to-[#0c6fdc] text-white font-black shadow-xl shadow-[#0e7bf4]/20">
             <Building2 className="h-7 w-7 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-white text-xl tracking-tight sm:text-2xl">
+              <span className="font-extrabold text-[#082046] text-xl tracking-tight sm:text-2xl">
                 Institution Onboarding
               </span>
-              <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-300">
-                Founder Doc §21
-              </span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[#536780] mt-1">
               Colleges, Universities &amp; Higher Education Institutions · Direct Admissions Desk
             </p>
           </div>
@@ -183,12 +180,12 @@ export default function InstitutionOnboardPage() {
           <div
             className={`rounded-xl p-3 border text-xs font-bold transition-all ${
               step === 1
-                ? 'border-blue-500 bg-blue-500/10 text-blue-300 shadow-sm'
-                : 'border-slate-800 bg-slate-900/50 text-slate-500'
+                ? 'border-[#0e7bf4] bg-[#e0edfb] text-[#0e7bf4] shadow-sm'
+                : 'border-[#d5deea] bg-[#F7F9FC] text-[#8a9bb3]'
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <span className="h-5 w-5 rounded-full bg-blue-600/30 flex items-center justify-center text-[10px]">
+              <span className="h-5 w-5 rounded-full bg-[#e0edfb] flex items-center justify-center text-[10px]">
                 1
               </span>
               <span>Find College</span>
@@ -197,12 +194,12 @@ export default function InstitutionOnboardPage() {
           <div
             className={`rounded-xl p-3 border text-xs font-bold transition-all ${
               step === 2
-                ? 'border-blue-500 bg-blue-500/10 text-blue-300 shadow-sm'
-                : 'border-slate-800 bg-slate-900/50 text-slate-500'
+                ? 'border-[#0e7bf4] bg-[#e0edfb] text-[#0e7bf4] shadow-sm'
+                : 'border-[#d5deea] bg-[#F7F9FC] text-[#8a9bb3]'
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <span className="h-5 w-5 rounded-full bg-blue-600/30 flex items-center justify-center text-[10px]">
+              <span className="h-5 w-5 rounded-full bg-[#e0edfb] flex items-center justify-center text-[10px]">
                 2
               </span>
               <span>Admissions Officer</span>
@@ -211,12 +208,12 @@ export default function InstitutionOnboardPage() {
           <div
             className={`rounded-xl p-3 border text-xs font-bold transition-all ${
               step === 3
-                ? 'border-blue-500 bg-blue-500/10 text-blue-300 shadow-sm'
-                : 'border-slate-800 bg-slate-900/50 text-slate-500'
+                ? 'border-[#0e7bf4] bg-[#e0edfb] text-[#0e7bf4] shadow-sm'
+                : 'border-[#d5deea] bg-[#F7F9FC] text-[#8a9bb3]'
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <span className="h-5 w-5 rounded-full bg-blue-600/30 flex items-center justify-center text-[10px]">
+              <span className="h-5 w-5 rounded-full bg-[#e0edfb] flex items-center justify-center text-[10px]">
                 3
               </span>
               <span>Verification</span>
@@ -225,20 +222,20 @@ export default function InstitutionOnboardPage() {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs font-medium text-rose-300">
+          <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-700">
             {error}
           </div>
         )}
 
         {/* Wizard Container */}
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+        <div className="rounded-3xl border border-[#d5deea] bg-white p-6 sm:p-8 shadow-[0_1px_2px_rgba(8,32,70,0.04),0_12px_32px_-16px_rgba(8,32,70,0.18)] backdrop-blur-xl">
           {/* STEP 1: Search & Claim College */}
           {step === 1 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-bold text-white">Find &amp; Claim Your Institution</h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Search from our directory of 13,000+ accredited Indian universities and colleges.
+                <h2 className="text-lg font-bold text-[#082046]">Find &amp; Claim Your Institution</h2>
+                <p className="text-xs text-[#536780] mt-1">
+                  Search our directory of 13,000+ Indian colleges and universities.
                 </p>
               </div>
 
@@ -246,19 +243,19 @@ export default function InstitutionOnboardPage() {
                 <>
                   <form onSubmit={handleSearch} className="flex gap-2">
                     <div className="relative flex-1">
-                      <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#536780]" />
                       <input
                         type="search"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search by college name, short code (e.g. IIT, CBIT, Osmania)..."
-                        className="w-full rounded-xl border border-slate-700 bg-slate-800/90 pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+                        className="w-full rounded-xl border border-[#c9d6e6] bg-white pl-10 pr-4 py-2.5 text-xs text-[#082046] placeholder-[#8a9bb3] focus:border-[#0e7bf4] focus:outline-none"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={isSearching}
-                      className="rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-500 transition"
+                      className="rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#0c6fdc] transition"
                     >
                       {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
                     </button>
@@ -275,20 +272,20 @@ export default function InstitutionOnboardPage() {
                             onClick={() => handleSelectCollege(col)}
                             className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition ${
                               isSelected
-                                ? 'border-blue-500 bg-blue-500/10 shadow-sm'
-                                : 'border-slate-800 bg-slate-850 hover:border-slate-700'
+                                ? 'border-[#0e7bf4] bg-[#e0edfb] shadow-sm'
+                                : 'border-[#d5deea] bg-[#F7F9FC] hover:border-[#b8c7da]'
                             }`}
                           >
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-xs text-white">{col.name}</span>
+                                <span className="font-bold text-xs text-[#082046]">{col.name}</span>
                                 {col.ranking_text && (
-                                  <span className="text-[10px] bg-blue-500/20 text-blue-300 font-bold px-1.5 py-0.5 rounded">
+                                  <span className="text-[10px] bg-[#e0edfb] text-[#0e7bf4] font-bold px-1.5 py-0.5 rounded">
                                     {col.ranking_text}
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
+                              <div className="flex items-center gap-3 text-[11px] text-[#536780] mt-1">
                                 <span>{col.type?.toUpperCase()}</span>
                                 <span>•</span>
                                 <span>{col.city || col.district || 'India'}, {col.state_code}</span>
@@ -296,9 +293,9 @@ export default function InstitutionOnboardPage() {
                             </div>
                             <div className="shrink-0">
                               {isSelected ? (
-                                <CheckCircle2 className="h-5 w-5 text-blue-400" />
+                                <CheckCircle2 className="h-5 w-5 text-[#0e7bf4]" />
                               ) : (
-                                <span className="text-xs text-slate-500 font-medium">Select</span>
+                                <span className="text-xs text-[#8a9bb3] font-medium">Select</span>
                               )}
                             </div>
                           </div>
@@ -308,15 +305,15 @@ export default function InstitutionOnboardPage() {
                   )}
 
                   {selectedCollege && (
-                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-center justify-between">
+                    <div className="rounded-xl border border-[#00a884]/30 bg-[#00a884]/10 p-4 flex items-center justify-between">
                       <div>
-                        <div className="text-xs font-bold text-emerald-300">Selected Institution:</div>
-                        <div className="text-sm font-extrabold text-white mt-0.5">{selectedCollege.name}</div>
-                        <div className="text-[11px] text-slate-400">
+                        <div className="text-xs font-bold text-[#00876a]">Selected Institution:</div>
+                        <div className="text-sm font-extrabold text-[#082046] mt-0.5">{selectedCollege.name}</div>
+                        <div className="text-[11px] text-[#536780]">
                           {selectedCollege.city || selectedCollege.district}, {selectedCollege.state_code}
                         </div>
                       </div>
-                      <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                      <CheckCircle2 className="h-6 w-6 text-[#00876a]" />
                     </div>
                   )}
 
@@ -324,7 +321,7 @@ export default function InstitutionOnboardPage() {
                     <button
                       type="button"
                       onClick={handleCustomToggle}
-                      className="text-xs font-semibold text-blue-400 hover:text-blue-300 underline"
+                      className="text-xs font-semibold text-[#0e7bf4] hover:text-[#0c6fdc] underline"
                     >
                       Cannot find your college? Click here to register a new institution
                     </button>
@@ -333,7 +330,7 @@ export default function InstitutionOnboardPage() {
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300">
+                    <label className="block text-xs font-semibold text-[#243b5b]">
                       Official College / University Name
                     </label>
                     <input
@@ -341,31 +338,31 @@ export default function InstitutionOnboardPage() {
                       value={customCollegeName}
                       onChange={(e) => setCustomCollegeName(e.target.value)}
                       placeholder="e.g. National Institute of Technology Warangal"
-                      className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+                      className="mt-1 w-full rounded-xl border border-[#c9d6e6] bg-white px-4 py-2.5 text-xs text-[#082046] placeholder-[#8a9bb3] focus:border-[#0e7bf4] focus:outline-none"
                       required
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300">City / District</label>
+                      <label className="block text-xs font-semibold text-[#243b5b]">City / District</label>
                       <input
                         type="text"
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
                         placeholder="e.g. Warangal"
-                        className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+                        className="mt-1 w-full rounded-xl border border-[#c9d6e6] bg-white px-4 py-2.5 text-xs text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300">State (2-Letter Code)</label>
+                      <label className="block text-xs font-semibold text-[#243b5b]">State (2-Letter Code)</label>
                       <input
                         type="text"
                         value={stateCode}
                         onChange={(e) => setStateCode(e.target.value.toUpperCase())}
                         maxLength={2}
                         placeholder="TS / AP / KA / MH"
-                        className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white font-mono focus:border-blue-500 focus:outline-none"
+                        className="mt-1 w-full rounded-xl border border-[#c9d6e6] bg-white px-4 py-2.5 text-xs text-[#082046] font-mono focus:border-[#0e7bf4] focus:outline-none"
                       />
                     </div>
                   </div>
@@ -374,7 +371,7 @@ export default function InstitutionOnboardPage() {
                     <button
                       type="button"
                       onClick={() => setIsCustomCollege(false)}
-                      className="text-xs text-slate-400 hover:text-white"
+                      className="text-xs text-[#536780] hover:text-[#082046]"
                     >
                       ← Back to search from existing directory
                     </button>
@@ -387,7 +384,7 @@ export default function InstitutionOnboardPage() {
                   type="button"
                   disabled={!selectedCollege && !customCollegeName.trim()}
                   onClick={() => setStep(2)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-blue-500 transition disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#0e7bf4] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#0c6fdc] transition disabled:opacity-40"
                 >
                   Continue to Admissions Officer Info
                   <ArrowRight className="h-4 w-4" />
@@ -400,32 +397,32 @@ export default function InstitutionOnboardPage() {
           {step === 2 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-lg font-bold text-white">Admissions Officer &amp; Desk Details</h2>
-                <p className="text-xs text-slate-400 mt-1">
+                <h2 className="text-lg font-bold text-[#082046]">Admissions Officer &amp; Desk Details</h2>
+                <p className="text-xs text-[#536780] mt-1">
                   Designate the official officer who will review student inquiries and manage cutoffs.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300">Officer Full Name</label>
+                  <label className="block text-xs font-semibold text-[#243b5b]">Officer Full Name</label>
                   <input
                     type="text"
                     value={repName}
                     onChange={(e) => setRepName(e.target.value)}
                     placeholder="e.g. Dr. K. Venkatesh Rao"
-                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-[#c9d6e6] bg-white px-4 py-2.5 text-xs text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300">Official Designation</label>
+                  <label className="block text-xs font-semibold text-[#243b5b]">Official Designation</label>
                   <input
                     type="text"
                     value={designation}
                     onChange={(e) => setDesignation(e.target.value)}
                     placeholder="e.g. Dean of Admissions / Registrar"
-                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-[#c9d6e6] bg-white px-4 py-2.5 text-xs text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
                     required
                   />
                 </div>
@@ -433,7 +430,7 @@ export default function InstitutionOnboardPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300">
+                  <label className="block text-xs font-semibold text-[#243b5b]">
                     Official Institutional Email
                   </label>
                   <input
@@ -441,15 +438,15 @@ export default function InstitutionOnboardPage() {
                     value={officialEmail}
                     onChange={(e) => setOfficialEmail(e.target.value)}
                     placeholder="admissions@college.ac.in"
-                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-[#c9d6e6] bg-white px-4 py-2.5 text-xs text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
                     required
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">
+                  <p className="text-[10px] text-[#8a9bb3] mt-1">
                     Institutional domain (.edu / .ac.in) gives instant priority verification.
                   </p>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300">
+                  <label className="block text-xs font-semibold text-[#243b5b]">
                     Admissions Helpline Mobile Number
                   </label>
                   <input
@@ -457,14 +454,14 @@ export default function InstitutionOnboardPage() {
                     value={mobilePhone}
                     onChange={(e) => setMobilePhone(e.target.value)}
                     placeholder="10-digit mobile number"
-                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-[#c9d6e6] bg-white px-4 py-2.5 text-xs text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300">
+                <label className="block text-xs font-semibold text-[#243b5b]">
                   Campus Admissions Office Address
                 </label>
                 <input
@@ -472,7 +469,7 @@ export default function InstitutionOnboardPage() {
                   value={campusAddress}
                   onChange={(e) => setCampusAddress(e.target.value)}
                   placeholder="e.g. Administrative Block, Room 104, Main Campus"
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-[#c9d6e6] bg-white px-4 py-2.5 text-xs text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
                 />
               </div>
 
@@ -480,7 +477,7 @@ export default function InstitutionOnboardPage() {
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="rounded-xl border border-slate-800 bg-slate-850 px-5 py-2.5 text-xs font-semibold text-slate-400 hover:text-white"
+                  className="rounded-xl border border-[#d5deea] bg-[#F7F9FC] px-5 py-2.5 text-xs font-semibold text-[#536780] hover:text-[#082046]"
                 >
                   ← Back
                 </button>
@@ -488,7 +485,7 @@ export default function InstitutionOnboardPage() {
                   type="button"
                   disabled={!repName.trim() || !officialEmail.trim() || !mobilePhone.trim()}
                   onClick={() => setStep(3)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-blue-500 transition disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#0e7bf4] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#0c6fdc] transition disabled:opacity-40"
                 >
                   Continue to Verification
                   <ArrowRight className="h-4 w-4" />
@@ -501,18 +498,18 @@ export default function InstitutionOnboardPage() {
           {step === 3 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-lg font-bold text-white">Institutional Authorization &amp; Documents</h2>
-                <p className="text-xs text-slate-400 mt-1">
+                <h2 className="text-lg font-bold text-[#082046]">Institutional Authorization &amp; Documents</h2>
+                <p className="text-xs text-[#536780] mt-1">
                   Upload official documentation proving your representation authority for the college.
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300">Accreditation Body</label>
+                <label className="block text-xs font-semibold text-[#243b5b]">Accreditation Body</label>
                 <select
                   value={accreditationType}
                   onChange={(e) => setAccreditationType(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-[#c9d6e6] bg-white px-4 py-2.5 text-xs text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
                 >
                   <option value="naac">NAAC Accredited (A++ / A+ / A)</option>
                   <option value="aicte">AICTE Approved Engineering / Tech Institute</option>
@@ -523,16 +520,16 @@ export default function InstitutionOnboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300">
+                <label className="block text-xs font-semibold text-[#243b5b]">
                   Official Authorization Letter / Principal ID
                 </label>
-                <div className="mt-1 flex justify-center rounded-2xl border-2 border-dashed border-slate-700 bg-slate-800/40 px-6 py-8">
+                <div className="mt-1 flex justify-center rounded-2xl border-2 border-dashed border-[#c9d6e6] bg-[#F7F9FC] px-6 py-8">
                   <div className="text-center">
-                    <UploadCloud className="mx-auto h-10 w-10 text-blue-400" />
-                    <div className="mt-2 text-xs text-slate-300">
+                    <UploadCloud className="mx-auto h-10 w-10 text-[#0e7bf4]" />
+                    <div className="mt-2 text-xs text-[#243b5b]">
                       <label
                         htmlFor="file-upload"
-                        className="cursor-pointer font-bold text-blue-400 hover:text-blue-300 underline"
+                        className="cursor-pointer font-bold text-[#0e7bf4] hover:text-[#0c6fdc] underline"
                       >
                         Upload authorization document (PDF / JPG)
                       </label>
@@ -546,11 +543,11 @@ export default function InstitutionOnboardPage() {
                         }}
                       />
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-1">
+                    <p className="text-[11px] text-[#8a9bb3] mt-1">
                       Letterhead authorization signed by Principal, Registrar or Secretary. Max 10MB.
                     </p>
                     {authDocName && (
-                      <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300">
+                      <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#00a884]/15 px-3 py-1 text-xs font-bold text-[#00876a]">
                         <FileCheck2 className="h-4 w-4" /> {authDocName}
                       </div>
                     )}
@@ -558,10 +555,10 @@ export default function InstitutionOnboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-800 bg-slate-800/40 p-4 text-xs text-slate-400 flex items-start gap-3">
-                <ShieldCheck className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+              <div className="rounded-xl border border-[#d5deea] bg-[#F7F9FC] p-4 text-xs text-[#536780] flex items-start gap-3">
+                <ShieldCheck className="h-5 w-5 text-[#0e7bf4] shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold text-white">Trust &amp; Anti-Spam Guarantee: </span>
+                  <span className="font-bold text-[#082046]">Trust &amp; Anti-Spam Guarantee: </span>
                   ApplyFields never sells student inquiries to brokers. Inquiries submitted on our platform are confidential and delivered strictly to verified institutional representatives.
                 </div>
               </div>
@@ -570,7 +567,7 @@ export default function InstitutionOnboardPage() {
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="rounded-xl border border-slate-800 bg-slate-850 px-5 py-2.5 text-xs font-semibold text-slate-400 hover:text-white"
+                  className="rounded-xl border border-[#d5deea] bg-[#F7F9FC] px-5 py-2.5 text-xs font-semibold text-[#536780] hover:text-[#082046]"
                 >
                   ← Back
                 </button>
@@ -578,7 +575,7 @@ export default function InstitutionOnboardPage() {
                   type="button"
                   disabled={submitting}
                   onClick={handleSubmit}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3 text-sm font-bold text-white hover:bg-blue-500 shadow-xl shadow-blue-500/25 transition disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#0e7bf4] px-7 py-3 text-sm font-bold text-white hover:bg-[#0c6fdc] shadow-xl shadow-[#0e7bf4]/20 transition disabled:opacity-40"
                 >
                   {submitting ? (
                     <>

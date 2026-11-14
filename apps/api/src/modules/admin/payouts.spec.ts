@@ -11,7 +11,7 @@ function setup({ overlap = false, grossPaise = 120_000 as number | null, count =
     service_requests: { aggregate },
     audit_logs: { create: vi.fn(async () => ({})) },
   };
-  const ctrl = new AdminController({} as any, {} as any, prisma);
+  const ctrl = new AdminController({} as any, {} as any, prisma, {} as any);
   return { ctrl, create, aggregate };
 }
 

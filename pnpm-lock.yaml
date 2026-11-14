@@ -598,9 +598,6 @@ importers:
       '@simplewebauthn/browser':
         specifier: 14.0.0
         version: 14.0.0
-      lottie-web:
-        specifier: ~5.13.0
-        version: 5.13.0
       lucide-react:
         specifier: ^1.51.0
         version: 1.51.0(@types/react@19.3.0)(react@19.2.8)
@@ -654,6 +651,9 @@ importers:
       lucide-react:
         specifier: ^1.51.0
         version: 1.51.0(@types/react@19.3.0)(react@19.2.8)
+      lottie-web:
+        specifier: ~5.13.0
+        version: 5.13.0
     devDependencies:
       '@types/react':
         specifier: ^19.3.0

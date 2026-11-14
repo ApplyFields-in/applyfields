@@ -32,6 +32,9 @@ import {
 } from './notifications.schemas.js';
 import { NotificationsService } from './notifications.service.js';
 
+// The global API CSP is default-src 'none', which strips these pages' inline styles. Loosen it for them only.
+const PAGE_CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'";
+
 const page = (title: string, body: string) =>
   `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
 <body style="margin:0;background:#f4f1e6;font-family:Arial,sans-serif;color:#0f4c5c"><div style="max-width:480px;margin:48px auto;padding:24px;background:#fdfbf3;border-radius:16px">
@@ -161,6 +164,7 @@ export class NotificationsController {
   unsubscribePage(@Res() res: Response): void {
     res
       .type('html')
+      .set('Content-Security-Policy', PAGE_CSP)
       .send(
         page(
           'Unsubscribe',
@@ -178,6 +182,7 @@ export class NotificationsController {
     res
       .status(ok ? 200 : 400)
       .type('html')
+      .set('Content-Security-Policy', PAGE_CSP)
       .send(
         ok
           ? page('Unsubscribed', `<h1 style="font-size:20px">You're unsubscribed</h1><p>We won't email you any more. You can turn emails back on from Notifications on the website.</p>`)

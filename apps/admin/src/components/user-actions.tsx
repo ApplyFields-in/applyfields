@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { buttonClass, Badge, cn } from '@applyfields/ui';
-import { ShieldCheck, ShieldOff, Lock, Unlock } from 'lucide-react';
+import { ShieldCheck, ShieldOff, Lock, Unlock, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   blockUserAction,
   unblockUserAction,
   grantRoleAction,
   revokeRoleAction,
+  deleteUserAction,
 } from '@/lib/actions';
 import type { StaffRole } from '@applyfields/types';
 
@@ -140,6 +141,36 @@ export function UserRoleActions({
         </div>
       )}
 
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+export function DeleteUserButton({ userId }: { userId: string }) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const erase = () => {
+    const typed = prompt('This permanently deletes the account, its documents and all personal data. It cannot be undone. Type DELETE to confirm:');
+    if (typed !== 'DELETE') return;
+    setError(null);
+    startTransition(async () => {
+      const res = await deleteUserAction(userId);
+      if (res.ok) router.push('/users');
+      else setError(res.error ?? 'Failed to delete account');
+    });
+  };
+
+  return (
+    <div>
+      <button
+        onClick={erase}
+        disabled={isPending}
+        className={buttonClass({ variant: 'secondary', size: 'sm', className: 'border-red-300 text-red-700 hover:bg-red-50' })}
+      >
+        <Trash2 className="mr-1.5 size-3.5" /> {isPending ? 'Deleting…' : 'Delete account permanently'}
+      </button>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
   );

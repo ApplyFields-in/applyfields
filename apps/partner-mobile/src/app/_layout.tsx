@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Button, Empty, Loading } from '@/components/ui';
+import { SplitIntro } from '@/components/split-intro';
 import { SessionProvider, useSession } from '@/lib/session';
 import { C, S } from '@/theme';
 
@@ -84,6 +85,7 @@ export default function RootLayout() {
           <ThemeProvider value={THEME}>
             <StatusBar style="dark" />
             <Navigator />
+            <SplitIntro />
           </ThemeProvider>
         </SessionProvider>
       </SafeAreaProvider>

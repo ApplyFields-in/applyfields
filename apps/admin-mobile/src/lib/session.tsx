@@ -9,7 +9,7 @@
 import type { AdminMeResponse, AuthResponse } from '@applyfields/types';
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { api, saveSession, setToken } from './api';
+import { api, hasStoredSession, saveSession, setToken } from './api';
 import { registerForPush, unregisterPush } from './push';
 import { loginId } from './staff';
 
@@ -40,6 +40,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [fresh, setFresh] = useState(false);
 
   const reload = useCallback(async () => {
+    // Nothing saved → straight to sign-in; don't wait on the API (Render can take 30 s+ to wake).
+    if (!(await hasStoredSession())) {
+      setStatus('signed_out');
+      return;
+    }
     const res = await api.get<AdminMeResponse>('/admin/me');
     if (res.data) {
       setStaff(res.data);

@@ -10,7 +10,7 @@
 import type { AuthResponse, MeResponse, PartnerDetail } from '@applyfields/types';
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { api, saveSession, setToken } from './api';
+import { api, hasStoredSession, saveSession, setToken } from './api';
 import { registerForPush, unregisterPush } from './push';
 
 /** LoginDto takes one `identifier` (email or phone), same as the website. Emails are lower-cased. */
@@ -71,6 +71,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
+    // Nothing saved → straight to sign-in; don't wait on the API (Render can take 30 s+ to wake).
+    if (!(await hasStoredSession())) {
+      setMe(null);
+      setPartnerState(null);
+      setStatus('signed_out');
+      return;
+    }
     const meRes = await api.get<MeResponse>('/me');
     if (!meRes.data) {
       setMe(null);

@@ -4,7 +4,7 @@ import { ArrowLeft, CheckCircle2, Mail, Phone, Shield, User, XCircle } from 'luc
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { apiGet } from '@/lib/api';
-import { UserStatusActions, UserRoleActions } from '@/components/user-actions';
+import { DeleteUserButton, UserStatusActions, UserRoleActions } from '@/components/user-actions';
 
 function when(iso: string): string {
   try {
@@ -176,9 +176,32 @@ export default async function UserDetailPage({
 
             {/* Registered date */}
             <p className="text-xs text-teal/60 pt-1">
-              Registered {when(user.created_at)}
+              Registered {when(user.created_at)} · Last login{' '}
+              {user.last_login_at ? when(user.last_login_at) : 'never'}
             </p>
           </div>
+
+          {user.activity && (
+            <div className="border-t border-line pt-4">
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-teal/80">Activity</h3>
+              <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {(
+                  [
+                    ['Saved', user.activity.saved],
+                    ['Applications', user.activity.applications],
+                    ['Documents', user.activity.documents],
+                    ['Bookings', user.activity.bookings],
+                  ] as const
+                ).map(([label, n]) => (
+                  <div key={label} className="rounded-xl border border-line bg-cream p-3 text-center">
+                    <dd className="text-xl font-bold text-teal">{n}</dd>
+                    <dt className="text-[11px] text-teal/60">{label}</dt>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-2 text-[11px] text-teal/50">Counts only. Document contents are never visible to staff.</p>
+            </div>
+          )}
         </Card>
 
         {/* Right: actions */}
@@ -209,6 +232,20 @@ export default async function UserDetailPage({
                 userId={user.id}
                 currentRoles={user.roles ?? []}
               />
+            </Card>
+          )}
+
+          {/* Permanent delete - super_admin only, citizen accounts only */}
+          {isSuperAdmin && !isTargetStaff && (
+            <Card className="p-5 space-y-3 border-red-200">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-red-800">
+                Delete account
+              </h3>
+              <p className="text-xs text-teal/60">
+                Use only when the citizen asks for erasure and can&apos;t do it themselves. Removes the account,
+                profile, documents and saved data permanently. Recorded in the audit log.
+              </p>
+              <DeleteUserButton userId={user.id} />
             </Card>
           )}
         </div>

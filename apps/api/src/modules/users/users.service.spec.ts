@@ -9,7 +9,7 @@ import type { StorageService } from '../../common/storage.service.js';
 describe('UsersService', () => {
   let service: UsersService;
   let mockStore: Record<string, ReturnType<typeof vi.fn>>;
-  let mockStorageService: Record<string, ReturnType<typeof vi.fn>>;
+  let mockStorageService: Record<string, any>;
 
   beforeEach(() => {
     mockStore = {
@@ -41,6 +41,9 @@ describe('UsersService', () => {
     mockStorageService = {
       getPublicUrl: vi.fn(),
       upload: vi.fn(),
+      remove: vi.fn(),
+      resumesBucket: 'resumes',
+      documentsBucket: 'documents',
     };
 
     service = new UsersService(
@@ -116,11 +119,13 @@ describe('UsersService', () => {
     it('verifies password and erases account', async () => {
       const hashed = await argon2.hash('SecretPass123!');
       mockStore.findUserById.mockResolvedValue({ id: 'u-1', password_hash: hashed, email: 'user@example.com' });
-      mockStore.deleteUserAccount.mockResolvedValue(true);
+      mockStore.deleteUserAccount.mockResolvedValue(['resumes/u-1/a.pdf', 'documents/u-1/marks/b.pdf']);
 
       const res = await service.deleteUserAccount('u-1', { password: 'SecretPass123!' });
       expect(res.success).toBe(true);
-      expect(mockStore.deleteUserAccount).toHaveBeenCalledWith('u-1');
+      expect(mockStore.deleteUserAccount).toHaveBeenCalledWith('u-1', null);
+      expect(mockStorageService.remove).toHaveBeenCalledWith('resumes', ['resumes/u-1/a.pdf']);
+      expect(mockStorageService.remove).toHaveBeenCalledWith('documents', ['documents/u-1/marks/b.pdf']);
     });
 
     it('rejects deletion on incorrect password', async () => {
@@ -136,12 +141,12 @@ describe('UsersService', () => {
       const codeHash = createHash('sha256').update('123456').digest('hex');
       mockStore.findUserById.mockResolvedValue({ id: 'u-1', password_hash: 'hash', email: 'otp@example.com' });
       mockStore.findLatestValidOtp.mockResolvedValue({ id: 'otp-1', code_hash: codeHash });
-      mockStore.deleteUserAccount.mockResolvedValue(true);
+      mockStore.deleteUserAccount.mockResolvedValue([]);
 
       const res = await service.deleteUserAccount('u-1', { code: '123456' });
       expect(res.success).toBe(true);
       expect(mockStore.markOtpUsed).toHaveBeenCalledWith('otp-1');
-      expect(mockStore.deleteUserAccount).toHaveBeenCalledWith('u-1');
+      expect(mockStore.deleteUserAccount).toHaveBeenCalledWith('u-1', null);
     });
   });
 

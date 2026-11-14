@@ -3,8 +3,8 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { AdminMeResponse } from '@applyfields/types';
-import { Card, GoogleButton, Logo, cn } from '@applyfields/ui';
-import { ArrowRight, ChevronLeft, Eye, EyeOff, KeyRound, Loader2, Lock, Mail, ShieldAlert, Smartphone } from 'lucide-react';
+import { GoogleButton, Logo, cn } from '@applyfields/ui';
+import { ChevronLeft, Eye, EyeOff, Loader2, Mail, ShieldAlert, ShieldCheck, Smartphone } from 'lucide-react';
 import { API_URL } from '@/lib/api';
 import { DEPARTMENTS, canOpenPath, departmentsForRoles } from '@/lib/nav';
 
@@ -25,6 +25,43 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     throw new Error(msg || 'Something went wrong. Please try again.');
   }
   return data as T;
+}
+
+const input =
+  'h-11 w-full rounded-xl border border-[#c9d6e6] bg-white px-3.5 text-sm text-[#082046] placeholder:text-[#8a9bb3] transition focus:border-[#0e7bf4] focus:outline-none focus:ring-4 focus:ring-[#0e7bf4]/15';
+const primary =
+  'flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0e7bf4] px-4 text-sm font-bold text-white transition hover:bg-[#0c6fdc] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0e7bf4]/30 disabled:opacity-50';
+
+/** The navy side: a stack of official notices, the top one stamped. What staff do here, drawn. */
+function CheckedNotices() {
+  const sheet = 'absolute inset-0 rounded-2xl bg-white shadow-[0_24px_48px_-24px_rgba(0,0,0,0.5)]';
+  return (
+    <div className="relative mx-auto aspect-[3/4] w-[min(34vh,260px)]" aria-hidden="true">
+      <div className={`${sheet} translate-x-5 translate-y-3 rotate-[6deg] opacity-40`} />
+      <div className={`${sheet} translate-x-2 translate-y-1.5 rotate-[3deg] opacity-70`} />
+      <div className={`${sheet} flex flex-col gap-3 p-6`}>
+        <div className="h-2.5 w-1/3 rounded-full bg-[#e0edfb]" />
+        <div className="h-3.5 w-4/5 rounded-full bg-[#082046]" />
+        <div className="h-3.5 w-3/5 rounded-full bg-[#082046]" />
+        <div className="mt-2 space-y-2">
+          {[100, 92, 96, 70, 88, 60].map((w, i) => (
+            <div key={i} className="h-2 rounded-full bg-[#dfe7f1]" style={{ width: `${w}%` }} />
+          ))}
+        </div>
+        <div className="mt-auto flex gap-2">
+          <div className="h-6 w-16 rounded-md bg-[#e0edfb]" />
+          <div className="h-6 w-12 rounded-md bg-[#e0edfb]" />
+        </div>
+        {/* The stamp */}
+        <div className="stamp-in absolute -right-6 bottom-10 grid size-28 -rotate-12 place-items-center rounded-full border-[5px] border-[#0e7bf4] bg-white/85 text-[#0e7bf4] shadow-[0_0_0_4px_rgba(14,123,244,0.15)]">
+          <div className="flex flex-col items-center leading-none">
+            <ShieldCheck className="mb-1 size-7" strokeWidth={2.4} />
+            <span className="text-[15px] font-black tracking-tight">Verified</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function StaffLoginForm() {
@@ -103,194 +140,210 @@ function StaffLoginForm() {
     });
 
   const isPhone = method === 'phone';
-  const inputClass =
-    'h-11 w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3.5 text-sm text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400';
+  const step = sentTo ? 2 : 1;
 
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-[#041226] via-[#082046] to-[#0a2855] p-4 text-white sm:p-8">
-      <div className="relative z-10 w-full max-w-md space-y-6">
-        <div className="flex flex-col items-center text-center">
-          <Logo subtitle="Staff Operations Portal" inverse size="lg" />
-          <p className="mt-2 text-xs font-medium text-slate-300">
-            Your role decides which dashboard opens after sign-in.
-          </p>
-        </div>
+    <div className="flex min-h-dvh flex-col bg-[#F0F4F8] lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+      <main className="flex flex-1 flex-col px-4 py-6 sm:px-10 lg:px-14 lg:py-8">
+        <Logo subtitle="Staff portal" />
 
-        <Card className="rounded-3xl border border-slate-700/60 bg-[#0b254e]/90 p-6 shadow-2xl backdrop-blur-md sm:p-8">
-          <div role="tablist" aria-label="Sign-in method" className="mb-5 grid grid-cols-3 gap-1 rounded-xl border border-slate-700 bg-slate-900/90 p-1 text-xs">
-            {(
-              [
-                ['email', 'Email', <Mail key="e" className="size-3.5" />],
-                ['phone', 'Phone', <Smartphone key="p" className="size-3.5" />],
-                ['google', 'Google', <span key="g" className="font-black">G</span>],
-              ] as const
-            ).map(([id, label, icon]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={method === id}
-                onClick={() => switchMethod(id)}
-                className={cn(
-                  'inline-flex items-center justify-center gap-1.5 rounded-lg py-2 font-bold transition-all',
-                  method === id ? 'bg-amber-400 text-slate-950' : 'text-slate-400 hover:text-white',
-                )}
-              >
-                {icon}
-                {label}
-              </button>
-            ))}
-          </div>
+        <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-10">
+          <h1 className="text-4xl font-extrabold leading-[1.05] tracking-[-0.02em] text-[#082046] sm:text-5xl">Staff sign-in</h1>
+          <p className="mt-3 text-[15px] leading-relaxed text-[#435775]">Your role decides which desk opens after you sign in.</p>
 
-          {error && (
-            <div role="alert" className="mb-5 flex items-start gap-2 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-3.5 text-xs font-semibold text-rose-300">
-              <ShieldAlert className="mt-px size-4 shrink-0 text-rose-400" />
-              <span>{error}</span>
+          <div className="mt-8 rounded-3xl border border-[#d5deea] bg-white p-6 shadow-[0_1px_2px_rgba(8,32,70,0.04),0_12px_32px_-16px_rgba(8,32,70,0.18)] sm:p-8">
+            <div role="tablist" aria-label="Sign-in method" className="flex gap-6 border-b border-[#e3eaf3]">
+              {(
+                [
+                  ['email', 'Email', Mail],
+                  ['phone', 'Phone', Smartphone],
+                  ['google', 'Google', null],
+                ] as const
+              ).map(([id, text, Icon]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={method === id}
+                  onClick={() => switchMethod(id)}
+                  className={cn(
+                    '-mb-px inline-flex items-center gap-1.5 border-b-2 pb-2.5 text-sm font-bold transition focus-visible:outline-none focus-visible:text-[#0e7bf4]',
+                    method === id ? 'border-[#0e7bf4] text-[#082046]' : 'border-transparent text-[#8a9bb3] hover:text-[#435775]',
+                  )}
+                >
+                  {Icon ? <Icon className="size-4" /> : <span className="text-[13px] font-black">G</span>}
+                  {text}
+                </button>
+              ))}
             </div>
-          )}
 
-          {method === 'google' ? (
-            <div className="space-y-4 text-center">
-              <p className="text-xs text-slate-300">Use the Google account your staff role was granted to.</p>
-              {GOOGLE_CLIENT_ID ? (
-                <GoogleButton clientId={GOOGLE_CLIENT_ID} theme="filled_blue" text="signin_with" onCredential={(c) => void signInWithGoogle(c)} />
-              ) : (
-                <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200">
-                  Google sign-in isn&apos;t set up. Set <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> here and{' '}
-                  <code>GOOGLE_CLIENT_ID</code> on the API.
-                </p>
-              )}
-              {loading && <Loader2 className="mx-auto size-5 animate-spin text-amber-400" />}
-            </div>
-          ) : !sentTo ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void sendCode();
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <label htmlFor="identifier" className="mb-1.5 block text-xs font-semibold text-slate-200">
-                  {isPhone ? 'Phone number' : 'Email'}
-                </label>
-                <input
-                  id="identifier"
-                  type={isPhone ? 'tel' : 'email'}
-                  inputMode={isPhone ? 'tel' : 'email'}
-                  autoComplete={isPhone ? 'tel' : 'username'}
-                  required
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={isPhone ? '+91 90000 00000' : 'you@applyfields.com'}
-                  className={inputClass}
-                />
+            {method !== 'google' && (
+              <ol className="mt-5 flex items-center gap-3 text-[13px] font-semibold" aria-label="Sign-in steps">
+                {(['Password', 'Code'] as const).map((s, i) => (
+                  <li key={s} className="flex items-center gap-2" aria-current={step === i + 1 ? 'step' : undefined}>
+                    {i > 0 && <span className="h-px w-6 bg-[#d5deea]" aria-hidden="true" />}
+                    <span
+                      className={cn(
+                        'grid size-6 place-items-center rounded-full text-xs',
+                        step > i + 1 ? 'bg-[#00a884] text-white' : step === i + 1 ? 'bg-[#082046] text-white' : 'bg-[#eef3f9] text-[#8a9bb3]',
+                      )}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className={step >= i + 1 ? 'text-[#082046]' : 'text-[#8a9bb3]'}>{s}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+
+            {error && (
+              <div role="alert" className="mt-5 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] font-medium text-rose-700">
+                <ShieldAlert className="mt-px size-4 shrink-0" />
+                <span>{error}</span>
               </div>
-              <div>
-                <label htmlFor="password" className="mb-1.5 block text-xs font-semibold text-slate-200">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={cn(inputClass, 'pl-10 pr-11')}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center text-slate-400 hover:text-white"
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            )}
+
+            <div className="mt-5">
+              {method === 'google' ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-[#435775]">Use the Google account your staff role was granted to.</p>
+                  {GOOGLE_CLIENT_ID ? (
+                    <GoogleButton clientId={GOOGLE_CLIENT_ID} theme="outline" text="signin_with" onCredential={(c) => void signInWithGoogle(c)} />
+                  ) : (
+                    <p className="rounded-xl border border-[#d5deea] bg-[#F7F9FC] p-3 text-[13px] text-[#435775]">
+                      Google sign-in isn&apos;t set up. Set <code className="font-semibold">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> here and{' '}
+                      <code className="font-semibold">GOOGLE_CLIENT_ID</code> on the API.
+                    </p>
+                  )}
+                  {loading && <Loader2 className="mx-auto size-5 animate-spin text-[#0e7bf4]" />}
+                </div>
+              ) : !sentTo ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void sendCode();
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label htmlFor="identifier" className="mb-1.5 block text-[13px] font-semibold text-[#243b5b]">
+                      {isPhone ? 'Phone number' : 'Work email'}
+                    </label>
+                    <input
+                      id="identifier"
+                      type={isPhone ? 'tel' : 'email'}
+                      inputMode={isPhone ? 'tel' : 'email'}
+                      autoComplete={isPhone ? 'tel' : 'username'}
+                      required
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder={isPhone ? '+91 90000 00000' : 'you@applyfields.com'}
+                      className={input}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="password" className="mb-1.5 block text-[13px] font-semibold text-[#243b5b]">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={cn(input, 'pr-11')}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-[#8a9bb3] hover:text-[#082046] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/40"
+                      >
+                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <button type="submit" disabled={loading} className={primary}>
+                    {loading && <Loader2 className="size-4 animate-spin" />}
+                    {isPhone ? 'Send code by SMS' : 'Email me a code'}
                   </button>
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 text-sm font-bold text-slate-950 hover:bg-amber-300 disabled:opacity-60"
-              >
-                {loading ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}
-                {isPhone ? 'Continue: send SMS code' : 'Continue: email me a code'}
-              </button>
-            </form>
-          ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void verifyCode();
-              }}
-              className="space-y-4"
-            >
-              <button
-                type="button"
-                onClick={() => setSentTo(null)}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-white"
-              >
-                <ChevronLeft className="size-4" /> Back
-              </button>
-              <div className="text-center">
-                <div className="mx-auto mb-3 grid size-12 place-items-center rounded-2xl border border-amber-400/30 bg-amber-400/10 text-amber-400">
-                  <KeyRound className="size-6" />
-                </div>
-                <h2 className="text-lg font-bold">Enter the 6-digit code</h2>
-                <p className="mt-1 text-xs text-slate-300">
-                  Sent by {isPhone ? 'SMS' : 'email'} to <span className="font-mono">{sentTo}</span>. It expires in 10 minutes.
-                </p>
-              </div>
-              <label htmlFor="code" className="sr-only">
-                Verification code
-              </label>
-              <input
-                id="code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="\d{6}"
-                maxLength={6}
-                required
-                autoFocus
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                className="mx-auto block h-12 w-full max-w-xs rounded-xl border border-slate-700 bg-slate-900/90 text-center font-mono text-lg font-bold tracking-[0.45em] text-white focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
-              />
-              <button
-                type="submit"
-                disabled={loading || code.length !== 6}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
-              >
-                {loading && <Loader2 className="size-4 animate-spin" />} Verify and sign in
-              </button>
-              <button
-                type="button"
-                onClick={() => void sendCode()}
-                disabled={loading}
-                className="block w-full text-center text-xs font-semibold text-amber-400 hover:underline disabled:opacity-60"
-              >
-                Send a new code
-              </button>
-            </form>
-          )}
-        </Card>
-      </div>
+                </form>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void verifyCode();
+                  }}
+                  className="space-y-4"
+                >
+                  <p className="text-sm text-[#435775]">
+                    Enter the 6-digit code sent by {isPhone ? 'SMS' : 'email'} to{' '}
+                    <span className="font-semibold text-[#082046]">{sentTo}</span>. It expires in 10 minutes.
+                  </p>
+                  <label htmlFor="code" className="sr-only">
+                    Verification code
+                  </label>
+                  <input
+                    id="code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="\d{6}"
+                    maxLength={6}
+                    required
+                    autoFocus
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    className={cn(input, 'h-12 text-center text-lg font-bold tracking-[0.45em] tabular-nums')}
+                  />
+                  <button type="submit" disabled={loading || code.length !== 6} className={primary}>
+                    {loading && <Loader2 className="size-4 animate-spin" />} Verify and sign in
+                  </button>
+                  <div className="flex justify-between text-[13px] font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setSentTo(null)}
+                      className="inline-flex items-center gap-1 text-[#536780] hover:text-[#082046]"
+                    >
+                      <ChevronLeft className="size-4" /> Change details
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void sendCode()}
+                      disabled={loading}
+                      className="text-[#0e7bf4] hover:text-[#0c6fdc] disabled:opacity-50"
+                    >
+                      Send a new code
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <aside className="relative hidden overflow-hidden bg-[#082046] text-white lg:order-last lg:m-4 lg:flex lg:flex-col lg:items-center lg:justify-center lg:rounded-[2.5rem] lg:p-12">
+        <CheckedNotices />
+        <p className="mt-14 max-w-sm text-center text-lg font-bold leading-snug">
+          Nothing reaches citizens until someone on this team has checked it.
+        </p>
+        <ul className="mt-6 flex flex-wrap justify-center gap-2" aria-label="Desks in this portal">
+          {['Review queue', 'Partner verification', 'Citizen support'].map((d) => (
+            <li key={d} className="rounded-full border border-white/15 bg-white/[0.06] px-3.5 py-1.5 text-[13px] font-semibold text-[#e0edfb]">
+              {d}
+            </li>
+          ))}
+        </ul>
+      </aside>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-dvh items-center justify-center bg-[#082046] text-white">
-          <Loader2 className="size-6 animate-spin text-amber-400" />
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="min-h-dvh bg-[#F0F4F8]" />}>
       <StaffLoginForm />
     </Suspense>
   );

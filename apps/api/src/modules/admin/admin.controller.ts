@@ -16,6 +16,7 @@ import type {
   AdminSummary,
   AdminUserItem,
   AdminUserList,
+  AdminUserStats,
   ReviewDetail,
   ReviewList,
   StaffRole,
@@ -28,6 +29,7 @@ import { Roles } from '../../common/roles.decorator.js';
 import { ActorId, StaffMember, type StaffUser } from '../../common/actor.js';
 import { ReviewService } from './review.service.js';
 import { UsersAdminService } from './users.service.js';
+import { UsersService } from '../users/users.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { QueryRouterService } from '../chatbot/query-router.service.js';
 
@@ -53,6 +55,7 @@ export class AdminController {
     private readonly review: ReviewService,
     private readonly usersService: UsersAdminService,
     private readonly prisma: PrismaService,
+    private readonly accounts: UsersService,
     private readonly routerService?: QueryRouterService,
   ) {}
 
@@ -372,6 +375,25 @@ export class AdminController {
     @StaffMember() staff?: StaffUser,
   ): Promise<AdminUserList> {
     return this.usersService.list({ q, page, limit, status, type }, staff);
+  }
+
+  /** GET /api/v1/admin/users/stats — citizen signups, activity, verification, breakdowns */
+  @Get('users/stats')
+  @Roles('support')
+  getUserStats(): Promise<AdminUserStats> {
+    return this.usersService.stats();
+  }
+
+  /** DELETE /api/v1/admin/users/:id — permanently erase a citizen account on request (super_admin only) */
+  @Delete('users/:id')
+  @Roles('super_admin')
+  async deleteUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActorId() actor: string | null,
+  ): Promise<{ success: true }> {
+    await this.usersService.assertDeletable(id, actor);
+    await this.accounts.eraseAccount(id, actor);
+    return { success: true };
   }
 
   /** GET /api/v1/admin/users/:id — single user detail (masked PII, scoped by role) */

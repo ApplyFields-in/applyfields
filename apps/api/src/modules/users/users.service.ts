@@ -361,12 +361,24 @@ export class UsersService {
       }
     }
 
-    await this.store.deleteUserAccount(userId);
+    await this.eraseAccount(userId, null);
     return {
       success: true,
-      message:
-        'Your account has been deactivated and personal records scheduled for complete erasure under DPDP guidelines.',
+      message: 'Your account and all personal data have been permanently deleted.',
     };
+  }
+
+  /** Permanent delete: DB row (+ cascades), audit entry, then Storage files. actorId = staff, null = the user. */
+  async eraseAccount(userId: string, actorId: string | null): Promise<void> {
+    const paths = await this.store.deleteUserAccount(userId, actorId);
+    // Uploaded files: resumes live in the resumes bucket, everything else in documents.
+    // ponytail: best-effort — a failed Storage call leaves orphan files (logged); add a retry sweep if it happens.
+    const resumes = paths.filter((p) => p.startsWith('resumes/'));
+    const docs = paths.filter((p) => p.startsWith('documents/'));
+    await Promise.all([
+      this.storageService.remove(this.storageService.resumesBucket, resumes),
+      this.storageService.remove(this.storageService.documentsBucket, docs),
+    ]);
   }
 
   // --- Public Profile Portfolio ---
