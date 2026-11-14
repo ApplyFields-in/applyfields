@@ -146,10 +146,11 @@ export function FloatingCapsuleNavbar() {
   }
 
   return (
-    <header className="sticky top-3 sm:top-5 z-50 mx-auto w-full max-w-[1520px] px-3 sm:px-6 mb-6 sm:mb-8">
-      <div className="flex items-center justify-between gap-2.5 sm:gap-3.5 lg:gap-4 w-full">
+    <header className="sticky top-3 sm:top-5 z-50 mx-auto w-full max-w-[1600px] px-3 sm:px-6 mb-6 sm:mb-8">
+      {/* xl+: 1fr / auto / 1fr grid keeps the mode switcher dead centre with equal space on both sides */}
+      <div className="flex items-center justify-between gap-2.5 sm:gap-3.5 lg:gap-4 w-full xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         {/* Left: Brand + Home, Community, Resources */}
-        <div className="flex shrink-0 items-center gap-2.5 sm:gap-3.5 rounded-full border border-white bg-[#F0F4F8] px-3.5 py-2 sm:px-5 sm:py-2.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+        <div className="flex h-14 shrink-0 items-center gap-2.5 sm:gap-3 rounded-full border border-white bg-[#F0F4F8] px-3.5 sm:px-4 xl:justify-self-start shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
           <Link href="/" className="flex items-center gap-2.5 group shrink-0">
             {/* ApplyFields Logo */}
             <Image
@@ -158,75 +159,78 @@ export function FloatingCapsuleNavbar() {
               width={40}
               height={40}
               unoptimized
-              className="size-8.5 sm:size-10 shrink-0 object-contain transition-transform group-hover:scale-105"
+              className="size-8.5 sm:size-9 shrink-0 object-contain transition-transform group-hover:scale-105"
             />
-            <span className="whitespace-nowrap text-base sm:text-xl font-black tracking-tight text-[#082046]">
+            <span className="whitespace-nowrap text-base sm:text-lg font-black tracking-tight text-[#082046]">
               Apply<span className="text-[#0e7bf4]">Fields</span>
             </span>
           </Link>
 
-          {/* Primary Navigation: Home, Community, Resources */}
-          <nav className="hidden md:flex items-center gap-1.5 sm:gap-2 pl-2.5 sm:pl-3.5 border-l border-[#d3ddeb] text-xs sm:text-[14px] font-bold text-[#435775]">
+          {/* Primary Navigation: Home, Community, Resources (icons only until 2xl so the side capsules stay balanced) */}
+          <nav className="hidden xl:flex items-center gap-1 pl-3 border-l border-[#d3ddeb] text-[13px] font-bold text-[#435775]">
             <Link
               href="/"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 sm:py-2 transition-colors ${
+              title={t('nav_home', 'Home')}
+              className={`flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 transition-colors ${
                 isHome ? 'text-[#0e7bf4] bg-white/80 shadow-xs font-black' : 'hover:bg-white hover:text-[#082046]'
               }`}
             >
-              <Home className="size-4 sm:size-4.5" />
-              <span>{t('nav_home', 'Home')}</span>
+              <Home className="size-4.5" />
+              <span className="hidden 2xl:inline">{t('nav_home', 'Home')}</span>
             </Link>
             <Link
               href="/community"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 sm:py-2 transition-colors ${
+              title={t('nav_community', 'Community')}
+              className={`flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 transition-colors ${
                 isCommunity ? 'text-[#0e7bf4] bg-white/80 shadow-xs font-black' : 'hover:bg-white hover:text-[#082046]'
               }`}
             >
-              <MessageSquare className="size-4 sm:size-4.5" />
-              <span>{t('nav_community', 'Community')}</span>
+              <MessageSquare className="size-4.5" />
+              <span className="hidden 2xl:inline">{t('nav_community', 'Community')}</span>
             </Link>
             <Link
               href="/documents"
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 sm:py-2 transition-colors hover:bg-white hover:text-[#082046]"
+              title={t('nav_documents', 'Resources')}
+              className="flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 transition-colors hover:bg-white hover:text-[#082046]"
             >
-              <FolderOpen className="size-4 sm:size-4.5" />
-              <span>{t('nav_documents', 'Resources')}</span>
+              <FolderOpen className="size-4.5" />
+              <span className="hidden 2xl:inline">{t('nav_documents', 'Resources')}</span>
             </Link>
           </nav>
         </div>
 
         {/* Center: Career / Apply / Services Mode Switcher Capsule */}
-        <div className="hidden md:flex shrink-0 items-center rounded-full border border-white bg-[#F0F4F8] p-1 sm:p-1.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
-          <div className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-[#edf2f8] p-1 sm:p-1.5 shadow-[inset_2px_2px_5px_#d8e0eb,inset_-2px_-2px_5px_#ffffff]">
+        <div className="hidden md:flex h-14 shrink-0 items-center rounded-full border border-white bg-[#F0F4F8] px-1.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+          <div className="flex items-center gap-1 rounded-full bg-[#edf2f8] p-1 shadow-[inset_2px_2px_5px_#d8e0eb,inset_-2px_-2px_5px_#ffffff]">
             <Link
               href="/career"
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm md:text-[14px] font-extrabold transition-all ${
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 lg:px-4 text-[14px] font-extrabold transition-all ${
                 isCareer
                   ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[2px_2px_6px_#d8e0eb,-2px_-2px_6px_#ffffff]'
                   : 'text-[#082046] hover:text-[#0e7bf4]'
               }`}
             >
               <Briefcase className="size-4 sm:size-4.5 text-[#0e7bf4]" />
-              <span>{t('nav_career', 'Career')}</span>
+              <span className="hidden lg:inline">{t('nav_career', 'Career')}</span>
             </Link>
             <Link
               href="/apply"
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm md:text-[14px] font-extrabold transition-all ${
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 lg:px-4 text-[14px] font-extrabold transition-all ${
                 isApply
                   ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[2px_2px_6px_#d8e0eb,-2px_-2px_6px_#ffffff]'
                   : 'text-[#082046] hover:text-[#0e7bf4]'
               }`}
             >
               <Send className="size-4 sm:size-4.5 text-[#0e7bf4]" />
-              <span>{t('nav_apply', 'Apply')}</span>
+              <span className="hidden lg:inline">{t('nav_apply', 'Apply')}</span>
             </Link>
             <a
               href={SERVICE_PORTAL_URL}
-              className="flex items-center gap-1.5 rounded-full px-3.5 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-sm md:text-[14px] font-extrabold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 lg:px-4 text-[14px] font-extrabold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
               title="Citizen Services: MeeSeva, CSC, PAN, Aadhaar & Xerox"
             >
               <Printer className="size-4 sm:size-4.5 text-[#0e7bf4]" />
-              <span className="flex items-center gap-1.5">
+              <span className="hidden lg:flex items-center gap-1.5">
                 <span>{t('nav_services', 'Services')}</span>
                 <span className="text-[10px] font-black uppercase text-[#0e7bf4] bg-[#e0edfb] px-1.5 py-0.2 rounded-full">{t('badge_new', 'New')}</span>
               </span>
@@ -235,31 +239,22 @@ export function FloatingCapsuleNavbar() {
         </div>
 
         {/* Right: Search + Notifications + Saved + Settings + User Avatar / Sign In */}
-        <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-2.5 rounded-full border border-white bg-[#F0F4F8] px-3 py-2 sm:px-4.5 sm:py-2.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
-          {/* Search Input Pill on lg+ */}
+        <div className="flex h-14 min-w-0 max-w-full items-center justify-end gap-1.5 sm:gap-2 rounded-full border border-white bg-[#F0F4F8] px-2.5 sm:px-3.5 xl:justify-self-end shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+          {/* Search: compact round button that slides open on hover/focus (shrinks back if space is tight) */}
           <button
             type="button"
             onClick={openCommandPalette}
-            className="relative hidden lg:flex items-center w-52 xl:w-72 2xl:w-80 rounded-full border border-[#cad7e7] bg-[#edf3f9] hover:bg-[#e2ecf7] px-3.5 py-2 sm:py-2.5 shadow-[inset_2px_2px_4px_#d4dfec,inset_-2px_-2px_4px_#ffffff] transition-all text-left cursor-pointer"
+            className="group/search flex h-10 w-10 min-w-10 shrink items-center overflow-hidden rounded-full border border-[#cad7e7] bg-[#edf3f9] px-[11px] shadow-[inset_2px_2px_4px_#d4dfec,inset_-2px_-2px_4px_#ffffff] transition-[width,background-color] duration-300 ease-out hover:w-64 hover:bg-[#e2ecf7] focus-visible:w-64 cursor-pointer"
             title="Search everything (Ctrl + K)"
+            aria-label="Search everything (Ctrl + K)"
           >
-            <Search className="mr-2 size-4 shrink-0 text-[#0e7bf4]" />
-            <span className="w-full text-xs sm:text-[13px] font-medium text-[#486284] truncate">
+            <Search className="size-4 shrink-0 text-[#0e7bf4]" />
+            <span className="ml-2 min-w-0 flex-1 truncate text-left text-[13px] font-medium text-[#486284] opacity-0 transition-opacity duration-200 group-hover/search:opacity-100 group-focus-visible/search:opacity-100">
               {t('nav_explore', 'Search opportunities, exams, colleges...')}
             </span>
-            <kbd className="inline-flex items-center rounded-md border border-[#c4d2e3] bg-white px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#486284] shadow-2xs ml-1.5">
+            <kbd className="ml-1.5 inline-flex shrink-0 items-center rounded-md border border-[#c4d2e3] bg-white px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#486284] opacity-0 shadow-2xs transition-opacity duration-200 group-hover/search:opacity-100 group-focus-visible/search:opacity-100">
               Ctrl+K
             </kbd>
-          </button>
-
-          {/* Search icon button on < lg */}
-          <button
-            type="button"
-            onClick={openCommandPalette}
-            className="lg:hidden rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
-            title="Search (Ctrl + K)"
-          >
-            <Search className="size-4.5" />
           </button>
 
           {/* Notifications */}
@@ -275,7 +270,7 @@ export function FloatingCapsuleNavbar() {
           {/* Bookmarks / Saved */}
           <Link
             href="/saved"
-            className="hidden sm:block rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            className="hidden lg:block shrink-0 rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
             title={t('nav_saved', 'Saved Opportunities')}
           >
             <Bookmark className="size-4.5 sm:size-5" />

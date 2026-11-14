@@ -44,11 +44,9 @@ export function scrollToPageTop() {
 export function ScrollToTop({
   threshold = 200,
   className,
-  showLabel = true,
 }: {
   threshold?: number;
   className?: string;
-  showLabel?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -92,16 +90,16 @@ export function ScrollToTop({
     <button
       type="button"
       onClick={scrollToPageTop}
-      aria-label={`Scroll back to top (${progress}% completed)`}
-      title={`Back to top (${progress}% scrolled)`}
+      aria-label="Scroll back to top"
+      title="Back to top"
       className={cn(
-        'group fixed bottom-6 left-6 z-50 flex items-center gap-2.5 rounded-full border border-white/25 bg-[#082046]/95 p-1.5 pr-4 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-105 hover:bg-[#0e7bf4] hover:shadow-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-[#38bdf8] focus:ring-offset-2 active:scale-95 sm:bottom-8 sm:left-8',
+        'group fixed bottom-6 left-6 z-50 grid size-12 place-items-center rounded-full border border-white/25 bg-[#082046]/95 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-105 hover:bg-[#0e7bf4] hover:shadow-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-[#38bdf8] focus:ring-offset-2 active:scale-95 sm:bottom-8 sm:left-8',
         className
       )}
     >
-      {/* Circular Progress Ring */}
-      <div className="relative grid size-8 place-items-center">
-        <svg className="size-8 -rotate-90 transform" viewBox="0 0 36 36">
+      {/* Circular progress ring around the arrow */}
+      <div className="relative grid size-11 place-items-center">
+        <svg className="size-11 -rotate-90 transform" viewBox="0 0 36 36">
           <circle
             cx="18"
             cy="18"
@@ -124,12 +122,7 @@ export function ScrollToTop({
             className="transition-all duration-150 ease-out"
           />
         </svg>
-        <ArrowUp className="absolute size-3.5 text-white transition-transform duration-200 group-hover:-translate-y-0.5" />
-      </div>
-
-      <div className="flex flex-col items-start text-left leading-none">
-        {showLabel && <span className="text-[11px] font-semibold text-white/90">Top</span>}
-        <span className="text-[9px] font-mono font-bold text-[#38bdf8]">{progress}%</span>
+        <ArrowUp className="absolute size-4 text-white transition-transform duration-200 group-hover:-translate-y-0.5" />
       </div>
     </button>
   );

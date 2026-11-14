@@ -89,10 +89,11 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-4 z-50 mx-auto w-full max-w-[1360px] px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_1fr] items-center">
+      {/* ponytail: below 2xl the three capsules sit in a flex row (true centring needs ~1500px); 2xl+ uses a 1fr/auto/1fr grid so the mode switcher is dead centre */}
+      <header className="sticky top-4 z-50 mx-auto w-full max-w-[1520px] px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 items-center gap-3 lg:flex lg:justify-between 2xl:grid 2xl:grid-cols-[1fr_auto_1fr]">
           {/* Left Capsule: Brand & Portal Identification */}
-          <div className="flex items-center gap-3 justify-start rounded-[32px] border border-white bg-[#F0F4F8] p-2.5 sm:px-5 sm:py-3 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
+          <div className="flex items-center gap-3 justify-start rounded-[32px] lg:rounded-full lg:h-[68px] 2xl:justify-self-start border border-white bg-[#F0F4F8] p-2.5 sm:px-5 sm:py-3 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
             <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
               <Image
                 src="/logo-mark.png"
@@ -103,14 +104,14 @@ export function Navbar() {
               />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-base sm:text-lg font-black tracking-tight text-[#082046]">
+                  <span className="whitespace-nowrap text-base sm:text-lg font-black tracking-tight text-[#082046]">
                     Apply<span className="text-[#0e7bf4]">Fields</span>
                   </span>
-                  <span className="rounded-md bg-[#e0edfb] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#0e7bf4] border border-[#38bdf8]/30">
+                  <span className="whitespace-nowrap rounded-md bg-[#e0edfb] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#0e7bf4] border border-[#38bdf8]/30">
                     Services Hub
                   </span>
                 </div>
-                <p className="text-[10px] text-[#526987] font-semibold hidden sm:block">
+                <p className="whitespace-nowrap text-[10px] text-[#526987] font-semibold hidden sm:block">
                   MeeSeva · CSC · PAN · Aadhaar · Xerox
                 </p>
               </div>
@@ -129,7 +130,7 @@ export function Navbar() {
           </div>
 
           {/* Center Capsule: Mode Switcher in Exact Middle (Career / Apply / Services [Active]) */}
-          <div className="hidden lg:flex items-center justify-center justify-self-center rounded-full border border-white bg-[#F0F4F8] p-1.5 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
+          <div className="hidden lg:flex lg:h-[68px] shrink-0 items-center justify-center justify-self-center rounded-full border border-white bg-[#F0F4F8] p-1.5 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
             <div className="flex items-center gap-1 rounded-full bg-[#edf2f8] p-1 shadow-[inset_3px_3px_7px_#d8e0eb,inset_-3px_-3px_7px_#ffffff]">
               <a
                 href={`${MAIN_WEB_URL}/career`}
@@ -166,25 +167,26 @@ export function Navbar() {
           </div>
 
           {/* Right Capsule: Location + Cart + Account */}
-          <div className="flex items-center justify-end justify-self-end gap-2 rounded-[32px] border border-white bg-[#F0F4F8] p-2.5 sm:px-4 sm:py-3 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
+          <div className="flex items-center justify-end justify-self-end gap-2 rounded-[32px] lg:rounded-full lg:h-[68px] shrink-0 border border-white bg-[#F0F4F8] p-2.5 sm:px-4 shadow-[8px_10px_24px_-12px_rgba(8,32,70,0.22),-8px_-8px_20px_rgba(255,255,255,0.95)]">
             {/* Location Pill */}
             <button
               type="button"
               onClick={() => setShowLocationModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[#edf2f8] px-3 py-1.5 text-xs font-bold text-[#082046] shadow-[inset_2px_2px_5px_#d5deea,inset_-2px_-2px_5px_#ffffff] hover:text-[#0e7bf4] transition"
-              title="Click to enable location or choose nearby area"
+              className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#edf2f8] px-3 text-xs font-bold text-[#082046] shadow-[inset_2px_2px_5px_#d5deea,inset_-2px_-2px_5px_#ffffff] hover:text-[#0e7bf4] transition"
+              title={locationName}
             >
               <LocateFixed className="h-3.5 w-3.5 text-[#0e7bf4] shrink-0" />
-              <span className="max-w-[110px] md:max-w-[140px] truncate">{locationName}</span>
+              <span className="max-w-[110px] truncate lg:hidden xl:inline xl:max-w-[130px]">{locationName}</span>
             </button>
 
             {/* My Bookings Nav Link */}
             <Link
               href="/my-bookings"
-              className="inline-flex items-center gap-1.5 rounded-2xl border border-[#d5deea] bg-white px-3 py-2 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
+              title={t('myBookings')}
+              className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#d5deea] bg-white px-3 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
             >
-              <FileCheck2 className="h-4 w-4 text-[#0e7bf4]" />
-              <span className="hidden md:inline">{t('myBookings')}</span>
+              <FileCheck2 className="h-4 w-4 shrink-0 text-[#0e7bf4]" />
+              <span className="hidden md:inline lg:hidden 2xl:inline">{t('myBookings')}</span>
             </Link>
 
             {/* Language Selector Dropdown */}
@@ -192,7 +194,7 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setShowLangMenu(!showLangMenu)}
-                className="inline-flex items-center gap-1 rounded-2xl border border-[#d5deea] bg-white px-2.5 py-2 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
+                className="inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-full border border-[#d5deea] bg-white px-2.5 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
                 title="Select Language"
               >
                 <Languages className="h-4 w-4 text-[#0e7bf4]" />
@@ -230,7 +232,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="relative inline-flex items-center gap-2 rounded-2xl bg-[#0e7bf4] px-3.5 py-2 text-xs font-bold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95"
+              className="relative inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-full bg-[#0e7bf4] px-3.5 text-xs font-bold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95"
             >
               <ShoppingBag className="h-4 w-4" />
               <span className="hidden sm:inline">{t('cart')}</span>
@@ -248,7 +250,7 @@ export function Navbar() {
                   <button
                     type="button"
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white border border-[#d5deea] shadow-sm text-xs font-black text-[#082046] hover:border-[#0e7bf4]"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white border border-[#d5deea] shadow-sm text-xs font-black text-[#082046] hover:border-[#0e7bf4]"
                   >
                     {user?.full_name?.[0] || 'U'}
                   </button>
@@ -298,7 +300,7 @@ export function Navbar() {
               ) : (
                 <Link
                   href="/login"
-                  className="rounded-2xl border border-[#d5deea] bg-white px-3 py-1.5 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
+                  className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#d5deea] bg-white px-3.5 text-xs font-bold text-[#082046] shadow-sm hover:border-[#0e7bf4] hover:text-[#0e7bf4] transition"
                 >
                   {t('signIn')}
                 </Link>
