@@ -14,7 +14,7 @@ import {
   Mail,
   Phone,
   ShieldCheck,
-  KeyRound,
+  Circle,
   ExternalLink,
 } from 'lucide-react';
 import { GoogleButton } from '@applyfields/ui';
@@ -193,8 +193,8 @@ function ServiceLoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F0F4F8] py-12 px-4 sm:px-6 lg:px-8 flex flex-col justify-center">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div className="mx-auto w-full max-w-md px-4 py-10 sm:py-14">
+      <div>
         <Link
           href="/"
           className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-[#0e7bf4] mb-6 transition"
@@ -204,14 +204,14 @@ function ServiceLoginForm() {
 
         {/* Brand Header */}
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0e7bf4] text-white font-black shadow-lg shadow-[#0e7bf4]/20 text-xl">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#0e7bf4] text-white font-black shadow-lg shadow-[#0e7bf4]/20 text-xl">
             AF
           </div>
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-[#082046]">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-black leading-tight tracking-tight text-[#082046]">
               Citizen Services Sign In
             </h1>
-            <p className="text-xs text-slate-500 font-medium">
+            <p className="mt-0.5 text-xs text-slate-500 font-medium">
               Access MeeSeva, CSC, PAN, Aadhaar bookings &amp; documents
             </p>
           </div>
@@ -265,8 +265,8 @@ function ServiceLoginForm() {
         </div>
       </div>
 
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="rounded-3xl border border-white bg-white p-8 shadow-xl shadow-slate-200/50">
+      <div className="mt-4">
+        <div className="rounded-3xl border border-white bg-white p-6 sm:p-7 shadow-xl shadow-slate-200/50">
           {error && (
             <div className="mb-5 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -328,18 +328,7 @@ function ServiceLoginForm() {
 
               {/* Password Input with Show Password Option */}
               <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label className="text-xs font-bold text-[#082046]">Password</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="flex items-center gap-1 text-xs font-bold text-[#0e7bf4] hover:underline cursor-pointer"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    <span>{showPassword ? 'Hide password' : 'Show password'}</span>
-                  </button>
-                </div>
+                <label className="mb-1.5 block text-xs font-bold text-[#082046]">Password</label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                     <Lock className="h-4 w-4" />
@@ -363,43 +352,46 @@ function ServiceLoginForm() {
                   </button>
                 </div>
 
-                {/* Password Requirement Notice & Badges */}
-                <div className="mt-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs">
-                  <div className="flex items-center justify-between font-bold text-[#082046]">
-                    <span className="flex items-center gap-1.5">
-                      <KeyRound className="h-3.5 w-3.5 text-[#0e7bf4]" />
-                      <span>Password Requirements:</span>
-                    </span>
-                    <span className="text-[11px] font-normal text-slate-500">
-                      8+ chars, capital, small, digit &amp; symbol
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {[
-                      { label: '8+ chars', met: passwordVal.hasLength },
-                      { label: 'Capital (A-Z)', met: passwordVal.hasUpper },
-                      { label: 'Small (a-z)', met: passwordVal.hasLower },
-                      { label: 'Digit (0-9)', met: passwordVal.hasDigit },
-                      { label: 'Symbol (!@#...)', met: passwordVal.hasSymbol },
-                    ].map((rule) => (
-                      <span
-                        key={rule.label}
-                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold transition ${
-                          rule.met
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : 'bg-white text-slate-500 border border-slate-200'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block size-1.5 rounded-full ${
-                            rule.met ? 'bg-emerald-600' : 'bg-slate-300'
-                          }`}
-                        />
-                        {rule.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                {/* Password requirements: a strength bar + checklist, shown once typing starts */}
+                {password && (() => {
+                  const rules = [
+                    { label: '8+ characters', met: passwordVal.hasLength },
+                    { label: 'Uppercase (A-Z)', met: passwordVal.hasUpper },
+                    { label: 'Lowercase (a-z)', met: passwordVal.hasLower },
+                    { label: 'Number (0-9)', met: passwordVal.hasDigit },
+                    { label: 'Symbol (!@#…)', met: passwordVal.hasSymbol },
+                  ];
+                  const metCount = rules.filter((r) => r.met).length;
+                  return (
+                    <div className="mt-2.5 rounded-2xl border border-[#e3eaf3] bg-[#F8FAFC] p-3">
+                      <div className="flex items-center gap-1" aria-hidden="true">
+                        {rules.map((r, i) => (
+                          <span
+                            key={r.label}
+                            className={`h-1 flex-1 rounded-full transition-colors ${
+                              i < metCount ? (metCount === 5 ? 'bg-emerald-500' : 'bg-[#0e7bf4]') : 'bg-[#dfe7f1]'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <ul className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] font-semibold">
+                        {rules.map((rule) => (
+                          <li
+                            key={rule.label}
+                            className={`flex items-center gap-1.5 ${rule.met ? 'text-emerald-700' : 'text-slate-500'}`}
+                          >
+                            {rule.met ? (
+                              <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" />
+                            ) : (
+                              <Circle className="size-3.5 shrink-0 text-slate-300" />
+                            )}
+                            {rule.label}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
               </div>
 
               {codeTo && (

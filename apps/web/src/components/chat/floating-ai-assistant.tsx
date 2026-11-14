@@ -629,19 +629,13 @@ export function FloatingAiAssistant() {
             onFocus={() => setOrbHover(true)}
             onBlur={() => setOrbHover(false)}
             aria-label="Open Fieldy AI Advisor"
-            className="group relative flex size-16 items-center justify-center rounded-full bg-gradient-to-tr from-[#082046] via-[#0e7bf4] to-[#10b981] p-0.5 text-white shadow-2xl shadow-blue-600/35 transition-all hover:scale-108 active:scale-95 cursor-pointer ring-4 ring-blue-500/15 hover:ring-blue-500/30"
+            className="group relative flex size-20 items-center justify-center transition-transform hover:scale-108 active:scale-95 cursor-pointer drop-shadow-[0_8px_14px_rgba(8,32,70,0.22)] focus-visible:outline-2 focus-visible:outline-[#0e7bf4] focus-visible:rounded-2xl"
           >
             {/* Fieldy waves when you point at him; still poster otherwise (no download until then) */}
             <FieldyMascot
               mood={orbHover ? 'greeting' : orbMood}
-              className="size-full rounded-full"
+              className="size-full bg-transparent!"
             />
-
-            {/* Glowing Active Ring Indicator */}
-            <span className="absolute -top-1 -right-1 flex size-4">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex size-4 rounded-full bg-emerald-500 border-2 border-white shadow-xs" />
-            </span>
 
             {/* Quota Badge on Orb */}
             <span
@@ -755,24 +749,6 @@ export function FloatingAiAssistant() {
             </div>
           </header>
 
-          {/* Subheader Route Context Pill */}
-          <div className="bg-[#f0f6ff] border-b border-blue-100/60 px-4 py-1.5 flex items-center justify-between text-[10.5px]">
-            <span className="text-[#334a69] font-medium flex items-center gap-1.5 truncate">
-              <Zap className="size-3 text-[#0e7bf4]" />
-              <strong className="text-[#082046]">Active Context:</strong>{' '}
-              {currentOpportunitySlug ? (
-                <span className="capitalize">{currentOpportunitySlug.replace(/-/g, ' ')}</span>
-              ) : isCareerRoute ? (
-                'Career Roadmaps & Guidance'
-              ) : (
-                'National Job & Exam Intelligence'
-              )}
-            </span>
-            <span className="text-[9.5px] font-bold text-[#0e7bf4] shrink-0">
-              &lt;80ms Fast-Path
-            </span>
-          </div>
-
           {/* Chat Message Scrollable Container */}
           <div
             ref={scrollRef}
@@ -793,7 +769,7 @@ export function FloatingAiAssistant() {
               )}
               <div className="min-w-0 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-black text-[#082046]">
-                  <span>Fieldy AI · Fast-Path + Generative Advisor</span>
+                  <span>Fieldy AI</span>
                 </div>
                 <p className="text-[11px] text-[#526987] leading-relaxed">
                   {currentOpportunitySlug ? (
@@ -856,7 +832,7 @@ export function FloatingAiAssistant() {
                       {m.mode === 'deterministic' ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-700">
                           <Zap className="size-2.5 text-emerald-600" />
-                          &lt;80ms Fast-Path · 0 LLM Tokens
+                          Instant answer
                         </span>
                       ) : m.mode === 'llm' ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-1.5 py-0.5 text-[9.5px] font-bold text-purple-700">

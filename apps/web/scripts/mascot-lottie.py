@@ -1,7 +1,8 @@
 """
 Shrinks the Fieldy mascot Lotties for the chatbot. The sources are frame-by-frame
 Lotties (one 1280x720 WebP per frame on a light-grey backdrop); this crops every
-frame to the square around the mascot, scales it down and re-encodes it, so each
+frame to the square around the mascot, keys out the backdrop (transparent WebP),
+scales it down and re-encodes it, so each
 mood drops from ~500 KB to ~200 KB. Animation timing is untouched.
 
     python apps/web/scripts/mascot-lottie.py <folder with mascot_<mood>.json>
@@ -30,9 +31,30 @@ WEB = APPS / "web" / "public" / "mascot"
 MOBILE = APPS / "mobile" / "assets" / "mascot"
 
 
+def key_out_backdrop(im: Image.Image) -> Image.Image:
+    """Make the grey backdrop transparent so the mascot floats on any light page.
+    Backdrop = smooth, unsaturated, light pixels connected to the frame edge; the
+    white body is kept because its outline (a gradient edge) stops the region."""
+    import numpy as np
+    from scipy import ndimage as nd
+
+    rgb = np.asarray(im.convert("RGB")).astype(float)
+    lum = rgb.mean(2)
+    sat = rgb.max(2) - rgb.min(2)
+    smooth = nd.gaussian_filter(lum, 0.7)
+    grad = np.hypot(nd.sobel(smooth, 0), nd.sobel(smooth, 1))
+    lab, _ = nd.label((sat < 14) & (lum > 200) & (grad < 40))
+    edge = np.unique(np.r_[lab[0], lab[-1], lab[:, 0], lab[:, -1]])
+    bg = nd.binary_closing(np.isin(lab, edge[edge > 0]), iterations=1)
+    fg = nd.binary_opening(~bg, iterations=1)  # drop stray specks
+    alpha = np.clip((nd.gaussian_filter(fg.astype(float), 0.9) - 0.15) / 0.7, 0, 1)
+    return Image.fromarray(np.dstack([rgb, alpha * 255]).astype("uint8"), "RGBA")
+
+
 def shrink(data_uri: str) -> Image.Image:
     raw = base64.b64decode(data_uri.split(",", 1)[1])
-    return Image.open(io.BytesIO(raw)).convert("RGB").crop(CROP).resize((SIZE, SIZE), Image.LANCZOS)
+    im = Image.open(io.BytesIO(raw)).convert("RGB").crop(CROP).resize((SIZE, SIZE), Image.LANCZOS)
+    return key_out_backdrop(im)
 
 
 def webp_uri(im: Image.Image) -> str:
