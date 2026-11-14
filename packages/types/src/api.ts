@@ -124,9 +124,13 @@ export interface HomeSummary {
   sample: boolean;
 }
 
+export type ProfileGapField = 'date_of_birth' | 'education' | 'gender' | 'category' | 'domicile_state_code';
+
 export interface HomePersonal {
   /** false until the profile has date of birth and at least one qualification */
   profile_ready: boolean;
+  /** Profile fields the eligibility check uses that are still empty (ready can be true while some are). */
+  profile_missing: ProfileGapField[];
   /** eligible or likely eligible, closing soonest first */
   recommended: OpportunityCard[];
   saved: OpportunityCard[];
@@ -637,6 +641,22 @@ export interface AdminUserItem {
   phone_verified: boolean;
   created_at: string;
   roles?: StaffRole[];
+  /** Detail view only. Counts, never contents. */
+  last_login_at?: string | null;
+  activity?: { saved: number; applications: number; documents: number; bookings: number };
+}
+
+/** GET /admin/users/stats — citizen accounts only (staff excluded). */
+export interface AdminUserStats {
+  total: number;
+  signups: { today: number; week: number; month: number };
+  active: { week: number; month: number };
+  verified: number;
+  suspended: number;
+  /** Self + staff deletions in the last 30 days, from audit_logs. */
+  deleted_month: number;
+  by_state: { key: string; count: number }[];
+  by_category: { key: string; count: number }[];
 }
 
 export interface AdminUserList {

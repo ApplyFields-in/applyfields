@@ -12,3 +12,5 @@ export type { PreviewItem, SectionInfo, SectionPreview } from './components/sect
 export { ComingSoon, NotBuiltYet } from './components/coming-soon';
 export { ScrollToTop, ScrollToTopButton, scrollToPageTop } from './components/scroll-to-top';
 export { GoogleButton } from './components/google-button';
+export { FieldyMascot, prefetchFieldy } from './components/fieldy-mascot';
+export type { FieldyMood } from './components/fieldy-mascot';

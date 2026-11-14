@@ -25,7 +25,7 @@ import {
 import { apiGet, apiPost, apiPut } from '@/lib/api';
 import { showAppToast } from '@/components/toast-notification-provider';
 import { usePipApply } from '@/context/pip-apply-context';
-import { FieldyMascot, prefetchFieldy, type FieldyMood } from './fieldy-mascot';
+import { FieldyMascot, prefetchFieldy, type FieldyMood } from '@applyfields/ui';
 import type {
   ChatbotAction,
   ChatbotQueryInput,

@@ -1714,55 +1714,41 @@ export class UsersStore implements OnModuleInit {
   }
 
   // --- Account Deletion (DPDP) ---
-  async deleteUserAccount(userId: string): Promise<void> {
+  /**
+   * Hard delete: removes the users row. Every FK to users is ON DELETE CASCADE (personal data:
+   * profile, education, sessions, documents, saved, notifications…) or SET NULL (shared records
+   * like bookings/audit logs keep the row, lose the link). Returns the Storage keys of the user's
+   * files so the caller can delete the objects too.
+   */
+  async deleteUserAccount(userId: string, actorId: string | null = null): Promise<string[]> {
     if (this.prisma && !this.isTestEnv()) {
-      // 1. Revoke all user sessions
-      await this.prisma.user_sessions.updateMany({
-        where: { user_id: userId, revoked_at: null },
-        data: { revoked_at: new Date() },
-      });
-      // 2. Clear personal data in profile
-      await this.prisma.user_profiles.updateMany({
+      const docs = await this.prisma.user_documents.findMany({
         where: { user_id: userId },
-        data: {
-          full_name: 'Deleted Citizen',
-          avatar_url: null,
-          district: null,
-          state_code: null,
-          domicile_state_code: null,
-          handle: null,
-          is_public: false,
-          annual_family_income: null,
-          special_conditions: [],
-        },
+        select: { storage_path: true },
       });
-      // 3. Delete education & exam scores
-      await this.prisma.user_education.deleteMany({ where: { user_id: userId } });
-      try {
-        await (this.prisma as any).user_competitive_exam_scores.deleteMany({ where: { user_id: userId } });
-      } catch {}
-      // 4. Mark user deleted
-      await this.prisma.users.update({
-        where: { id: userId },
-        data: {
-          status: 'deleted',
-          deleted_at: new Date(),
-          email: `deleted_${userId.slice(0, 8)}@deleted.applyfields.in`,
-          phone: null,
-          password_hash: null,
-        },
-      });
-      return;
+      // Proof of erasure (DPDP): id + time only, no personal data. target_id has no FK, so it survives.
+      await this.prisma.$transaction([
+        this.prisma.audit_logs.create({
+          data: {
+            actor_id: actorId,
+            action: actorId ? 'user.admin_delete' : 'user.self_delete',
+            target_type: 'user',
+            target_id: userId,
+            details: { files: docs.length },
+          },
+        }),
+        this.prisma.users.delete({ where: { id: userId } }),
+      ]);
+      return docs.map((d) => d.storage_path);
     }
 
-    const u = this.users.get(userId);
-    if (u) {
-      u.status = 'deleted';
-      u.deleted_at = new Date().toISOString();
-      u.email = null;
-      u.phone = null;
-      u.password_hash = '';
+    const paths = Array.from(this.documents.values())
+      .filter((d) => d.user_id === userId)
+      .map((d) => d.storage_path);
+    for (const [id, d] of this.documents.entries()) {
+      if (d.user_id === userId) this.documents.delete(id);
     }
+    this.users.delete(userId);
     this.profiles.delete(userId);
     for (const [id, e] of this.educations.entries()) {
       if (e.user_id === userId) this.educations.delete(id);
@@ -1770,9 +1756,10 @@ export class UsersStore implements OnModuleInit {
     for (const [id, s] of this.examScores.entries()) {
       if (s.user_id === userId) this.examScores.delete(id);
     }
-    for (const s of this.sessions.values()) {
-      if (s.user_id === userId) s.revoked_at = new Date().toISOString();
+    for (const [id, s] of this.sessions.entries()) {
+      if (s.user_id === userId) this.sessions.delete(id);
     }
     this.saveToDisk();
+    return paths;
   }
 }

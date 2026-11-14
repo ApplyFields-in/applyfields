@@ -4,6 +4,7 @@ import type {
   EducationLevel,
   EligibilityResponse,
   OpportunityCard,
+  ProfileGapField,
 } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { todayIst } from '../opportunities/opportunities.service.js';
@@ -117,5 +118,16 @@ export class EligibilityService {
   /** True once there's enough in the profile for recommendations to mean something. */
   static ready(p: EligibilityProfile): boolean {
     return Boolean(p.date_of_birth) && p.education.length > 0;
+  }
+
+  /** Empty fields that age, qualification, gender, reservation and domicile rules read. */
+  static missing(p: EligibilityProfile): ProfileGapField[] {
+    const gaps: ProfileGapField[] = [];
+    if (!p.date_of_birth) gaps.push('date_of_birth');
+    if (p.education.length === 0) gaps.push('education');
+    if (!p.gender) gaps.push('gender');
+    if (!p.category) gaps.push('category');
+    if (!p.domicile_state_code) gaps.push('domicile_state_code');
+    return gaps;
   }
 }

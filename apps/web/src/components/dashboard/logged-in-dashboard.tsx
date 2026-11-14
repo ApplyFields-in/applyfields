@@ -154,10 +154,20 @@ export function LoggedInDashboard({ initialHomeData, userName = '' }: LoggedInDa
               <CheckCircle2 className={`mt-0.5 size-4 shrink-0 ${liveData.personal.profile_ready ? 'text-[#0e7bf4]' : 'text-slate-400'}`} />
               <div>
                 <p>{liveData.personal.profile_ready ? t('dash_profile_ready') : t('dash_profile_not_ready')}</p>
-                {!liveData.personal.profile_ready && (
-                  <Link href="/profile" className="mt-2 inline-flex items-center gap-1 font-semibold text-[#0e7bf4]">
-                    {t('dash_profile_complete_btn')} <ArrowRight className="size-3.5" />
-                  </Link>
+                {(liveData.personal.profile_missing?.length ?? 0) > 0 && (
+                  <>
+                    <p className="mt-2 text-xs text-slate-600">{t('dash_profile_add')}</p>
+                    <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                      {liveData.personal.profile_missing.map((f) => (
+                        <li key={f} className="rounded-full border border-[#F5E6CC] bg-[#FFF9EE] px-2.5 py-0.5 text-xs font-semibold text-[#7C4A03]">
+                          {t(`profile_gap_${f}`)}
+                        </li>
+                      ))}
+                    </ul>
+                    <Link href="/profile" className="mt-2 inline-flex items-center gap-1 font-semibold text-[#0e7bf4]">
+                      {t('dash_profile_complete_btn')} <ArrowRight className="size-3.5" />
+                    </Link>
+                  </>
                 )}
               </div>
             </div>

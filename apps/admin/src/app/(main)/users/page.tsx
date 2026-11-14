@@ -1,4 +1,4 @@
-import type { AdminMeResponse, AdminUserList, StaffRole } from '@applyfields/types';
+import type { AdminMeResponse, AdminUserList, AdminUserStats, StaffRole } from '@applyfields/types';
 import { Badge, Card, EmptyState, PageHeader } from '@applyfields/ui';
 import {
   CheckCircle2,
@@ -79,15 +79,19 @@ function RoleBadge({ role }: { role: StaffRole }) {
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; type?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; type?: string; status?: string }>;
 }) {
   await connection();
   const sp = await searchParams;
   const q = sp.q?.trim() || '';
   const currentPage = Math.max(1, Number(sp.page) || 1);
+  const activeStatus = sp.status === 'active' || sp.status === 'suspended' ? sp.status : 'all';
 
   // Determine current logged-in staff permissions
-  const me = await apiGet<AdminMeResponse>('/admin/me');
+  const [me, stats] = await Promise.all([
+    apiGet<AdminMeResponse>('/admin/me'),
+    apiGet<AdminUserStats>('/admin/users/stats'),
+  ]);
   const isSuperAdmin = me?.roles?.includes('super_admin') ?? false;
   const isAdmin = me?.roles?.includes('admin') ?? false;
   const canSeeStaff = isSuperAdmin || isAdmin;
@@ -99,6 +103,7 @@ export default async function UsersPage({
   if (q) queryParams.set('q', q);
   if (currentPage > 1) queryParams.set('page', String(currentPage));
   if (canSeeStaff && activeType !== 'all') queryParams.set('type', activeType);
+  if (activeStatus !== 'all') queryParams.set('status', activeStatus);
 
   const qs = queryParams.toString();
   const endpoint = `/admin/users${qs ? `?${qs}` : ''}`;
@@ -121,10 +126,11 @@ export default async function UsersPage({
   const citizenCount = displayData.citizen_count ?? 0;
   const allCount = staffCount + citizenCount;
 
-  function tabUrl(type: 'all' | 'staff' | 'citizens') {
+  function tabUrl(type: 'all' | 'staff' | 'citizens', status: string = activeStatus) {
     const p = new URLSearchParams();
     if (q) p.set('q', q);
     if (type !== 'all') p.set('type', type);
+    if (status !== 'all') p.set('status', status);
     const s = p.toString();
     return `/users${s ? `?${s}` : ''}`;
   }
@@ -133,6 +139,7 @@ export default async function UsersPage({
     const p = new URLSearchParams();
     if (q) p.set('q', q);
     if (canSeeStaff && activeType !== 'all') p.set('type', activeType);
+    if (activeStatus !== 'all') p.set('status', activeStatus);
     if (targetPage > 1) p.set('page', String(targetPage));
     const s = p.toString();
     return `/users${s ? `?${s}` : ''}`;
@@ -164,6 +171,55 @@ export default async function UsersPage({
           </div>
         }
       />
+
+      {/* Citizen statistics */}
+      {stats && (
+        <div className="mb-6 space-y-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {(
+              [
+                ['Citizens', stats.total, `${stats.verified} verified`],
+                ['New today', stats.signups.today, `${stats.signups.week} in 7 days`],
+                ['New (30 days)', stats.signups.month, 'signups'],
+                ['Active (7 days)', stats.active.week, `${stats.active.month} in 30 days`],
+                ['Blocked', stats.suspended, 'suspended accounts'],
+                ['Deleted (30 days)', stats.deleted_month, 'erased on request'],
+              ] as const
+            ).map(([label, value, hint]) => (
+              <Card key={label} className="p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-teal/60">{label}</p>
+                <p className="mt-1 text-2xl font-bold text-teal">{value}</p>
+                <p className="text-[11px] text-teal/50">{hint}</p>
+              </Card>
+            ))}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {(
+              [
+                ['By state', stats.by_state],
+                ['By category', stats.by_category],
+              ] as const
+            ).map(([label, rows]) => (
+              <Card key={label} className="p-4">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-teal/60">{label}</p>
+                {rows.length === 0 ? (
+                  <p className="text-xs text-teal/50">No data yet</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {rows.map((r) => (
+                      <li key={r.key} className="flex items-center gap-2 text-xs">
+                        <span className="w-20 shrink-0 truncate font-semibold text-teal">{r.key}</span>
+                        <span className="h-2 rounded-full bg-sea/60" style={{ width: `${(r.count / Math.max(1, rows[0].count)) * 100}%` }} />
+                        <span className="ml-auto text-teal/70">{r.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filter Tabs for Super Admin & Admin */}
       {canSeeStaff && (
@@ -226,8 +282,8 @@ export default async function UsersPage({
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="mb-6">
+      {/* Search Bar + status filter */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <form method="GET" action="/users" className="relative max-w-md">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-teal/60" />
           <input
@@ -240,6 +296,7 @@ export default async function UsersPage({
           {canSeeStaff && activeType !== 'all' && (
             <input type="hidden" name="type" value={activeType} />
           )}
+          {activeStatus !== 'all' && <input type="hidden" name="status" value={activeStatus} />}
           <button
             type="submit"
             className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg bg-teal px-3 py-1 text-xs font-semibold text-cream hover:bg-teal/90 transition-colors"
@@ -247,6 +304,20 @@ export default async function UsersPage({
             Search
           </button>
         </form>
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="font-semibold text-teal/60">Status:</span>
+          {(['all', 'active', 'suspended'] as const).map((st) => (
+            <Link
+              key={st}
+              href={tabUrl(activeType, st)}
+              className={`rounded-lg px-3 py-1.5 font-bold capitalize transition-colors ${
+                activeStatus === st ? 'bg-teal text-cream' : 'border border-line bg-cream text-teal/80 hover:bg-cream/80'
+              }`}
+            >
+              {st === 'suspended' ? 'Blocked' : st}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {displayData.users.length === 0 ? (

@@ -175,6 +175,7 @@ export class HomeController {
     const mark = (cards: typeof savedCards) => this.opportunities.markSaved(cards, savedSlugs);
     return {
       profile_ready: ready,
+      profile_missing: EligibilityService.missing(profile),
       recommended: mark(
         recommended
           .filter((c) => c.eligibility === 'eligible' || c.eligibility === 'likely_eligible')
