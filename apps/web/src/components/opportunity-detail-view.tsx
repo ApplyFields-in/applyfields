@@ -635,9 +635,10 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
           />
         </div>
 
-        {/* Right 1 Col: Important Dates, Fees, Official Links & Updates */}
-        <div className="space-y-6">
-          {/* Important Dates */}
+        {/* Right 1 Col: sticks beside the long left column while scrolling, so the page never looks one-sided */}
+        <div className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+          {/* Important Dates (hidden when empty: the Recruitment Timeline above already covers it) */}
+          {item.dates.length > 0 && (
           <Card className="p-5">
             <SectionTitle
               title={
@@ -648,10 +649,7 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
               }
             />
 
-            {item.dates.length === 0 && (
-              <p className="text-xs text-slate-500">Dates will appear here once the official notice announces them.</p>
-            )}
-            <div className="mt-3 relative space-y-4 before:absolute before:bottom-2 before:left-2 before:top-2 before:w-0.5 before:bg-line empty:hidden">
+            <div className="mt-3 relative space-y-4 before:absolute before:bottom-2 before:left-2 before:top-2 before:w-0.5 before:bg-line">
               {item.dates.map((d) => (
                 <div key={d.id} className="relative flex items-start gap-3 pl-1">
                   <div className="relative z-10 grid size-4 shrink-0 place-items-center rounded-full bg-sea ring-4 ring-white" />
@@ -674,6 +672,7 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
               ))}
             </div>
           </Card>
+          )}
 
           {/* Fee Structure */}
           <Card className="p-5">
