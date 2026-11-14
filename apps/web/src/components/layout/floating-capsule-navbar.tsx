@@ -240,19 +240,19 @@ export function FloatingCapsuleNavbar() {
 
         {/* Right: Search + Notifications + Saved + Settings + User Avatar / Sign In */}
         <div className="flex h-14 min-w-0 max-w-full items-center justify-end gap-1.5 sm:gap-2 rounded-full border border-white bg-[#F0F4F8] px-2.5 sm:px-3.5 xl:justify-self-end shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
-          {/* Search: compact round button that slides open on hover/focus (shrinks back if space is tight) */}
+          {/* Search: always-open bar, sized so this capsule balances the left one; shrinks (down to an icon) when space is tight */}
           <button
             type="button"
             onClick={openCommandPalette}
-            className="group/search flex h-10 w-10 min-w-10 shrink items-center overflow-hidden rounded-full border border-[#cad7e7] bg-[#edf3f9] px-[11px] shadow-[inset_2px_2px_4px_#d4dfec,inset_-2px_-2px_4px_#ffffff] transition-[width,background-color] duration-300 ease-out hover:w-64 hover:bg-[#e2ecf7] focus-visible:w-64 cursor-pointer"
+            className="flex h-10 w-64 min-w-10 shrink items-center overflow-hidden rounded-full border border-[#cad7e7] bg-[#edf3f9] px-[11px] shadow-[inset_2px_2px_4px_#d4dfec,inset_-2px_-2px_4px_#ffffff] transition-colors hover:bg-[#e2ecf7] cursor-pointer"
             title="Search everything (Ctrl + K)"
             aria-label="Search everything (Ctrl + K)"
           >
             <Search className="size-4 shrink-0 text-[#0e7bf4]" />
-            <span className="ml-2 min-w-0 flex-1 truncate text-left text-[13px] font-medium text-[#486284] opacity-0 transition-opacity duration-200 group-hover/search:opacity-100 group-focus-visible/search:opacity-100">
+            <span className="ml-2 min-w-0 flex-1 truncate text-left text-[13px] font-medium text-[#486284]">
               {t('nav_explore', 'Search opportunities, exams, colleges...')}
             </span>
-            <kbd className="ml-1.5 inline-flex shrink-0 items-center rounded-md border border-[#c4d2e3] bg-white px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#486284] opacity-0 shadow-2xs transition-opacity duration-200 group-hover/search:opacity-100 group-focus-visible/search:opacity-100">
+            <kbd className="ml-1.5 hidden shrink-0 items-center rounded-md border border-[#c4d2e3] bg-white px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#486284] shadow-2xs 2xl:inline-flex">
               Ctrl+K
             </kbd>
           </button>
