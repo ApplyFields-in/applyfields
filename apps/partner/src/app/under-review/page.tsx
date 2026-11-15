@@ -230,12 +230,10 @@ export default function UnderReviewPage() {
               <span className="text-[#243b5b]">Have questions about verification?</span>
             </div>
             <a
-              href="https://wa.me/919999999999?text=Hello%20ApplyFields%20Partner%20Desk%2C%20checking%20on%20my%20center%20verification"
-              target="_blank"
-              rel="noreferrer"
+              href="mailto:support@applyfields.in?subject=Centre%20verification%20status"
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#00876a] hover:text-[#006b54]"
             >
-              Contact Partner Support (WhatsApp) <ExternalLink className="h-3.5 w-3.5" />
+              Email Partner Support <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
 

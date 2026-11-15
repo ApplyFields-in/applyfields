@@ -190,7 +190,10 @@ export class AuthService {
     const isEmail = dto.target.includes('@');
     try {
       if (isEmail) {
-        await sendOtpEmail(dto.target, rawOtp, dto.purpose);
+        const staff = resolvedUserId
+          ? Boolean(await this.prisma?.user_roles.findFirst({ where: { user_id: resolvedUserId }, select: { role: true } }))
+          : false;
+        await sendOtpEmail(dto.target, rawOtp, dto.purpose, { staff });
       } else {
         await sendOtpSms(dto.target, rawOtp);
       }

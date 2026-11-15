@@ -113,7 +113,7 @@ export default function PartnerMessagesPage() {
           setActiveToken((cur) => cur || liveThreads[0].token);
         }
       } catch (err) {
-        console.warn('Could not load live threads, fallback to demo mode:', err);
+        console.warn('Could not load threads:', err);
       }
     }
 

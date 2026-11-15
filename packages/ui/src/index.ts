@@ -14,3 +14,4 @@ export { ScrollToTop, ScrollToTopButton, scrollToPageTop } from './components/sc
 export { GoogleButton } from './components/google-button';
 export { FieldyMascot, prefetchFieldy } from './components/fieldy-mascot';
 export type { FieldyMood } from './components/fieldy-mascot';
+export { openRazorpayCheckout, type RazorpayOptions, type RazorpayResult } from './razorpay';

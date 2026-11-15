@@ -56,6 +56,17 @@ const unsubscribeSecret = () => `${jwtAccessSecret()}:unsubscribe`;
 const isoDate = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : '');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Prisma `subscriptions` filter for "has ApplyFields Plus right now". A cancelled Plus keeps working until the
+ * end of the month already paid for (ends_at).
+ */
+export const plusActive = () => ({
+  OR: [
+    { status: 'active' as const, ends_at: null },
+    { status: { in: ['active' as const, 'cancelled' as const] }, ends_at: { gt: new Date() } },
+  ],
+});
+
 export interface NewNotification {
   type: NotificationType;
   title: string;
@@ -247,8 +258,7 @@ export class NotificationsService {
       this.prisma.saved_items.findMany({ where: parent, select: { user_id: true } }),
       this.prisma.subscriptions.findMany({
         where: {
-          status: 'active',
-          OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+          ...plusActive(),
         },
         select: { user_id: true },
       }),
@@ -293,8 +303,7 @@ export class NotificationsService {
 
     const subs = await this.prisma.subscriptions.findMany({
       where: {
-        status: 'active',
-        OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+        ...plusActive(),
       },
       select: { user_id: true },
     });
@@ -438,7 +447,7 @@ export class NotificationsService {
 
     const dueUsers = [...new Set(pending.filter((r) => opps.some((o) => o.id === r.item_id)).map((r) => r.user_id))];
     const subs = await this.prisma.subscriptions.findMany({
-      where: { user_id: { in: dueUsers }, status: 'active', OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }] },
+      where: { user_id: { in: dueUsers }, ...plusActive() },
       select: { user_id: true },
     });
     const plus = new Set(subs.map((s) => s.user_id));
@@ -778,8 +787,7 @@ export class NotificationsService {
     const sub = await this.prisma.subscriptions.findFirst({
       where: {
         user_id: userId,
-        status: 'active',
-        OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+        ...plusActive(),
       },
       select: { id: true },
     });
@@ -1044,8 +1052,7 @@ export class NotificationsService {
     } else if (input.audience.kind === 'subscribers') {
       const subs = await this.prisma.subscriptions.findMany({
         where: {
-          status: 'active',
-          OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+          ...plusActive(),
         },
         select: { user_id: true },
       });

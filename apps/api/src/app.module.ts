@@ -28,6 +28,7 @@ import { DigilockerModule } from './modules/digilocker/digilocker.module.js';
 import { AnalyticsModule } from './modules/analytics/analytics.module.js';
 import { MessagesModule } from './modules/messages/messages.module.js';
 import { ChatbotModule } from './modules/chatbot/chatbot.module.js';
+import { PaymentsModule } from './modules/payments/payments.module.js';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { ChatbotModule } from './modules/chatbot/chatbot.module.js';
     ApplicationsModule,
     ReportsModule,
     DigilockerModule,
+    PaymentsModule,
     AnalyticsModule,
     MessagesModule,
     ChatbotModule,
