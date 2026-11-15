@@ -210,7 +210,7 @@ export default function PartnerDashboardLayout({
               {partner?.owner_name || user?.email || 'Center Operator'}
             </div>
             <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-              {partner?.phone || user?.phone || '+91 9876543210'}
+              {partner?.phone || user?.phone || ''}
             </div>
 
             {/* Quick Role Switcher for Testing / Sub-account Simulation */}

@@ -16,9 +16,10 @@ import { LinkHealthService } from './link-health.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ChatbotModule } from '../chatbot/chatbot.module.js';
 import { UsersModule } from '../users/users.module.js';
+import { PaymentsModule } from '../payments/payments.module.js';
 
 @Module({
-  imports: [NotificationsModule, ChatbotModule, UsersModule],
+  imports: [NotificationsModule, ChatbotModule, UsersModule, PaymentsModule],
   controllers: [
     AdminController,
     OpportunitiesAdminController,

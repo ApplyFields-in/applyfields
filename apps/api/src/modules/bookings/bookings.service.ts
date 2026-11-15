@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Optional,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
@@ -26,6 +27,7 @@ import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../common/storage.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { PaymentsService } from '../payments/payments.service.js';
 import type { request_status } from '../../generated/prisma/enums.js';
 
 export const createBookingSchema = z.object({
@@ -183,6 +185,7 @@ export class BookingsService {
     private readonly prisma: PrismaService,
     private readonly storage?: StorageService,
     private readonly notifications?: NotificationsService,
+    @Optional() private readonly payments?: PaymentsService,
   ) {}
 
   // =========================================================================
@@ -476,6 +479,7 @@ export class BookingsService {
       return row;
     });
 
+    await this.payments?.refundBooking(bookingId, reason ?? 'Cancelled by citizen');
     return this.mapToDetail(updated);
   }
 
@@ -680,6 +684,9 @@ export class BookingsService {
       return row;
     });
 
+    if (input.status === 'rejected' || input.status === 'cancelled') {
+      await this.payments?.refundBooking(bookingId, input.cancelled_reason ?? `Booking ${input.status} by the centre`);
+    }
     return this.mapToDetail(updated);
   }
 

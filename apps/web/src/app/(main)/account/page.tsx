@@ -4,12 +4,10 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import {
   Settings,
-  Crown,
   ShieldCheck,
   Bell,
   FolderLock,
   UserRound,
-  CheckCircle2,
   ExternalLink,
   Store,
   Sparkles,
@@ -19,6 +17,7 @@ import { apiGet } from '@/lib/api';
 import type { MeResponse } from '@applyfields/types';
 import { DigiLockerCard } from '@/components/digilocker-card';
 import { PasskeysCard } from '@/components/passkeys';
+import { PlusCard, loadPlus, type PlusStatus } from '@/components/plus-card';
 import { PARTNER_PORTAL_URL } from '@/lib/urls';
 import { AccessibilityReadingSettings } from '@/components/settings/accessibility-reading-settings';
 import { AdvancedAccountSettings } from '@/components/settings/advanced-account-settings';
@@ -29,6 +28,8 @@ function AccountContent() {
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [plus, setPlus] = useState<PlusStatus | null>(null);
+  const [plusEnabled, setPlusEnabled] = useState(false);
 
   useEffect(() => {
     function syncAccount() {
@@ -53,6 +54,10 @@ function AccountContent() {
           if (res?.user) {
             setIsLoggedIn(true);
             setUserEmail(res.user.email || '');
+            void loadPlus().then((p) => {
+              setPlus(p?.status ?? null);
+              setPlusEnabled(Boolean(p?.enabled));
+            });
             if (res.profile?.full_name) {
               setUserName(res.profile.full_name);
             }
@@ -95,7 +100,7 @@ function AccountContent() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-[#536780]">{t('account_current_plan')}</span>
-                <h2 className="text-xl font-bold text-[#082046]">{t('account_plan_free')}</h2>
+                <h2 className="text-xl font-bold text-[#082046]">{plus?.active ? 'ApplyFields Plus' : t('account_plan_free')}</h2>
               </div>
               <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
                 {t('account_plan_active')}
@@ -150,56 +155,13 @@ function AccountContent() {
           {/* Modern App Settings: Active Sessions, WhatsApp Matrix, Alert Cadence & DPDP Erasure */}
           <AdvancedAccountSettings />
 
-          {/* Plus Tier Card */}
-          <div className="rounded-3xl border border-[#b8d7ff] bg-gradient-to-br from-[#EAF3FF] to-white p-7 shadow-sm space-y-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Crown className="size-6 text-[#0e7bf4]" />
-                  <h3 className="text-xl font-extrabold text-[#082046]">ApplyFields Plus</h3>
-                </div>
-                <p className="mt-1 text-xs text-[#536780]">
-                  Optional power-pack for active aspirants · ₹50 / month
-                </p>
-              </div>
-              <span className="rounded-full bg-[#082046] px-3.5 py-1 text-xs font-bold text-white shadow-sm">
-                Coming in v4
-              </span>
-            </div>
-
-            <p className="text-sm text-[#334a69]">
-              Everything on ApplyFields remains 100% free for everyone. Plus offers premium automations designed for candidates applying to multiple competitive examinations every month.
-            </p>
-
-            <div className="grid gap-3 sm:grid-cols-2 pt-2">
-              <div className="flex items-start gap-2 text-xs text-[#082046]">
-                <CheckCircle2 className="size-4 shrink-0 text-[#0e7bf4] mt-0.5" />
-                <span><strong>Instant WhatsApp &amp; SMS alerts</strong> for admit cards and last dates</span>
-              </div>
-              <div className="flex items-start gap-2 text-xs text-[#082046]">
-                <CheckCircle2 className="size-4 shrink-0 text-[#0e7bf4] mt-0.5" />
-                <span><strong>DigiLocker direct integration</strong> for 1-click certificate retrieval</span>
-              </div>
-              <div className="flex items-start gap-2 text-xs text-[#082046]">
-                <CheckCircle2 className="size-4 shrink-0 text-[#0e7bf4] mt-0.5" />
-                <span><strong>Assistance Center Discounts</strong> on form-filling at verified CSCs</span>
-              </div>
-              <div className="flex items-start gap-2 text-xs text-[#082046]">
-                <CheckCircle2 className="size-4 shrink-0 text-[#0e7bf4] mt-0.5" />
-                <span><strong>Unlimited Custom Reminders</strong> for up to 50 active recruitments</span>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                disabled
-                className="rounded-xl bg-[#0e7bf4]/50 cursor-not-allowed px-5 py-2.5 text-xs font-bold text-white shadow-sm"
-              >
-                Join Plus Waitlist (₹50/mo)
-              </button>
-            </div>
-          </div>
+          {/* ApplyFields Plus: subscribe / cancel (Razorpay) */}
+          <PlusCard
+            plus={plus}
+            enabled={plusEnabled}
+            onChange={setPlus}
+            prefill={{ name: userName || undefined, email: userEmail || undefined }}
+          />
 
           {/* Passkeys: real WebAuthn (fingerprint / face / screen lock) */}
           <PasskeysCard />

@@ -27,7 +27,7 @@ if (typeof process.loadEnvFile === 'function') {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true }); // rawBody: Razorpay webhook signature
 
   // Render sits behind one proxy: trust it so req.ip is the caller, not the load balancer.
   app.set('trust proxy', 1);

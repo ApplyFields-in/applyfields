@@ -412,25 +412,17 @@ export default function PartnerDashboardPage() {
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
             <h2 className="text-sm font-bold text-white flex items-center gap-2">
               <Phone className="h-4 w-4 text-emerald-400" />
-              Operator Support Hotline
+              Partner Support
             </h2>
             <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-              Need assistance with equipment, software configuration, or slot scheduling? Our dedicated partner desk is available 8:00 AM – 9:00 PM.
+              Need assistance with equipment, software configuration, or slot scheduling? Email the partner desk and we will get back to you.
             </p>
             <div className="mt-4 flex flex-col gap-2">
               <a
-                href="tel:+919876543210"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-950 py-2.5 text-xs font-semibold text-slate-300 hover:text-white transition"
-              >
-                <Phone className="h-3.5 w-3.5 text-emerald-400" /> Call Operator Desk
-              </a>
-              <a
-                href="https://wa.me/919876543210"
-                target="_blank"
-                rel="noreferrer"
+                href="mailto:support@applyfields.in?subject=Partner%20desk%20help"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 py-2.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-600/30 transition"
               >
-                <MessageSquare className="h-3.5 w-3.5" /> WhatsApp Operator Support
+                <MessageSquare className="h-3.5 w-3.5" /> Email support@applyfields.in
               </a>
             </div>
           </div>
