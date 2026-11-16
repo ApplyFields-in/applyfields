@@ -598,15 +598,15 @@ export function FloatingAiAssistant() {
       {!isOpen && (
         <aside
           aria-label="Fieldy - ApplyFields AI Assistant"
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300"
+          className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-300"
         >
           {/* Friendly Floating Greeting Tooltip */}
           <button
             type="button"
             onClick={openChat}
-            className="hidden sm:flex items-center gap-2.5 rounded-full border border-blue-200/80 bg-white/95 px-4 py-2.5 shadow-xl shadow-blue-900/10 backdrop-blur-md text-xs font-bold text-[#082046] hover:border-[#0e7bf4] hover:shadow-blue-500/15 transition-all group cursor-pointer"
+            className="hidden sm:flex items-center gap-2.5 rounded-full border border-blue-200/80 bg-white/95 px-4 py-2.5 shadow-xl shadow-blue-900/10 backdrop-blur-md text-xs font-bold text-[#082046] hover:border-[#0e7bf4] hover:shadow-blue-500/15 focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-all group cursor-pointer"
           >
-            <Sparkles className="size-3.5 text-[#0e7bf4] animate-pulse" />
+            <Sparkles className="size-3.5 text-[#0e7bf4] motion-safe:animate-pulse" />
             <div className="flex flex-col text-left">
               <span className="text-[11px] leading-tight font-black text-[#082046]">
                 Ask Fieldy AI
@@ -629,7 +629,7 @@ export function FloatingAiAssistant() {
             onFocus={() => setOrbHover(true)}
             onBlur={() => setOrbHover(false)}
             aria-label="Open Fieldy AI Advisor"
-            className="group relative flex size-20 items-center justify-center transition-transform hover:scale-108 active:scale-95 cursor-pointer drop-shadow-[0_8px_14px_rgba(8,32,70,0.22)] focus-visible:outline-2 focus-visible:outline-[#0e7bf4] focus-visible:rounded-2xl"
+            className="group relative flex size-16 sm:size-20 min-h-[44px] min-w-[44px] items-center justify-center transition-transform hover:scale-108 active:scale-95 cursor-pointer drop-shadow-[0_8px_14px_rgba(8,32,70,0.22)] focus-visible:outline-2 focus-visible:outline-[#0e7bf4] focus-visible:rounded-2xl"
           >
             {/* Fieldy waves when you point at him; still poster otherwise (no download until then) */}
             <FieldyMascot
@@ -660,8 +660,8 @@ export function FloatingAiAssistant() {
       {isOpen && (
         <section
           aria-label="Fieldy · ApplyFields AI Advisor"
-          className="fixed bottom-5 right-5 z-50 flex w-[calc(100vw-2.5rem)] sm:w-[420px] max-w-[420px] flex-col overflow-hidden rounded-3xl border border-[#0e7bf4]/25 bg-white shadow-2xl shadow-blue-950/25 backdrop-blur-2xl animate-in zoom-in-95 fade-in duration-200"
-          style={{ height: 'min(620px, calc(100vh - 4.5rem))' }}
+          className="fixed bottom-20 right-3 sm:bottom-5 sm:right-5 z-50 flex w-[calc(100vw-1.5rem)] sm:w-[420px] max-w-[420px] flex-col overflow-hidden rounded-3xl border border-[#0e7bf4]/25 bg-white shadow-2xl shadow-blue-950/25 backdrop-blur-2xl motion-safe:animate-in motion-safe:zoom-in-95 motion-safe:fade-in duration-200"
+          style={{ height: 'min(620px, calc(100vh - 6rem))' }}
         >
           {/* Header Bar */}
           <header className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-[#082046] via-[#0b2d62] to-[#0e7bf4] px-5 py-3.5 text-white">

@@ -55,6 +55,7 @@ export function EducationSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Form Fields
   const [eduLevel, setEduLevel] = useState<EducationLevel>('graduate');
@@ -86,6 +87,7 @@ export function EducationSection({
     setEduScoreType('percentage');
     setEduStatus('completed');
     setError(null);
+    setFieldErrors({});
     setShowModal(true);
   };
 
@@ -101,13 +103,37 @@ export function EducationSection({
     setEduScoreType(item.score_type || 'percentage');
     setEduStatus(item.status || 'completed');
     setError(null);
+    setFieldErrors({});
     setShowModal(true);
   };
 
   const handleSaveEducation = async (e: React.FormEvent) => {
     e.preventDefault();
+    const errors: Record<string, string> = {};
+
+    if (!eduInstitution.trim()) {
+      errors.institution = 'College or school name is required for verification.';
+    }
+
+    if (eduScore.trim()) {
+      const parsed = parseFloat(eduScore.trim());
+      if (isNaN(parsed)) {
+        errors.score = 'Please enter a valid numerical score.';
+      } else if (eduScoreType === 'percentage' && (parsed < 0 || parsed > 100)) {
+        errors.score = 'Percentage must be between 0 and 100.';
+      } else if (eduScoreType === 'cgpa' && (parsed < 0 || parsed > 10)) {
+        errors.score = 'CGPA must be between 0 and 10.0.';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
     setSaving(true);
     setError(null);
+    setFieldErrors({});
 
     const payload = {
       level: eduLevel,
@@ -128,7 +154,7 @@ export function EducationSection({
           const next = educations.map((item) => (item.id === editingId ? res.data! : item));
           onEducationsChange(next);
           setShowModal(false);
-          showAppToast('Educational qualification updated successfully.');
+          showAppToast({ message: 'Educational qualification updated successfully.', type: 'success' });
         } else {
           setError(res.error || 'Failed to update qualification');
         }
@@ -138,13 +164,13 @@ export function EducationSection({
           const next = [res.data, ...educations];
           onEducationsChange(next);
           setShowModal(false);
-          showAppToast('Educational qualification added successfully.');
+          showAppToast({ message: 'Educational qualification added successfully.', type: 'success' });
         } else {
           setError(res.error || 'Failed to add qualification');
         }
       }
     } catch {
-      setError('An unexpected error occurred while saving.');
+      setError('An unexpected error occurred while saving your qualification. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -246,22 +272,22 @@ export function EducationSection({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setShowResumeDropzone(!showResumeDropzone)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            className="inline-flex items-center min-h-[44px] gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none transition-colors"
           >
-            <Wand2 className="size-3.5 text-[#0E7BF4]" />
+            <Wand2 className="size-4 text-[#0E7BF4]" />
             <span>AI Resume Parser</span>
           </button>
 
           <button
             type="button"
             onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#082046] hover:bg-slate-800 text-white text-xs font-semibold transition-colors shadow-2xs"
+            className="inline-flex items-center min-h-[44px] gap-2 px-4 py-2 rounded-xl bg-[#082046] hover:bg-slate-800 text-white text-xs font-semibold focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none transition-colors shadow-2xs"
           >
-            <Plus className="size-3.5 stroke-[2.5]" />
+            <Plus className="size-4 stroke-[2.5]" />
             <span>Add Qualification</span>
           </button>
         </div>
@@ -412,20 +438,22 @@ export function EducationSection({
                 )}
               </div>
 
-              <div className="flex items-center gap-1 shrink-0 self-end sm:self-center">
+              <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
                 <button
                   type="button"
                   onClick={() => handleOpenEditModal(item)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none transition-colors"
                   title="Edit Qualification"
+                  aria-label={`Edit ${item.degree || item.level}`}
                 >
                   <Pencil className="size-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDelete(item.id, item.degree || item.level)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none transition-colors"
                   title="Remove Qualification"
+                  aria-label={`Remove ${item.degree || item.level}`}
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -449,14 +477,15 @@ export function EducationSection({
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1 rounded-xl text-slate-400 hover:text-slate-700"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none"
+                aria-label="Close modal"
               >
                 <X className="size-5" />
               </button>
             </div>
 
             {error && (
-              <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
+              <div className="mt-3 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
                 <AlertCircle className="size-4 shrink-0" />
                 <span>{error}</span>
               </div>
@@ -464,11 +493,14 @@ export function EducationSection({
 
             <form onSubmit={handleSaveEducation} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Education Level *</label>
+                <label htmlFor="edu-level" className="block text-xs font-semibold text-slate-700 mb-1">
+                  Education Level <span className="text-rose-500">*</span>
+                </label>
                 <select
+                  id="edu-level"
                   value={eduLevel}
                   onChange={(e) => setEduLevel(e.target.value as EducationLevel)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                  className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all"
                   required
                 >
                   {Object.entries(EDUCATION_LEVEL_LABELS).map(([val, label]) => (
@@ -481,115 +513,161 @@ export function EducationSection({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Degree Title</label>
+                  <label htmlFor="edu-degree" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Degree Title
+                  </label>
                   <input
+                    id="edu-degree"
                     type="text"
                     value={eduDegree}
                     onChange={(e) => setEduDegree(e.target.value)}
                     placeholder="e.g. B.Tech / B.Sc / BA / M.Com"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                    className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Stream / Branch</label>
+                  <label htmlFor="edu-stream" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Stream / Branch
+                  </label>
                   <input
+                    id="edu-stream"
                     type="text"
                     value={eduStream}
                     onChange={(e) => setEduStream(e.target.value)}
                     placeholder="e.g. Computer Science / Mechanical / Commerce"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                    className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  College or Institution Name *
+                <label htmlFor="edu-institution" className="block text-xs font-semibold text-slate-700 mb-1">
+                  College or Institution Name <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="edu-institution"
                   type="text"
                   value={eduInstitution}
-                  onChange={(e) => setEduInstitution(e.target.value)}
+                  onChange={(e) => {
+                    setEduInstitution(e.target.value);
+                    if (fieldErrors.institution) setFieldErrors((prev) => ({ ...prev, institution: '' }));
+                  }}
                   placeholder="e.g. NITK Surathkal / University of Delhi"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                  className={`w-full min-h-[44px] rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all ${
+                    fieldErrors.institution ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200'
+                  }`}
+                  aria-invalid={!!fieldErrors.institution}
                   required
                 />
+                {fieldErrors.institution && (
+                  <p className="mt-1 text-xs text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="size-3 shrink-0" />
+                    {fieldErrors.institution}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Board or Affiliating University</label>
+                <label htmlFor="edu-board" className="block text-xs font-semibold text-slate-700 mb-1">
+                  Board or Affiliating University
+                </label>
                 <input
+                  id="edu-board"
                   type="text"
                   value={eduBoard}
                   onChange={(e) => setEduBoard(e.target.value)}
                   placeholder="e.g. CBSE / VTU / State Board"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                  className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Year of Passing</label>
+                  <label htmlFor="edu-year" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Year of Passing
+                  </label>
                   <input
+                    id="edu-year"
                     type="number"
                     value={eduYear}
                     onChange={(e) => setEduYear(e.target.value)}
                     placeholder="2025"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                    className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Score / Percentage</label>
+                  <label htmlFor="edu-score" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Score / Percentage
+                  </label>
                   <input
+                    id="edu-score"
                     type="text"
                     value={eduScore}
-                    onChange={(e) => setEduScore(e.target.value)}
+                    onChange={(e) => {
+                      setEduScore(e.target.value);
+                      if (fieldErrors.score) setFieldErrors((prev) => ({ ...prev, score: '' }));
+                    }}
                     placeholder="e.g. 84.5 or 8.8"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                    className={`w-full min-h-[44px] rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all ${
+                      fieldErrors.score ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200'
+                    }`}
+                    aria-invalid={!!fieldErrors.score}
                   />
+                  {fieldErrors.score && (
+                    <p className="mt-1 text-xs text-rose-600 flex items-center gap-1 font-medium">
+                      <AlertCircle className="size-3 shrink-0" />
+                      {fieldErrors.score}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Score Format</label>
+                  <label htmlFor="edu-score-type" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Score Format
+                  </label>
                   <select
+                    id="edu-score-type"
                     value={eduScoreType}
                     onChange={(e) => setEduScoreType(e.target.value as ScoreType)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                    className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all"
                   >
                     <option value="percentage">Percentage (%)</option>
                     <option value="cgpa">CGPA (out of 10.0)</option>
-                    <option value="gpa">GPA (out of 4.0)</option>
+                    <option value="grade">Grade / Division</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Status</label>
+                <label htmlFor="edu-status" className="block text-xs font-semibold text-slate-700 mb-1">
+                  Status
+                </label>
                 <select
+                  id="edu-status"
                   value={eduStatus}
                   onChange={(e) => setEduStatus(e.target.value as EducationStatus)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                  className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all"
                 >
                   <option value="completed">Completed / Awarded</option>
                   <option value="pursuing">Currently Pursuing (Final Year)</option>
                 </select>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 flex-wrap">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 disabled:opacity-50"
+                  className="inline-flex items-center min-h-[44px] gap-2 px-6 py-2.5 rounded-xl bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none disabled:opacity-50 transition-colors shadow-xs"
                 >
-                  {saving && <Loader2 className="size-3.5 animate-spin" />}
+                  {saving && <Loader2 className="size-4 animate-spin" />}
                   <span>{saving ? 'Saving…' : editingId ? 'Update Qualification' : 'Add to Profile'}</span>
                 </button>
               </div>
