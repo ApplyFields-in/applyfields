@@ -50,12 +50,12 @@ export function StickyMobileActionBar({
   if (!isVisible) return null;
 
   return (
-    <div className="print:hidden sm:hidden fixed bottom-16 inset-x-0 z-30 px-3 pb-2 pt-1 transition-all duration-300 pointer-events-none">
-      <div className="pointer-events-auto flex items-center justify-between gap-3 rounded-lg border border-[#dec9a5] bg-[#ffffff]/98 backdrop-blur-md p-2.5 shadow-2xl animate-in slide-in-from-bottom-3 duration-200">
+    <div className="print:hidden sm:hidden fixed bottom-20 inset-x-0 z-30 px-3 pb-2 pt-1 transition-all duration-300 pointer-events-none">
+      <div className="pointer-events-auto flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 backdrop-blur-md p-2.5 shadow-xl animate-in slide-in-from-bottom-3 duration-200">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold text-[#082046] truncate">{title}</p>
           {badgeText && (
-            <span className="text-[10px] font-semibold text-[#76562d] block truncate">
+            <span className="text-[10px] font-semibold text-[#0E7BF4] block truncate">
               {badgeText}
             </span>
           )}
@@ -66,7 +66,7 @@ export function StickyMobileActionBar({
             variant="icon"
             title={title}
             category={category}
-            buttonClassName="size-8"
+            buttonClassName="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl"
           />
 
           <SaveButton
@@ -81,9 +81,9 @@ export function StickyMobileActionBar({
               applyUrl={primaryCtaHref}
               slug={slug}
               variant="secondary"
-              className="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-2 text-xs font-bold text-[#082046] hover:bg-slate-50 transition-colors shadow-xs"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-300 bg-white px-2.5 text-xs font-bold text-[#082046] hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-colors shadow-xs"
             >
-              <PictureInPicture className="size-3.5 text-[#0e7bf4]" />
+              <PictureInPicture className="size-4 text-[#0e7bf4]" />
             </PipApplyButton>
           )}
 
@@ -92,15 +92,15 @@ export function StickyMobileActionBar({
               href={primaryCtaHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-8 items-center gap-1 rounded-md bg-[#082046] px-3 text-xs font-bold text-[#ffffff] hover:bg-[#0c2e63] transition-colors shadow-sm"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[#082046] px-4 text-xs font-bold text-white hover:bg-[#0c2e63] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-colors shadow-sm"
             >
               <span>{primaryCtaLabel}</span>
-              <ExternalLink className="size-3" />
+              <ExternalLink className="size-3.5" />
             </a>
           ) : (
             <Link
               href={primaryCtaHref}
-              className="inline-flex h-8 items-center gap-1 rounded-md bg-[#082046] px-3 text-xs font-bold text-[#ffffff] hover:bg-[#0c2e63] transition-colors shadow-sm"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[#082046] px-4 text-xs font-bold text-white hover:bg-[#0c2e63] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-colors shadow-sm"
             >
               <span>{primaryCtaLabel}</span>
             </Link>

@@ -50,7 +50,7 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="Mobile bottom navigation"
-      className="print:hidden fixed bottom-0 inset-x-0 z-40 sm:hidden border-t border-[#dec9a5] bg-[#ffffff]/95 backdrop-blur-md shadow-[0_-4px_12px_rgba(8,32,70,0.06)]"
+      className="print:hidden fixed bottom-0 inset-x-0 z-40 sm:hidden border-t border-slate-200 bg-white/95 backdrop-blur-md shadow-[0_-4px_12px_rgba(8,32,70,0.06)]"
     >
       <div className="mx-auto flex h-16 max-w-md items-center justify-around px-2">
         {navItems.map((item) => {

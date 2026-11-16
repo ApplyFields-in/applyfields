@@ -249,11 +249,11 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <button
             type="button"
             onClick={handleResetDefaults}
-            className="flex items-center gap-1.5 rounded-xl border border-[#c4d2e3] bg-white px-4 py-2.5 text-xs font-bold text-[#526987] shadow-sm hover:bg-[#f0f4f8] transition-colors"
+            className="flex items-center min-h-[44px] gap-2 rounded-xl border border-[#c4d2e3] bg-white px-4 py-2.5 text-xs font-bold text-[#526987] shadow-sm hover:bg-[#f0f4f8] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-colors"
           >
             <RotateCcw className="size-3.5" />
             <span>{t('settings_btn_reset')}</span>
@@ -261,7 +261,7 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={handleSavePreferences}
-            className="flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-bold text-white shadow-clay-btn-azure hover:bg-[#0c6fdc] transition-all"
+            className="flex items-center min-h-[44px] gap-2 rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-bold text-white shadow-clay-btn-azure hover:bg-[#0c6fdc] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-all"
           >
             <Save className="size-3.5" />
             <span>{t('settings_btn_save')}</span>
@@ -274,7 +274,7 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('language')}
-          className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-xs sm:text-sm font-black transition-all ${
+          className={`flex items-center min-h-[44px] gap-2 rounded-2xl px-5 py-2.5 text-xs sm:text-sm font-black focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-all ${
             activeTab === 'language'
               ? 'bg-[#0e7bf4] text-white shadow-md'
               : 'bg-white/80 text-[#526987] hover:bg-white hover:text-[#082046]'
@@ -292,7 +292,7 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('notifications')}
-          className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-xs sm:text-sm font-black transition-all ${
+          className={`flex items-center min-h-[44px] gap-2 rounded-2xl px-5 py-2.5 text-xs sm:text-sm font-black focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-all ${
             activeTab === 'notifications'
               ? 'bg-[#0e7bf4] text-white shadow-md'
               : 'bg-white/80 text-[#526987] hover:bg-white hover:text-[#082046]'
@@ -305,7 +305,7 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('display')}
-          className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-xs sm:text-sm font-black transition-all ${
+          className={`flex items-center min-h-[44px] gap-2 rounded-2xl px-5 py-2.5 text-xs sm:text-sm font-black focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-all ${
             activeTab === 'display'
               ? 'bg-[#0e7bf4] text-white shadow-md'
               : 'bg-white/80 text-[#526987] hover:bg-white hover:text-[#082046]'
@@ -318,7 +318,7 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('preferences')}
-          className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-xs sm:text-sm font-black transition-all ${
+          className={`flex items-center min-h-[44px] gap-2 rounded-2xl px-5 py-2.5 text-xs sm:text-sm font-black focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-all ${
             activeTab === 'preferences'
               ? 'bg-[#0e7bf4] text-white shadow-md'
               : 'bg-white/80 text-[#526987] hover:bg-white hover:text-[#082046]'
@@ -697,14 +697,14 @@ export default function SettingsPage() {
       )}
 
       {/* Sticky Bottom Save Bar */}
-      <div className="flex items-center justify-between rounded-2xl border border-white bg-white/95 backdrop-blur-md px-6 py-4 shadow-clay-card">
-        <p className="text-xs text-[#526987] font-semibold">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-white bg-white/95 backdrop-blur-md px-6 py-4 shadow-clay-card mb-20 sm:mb-0">
+        <p className="text-xs text-[#526987] font-semibold text-center sm:text-left">
           {t('settings_subtitle')}
         </p>
         <button
           type="button"
           onClick={handleSavePreferences}
-          className="flex items-center gap-2 rounded-xl bg-[#0e7bf4] px-6 py-2.5 text-xs sm:text-sm font-bold text-white shadow-clay-btn-azure hover:bg-[#0c6fdc] transition-all"
+          className="flex items-center justify-center min-h-[44px] gap-2 rounded-xl bg-[#0e7bf4] px-6 py-2.5 text-xs sm:text-sm font-bold text-white shadow-clay-btn-azure hover:bg-[#0c6fdc] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-all w-full sm:w-auto"
         >
           <Save className="size-4" />
           <span>{t('settings_btn_save')}</span>

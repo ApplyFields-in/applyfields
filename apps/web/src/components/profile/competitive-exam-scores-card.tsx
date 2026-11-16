@@ -95,6 +95,7 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [copiedRollId, setCopiedRollId] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Form State
   const [examType, setExamType] = useState<ExamType>('GATE');
@@ -144,6 +145,7 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
     setAllIndiaRank('');
     setCategoryRank('');
     setAwardOrStatus('Qualified');
+    setFieldErrors({});
     setShowModal(true);
   };
 
@@ -161,6 +163,7 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
     setAllIndiaRank(item.allIndiaRank || '');
     setCategoryRank(item.categoryRank || '');
     setAwardOrStatus(item.awardOrStatus || '');
+    setFieldErrors({});
     setShowModal(true);
   };
 
@@ -186,7 +189,31 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
 
   const handleSaveExamScore = async (e: React.FormEvent) => {
     e.preventDefault();
+    const errors: Record<string, string> = {};
+
+    if (!examName.trim()) {
+      errors.examName = 'Please enter a valid examination title.';
+    }
+
+    const yr = Number(year);
+    if (isNaN(yr) || yr < 1990 || yr > 2035) {
+      errors.year = 'Please enter a valid year between 1990 and 2035.';
+    }
+
+    if (percentile.trim()) {
+      const p = parseFloat(percentile.trim());
+      if (isNaN(p) || p < 0 || p > 100) {
+        errors.percentile = 'Percentile must be between 0 and 100.';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
     setSaving(true);
+    setFieldErrors({});
 
     const payload = {
       exam_type: examType,
@@ -211,10 +238,10 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
           const next = scores.map((s) => (s.id === editingId ? updated : s));
           setScores(next);
           onScoresChange?.(next);
-          showAppToast('Competitive exam score updated successfully.');
+          showAppToast({ message: 'Competitive exam score updated successfully.', type: 'success' });
           setShowModal(false);
         } else {
-          showAppToast(res.error || 'Failed to update exam score');
+          showAppToast({ message: res.error || 'Failed to update exam score', type: 'info' });
         }
       } else {
         const res = await apiPost<UserCompetitiveExamScore>('/me/exam-scores', payload);
@@ -223,14 +250,14 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
           const next = [created, ...scores];
           setScores(next);
           onScoresChange?.(next);
-          showAppToast('Competitive exam score added to your credentials.');
+          showAppToast({ message: 'Competitive exam score added to your credentials.', type: 'success' });
           setShowModal(false);
         } else {
-          showAppToast(res.error || 'Failed to add exam score');
+          showAppToast({ message: res.error || 'Failed to add exam score', type: 'info' });
         }
       }
     } catch {
-      showAppToast('Failed to save exam score');
+      showAppToast({ message: 'An unexpected network error occurred. Please try again.', type: 'info' });
     } finally {
       setSaving(false);
     }
@@ -285,9 +312,9 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
         <button
           type="button"
           onClick={handleOpenAddModal}
-          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors shrink-0"
+          className="inline-flex items-center justify-center min-h-[44px] gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-colors shrink-0"
         >
-          <Plus className="size-3.5 stroke-[2.5]" />
+          <Plus className="size-4 stroke-[2.5]" />
           <span>{t('profile_btn_add_exam')}</span>
         </button>
       </div>
@@ -296,7 +323,7 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
       {scores.length === 0 ? (
         <div className="py-10 text-center space-y-3">
           <div className="size-12 rounded-2xl bg-slate-100 text-slate-500 mx-auto flex items-center justify-center">
-            <GraduationCap className="size-6" />
+            <GraduationCap className="size-6 text-[#0e7bf4]" />
           </div>
           <div>
             <h4 className="text-sm font-bold text-slate-800">{t('profile_no_exams')}</h4>
@@ -307,7 +334,7 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
           <button
             type="button"
             onClick={handleOpenAddModal}
-            className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            className="inline-flex items-center min-h-[44px] px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-colors"
           >
             {t('profile_btn_add_exam')}
           </button>
@@ -327,7 +354,7 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
                   {/* Top Row: Exam Badge & Year & Actions */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md border border-[#dec9a5] bg-[#F4E8D1] text-[11px] font-bold text-[#76562d]">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md border border-[#c4d2e3] bg-[#EDF2F8] text-[11px] font-bold text-[#082046]">
                         {item.examType.replace('_', ' ')}
                       </span>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-600">
@@ -344,18 +371,20 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
                       <button
                         type="button"
                         onClick={() => handleOpenEditModal(item)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-colors"
                         title="Edit Score"
+                        aria-label={`Edit ${item.examName}`}
                       >
-                        <Pencil className="size-3.5" />
+                        <Pencil className="size-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(item.id, item.examName)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none transition-colors"
                         title="Delete Record"
+                        aria-label={`Delete ${item.examName}`}
                       >
-                        <Trash2 className="size-3.5" />
+                        <Trash2 className="size-4" />
                       </button>
                     </div>
                   </div>
@@ -427,16 +456,17 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
                     <button
                       type="button"
                       onClick={() => handleCopyRollNumber(item.id, item.rollNumber!)}
-                      className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
+                      className="min-h-[44px] px-2.5 text-[11px] font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 rounded-lg focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none transition-colors"
+                      aria-label={`Copy roll number ${item.rollNumber}`}
                     >
                       {copiedRollId === item.id ? (
                         <>
-                          <Check className="size-3 text-emerald-600" />
+                          <Check className="size-3.5 text-emerald-600" />
                           <span className="text-emerald-700">Copied</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="size-3" />
+                          <Copy className="size-3.5" />
                           <span>Copy</span>
                         </>
                       )}
@@ -471,7 +501,8 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1 rounded-xl text-slate-400 hover:text-slate-700 transition-colors"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none transition-colors"
+                aria-label="Close exam modal"
               >
                 <X className="size-5" />
               </button>
@@ -480,13 +511,14 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
             <form onSubmit={handleSaveExamScore} className="mt-4 space-y-4">
               {/* Exam Selection Dropdown */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="exam-type-select" className="block text-xs font-semibold text-slate-700 mb-1">
                   Examination Type
                 </label>
                 <select
+                  id="exam-type-select"
                   value={examType}
                   onChange={(e) => handleExamTypeSelect(e.target.value as ExamType)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                  className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all"
                 >
                   {EXAM_PRESETS.map((p) => (
                     <option key={p.type} value={p.type}>
@@ -499,72 +531,95 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
               {/* Exam Display Title & Year */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Exam Title
+                  <label htmlFor="exam-title-input" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Exam Title <span className="text-rose-500">*</span>
                   </label>
                   <input
+                    id="exam-title-input"
                     type="text"
                     required
                     value={examName}
-                    onChange={(e) => setExamName(e.target.value)}
+                    onChange={(e) => {
+                      setExamName(e.target.value);
+                      if (fieldErrors.examName) setFieldErrors((prev) => ({ ...prev, examName: '' }));
+                    }}
                     placeholder="e.g. GATE 2025"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                    className={`w-full min-h-[44px] rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all ${
+                      fieldErrors.examName ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200'
+                    }`}
+                    aria-invalid={!!fieldErrors.examName}
                   />
+                  {fieldErrors.examName && (
+                    <p className="mt-1 text-xs text-rose-600 font-medium">{fieldErrors.examName}</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Year
+                  <label htmlFor="exam-year-input" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Year <span className="text-rose-500">*</span>
                   </label>
                   <input
+                    id="exam-year-input"
                     type="number"
-                    min="2000"
-                    max="2030"
+                    min="1990"
+                    max="2035"
                     required
                     value={year}
-                    onChange={(e) => setYear(Number(e.target.value))}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                    onChange={(e) => {
+                      setYear(Number(e.target.value));
+                      if (fieldErrors.year) setFieldErrors((prev) => ({ ...prev, year: '' }));
+                    }}
+                    className={`w-full min-h-[44px] rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all ${
+                      fieldErrors.year ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200'
+                    }`}
+                    aria-invalid={!!fieldErrors.year}
                   />
+                  {fieldErrors.year && (
+                    <p className="mt-1 text-xs text-rose-600 font-medium">{fieldErrors.year}</p>
+                  )}
                 </div>
               </div>
 
               {/* Discipline / Paper */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="exam-discipline-input" className="block text-xs font-semibold text-slate-700 mb-1">
                   Discipline / Paper / Subject
                 </label>
                 <input
+                  id="exam-discipline-input"
                   type="text"
                   value={disciplineOrPaper}
                   onChange={(e) => setDisciplineOrPaper(e.target.value)}
                   placeholder="e.g. Computer Science and IT (CS), Medical, Commerce"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                  className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all"
                 />
               </div>
 
               {/* Roll Number & Registration Number */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="exam-roll-input" className="block text-xs font-semibold text-slate-700 mb-1">
                     Roll Number / Hall Ticket No
                   </label>
                   <input
+                    id="exam-roll-input"
                     type="text"
                     value={rollNumber}
                     onChange={(e) => setRollNumber(e.target.value)}
                     placeholder="e.g. CS25S37108420"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                    className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-mono text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="exam-reg-input" className="block text-xs font-semibold text-slate-700 mb-1">
                     Application / Registration No
                   </label>
                   <input
+                    id="exam-reg-input"
                     type="text"
                     value={registrationNumber}
                     onChange={(e) => setRegistrationNumber(e.target.value)}
                     placeholder="e.g. 240310084912"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                    className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-mono text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all"
                   />
                 </div>
               </div>
@@ -572,86 +627,100 @@ export function CompetitiveExamScoresCard({ onScoresChange }: CompetitiveExamSco
               {/* Ranks & Percentile */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="exam-air-input" className="block text-xs font-semibold text-slate-700 mb-1">
                     All India Rank (AIR)
                   </label>
                   <input
+                    id="exam-air-input"
                     type="text"
                     value={allIndiaRank}
                     onChange={(e) => setAllIndiaRank(e.target.value)}
                     placeholder="e.g. 428 or AIR 1280"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                    className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="exam-percentile-input" className="block text-xs font-semibold text-slate-700 mb-1">
                     NTA / Overall Percentile
                   </label>
                   <input
+                    id="exam-percentile-input"
                     type="text"
                     value={percentile}
-                    onChange={(e) => setPercentile(e.target.value)}
+                    onChange={(e) => {
+                      setPercentile(e.target.value);
+                      if (fieldErrors.percentile) setFieldErrors((prev) => ({ ...prev, percentile: '' }));
+                    }}
                     placeholder="e.g. 99.18"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                    className={`w-full min-h-[44px] rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all ${
+                      fieldErrors.percentile ? 'border-rose-400 bg-rose-50/20' : 'border-slate-200'
+                    }`}
+                    aria-invalid={!!fieldErrors.percentile}
                   />
+                  {fieldErrors.percentile && (
+                    <p className="mt-1 text-xs text-rose-600 font-medium">{fieldErrors.percentile}</p>
+                  )}
                 </div>
               </div>
 
               {/* Score / Marks & Category Rank */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="exam-score-input" className="block text-xs font-semibold text-slate-700 mb-1">
                     Score / Marks Obtained
                   </label>
                   <input
+                    id="exam-score-input"
                     type="text"
                     value={score}
                     onChange={(e) => setScore(e.target.value)}
                     placeholder="e.g. 768/1000 or 675/720"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                    className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="exam-catrank-input" className="block text-xs font-semibold text-slate-700 mb-1">
                     Category Rank (Optional)
                   </label>
                   <input
+                    id="exam-catrank-input"
                     type="text"
                     value={categoryRank}
                     onChange={(e) => setCategoryRank(e.target.value)}
                     placeholder="e.g. OBC-NCL AIR 64"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                    className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all"
                   />
                 </div>
               </div>
 
               {/* Award / Status */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="exam-award-input" className="block text-xs font-semibold text-slate-700 mb-1">
                   Status / Award Qualification
                 </label>
                 <input
+                  id="exam-award-input"
                   type="text"
                   value={awardOrStatus}
                   onChange={(e) => setAwardOrStatus(e.target.value)}
                   placeholder="e.g. Qualified for PSU Recruitment / JRF & Assistant Professor"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0e7bf4]"
+                  className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4]/25 transition-all"
                 />
               </div>
 
               {/* Actions */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 flex-wrap">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-[#0e7bf4] hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-colors"
+                  className="inline-flex items-center min-h-[44px] px-6 py-2.5 rounded-xl bg-[#0e7bf4] hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-colors"
                 >
                   {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Record Score'}
                 </button>
