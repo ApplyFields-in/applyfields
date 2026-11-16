@@ -64,6 +64,8 @@ export function PersonalSection({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedJustNow, setSavedJustNow] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Form Fields
   const [fullName, setFullName] = useState(profile?.full_name || '');
@@ -99,18 +101,46 @@ export function PersonalSection({
     setIsExServiceman(profile?.is_ex_serviceman || false);
     setIsMinority(profile?.is_minority || false);
     setError(null);
+    setFieldErrors({});
     setEditing(true);
   };
 
   const handleCancelEdit = () => {
     setEditing(false);
     setError(null);
+    setFieldErrors({});
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const errors: Record<string, string> = {};
+
+    if (!fullName.trim()) {
+      errors.fullName = 'Full name is required as per matriculation records.';
+    } else if (fullName.trim().length < 2) {
+      errors.fullName = 'Please enter your complete legal name.';
+    }
+
+    if (!dob) {
+      errors.dob = 'Date of birth is required for age eligibility cutoff calculation.';
+    }
+
+    if (!gender) {
+      errors.gender = 'Please select your gender.';
+    }
+
+    if (!category) {
+      errors.category = 'Social category is required for reservation quota matching.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
     setSaving(true);
     setError(null);
+    setFieldErrors({});
 
     const payload = {
       full_name: fullName.trim() || undefined,
@@ -128,11 +158,13 @@ export function PersonalSection({
     setSaving(false);
 
     if (res.error || !res.data) {
-      setError(res.error || 'Failed to update personal details.');
+      setError(res.error || "We couldn't save your personal details right now. Please check your connection and try again.");
     } else {
       onProfileUpdate(res.data);
       setEditing(false);
-      showAppToast('Personal details updated successfully!');
+      setSavedJustNow(true);
+      setTimeout(() => setSavedJustNow(false), 4500);
+      showAppToast({ message: 'Personal details updated successfully!', type: 'success' });
     }
   };
 
@@ -209,11 +241,17 @@ export function PersonalSection({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <User className="size-5 text-[#0E7BF4]" />
             <h3 className="text-lg font-bold text-slate-900 tracking-tight">
               Personal & Demographic Details
             </h3>
+            {savedJustNow && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 animate-in fade-in">
+                <CheckCircle2 className="size-3.5" />
+                Saved
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Crucial for reservation eligibility, age limit relaxations, and quota certificates.
@@ -225,7 +263,7 @@ export function PersonalSection({
             <button
               type="button"
               onClick={handleStartEdit}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+              className="inline-flex items-center min-h-[44px] gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none transition-colors shadow-2xs"
             >
               <Pencil className="size-3.5" />
               <span>Edit Details</span>
@@ -234,7 +272,7 @@ export function PersonalSection({
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+              className="inline-flex items-center min-h-[44px] gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-500 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none transition-colors"
             >
               <X className="size-3.5" />
               <span>Cancel</span>
@@ -352,14 +390,14 @@ export function PersonalSection({
                   <button
                     type="button"
                     onClick={() => handleOpenContactModal('email')}
-                    className="text-[11px] font-bold text-[#0E7BF4] hover:underline"
+                    className="min-h-[44px] px-3 py-2 inline-flex items-center text-xs font-bold text-[#0E7BF4] hover:bg-blue-50/80 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-[#0E7BF4]"
                   >
                     Change
                   </button>
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3">
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 overflow-hidden">
                   <Phone className="size-4 text-[#0E7BF4] shrink-0" />
                   <div className="truncate">
@@ -382,7 +420,7 @@ export function PersonalSection({
                   <button
                     type="button"
                     onClick={() => handleOpenContactModal('phone')}
-                    className="text-[11px] font-bold text-[#0E7BF4] hover:underline"
+                    className="min-h-[44px] px-3 py-2 inline-flex items-center text-xs font-bold text-[#0E7BF4] hover:bg-blue-50/80 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-[#0E7BF4]"
                   >
                     Change
                   </button>
@@ -396,41 +434,73 @@ export function PersonalSection({
         <form onSubmit={handleSave} className="mt-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+              <label htmlFor="field-fullname" className="block text-xs font-semibold text-slate-700 mb-1">
+                Full Name <span className="text-red-500">*</span>
+              </label>
               <input
+                id="field-fullname"
                 type="text"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Candidate Full Name (as per matriculation)"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (fieldErrors.fullName) setFieldErrors((prev) => ({ ...prev, fullName: '' }));
+                }}
+                placeholder="Full Name (as per Class 10 certificate)"
+                className={`w-full min-h-[44px] rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all ${
+                  fieldErrors.fullName ? 'border-red-400 bg-red-50/30' : 'border-slate-200 bg-white'
+                }`}
                 required
               />
+              {fieldErrors.fullName ? (
+                <p className="mt-1 text-xs text-red-600 font-medium">{fieldErrors.fullName}</p>
+              ) : (
+                <p className="mt-1 text-[11px] text-slate-400">As recorded in official records</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Date of Birth
+              <label htmlFor="field-dob" className="block text-xs font-semibold text-slate-700 mb-1">
+                Date of Birth <span className="text-red-500">*</span>
                 {liveAge && (
-                  <span className="ml-2 font-normal text-slate-500">
+                  <span className="ml-2 font-normal text-[#0E7BF4]">
                     ({liveAge.years}y {liveAge.months}m)
                   </span>
                 )}
               </label>
               <input
+                id="field-dob"
                 type="date"
                 value={dob}
-                onChange={(e) => setDob(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                onChange={(e) => {
+                  setDob(e.target.value);
+                  if (fieldErrors.dob) setFieldErrors((prev) => ({ ...prev, dob: '' }));
+                }}
+                className={`w-full min-h-[44px] rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all ${
+                  fieldErrors.dob ? 'border-red-400 bg-red-50/30' : 'border-slate-200 bg-white'
+                }`}
                 required
               />
+              {fieldErrors.dob ? (
+                <p className="mt-1 text-xs text-red-600 font-medium">{fieldErrors.dob}</p>
+              ) : (
+                <p className="mt-1 text-[11px] text-slate-400">Used for age relaxation cutoff rules</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Gender</label>
+              <label htmlFor="field-gender" className="block text-xs font-semibold text-slate-700 mb-1">
+                Gender <span className="text-red-500">*</span>
+              </label>
               <select
+                id="field-gender"
                 value={gender}
-                onChange={(e) => setGender(e.target.value as UserGender)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                onChange={(e) => {
+                  setGender(e.target.value as UserGender);
+                  if (fieldErrors.gender) setFieldErrors((prev) => ({ ...prev, gender: '' }));
+                }}
+                className={`w-full min-h-[44px] rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all ${
+                  fieldErrors.gender ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                }`}
                 required
               >
                 <option value="">Select Gender</option>
@@ -439,14 +509,27 @@ export function PersonalSection({
                 <option value="transgender">Transgender</option>
                 <option value="other">Other / Prefer not to say</option>
               </select>
+              {fieldErrors.gender ? (
+                <p className="mt-1 text-xs text-red-600 font-medium">{fieldErrors.gender}</p>
+              ) : (
+                <p className="mt-1 text-[11px] text-slate-400">For gender fee exemptions & reserved posts</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Social Category</label>
+              <label htmlFor="field-category" className="block text-xs font-semibold text-slate-700 mb-1">
+                Social Category <span className="text-red-500">*</span>
+              </label>
               <select
+                id="field-category"
                 value={category}
-                onChange={(e) => setCategory(e.target.value as SocialCategory)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                onChange={(e) => {
+                  setCategory(e.target.value as SocialCategory);
+                  if (fieldErrors.category) setFieldErrors((prev) => ({ ...prev, category: '' }));
+                }}
+                className={`w-full min-h-[44px] rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all ${
+                  fieldErrors.category ? 'border-red-400 bg-red-50/30' : 'border-slate-200'
+                }`}
                 required
               >
                 <option value="">Select Category</option>
@@ -456,30 +539,39 @@ export function PersonalSection({
                 <option value="st">ST (Scheduled Tribe)</option>
                 <option value="ews">EWS (Economically Weaker Section)</option>
               </select>
+              {fieldErrors.category ? (
+                <p className="mt-1 text-xs text-red-600 font-medium">{fieldErrors.category}</p>
+              ) : (
+                <p className="mt-1 text-[11px] text-slate-400">For reservation quota benefits</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Annual Family Income (INR)</label>
+              <label htmlFor="field-income" className="block text-xs font-semibold text-slate-700 mb-1">
+                Annual Family Income (INR)
+              </label>
               <input
+                id="field-income"
                 type="number"
                 value={annualIncome}
                 onChange={(e) => setAnnualIncome(e.target.value)}
                 placeholder="e.g. 450000"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25 transition-all"
               />
+              <p className="mt-1 text-[11px] text-slate-400">Required for fee concessions & EWS limits</p>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Disability (PwBD) Status</label>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center min-h-[44px] gap-2.5">
                 <input
                   type="checkbox"
                   id="pwbd-check"
                   checked={isPwbd}
                   onChange={(e) => setIsPwbd(e.target.checked)}
-                  className="rounded text-[#0E7BF4]"
+                  className="size-4.5 rounded text-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]"
                 />
-                <label htmlFor="pwbd-check" className="text-xs text-slate-700 font-medium">
+                <label htmlFor="pwbd-check" className="text-xs text-slate-700 font-medium cursor-pointer">
                   Person with Benchmark Disability (40%+)
                 </label>
               </div>
@@ -489,48 +581,48 @@ export function PersonalSection({
                   value={pwbdType}
                   onChange={(e) => setPwbdType(e.target.value)}
                   placeholder="e.g. Locomotor / Visual / Hearing"
-                  className="w-full mt-2 rounded-xl border border-slate-200 px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                  className="w-full mt-2 min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25"
                 />
               )}
             </div>
           </div>
 
-          <div className="pt-2 flex flex-wrap items-center gap-4 text-xs">
-            <label className="flex items-center gap-2 cursor-pointer">
+          <div className="pt-2 flex flex-wrap items-center gap-6 text-xs">
+            <label className="flex items-center min-h-[44px] gap-2.5 cursor-pointer">
               <input
                 type="checkbox"
                 checked={isExServiceman}
                 onChange={(e) => setIsExServiceman(e.target.checked)}
-                className="rounded text-[#0E7BF4]"
+                className="size-4.5 rounded text-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]"
               />
               <span className="text-slate-700 font-medium">Ex-Serviceman (Armed Forces)</span>
             </label>
 
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center min-h-[44px] gap-2.5 cursor-pointer">
               <input
                 type="checkbox"
                 checked={isMinority}
                 onChange={(e) => setIsMinority(e.target.checked)}
-                className="rounded text-[#0E7BF4]"
+                className="size-4.5 rounded text-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]"
               />
               <span className="text-slate-700 font-medium">Minority Community Member</span>
             </label>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 flex-wrap">
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 disabled:opacity-50 transition-colors shadow-xs"
+              className="inline-flex items-center min-h-[44px] gap-2 px-6 py-2.5 rounded-xl bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 disabled:opacity-50 transition-colors shadow-xs focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none"
             >
-              {saving && <Loader2 className="size-3.5 animate-spin" />}
+              {saving && <Loader2 className="size-4 animate-spin" />}
               <span>{saving ? 'Saving...' : 'Save Personal Details'}</span>
             </button>
           </div>

@@ -154,15 +154,17 @@ export function EligibilityCompletenessCard({
                 <button
                   type="button"
                   onClick={() => handleJumpToSection(item.sectionId)}
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0E7BF4] hover:underline pt-1 border-t border-amber-200/50"
+                  className="inline-flex items-center min-h-[44px] gap-1.5 text-xs font-bold text-[#0E7BF4] hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none rounded-lg pt-1 border-t border-amber-200/50 transition-colors"
                 >
                   <span>Complete this field</span>
-                  <ArrowRight className="size-3" />
+                  <ArrowRight className="size-3.5" />
                 </button>
               ) : (
-                <span className="text-[11px] font-bold text-emerald-700 flex items-center gap-1 pt-1 border-t border-slate-100">
-                  <CheckCircle2 className="size-3" /> Ready
-                </span>
+                <div className="min-h-[44px] flex items-center pt-1 border-t border-slate-100">
+                  <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                    <CheckCircle2 className="size-3.5" /> Ready
+                  </span>
+                </div>
               )}
             </div>
           );

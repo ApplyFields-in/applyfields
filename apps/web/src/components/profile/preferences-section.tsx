@@ -57,6 +57,7 @@ export function PreferencesSection({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedJustNow, setSavedJustNow] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Extract initial target job types from special_conditions
@@ -131,7 +132,9 @@ export function PreferencesSection({
     } else {
       onProfileUpdate(res.data);
       setEditing(false);
-      showAppToast('Preferences & privacy settings saved to server!');
+      setSavedJustNow(true);
+      setTimeout(() => setSavedJustNow(false), 4500);
+      showAppToast({ message: 'Preferences & privacy settings saved to server!', type: 'success' });
     }
   };
 
@@ -149,11 +152,17 @@ export function PreferencesSection({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Sliders className="size-5 text-[#0E7BF4]" />
             <h3 className="text-lg font-bold text-slate-900 tracking-tight">
               Preferences & Public Portfolio
             </h3>
+            {savedJustNow && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <Check className="size-3.5" />
+                Saved
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Configure preferred state notifications, communication language, and public candidate shareability.
@@ -165,7 +174,7 @@ export function PreferencesSection({
             <button
               type="button"
               onClick={handleStartEdit}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+              className="inline-flex items-center min-h-[44px] gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none transition-colors shadow-2xs"
             >
               <Pencil className="size-3.5" />
               <span>Edit Preferences</span>
@@ -174,7 +183,7 @@ export function PreferencesSection({
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+              className="inline-flex items-center min-h-[44px] gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-500 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none transition-colors"
             >
               <X className="size-3.5" />
               <span>Cancel</span>
@@ -337,13 +346,14 @@ export function PreferencesSection({
                     key={opt}
                     type="button"
                     onClick={() => toggleJobType(opt)}
-                    className={`p-2.5 rounded-xl text-xs font-semibold text-left transition-all border ${
+                    className={`min-h-[44px] p-3 rounded-xl text-xs font-semibold text-left transition-all border flex items-center justify-between ${
                       selected
                         ? 'bg-[#0E7BF4] text-white border-[#0E7BF4]'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    {opt}
+                    <span className="line-clamp-2">{opt}</span>
+                    {selected && <Check className="size-3.5 shrink-0 ml-1" />}
                   </button>
                 );
               })}
@@ -351,8 +361,8 @@ export function PreferencesSection({
           </div>
 
           {/* Public Profile Configuration */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between min-h-[44px]">
               <div>
                 <span className="text-xs font-bold text-slate-900 block">
                   Make My Profile Public
@@ -363,47 +373,50 @@ export function PreferencesSection({
               </div>
               <input
                 type="checkbox"
+                id="profile-is-public"
                 checked={isPublic}
                 onChange={(e) => setIsPublic(e.target.checked)}
-                className="size-5 rounded text-[#0E7BF4] focus:ring-0 cursor-pointer"
+                className="size-5 rounded text-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4] cursor-pointer"
+                aria-label="Make profile public"
               />
             </div>
 
             {isPublic && (
               <div className="pt-2 border-t border-slate-200">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="profile-handle" className="block text-xs font-semibold text-slate-700 mb-1">
                   Public Profile Handle
                 </label>
                 <div className="flex items-center">
-                  <span className="px-3 py-2 rounded-l-xl bg-slate-200/70 border border-r-0 border-slate-300 text-xs text-slate-600 font-mono">
+                  <span className="px-3.5 py-2.5 rounded-l-xl bg-slate-200/70 border border-r-0 border-slate-300 text-xs text-slate-600 font-mono">
                     applyfields.com/u/
                   </span>
                   <input
+                    id="profile-handle"
                     type="text"
                     value={handle}
                     onChange={(e) => setHandle(e.target.value)}
                     placeholder="karthik-reddy"
-                    className="flex-1 rounded-r-xl border border-slate-300 px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-[#0E7BF4]"
+                    className="flex-1 min-h-[44px] rounded-r-xl border border-slate-300 px-3.5 py-2.5 text-sm font-mono text-slate-900 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25"
                   />
                 </div>
               </div>
             )}
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 flex-wrap">
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 disabled:opacity-50 transition-colors shadow-xs"
+              className="inline-flex items-center min-h-[44px] gap-2 px-6 py-2.5 rounded-xl bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none disabled:opacity-50 transition-colors shadow-xs"
             >
-              {saving && <Loader2 className="size-3.5 animate-spin" />}
+              {saving && <Loader2 className="size-4 animate-spin" />}
               <span>{saving ? 'Saving...' : 'Save Preferences'}</span>
             </button>
           </div>
