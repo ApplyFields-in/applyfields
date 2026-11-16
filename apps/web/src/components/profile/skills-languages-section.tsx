@@ -27,6 +27,7 @@ export function SkillsLanguagesSection({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedJustNow, setSavedJustNow] = useState(false);
 
   // Extract skills & languages from special_conditions
   const rawConditions = profile?.special_conditions || [];
@@ -110,7 +111,9 @@ export function SkillsLanguagesSection({
     } else {
       onProfileUpdate(res.data);
       setEditing(false);
-      showAppToast('Skills & languages updated successfully!');
+      setSavedJustNow(true);
+      setTimeout(() => setSavedJustNow(false), 4500);
+      showAppToast({ message: 'Skills & languages updated successfully!', type: 'success' });
     }
   };
 
@@ -119,11 +122,17 @@ export function SkillsLanguagesSection({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Sparkles className="size-5 text-[#0E7BF4]" />
             <h3 className="text-lg font-bold text-slate-900 tracking-tight">
               Skills, Certifications & Languages
             </h3>
+            {savedJustNow && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <Check className="size-3.5" />
+                Saved
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Helps qualify for typing exams, stenographer posts, technical officer positions, and language proficiency tests.
@@ -135,7 +144,7 @@ export function SkillsLanguagesSection({
             <button
               type="button"
               onClick={handleStartEdit}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+              className="inline-flex items-center min-h-[44px] gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none transition-colors shadow-2xs"
             >
               <Pencil className="size-3.5" />
               <span>Edit Skills</span>
@@ -144,7 +153,7 @@ export function SkillsLanguagesSection({
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+              className="inline-flex items-center min-h-[44px] gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-500 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none transition-colors"
             >
               <X className="size-3.5" />
               <span>Cancel</span>
@@ -211,38 +220,40 @@ export function SkillsLanguagesSection({
         <form onSubmit={handleSave} className="mt-5 space-y-6">
           {/* Technical Skills Editor */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-2">
+            <label htmlFor="input-new-skill" className="block text-xs font-semibold text-slate-700 mb-2">
               Technical & Vocational Skills
             </label>
             <div className="flex flex-wrap gap-2 mb-3">
               {skills.map((s) => (
                 <span
                   key={s}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-[#F8FBFF] text-[#082046] text-xs font-semibold border border-blue-200"
+                  className="inline-flex items-center min-h-[44px] gap-2 px-3.5 py-1.5 rounded-xl bg-[#F8FBFF] text-[#082046] text-xs font-semibold border border-blue-200"
                 >
                   <span>{s}</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveSkill(s)}
-                    className="text-slate-400 hover:text-rose-600 p-0.5"
+                    className="size-6 flex items-center justify-center rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    aria-label={`Remove skill ${s}`}
                   >
-                    <X className="size-3" />
+                    <X className="size-3.5" />
                   </button>
                 </span>
               ))}
             </div>
             <div className="flex gap-2 max-w-md">
               <input
+                id="input-new-skill"
                 type="text"
                 value={newSkill}
                 onChange={(e) => setNewSkill(e.target.value)}
                 placeholder="e.g. Stenography / Python / Typing 40 WPM"
-                className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                className="flex-1 min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25"
               />
               <button
                 type="button"
                 onClick={handleAddSkill}
-                className="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 shrink-0"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none shrink-0 transition-colors"
               >
                 Add Skill
               </button>
@@ -251,58 +262,60 @@ export function SkillsLanguagesSection({
 
           {/* Languages Editor */}
           <div className="pt-4 border-t border-slate-100">
-            <label className="block text-xs font-semibold text-slate-700 mb-2">
+            <label htmlFor="input-new-lang" className="block text-xs font-semibold text-slate-700 mb-2">
               Languages Known
             </label>
             <div className="flex flex-wrap gap-2 mb-3">
               {languages.map((l) => (
                 <span
                   key={l}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-slate-100 text-slate-800 text-xs font-semibold border border-slate-200"
+                  className="inline-flex items-center min-h-[44px] gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-xs font-semibold border border-slate-200"
                 >
                   <span>{l}</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveLanguage(l)}
-                    className="text-slate-400 hover:text-rose-600 p-0.5"
+                    className="size-6 flex items-center justify-center rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    aria-label={`Remove language ${l}`}
                   >
-                    <X className="size-3" />
+                    <X className="size-3.5" />
                   </button>
                 </span>
               ))}
             </div>
             <div className="flex gap-2 max-w-md">
               <input
+                id="input-new-lang"
                 type="text"
                 value={newLanguage}
                 onChange={(e) => setNewLanguage(e.target.value)}
                 placeholder="e.g. Kannada / Telugu / Hindi"
-                className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#0E7BF4]"
+                className="flex-1 min-h-[44px] rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-[#0E7BF4] focus-visible:ring-2 focus-visible:ring-[#0E7BF4]/25"
               />
               <button
                 type="button"
                 onClick={handleAddLanguage}
-                className="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 shrink-0"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none shrink-0 transition-colors"
               >
                 Add Language
               </button>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 flex-wrap">
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 disabled:opacity-50 transition-colors shadow-xs"
+              className="inline-flex items-center min-h-[44px] gap-2 px-6 py-2.5 rounded-xl bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none disabled:opacity-50 transition-colors shadow-xs"
             >
-              {saving && <Loader2 className="size-3.5 animate-spin" />}
+              {saving && <Loader2 className="size-4 animate-spin" />}
               <span>{saving ? 'Saving...' : 'Save Skills & Languages'}</span>
             </button>
           </div>

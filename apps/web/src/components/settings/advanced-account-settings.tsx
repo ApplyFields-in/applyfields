@@ -220,7 +220,7 @@ export function AdvancedAccountSettings() {
               type="button"
               onClick={handleLogoutOtherSessions}
               disabled={loggingOutSessions}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 transition-colors shrink-0 cursor-pointer"
+              className="inline-flex items-center min-h-[44px] gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none transition-colors shrink-0 cursor-pointer"
             >
               <LogOut className="size-3.5" />
               <span>{loggingOutSessions ? 'Terminating...' : 'Log Out Other Sessions'}</span>
@@ -241,7 +241,7 @@ export function AdvancedAccountSettings() {
             sessions.map((sess) => (
               <div
                 key={sess.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-[#f8fbff] p-3 text-xs"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-[#f8fbff] p-3.5 text-xs"
               >
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 rounded-md bg-white border border-slate-200 p-1.5 text-[#082046]">
@@ -271,9 +271,9 @@ export function AdvancedAccountSettings() {
                     type="button"
                     onClick={() => handleRevokeSingleSession(sess.id)}
                     disabled={revokingSessionId === sess.id}
-                    className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors self-end sm:self-auto cursor-pointer"
+                    className="inline-flex items-center min-h-[44px] gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 hover:border-red-200 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none transition-colors self-end sm:self-auto cursor-pointer"
                   >
-                    <X className="size-3" />
+                    <X className="size-3.5" />
                     <span>{revokingSessionId === sess.id ? 'Revoking...' : 'Revoke'}</span>
                   </button>
                 )}
@@ -300,7 +300,7 @@ export function AdvancedAccountSettings() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 text-[#76562d] font-bold uppercase tracking-wider text-[10px]">
+              <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
                 <th className="py-2.5 pr-4">Timeline Event</th>
                 <th className="py-2.5 px-3 text-center">WhatsApp Alerts</th>
                 <th className="py-2.5 px-3 text-center">In-App Notice</th>
@@ -314,28 +314,37 @@ export function AdvancedAccountSettings() {
                   <p className="text-[11px] font-normal text-[#536780]">Urgent notifications before form closing</p>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.urgentDeadlines.whatsapp}
-                    onChange={() => toggleMatrix('urgentDeadlines', 'whatsapp')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.urgentDeadlines.whatsapp}
+                      onChange={() => toggleMatrix('urgentDeadlines', 'whatsapp')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="WhatsApp alerts for closing deadlines"
+                    />
+                  </div>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.urgentDeadlines.inApp}
-                    onChange={() => toggleMatrix('urgentDeadlines', 'inApp')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.urgentDeadlines.inApp}
+                      onChange={() => toggleMatrix('urgentDeadlines', 'inApp')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="In-app alerts for closing deadlines"
+                    />
+                  </div>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.urgentDeadlines.email}
-                    onChange={() => toggleMatrix('urgentDeadlines', 'email')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.urgentDeadlines.email}
+                      onChange={() => toggleMatrix('urgentDeadlines', 'email')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="Email alerts for closing deadlines"
+                    />
+                  </div>
                 </td>
               </tr>
 
@@ -345,28 +354,37 @@ export function AdvancedAccountSettings() {
                   <p className="text-[11px] font-normal text-[#536780]">Hall ticket release links &amp; roll status</p>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.admitCard.whatsapp}
-                    onChange={() => toggleMatrix('admitCard', 'whatsapp')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.admitCard.whatsapp}
+                      onChange={() => toggleMatrix('admitCard', 'whatsapp')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="WhatsApp alerts for admit cards"
+                    />
+                  </div>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.admitCard.inApp}
-                    onChange={() => toggleMatrix('admitCard', 'inApp')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.admitCard.inApp}
+                      onChange={() => toggleMatrix('admitCard', 'inApp')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="In-app alerts for admit cards"
+                    />
+                  </div>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.admitCard.email}
-                    onChange={() => toggleMatrix('admitCard', 'email')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.admitCard.email}
+                      onChange={() => toggleMatrix('admitCard', 'email')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="Email alerts for admit cards"
+                    />
+                  </div>
                 </td>
               </tr>
 
@@ -376,28 +394,37 @@ export function AdvancedAccountSettings() {
                   <p className="text-[11px] font-normal text-[#536780]">Cutoff lists, merit status &amp; scorecards</p>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.resultsAndKeys.whatsapp}
-                    onChange={() => toggleMatrix('resultsAndKeys', 'whatsapp')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.resultsAndKeys.whatsapp}
+                      onChange={() => toggleMatrix('resultsAndKeys', 'whatsapp')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="WhatsApp alerts for answer keys"
+                    />
+                  </div>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.resultsAndKeys.inApp}
-                    onChange={() => toggleMatrix('resultsAndKeys', 'inApp')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.resultsAndKeys.inApp}
+                      onChange={() => toggleMatrix('resultsAndKeys', 'inApp')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="In-app alerts for answer keys"
+                    />
+                  </div>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.resultsAndKeys.email}
-                    onChange={() => toggleMatrix('resultsAndKeys', 'email')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.resultsAndKeys.email}
+                      onChange={() => toggleMatrix('resultsAndKeys', 'email')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="Email alerts for answer keys"
+                    />
+                  </div>
                 </td>
               </tr>
 
@@ -407,28 +434,37 @@ export function AdvancedAccountSettings() {
                   <p className="text-[11px] font-normal text-[#536780]">State &amp; Central post-matric schemes</p>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.categorySchemes.whatsapp}
-                    onChange={() => toggleMatrix('categorySchemes', 'whatsapp')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.categorySchemes.whatsapp}
+                      onChange={() => toggleMatrix('categorySchemes', 'whatsapp')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="WhatsApp alerts for scholarships"
+                    />
+                  </div>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.categorySchemes.inApp}
-                    onChange={() => toggleMatrix('categorySchemes', 'inApp')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.categorySchemes.inApp}
+                      onChange={() => toggleMatrix('categorySchemes', 'inApp')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="In-app alerts for scholarships"
+                    />
+                  </div>
                 </td>
                 <td className="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={matrix.categorySchemes.email}
-                    onChange={() => toggleMatrix('categorySchemes', 'email')}
-                    className="size-4 accent-[#082046] cursor-pointer"
-                  />
+                  <div className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={matrix.categorySchemes.email}
+                      onChange={() => toggleMatrix('categorySchemes', 'email')}
+                      className="size-4.5 accent-[#082046] rounded cursor-pointer"
+                      aria-label="Email alerts for scholarships"
+                    />
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -600,9 +636,9 @@ export function AdvancedAccountSettings() {
             type="button"
             onClick={handleExportDataArchive}
             disabled={isExporting}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#082046] bg-[#082046] px-4 py-2 text-xs font-bold text-white hover:bg-[#0c2e63] transition-colors shrink-0 shadow-sm cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center min-h-[44px] gap-2 rounded-xl border border-[#082046] bg-[#082046] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#0c2e63] focus-visible:ring-2 focus-visible:ring-[#082046] focus-visible:outline-none transition-colors shrink-0 shadow-sm cursor-pointer disabled:opacity-50"
           >
-            <Download className="size-3.5" />
+            <Download className="size-4" />
             <span>{isExporting ? 'Exporting Archive...' : 'Download Archive'}</span>
           </button>
         </div>
@@ -620,9 +656,9 @@ export function AdvancedAccountSettings() {
               setDeleteError(null);
               setShowDeleteModal(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-100 transition-colors shrink-0 cursor-pointer shadow-xs"
+            className="inline-flex items-center min-h-[44px] gap-2 rounded-xl border border-red-300 bg-white px-5 py-2.5 text-xs font-bold text-red-700 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none transition-colors shrink-0 cursor-pointer shadow-xs"
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 className="size-4" />
             <span>Delete Account</span>
           </button>
         </div>
@@ -636,12 +672,12 @@ export function AdvancedAccountSettings() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#082046]/45 backdrop-blur-xs animate-in fade-in duration-150"
         >
           <div
-            className="w-full max-w-md rounded-xl border border-red-300 bg-white shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-md rounded-2xl border border-red-300 bg-white shadow-2xl p-6 sm:p-7 space-y-4 animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 text-red-700">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-100">
-                <AlertTriangle className="size-5" />
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-red-100">
+                <AlertTriangle className="size-5.5" />
               </div>
               <div>
                 <h4 className="text-base font-bold text-red-900">Permanently Delete Account?</h4>
@@ -654,38 +690,43 @@ export function AdvancedAccountSettings() {
             </p>
 
             {deleteError && (
-              <div className="rounded-lg bg-red-50 border border-red-200 p-2.5 text-xs font-medium text-red-700">
+              <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs font-medium text-red-700">
                 {deleteError}
               </div>
             )}
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold uppercase text-[#536780]">
+              <label htmlFor="delete-account-password" className="text-[11px] font-bold uppercase text-[#536780]">
                 Enter Your Password (or One-Time Code):
               </label>
               <input
+                id="delete-account-password"
                 type="password"
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
                 placeholder="Account password"
-                className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-xs text-[#082046] focus:border-red-600 focus:outline-none"
+                className="min-h-[44px] w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-[#082046] focus:border-red-600 focus-visible:ring-2 focus-visible:ring-red-400 focus:outline-none transition-all"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold uppercase text-[#536780]">
+              <label htmlFor="delete-account-confirm" className="text-[11px] font-bold uppercase text-[#536780]">
                 To confirm, type <strong className="text-red-700">DELETE</strong> below:
               </label>
               <input
+                id="delete-account-confirm"
                 type="text"
                 value={deleteConfirmationText}
                 onChange={(e) => setDeleteConfirmationText(e.target.value)}
                 placeholder="Type DELETE"
-                className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-xs font-bold text-[#082046] focus:border-red-600 focus:outline-none"
+                className="min-h-[44px] w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-bold tracking-wider text-[#082046] focus:border-red-600 focus-visible:ring-2 focus-visible:ring-red-400 focus:outline-none transition-all"
               />
+              {deleteConfirmationText.length > 0 && deleteConfirmationText !== 'DELETE' && (
+                <p className="text-[11px] text-amber-700 font-medium">Please type DELETE in uppercase letters to enable the button.</p>
+              )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 flex-wrap">
               <button
                 type="button"
                 onClick={() => {
@@ -694,7 +735,7 @@ export function AdvancedAccountSettings() {
                   setDeletePassword('');
                   setDeleteError(null);
                 }}
-                className="rounded-md border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-[#536780] hover:bg-slate-50"
+                className="min-h-[44px] rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-[#536780] hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none transition-colors"
               >
                 Cancel
               </button>
@@ -702,7 +743,7 @@ export function AdvancedAccountSettings() {
                 type="button"
                 disabled={deleteConfirmationText !== 'DELETE' || isDeleting}
                 onClick={handleConfirmAccountDeletion}
-                className="rounded-md border border-red-600 bg-red-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                className="min-h-[44px] rounded-xl border border-red-600 bg-red-600 px-5 py-2 text-xs font-bold text-white hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none disabled:opacity-50 transition-colors"
               >
                 {isDeleting ? 'Erasing Records...' : 'Confirm Permanent Deletion'}
               </button>

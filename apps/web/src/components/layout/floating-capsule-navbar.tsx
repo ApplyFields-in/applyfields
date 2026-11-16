@@ -146,12 +146,12 @@ export function FloatingCapsuleNavbar() {
   }
 
   return (
-    <header className="sticky top-3 sm:top-5 z-50 mx-auto w-full max-w-[1600px] px-3 sm:px-6 mb-6 sm:mb-8">
+    <header className="sticky top-2 sm:top-5 z-50 mx-auto w-full max-w-[1600px] px-2 sm:px-6 mb-4 sm:mb-8">
       {/* xl+: 1fr / auto / 1fr grid keeps the mode switcher dead centre with equal space on both sides */}
-      <div className="flex items-center justify-between gap-2.5 sm:gap-3.5 lg:gap-4 w-full xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-3.5 lg:gap-4 w-full xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         {/* Left: Brand + Home, Community, Resources */}
-        <div className="flex h-14 shrink-0 items-center gap-2.5 sm:gap-3 rounded-full border border-white bg-[#F0F4F8] px-3.5 sm:px-4 xl:justify-self-start shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
-          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
+        <div className="flex h-12 sm:h-14 shrink-0 items-center gap-2 sm:gap-3 rounded-full border border-white bg-[#F0F4F8] px-3 sm:px-4 xl:justify-self-start shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+          <Link href="/" className="flex items-center gap-2 group shrink-0" aria-label="ApplyFields Home">
             {/* ApplyFields Logo */}
             <Image
               src="/logo-mark.png"
@@ -159,9 +159,9 @@ export function FloatingCapsuleNavbar() {
               width={40}
               height={40}
               unoptimized
-              className="size-8.5 sm:size-9 shrink-0 object-contain transition-transform group-hover:scale-105"
+              className="size-7.5 sm:size-9 shrink-0 object-contain transition-transform group-hover:scale-105"
             />
-            <span className="whitespace-nowrap text-base sm:text-lg font-black tracking-tight text-[#082046]">
+            <span className="whitespace-nowrap text-sm sm:text-lg font-black tracking-tight text-[#082046]">
               Apply<span className="text-[#0e7bf4]">Fields</span>
             </span>
           </Link>
@@ -239,17 +239,17 @@ export function FloatingCapsuleNavbar() {
         </div>
 
         {/* Right: Search + Notifications + Saved + Settings + User Avatar / Sign In */}
-        <div className="flex h-14 min-w-0 max-w-full items-center justify-end gap-1.5 sm:gap-2 rounded-full border border-white bg-[#F0F4F8] px-2.5 sm:px-3.5 xl:justify-self-end shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+        <div className="flex h-12 sm:h-14 min-w-0 max-w-full items-center justify-end gap-1 sm:gap-2 rounded-full border border-white bg-[#F0F4F8] px-2 sm:px-3.5 xl:justify-self-end shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
           {/* Search: always-open bar, sized so this capsule balances the left one; shrinks (down to an icon) when space is tight */}
           <button
             type="button"
             onClick={openCommandPalette}
-            className="flex h-10 w-64 min-w-10 shrink items-center overflow-hidden rounded-full border border-[#cad7e7] bg-[#edf3f9] px-[11px] shadow-[inset_2px_2px_4px_#d4dfec,inset_-2px_-2px_4px_#ffffff] transition-colors hover:bg-[#e2ecf7] cursor-pointer"
+            className="flex h-9 sm:h-10 min-h-[44px] w-auto max-w-[120px] sm:max-w-none sm:w-64 min-w-[44px] shrink items-center overflow-hidden rounded-full border border-[#cad7e7] bg-[#edf3f9] px-2.5 sm:px-[11px] shadow-[inset_2px_2px_4px_#d4dfec,inset_-2px_-2px_4px_#ffffff] transition-colors hover:bg-[#e2ecf7] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none cursor-pointer"
             title="Search everything (Ctrl + K)"
             aria-label="Search everything (Ctrl + K)"
           >
             <Search className="size-4 shrink-0 text-[#0e7bf4]" />
-            <span className="ml-2 min-w-0 flex-1 truncate text-left text-[13px] font-medium text-[#486284]">
+            <span className="ml-1.5 sm:ml-2 min-w-0 flex-1 truncate text-left text-xs sm:text-[13px] font-medium text-[#486284]">
               {t('nav_explore', 'Search opportunities, exams, colleges...')}
             </span>
             <kbd className="ml-1.5 hidden shrink-0 items-center rounded-md border border-[#c4d2e3] bg-white px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#486284] shadow-2xs 2xl:inline-flex">
@@ -260,18 +260,20 @@ export function FloatingCapsuleNavbar() {
           {/* Notifications */}
           <Link
             href="/notifications"
-            className="relative rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            className="relative min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none"
             title={t('nav_notifications', 'Notifications')}
+            aria-label="Notifications"
           >
             <Bell className="size-4.5 sm:size-5" />
-            <span className="absolute top-1.5 right-1.5 size-2 bg-[#0e7bf4] rounded-full" />
+            <span className="absolute top-2.5 right-2.5 size-2 bg-[#0e7bf4] rounded-full" />
           </Link>
 
           {/* Bookmarks / Saved */}
           <Link
             href="/saved"
-            className="hidden lg:block shrink-0 rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            className="hidden lg:flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none"
             title={t('nav_saved', 'Saved Opportunities')}
+            aria-label="Saved Opportunities"
           >
             <Bookmark className="size-4.5 sm:size-5" />
           </Link>
@@ -279,8 +281,9 @@ export function FloatingCapsuleNavbar() {
           {/* Settings & Preferences */}
           <Link
             href="/settings"
-            className="rounded-full p-2.5 text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4]"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none"
             title={t('nav_settings', 'Settings & Preferences')}
+            aria-label="Settings & Preferences"
           >
             <Settings className="size-4.5 sm:size-5" />
           </Link>
@@ -292,7 +295,7 @@ export function FloatingCapsuleNavbar() {
                 type="button"
                 aria-label={`Account menu for ${displayName}`}
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-1.5 sm:gap-2 rounded-full pl-1.5 pr-2.5 py-1.5 transition-colors hover:bg-white"
+                className="flex items-center min-h-[44px] gap-1 sm:gap-2 rounded-full pl-1 sm:pl-1.5 pr-1.5 sm:pr-2.5 py-1 transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none"
               >
                 <div className="flex size-8 sm:size-8.5 items-center justify-center rounded-full bg-[#0e7bf4] text-xs font-extrabold text-white shadow-xs">
                   {initials || <User className="size-4" aria-hidden="true" />}
@@ -309,22 +312,22 @@ export function FloatingCapsuleNavbar() {
                     <p className="truncate font-bold text-[#082046]">{displayName}</p>
                     <p className="truncate text-xs text-[#536780]">{user.email}</p>
                   </div>
-                  <Link href="/profile" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
+                  <Link href="/profile" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[#334a69] hover:bg-[#f4f7fb]">
                     <User className="size-4 text-[#536780]" /> {t('nav_profile', 'My Profile')}
                   </Link>
-                  <Link href="/community" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
+                  <Link href="/community" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[#334a69] hover:bg-[#f4f7fb]">
                     <MessageSquare className="size-4 text-[#536780]" /> {t('nav_community', 'Community Discussions')}
                   </Link>
-                  <Link href="/applications" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
+                  <Link href="/applications" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[#334a69] hover:bg-[#f4f7fb]">
                     <Send className="size-4 text-[#536780]" /> {t('nav_applications', 'My Applications')}
                   </Link>
-                  <Link href="/saved" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
+                  <Link href="/saved" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[#334a69] hover:bg-[#f4f7fb]">
                     <Bookmark className="size-4 text-[#536780]" /> {t('nav_saved_items', 'Saved Items')}
                   </Link>
-                  <Link href="/settings" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
+                  <Link href="/settings" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[#334a69] hover:bg-[#f4f7fb]">
                     <Settings className="size-4 text-[#0e7bf4]" /> {t('nav_settings', 'Settings & Preferences')}
                   </Link>
-                  <Link href="/account" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[#334a69] hover:bg-[#f4f7fb]">
+                  <Link href="/account" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[#334a69] hover:bg-[#f4f7fb]">
                     <Building2 className="size-4 text-[#536780]" /> {t('nav_account_plans', 'Account & Plans')}
                   </Link>
                   <a
@@ -332,7 +335,7 @@ export function FloatingCapsuleNavbar() {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2 text-emerald-600 hover:bg-[#ecfdf5] font-semibold"
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-emerald-600 hover:bg-[#ecfdf5] font-semibold"
                   >
                     <Building2 className="size-4 text-emerald-600" /> {t('nav_partner_portal', 'Partner Portal (MeeSeva/CSC)')}
                   </a>
@@ -346,7 +349,7 @@ export function FloatingCapsuleNavbar() {
           ) : (
             <Link
               href="/login"
-              className="flex items-center gap-1.5 rounded-full bg-[#0e7bf4] px-4.5 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] active:scale-95 whitespace-nowrap"
+              className="flex items-center min-h-[44px] gap-1.5 rounded-full bg-[#0e7bf4] px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none active:scale-95 whitespace-nowrap"
             >
               <User className="size-4" />
               <span>{t('nav_sign_in', 'Sign in')}</span>

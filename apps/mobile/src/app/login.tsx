@@ -418,8 +418,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: R.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -468,7 +468,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  tab: { flex: 1, height: 38, borderRadius: R.pill, alignItems: 'center', justifyContent: 'center' },
+  tab: { flex: 1, minHeight: 44, borderRadius: R.pill, alignItems: 'center', justifyContent: 'center' },
   tabActive: {
     backgroundColor: C.white,
     shadowColor: C.navy,
