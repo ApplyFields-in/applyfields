@@ -4,11 +4,13 @@ import {
   Controller,
   Delete,
   Get,
+  Optional,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
 import type {
@@ -16,6 +18,7 @@ import type {
   AdminSummary,
   AdminUserItem,
   AdminUserList,
+  AdminUserStats,
   ReviewDetail,
   ReviewList,
   StaffRole,
@@ -28,8 +31,10 @@ import { Roles } from '../../common/roles.decorator.js';
 import { ActorId, StaffMember, type StaffUser } from '../../common/actor.js';
 import { ReviewService } from './review.service.js';
 import { UsersAdminService } from './users.service.js';
+import { UsersService } from '../users/users.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { QueryRouterService } from '../chatbot/query-router.service.js';
+import { PaymentsService, refundSchema, type RefundInput } from '../payments/payments.service.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -53,7 +58,9 @@ export class AdminController {
     private readonly review: ReviewService,
     private readonly usersService: UsersAdminService,
     private readonly prisma: PrismaService,
+    private readonly accounts: UsersService,
     private readonly routerService?: QueryRouterService,
+    @Optional() private readonly paymentsService?: PaymentsService,
   ) {}
 
   /**
@@ -68,7 +75,7 @@ export class AdminController {
         orderBy: { created_at: 'desc' },
         take: 50,
         select: {
-          id: true, purpose: true, amount_paise: true, status: true, refunded_amount_paise: true,
+          id: true, purpose: true, amount_paise: true, platform_fee_paise: true, status: true, refunded_amount_paise: true,
           razorpay_payment_id: true, paid_at: true, created_at: true,
           partners: { select: { business_name: true } },
         },
@@ -107,8 +114,8 @@ export class AdminController {
   }
 
   /**
-   * POST /api/v1/admin/payments/payouts — open a settlement period for one centre. Gross is the sum of the
-   * centre's completed bookings in the period (never typed in); commission % is the admin's call per payout.
+   * POST /api/v1/admin/payments/payouts — open a settlement period for one centre. Gross is what citizens paid
+   * online for the centre's completed bookings in the period (never typed in); commission % is the admin's call.
    */
   @Post('payments/payouts')
   @Roles('admin')
@@ -131,13 +138,20 @@ export class AdminController {
     });
     if (overlap) throw new BadRequestException('This centre already has a payout covering part of that period.');
 
-    const sum = await this.prisma.service_requests.aggregate({
-      where: { partner_id: body.partner_id, status: 'completed', completed_at: { gte: start, lt: endExclusive } },
-      _sum: { final_paise: true },
-      _count: true,
+    // What ApplyFields collected online for the centre's completed bookings (cash paid at the counter is already
+    // with the centre). Centre's part = amount - ApplyFields' convenience fee - refunds.
+    const paid = await this.prisma.payments.findMany({
+      where: {
+        partner_id: body.partner_id,
+        purpose: 'service_charge',
+        status: { in: ['paid', 'refunded'] },
+        service_requests: { status: 'completed', completed_at: { gte: start, lt: endExclusive } },
+      },
+      select: { amount_paise: true, platform_fee_paise: true, refunded_amount_paise: true },
     });
-    const gross = sum._sum.final_paise ?? 0;
-    if (gross === 0) throw new BadRequestException('No priced completed bookings for this centre in that period.');
+    const gross = paid.reduce((s, p) => s + Math.max(0, p.amount_paise - p.platform_fee_paise - p.refunded_amount_paise), 0);
+    const sum = { _count: paid.length };
+    if (gross === 0) throw new BadRequestException('No completed bookings paid online for this centre in that period.');
     const commission = Math.round((gross * body.commission_percent) / 100);
 
     const row = await this.prisma.partner_payouts.create({
@@ -162,6 +176,18 @@ export class AdminController {
       })
       .catch(() => null);
     return { id: row.id, gross_paise: gross, commission_paise: commission, net_paise: row.net_paise, bookings: sum._count };
+  }
+
+  /** POST /api/v1/admin/payments/:id/refund {amount_paise?, reason} — refund an online payment via Razorpay. */
+  @Post('payments/:id/refund')
+  @Roles('admin')
+  async refundPayment(
+    @ActorId() actorId: string | null,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(refundSchema)) body: RefundInput,
+  ) {
+    if (!this.paymentsService) throw new ServiceUnavailableException('Payments module not loaded');
+    return this.paymentsService.refund(id, body, actorId);
   }
 
   /** PATCH /api/v1/admin/payments/payouts/:id {status, reference} — record a bank transfer done outside the app. */
@@ -372,6 +398,25 @@ export class AdminController {
     @StaffMember() staff?: StaffUser,
   ): Promise<AdminUserList> {
     return this.usersService.list({ q, page, limit, status, type }, staff);
+  }
+
+  /** GET /api/v1/admin/users/stats — citizen signups, activity, verification, breakdowns */
+  @Get('users/stats')
+  @Roles('support')
+  getUserStats(): Promise<AdminUserStats> {
+    return this.usersService.stats();
+  }
+
+  /** DELETE /api/v1/admin/users/:id — permanently erase a citizen account on request (super_admin only) */
+  @Delete('users/:id')
+  @Roles('super_admin')
+  async deleteUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActorId() actor: string | null,
+  ): Promise<{ success: true }> {
+    await this.usersService.assertDeletable(id, actor);
+    await this.accounts.eraseAccount(id, actor);
+    return { success: true };
   }
 
   /** GET /api/v1/admin/users/:id — single user detail (masked PII, scoped by role) */

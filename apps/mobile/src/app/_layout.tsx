@@ -68,7 +68,11 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                   name="assistant"
-                  options={{ headerShown: false, presentation: 'fullScreenModal' }}
+                  options={{
+                    headerShown: false,
+                    presentation: 'transparentModal',
+                    animation: 'slide_from_bottom',
+                  }}
                 />
               </Stack>
             </ThemeProvider>

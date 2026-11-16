@@ -163,7 +163,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(STORAGE_KEY) as SupportedLocale | null;
       if (saved && ['en', 'te', 'hi', 'kn', 'mr'].includes(saved)) {
-        setLocaleState(saved);
+        queueMicrotask(() => setLocaleState(saved));
       }
     }
   }, []);

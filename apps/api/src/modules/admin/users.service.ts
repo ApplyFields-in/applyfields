@@ -6,6 +6,7 @@ import {
 import type {
   AdminUserItem,
   AdminUserList,
+  AdminUserStats,
   StaffRole,
 } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -211,6 +212,14 @@ export class UsersAdminService {
       throw new NotFoundException('User not found');
     }
 
+    const where = { user_id: userId };
+    const [saved, applications, documents, bookings] = await Promise.all([
+      this.prisma.saved_items.count({ where }),
+      this.prisma.applications.count({ where }),
+      this.prisma.user_documents.count({ where: { ...where, deleted_at: null } }),
+      this.prisma.service_requests.count({ where }),
+    ]);
+
     return {
       id: u.id,
       email: u.email ? maskEmail(u.email) : null,
@@ -225,7 +234,69 @@ export class UsersAdminService {
       phone_verified: Boolean(u.phone_verified_at),
       created_at: u.created_at.toISOString(),
       roles: targetRoles,
+      last_login_at: u.last_login_at?.toISOString() ?? null,
+      activity: { saved, applications, documents, bookings },
     };
+  }
+
+  // ---- Citizen statistics (staff accounts excluded) ----
+
+  async stats(): Promise<AdminUserStats> {
+    const DAY = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const midnight = new Date(new Date().setHours(0, 0, 0, 0));
+    const week = new Date(now - 7 * DAY);
+    const month = new Date(now - 30 * DAY);
+    const citizen = { user_roles_user_roles_user_idTousers: { none: {} } };
+    const count = (extra: object) => this.prisma.users.count({ where: { ...citizen, ...extra } });
+    const profileWhere = { users: citizen };
+
+    const [total, today, wk, mo, activeWk, activeMo, verified, suspended, deleted, states, categories] =
+      await Promise.all([
+        count({}),
+        count({ created_at: { gte: midnight } }),
+        count({ created_at: { gte: week } }),
+        count({ created_at: { gte: month } }),
+        count({ last_login_at: { gte: week } }),
+        count({ last_login_at: { gte: month } }),
+        count({ OR: [{ email_verified_at: { not: null } }, { phone_verified_at: { not: null } }] }),
+        count({ status: 'suspended' }),
+        this.prisma.audit_logs.count({
+          where: { action: { in: ['user.self_delete', 'user.admin_delete'] }, created_at: { gte: month } },
+        }),
+        this.prisma.user_profiles.groupBy({ by: ['state_code'], where: profileWhere, _count: { _all: true } }),
+        this.prisma.user_profiles.groupBy({ by: ['category'], where: profileWhere, _count: { _all: true } }),
+      ]);
+
+    const top = (rows: { key: string | null; n: number }[]) =>
+      rows
+        .map((r) => ({ key: r.key ?? 'Not set', count: r.n }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+    return {
+      total,
+      signups: { today, week: wk, month: mo },
+      active: { week: activeWk, month: activeMo },
+      verified,
+      suspended,
+      deleted_month: deleted,
+      by_state: top(states.map((s) => ({ key: s.state_code, n: s._count._all }))),
+      by_category: top(categories.map((c) => ({ key: c.category, n: c._count._all }))),
+    };
+  }
+
+  /** Only plain citizen accounts can be erased by staff; staff must lose their roles first. */
+  async assertDeletable(userId: string, actorId: string | null): Promise<void> {
+    if (userId === actorId) throw new BadRequestException('You cannot delete your own account here.');
+    const u = await this.prisma.users.findUnique({
+      where: { id: userId },
+      include: { user_roles_user_roles_user_idTousers: true },
+    });
+    if (!u) throw new NotFoundException('User not found');
+    if (u.user_roles_user_roles_user_idTousers.length > 0) {
+      throw new BadRequestException('This is a staff account. Revoke all staff roles before deleting it.');
+    }
   }
 
   // ---- Block / unblock ----

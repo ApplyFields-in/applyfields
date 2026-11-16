@@ -7,39 +7,40 @@
 @source "../../../../packages/ui/src";
 
 @theme {
-  --color-olive-50: #f6f8f2;
-  --color-olive-100: #ecf1e5;
-  --color-olive-200: #d8e3cb;
-  --color-olive-300: #b9cda4;
-  --color-olive-400: #97b27c;
-  --color-olive-500: #6b8a4f;
-  --color-olive-600: #556f3d;
-  --color-olive-700: #435731;
-  --color-olive-800: #37462a;
-  --color-olive-900: #2f3b25;
-  --color-olive-950: #182012;
+  /* Admin shell scale, built from the brand navy (#082046) so it matches web + partner */
+  --color-navy-50: #f4f7fb;
+  --color-navy-100: #e0edfb;
+  --color-navy-200: #c9d6e6;
+  --color-navy-300: #a3b6cf;
+  --color-navy-400: #7d93b1;
+  --color-navy-500: #536780;
+  --color-navy-600: #3d5372;
+  --color-navy-700: #243b5b;
+  --color-navy-800: #102a52;
+  --color-navy-900: #0b234a;
+  --color-navy-950: #082046;
 
-  --color-olive-primary: #4d6328;
-  --color-olive-dark: #283618;
-  --color-olive-surface: #f4f6f0;
+  --color-navy-primary: #0e7bf4;
+  --color-navy-dark: #082046;
+  --color-navy-surface: #F0F4F8;
 }
 
 @layer base {
   body {
-    background-color: #f4f6f0;
-    color: #283618;
-    background-image: radial-gradient(at 0% 0%, rgba(85, 111, 61, 0.04) 0px, transparent 50%),
-                      radial-gradient(at 100% 100%, rgba(40, 54, 24, 0.05) 0px, transparent 50%);
+    background-color: #F0F4F8;
+    color: #082046;
+    background-image: radial-gradient(at 0% 0%, rgba(14, 123, 244, 0.04) 0px, transparent 50%),
+                      radial-gradient(at 100% 100%, rgba(8, 32, 70, 0.05) 0px, transparent 50%);
   }
 }
 
-/* Glassmorphism panel and card effects with olive accents */
+/* Glassmorphism panel and card effects with navy accents */
 .glass-panel {
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 12px 32px -8px rgba(40, 54, 24, 0.08), 0 4px 10px -2px rgba(40, 54, 24, 0.03);
+  box-shadow: 0 12px 32px -8px rgba(8, 32, 70, 0.08), 0 4px 10px -2px rgba(8, 32, 70, 0.03);
 }
 
 .glass-card {
@@ -47,7 +48,7 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 8px 24px -4px rgba(40, 54, 24, 0.06);
+  box-shadow: 0 8px 24px -4px rgba(8, 32, 70, 0.06);
 }
 
 .glass-pill {
@@ -55,6 +56,17 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4px 12px -2px rgba(40, 54, 24, 0.05);
+  box-shadow: 0 4px 12px -2px rgba(8, 32, 70, 0.05);
 }
 
+
+/* Login: the "Verified" stamp lands once. */
+@keyframes stamp-in {
+  0% { opacity: 0; transform: scale(1.6); }
+  60% { opacity: 1; transform: scale(0.94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.stamp-in { animation: stamp-in 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) 350ms both; }
+@media (prefers-reduced-motion: reduce) {
+  .stamp-in { animation: none; }
+}

@@ -26,6 +26,12 @@ export async function getToken(): Promise<string | null> {
   return memoryToken;
 }
 
+/** Is any session saved on this phone? No → the app can show sign-in without a network round trip. */
+export async function hasStoredSession(): Promise<boolean> {
+  if (await getToken()) return true;
+  return Boolean(await SecureStore.getItemAsync(REFRESH_KEY).catch(() => null));
+}
+
 export async function setToken(token: string | null): Promise<void> {
   memoryToken = token;
   if (token) await SecureStore.setItemAsync(TOKEN_KEY, token).catch(() => undefined);

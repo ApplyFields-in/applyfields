@@ -175,3 +175,62 @@
 }
 
 
+
+/* ------------------------------------------------------------------
+   Opportunity detail pages (jobs / exams / scholarships / admissions):
+   flat look matching the /apply list card. Scoped to .detail-flat so the
+   shared clay components keep their style everywhere else. Unlayered, so
+   these win over Tailwind utilities without !important.
+------------------------------------------------------------------ */
+.detail-flat .rounded-card {
+  border-radius: 1rem;
+  border: 1px solid rgb(226 232 240 / 0.8);
+}
+.detail-flat .shadow-card:not(.shadow-2xl) {
+  box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+}
+.detail-flat .shadow-clay {
+  box-shadow: none;
+}
+
+/* One flat button style for the mixed shared action buttons in the header toolbar */
+.detail-actions > button,
+.detail-actions > div > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  height: 2.25rem;
+  min-height: 0;
+  width: auto;
+  min-width: 2.25rem;
+  padding: 0 0.875rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: none;
+  transition: background-color 150ms, border-color 150ms, color 150ms;
+}
+.detail-actions > button:hover,
+.detail-actions > div > button:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+.detail-actions > button[aria-pressed='true'],
+.detail-actions > div > button[aria-pressed='true'] {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #0e7bf4;
+}
+.detail-actions > .detail-primary {
+  background: #0e7bf4;
+  border-color: #0e7bf4;
+  color: #ffffff;
+}
+.detail-actions > .detail-primary:hover {
+  background: #0c6fdc;
+  border-color: #0c6fdc;
+}

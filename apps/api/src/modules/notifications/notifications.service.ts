@@ -19,6 +19,7 @@ import type {
   PushSubscriptionInput,
 } from '@applyfields/types';
 import type { Prisma } from '../../generated/prisma/client.js';
+import type { staff_role } from '../../generated/prisma/enums.js';
 import { jwtAccessSecret } from '../../common/jwt-secret.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { addDays, todayIst } from '../opportunities/opportunities.service.js';
@@ -46,11 +47,25 @@ const RETRY_AFTER_MS = 5 * 60_000;
 const SEND_GAP_MS = 550;
 
 const webUrl = () => (process.env.WEB_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+/** Staff alerts link to the admin website; the admin app maps the same paths to its own screens. */
+export const adminLink = (path: string) =>
+  `${(process.env.ADMIN_URL ?? 'https://applyfields-admin.vercel.app').replace(/\/$/, '')}${path}`;
 const apiPublicUrl = () => (process.env.API_PUBLIC_URL ?? 'http://localhost:4000/api/v1').replace(/\/$/, '');
 /** A different secret from login tokens, so an unsubscribe link can never be used to log in. */
 const unsubscribeSecret = () => `${jwtAccessSecret()}:unsubscribe`;
 const isoDate = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : '');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Prisma `subscriptions` filter for "has ApplyFields Plus right now". A cancelled Plus keeps working until the
+ * end of the month already paid for (ends_at).
+ */
+export const plusActive = () => ({
+  OR: [
+    { status: 'active' as const, ends_at: null },
+    { status: { in: ['active' as const, 'cancelled' as const] }, ends_at: { gt: new Date() } },
+  ],
+});
 
 export interface NewNotification {
   type: NotificationType;
@@ -243,8 +258,7 @@ export class NotificationsService {
       this.prisma.saved_items.findMany({ where: parent, select: { user_id: true } }),
       this.prisma.subscriptions.findMany({
         where: {
-          status: 'active',
-          OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+          ...plusActive(),
         },
         select: { user_id: true },
       }),
@@ -289,8 +303,7 @@ export class NotificationsService {
 
     const subs = await this.prisma.subscriptions.findMany({
       where: {
-        status: 'active',
-        OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+        ...plusActive(),
       },
       select: { user_id: true },
     });
@@ -390,6 +403,32 @@ export class NotificationsService {
   }
 
   /**
+   * Staff alert (in-app + push to the admin app + email): every active staff member with one of `roles`,
+   * plus admins/super admins. Type `system`, so staff can't mute it. Fire-and-forget at call sites:
+   * the action that triggered it has already succeeded.
+   */
+  async notifyStaff(
+    roles: string[],
+    alert: { title: string; body: string; path: string },
+    dedupeKey: string,
+  ): Promise<number> {
+    const rows = await this.prisma.user_roles.findMany({
+      where: {
+        role: { in: [...new Set([...roles, 'admin', 'super_admin'])] as staff_role[] },
+        users_user_roles_user_idTousers: { status: 'active' },
+      },
+      select: { user_id: true },
+    });
+    const staff = [...new Set(rows.map((r) => r.user_id))];
+    if (staff.length === 0) return 0;
+    return this.notify(
+      staff,
+      { type: 'system', title: alert.title, body: alert.body, link: adminLink(alert.path) },
+      () => dedupeKey,
+    );
+  }
+
+  /**
    * "Remind me when applications open" (Plus): pending `reminders` rows whose job's application_start has
    * arrived. Reads the job's current date (a corrigendum that moves it is honoured). Users whose Plus lapsed
    * are skipped and their reminder cancelled. Safe to run any number of times (dedupe key + status).
@@ -408,7 +447,7 @@ export class NotificationsService {
 
     const dueUsers = [...new Set(pending.filter((r) => opps.some((o) => o.id === r.item_id)).map((r) => r.user_id))];
     const subs = await this.prisma.subscriptions.findMany({
-      where: { user_id: { in: dueUsers }, status: 'active', OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }] },
+      where: { user_id: { in: dueUsers }, ...plusActive() },
       select: { user_id: true },
     });
     const plus = new Set(subs.map((s) => s.user_id));
@@ -748,8 +787,7 @@ export class NotificationsService {
     const sub = await this.prisma.subscriptions.findFirst({
       where: {
         user_id: userId,
-        status: 'active',
-        OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+        ...plusActive(),
       },
       select: { id: true },
     });
@@ -1014,8 +1052,7 @@ export class NotificationsService {
     } else if (input.audience.kind === 'subscribers') {
       const subs = await this.prisma.subscriptions.findMany({
         where: {
-          status: 'active',
-          OR: [{ ends_at: null }, { ends_at: { gt: new Date() } }],
+          ...plusActive(),
         },
         select: { user_id: true },
       });

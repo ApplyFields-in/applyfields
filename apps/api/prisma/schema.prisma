@@ -608,6 +608,7 @@ model opportunities {
   updated_at                              DateTime                  @default(now()) @db.Timestamptz(6)
   related_links                           Json                      @default("[]")
   applications                            applications[]
+  community_threads                       community_threads[]
   courses                                 courses?                  @relation(fields: [course_id], references: [id], onUpdate: NoAction)
   exams                                   exams?                    @relation(fields: [exam_id], references: [id], onUpdate: NoAction)
   institutions                            institutions?             @relation(fields: [institution_id], references: [id], onUpdate: NoAction)
@@ -976,6 +977,7 @@ model payments {
   paid_at               DateTime?         @db.Timestamptz(6)
   created_at            DateTime          @default(now()) @db.Timestamptz(6)
   updated_at            DateTime          @default(now()) @db.Timestamptz(6)
+  platform_fee_paise    Int               @default(0)
   partners              partners?         @relation(fields: [partner_id], references: [id], onUpdate: NoAction)
   service_requests      service_requests? @relation(fields: [service_request_id], references: [id], onUpdate: NoAction)
   subscriptions         subscriptions?    @relation(fields: [subscription_id], references: [id], onUpdate: NoAction)
@@ -1484,11 +1486,13 @@ model user_profiles {
   domicile_state_code  String?
   preferred_language   String           @default("en")
   avatar_url           String?
-  is_public            Boolean          @default(false)
-  handle               String?          @unique
   created_at           DateTime         @default(now()) @db.Timestamptz(6)
   updated_at           DateTime         @default(now()) @db.Timestamptz(6)
+  is_public            Boolean          @default(false)
+  handle               String?          @unique(map: "uq_user_profiles_handle", where: raw("(handle IS NOT NULL)")) @db.VarChar(100)
   users                users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([handle], map: "idx_user_profiles_handle")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -1583,21 +1587,24 @@ model user_sessions {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model users {
-  id                                                           String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                                                        String?                   @unique
-  phone                                                        String?                   @unique
+  id                                                           String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                                                        String?                        @unique
+  phone                                                        String?                        @unique
   password_hash                                                String?
-  status                                                       user_status               @default(active)
-  email_verified_at                                            DateTime?                 @db.Timestamptz(6)
-  phone_verified_at                                            DateTime?                 @db.Timestamptz(6)
-  mfa_enabled                                                  Boolean                   @default(false)
+  status                                                       user_status                    @default(active)
+  email_verified_at                                            DateTime?                      @db.Timestamptz(6)
+  phone_verified_at                                            DateTime?                      @db.Timestamptz(6)
+  mfa_enabled                                                  Boolean                        @default(false)
   mfa_secret_encrypted                                         String?
-  last_login_at                                                DateTime?                 @db.Timestamptz(6)
-  deleted_at                                                   DateTime?                 @db.Timestamptz(6)
-  created_at                                                   DateTime                  @default(now()) @db.Timestamptz(6)
-  updated_at                                                   DateTime                  @default(now()) @db.Timestamptz(6)
+  last_login_at                                                DateTime?                      @db.Timestamptz(6)
+  deleted_at                                                   DateTime?                      @db.Timestamptz(6)
+  created_at                                                   DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                                                   DateTime                       @default(now()) @db.Timestamptz(6)
   applications                                                 applications[]
   career_profiles                                              career_profiles?
+  community_comments                                           community_comments[]
+  community_threads                                            community_threads[]
+  community_upvotes                                            community_upvotes[]
   consents                                                     consents[]
   document_access_logs                                         document_access_logs[]
   document_shares                                              document_shares[]
@@ -1606,10 +1613,10 @@ model users {
   institution_enquiries                                        institution_enquiries[]
   notification_preferences                                     notification_preferences?
   notifications                                                notifications[]
-  opportunities_opportunities_published_byTousers              opportunities[]           @relation("opportunities_published_byTousers")
-  opportunities_opportunities_reviewed_byTousers               opportunities[]           @relation("opportunities_reviewed_byTousers")
-  opportunity_versions_opportunity_versions_created_byTousers  opportunity_versions[]    @relation("opportunity_versions_created_byTousers")
-  opportunity_versions_opportunity_versions_reviewed_byTousers opportunity_versions[]    @relation("opportunity_versions_reviewed_byTousers")
+  opportunities_opportunities_published_byTousers              opportunities[]                @relation("opportunities_published_byTousers")
+  opportunities_opportunities_reviewed_byTousers               opportunities[]                @relation("opportunities_reviewed_byTousers")
+  opportunity_versions_opportunity_versions_created_byTousers  opportunity_versions[]         @relation("opportunity_versions_created_byTousers")
+  opportunity_versions_opportunity_versions_reviewed_byTousers opportunity_versions[]         @relation("opportunity_versions_reviewed_byTousers")
   otp_codes                                                    otp_codes[]
   partner_documents                                            partner_documents[]
   partner_members                                              partner_members[]
@@ -1620,47 +1627,47 @@ model users {
   push_tokens                                                  push_tokens[]
   recently_viewed                                              recently_viewed[]
   reminders                                                    reminders[]
-  reports_reports_assigned_toTousers                           reports[]                 @relation("reports_assigned_toTousers")
-  reports_reports_reporter_idTousers                           reports[]                 @relation("reports_reporter_idTousers")
+  reports_reports_assigned_toTousers                           reports[]                      @relation("reports_assigned_toTousers")
+  reports_reports_reporter_idTousers                           reports[]                      @relation("reports_reporter_idTousers")
   saved_items                                                  saved_items[]
   service_request_events                                       service_request_events[]
   service_requests                                             service_requests[]
   subscriptions                                                subscriptions[]
-  support_tickets_support_tickets_assigned_toTousers           support_tickets[]         @relation("support_tickets_assigned_toTousers")
-  support_tickets_support_tickets_user_idTousers               support_tickets[]         @relation("support_tickets_user_idTousers")
+  support_tickets_support_tickets_assigned_toTousers           support_tickets[]              @relation("support_tickets_assigned_toTousers")
+  support_tickets_support_tickets_user_idTousers               support_tickets[]              @relation("support_tickets_user_idTousers")
   updates                                                      updates[]
+  user_competitive_exam_scores                                 user_competitive_exam_scores[]
   user_documents                                               user_documents[]
   user_education                                               user_education[]
-  user_competitive_exam_scores                                 user_competitive_exam_scores[]
   user_passkeys                                                user_passkeys[]
   user_profiles                                                user_profiles?
   user_roadmaps                                                user_roadmaps[]
-  user_roles_user_roles_granted_byTousers                      user_roles[]              @relation("user_roles_granted_byTousers")
-  user_roles_user_roles_user_idTousers                         user_roles[]              @relation("user_roles_user_idTousers")
+  user_roles_user_roles_granted_byTousers                      user_roles[]                   @relation("user_roles_granted_byTousers")
+  user_roles_user_roles_user_idTousers                         user_roles[]                   @relation("user_roles_user_idTousers")
   user_sessions                                                user_sessions[]
 }
 
 model user_competitive_exam_scores {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id             String    @db.Uuid
-  exam_type           String    @db.VarChar(50)
-  exam_name           String    @db.VarChar(255)
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id             String   @db.Uuid
+  exam_type           String   @db.VarChar(50)
+  exam_name           String   @db.VarChar(255)
   year                Int
-  roll_number         String?   @db.VarChar(100)
-  registration_number String?   @db.VarChar(100)
-  discipline_or_paper String?   @db.VarChar(200)
-  score               String?   @db.VarChar(100)
-  marks               String?   @db.VarChar(100)
-  percentile          String?   @db.VarChar(50)
-  all_india_rank      String?   @db.VarChar(50)
-  category_rank       String?   @db.VarChar(50)
-  award_or_status     String?   @db.VarChar(255)
-  verified            Boolean   @default(false)
-  created_at          DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
-  users               users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roll_number         String?  @db.VarChar(100)
+  registration_number String?  @db.VarChar(100)
+  discipline_or_paper String?  @db.VarChar(200)
+  score               String?  @db.VarChar(100)
+  marks               String?  @db.VarChar(100)
+  percentile          String?  @db.VarChar(50)
+  all_india_rank      String?  @db.VarChar(50)
+  category_rank       String?  @db.VarChar(50)
+  award_or_status     String?  @db.VarChar(255)
+  verified            Boolean  @default(false)
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime @default(now()) @db.Timestamptz(6)
+  users               users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([user_id])
+  @@index([user_id], map: "idx_user_competitive_exam_scores_user")
 }
 
 model analytics_events {
@@ -1709,6 +1716,76 @@ model search_terms {
   @@index([search_count(sort: Desc)], map: "idx_search_terms_count")
   @@index([term], map: "idx_search_terms_prefix")
   @@index([term(ops: raw("gin_trgm_ops"))], map: "idx_search_terms_trgm", type: Gin)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model community_comments {
+  id                       String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  thread_id                String               @db.Uuid
+  user_id                  String?              @db.Uuid
+  author_name              String
+  parent_comment_id        String?              @db.Uuid
+  content                  String
+  upvotes_count            Int                  @default(0)
+  is_official_answer       Boolean              @default(false)
+  is_hidden                Boolean              @default(false)
+  created_at               DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime             @default(now()) @db.Timestamptz(6)
+  community_comments       community_comments?  @relation("community_commentsTocommunity_comments", fields: [parent_comment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  other_community_comments community_comments[] @relation("community_commentsTocommunity_comments")
+  community_threads        community_threads    @relation(fields: [thread_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                    users?               @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  community_upvotes        community_upvotes[]
+
+  @@index([parent_comment_id], map: "idx_community_comments_parent")
+  @@index([thread_id, created_at], map: "idx_community_comments_thread")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model community_threads {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  opportunity_id     String?              @db.Uuid
+  category           String               @default("general")
+  user_id            String?              @db.Uuid
+  author_name        String
+  title              String
+  content            String
+  is_pinned          Boolean              @default(false)
+  is_locked          Boolean              @default(false)
+  is_hidden          Boolean              @default(false)
+  view_count         Int                  @default(0)
+  upvotes_count      Int                  @default(0)
+  replies_count      Int                  @default(0)
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime             @default(now()) @db.Timestamptz(6)
+  community_comments community_comments[]
+  opportunities      opportunities?       @relation(fields: [opportunity_id], references: [id], onUpdate: NoAction)
+  users              users?               @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  community_upvotes  community_upvotes[]
+
+  @@index([category, created_at(sort: Desc)], map: "idx_community_threads_cat")
+  @@index([opportunity_id, created_at(sort: Desc)], map: "idx_community_threads_opp")
+  @@index([user_id], map: "idx_community_threads_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model community_upvotes {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String              @db.Uuid
+  thread_id          String?             @db.Uuid
+  comment_id         String?             @db.Uuid
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  community_comments community_comments? @relation(fields: [comment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  community_threads  community_threads?  @relation(fields: [thread_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, comment_id], map: "unique_user_comment_upvote")
+  @@unique([user_id, thread_id], map: "unique_user_thread_upvote")
+  @@index([comment_id], map: "idx_community_upvotes_comment")
+  @@index([thread_id], map: "idx_community_upvotes_thread")
 }
 
 enum application_mode {

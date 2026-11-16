@@ -163,6 +163,14 @@ export async function revokeRoleAction(id: string, role: string): Promise<Action
   return { ok: true, data: res.data! };
 }
 
+/** Permanently erase a citizen account (super_admin). Irreversible. */
+export async function deleteUserAction(id: string): Promise<ActionResponse<{ success: true }>> {
+  const res = await apiDelete<{ success: true }>(`/admin/users/${encodeURIComponent(id)}`);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath('/users');
+  return { ok: true, data: res.data! };
+}
+
 /** Send a manual alert (in-app + email) to everyone who saved a job, or to one user. */
 export async function sendManualAlertAction(input: ManualAlertInput): Promise<ActionResponse<ManualAlertResult>> {
   const res = await apiPost<ManualAlertResult>('/admin/notifications/alert', input);

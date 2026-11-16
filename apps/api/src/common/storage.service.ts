@@ -50,6 +50,26 @@ export class StorageService {
     }
   }
 
+  /** Delete objects by exact key. Returns false if Storage isn't configured or the call failed. */
+  async remove(bucket: string, paths: string[]): Promise<boolean> {
+    const base = process.env.SUPABASE_URL?.replace(/\/$/, '');
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!base || !key || paths.length === 0) return false;
+    try {
+      const res = await fetch(`${base}/storage/v1/object/${bucket}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${key}`, apikey: key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefixes: paths }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) this.logger.warn(`Delete failed in ${bucket} (${paths.length} files): HTTP ${res.status}`);
+      return res.ok;
+    } catch (err) {
+      this.logger.warn(`Delete failed in ${bucket}: ${(err as Error).message}`);
+      return false;
+    }
+  }
+
   /**
    * A short-lived link to a private file, or null if Storage isn't configured or the file is missing.
    * `path` is the exact object key that was uploaded. (It used to strip a leading "<bucket>/", which

@@ -39,6 +39,8 @@ import {
   markFiledSchema,
   shareDocumentsSchema,
   updateBookingStatusSchema,
+  walkInSchema,
+  type WalkInInput,
 } from './bookings.service.js';
 
 @Controller('bookings')
@@ -73,6 +75,16 @@ export class BookingsController {
     @Query('status') status?: string,
   ): Promise<BookingListResponse> {
     return this.bookingsService.listPartnerBookings(req.user.userId, status);
+  }
+
+  /** Centre counter: register a walk-in citizen as an in-progress, already-paid booking. */
+  @Post('partner/walk-in')
+  @UseGuards(AuthGuard)
+  async createWalkIn(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodPipe(walkInSchema)) body: WalkInInput,
+  ): Promise<BookingDetail> {
+    return this.bookingsService.createWalkIn(req.user.userId, body);
   }
 
   @Patch('partner/:id')

@@ -99,9 +99,9 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-7 pb-14">
       {/* -------------------- Top Hero Banner (Olive Green Glassmorphic) -------------------- */}
-      <div className="relative overflow-hidden rounded-3xl border border-olive-700/30 bg-gradient-to-br from-olive-900 via-olive-800 to-olive-950 p-6 text-white shadow-xl sm:p-8">
+      <div className="relative overflow-hidden rounded-3xl border border-navy-700/30 bg-gradient-to-br from-navy-900 via-navy-800 to-navy-950 p-6 text-white shadow-xl sm:p-8">
         {/* Soft decorative glow circles */}
-        <div className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-olive-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-navy-500/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 left-1/3 size-64 rounded-full bg-emerald-500/15 blur-3xl" />
 
         <div className="relative z-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
@@ -110,7 +110,7 @@ export default async function DashboardPage() {
               <span className={cn('size-2 rounded-full', apiDown ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse')} />
               <span>ApplyFields Global Operations</span>
               <span className="text-white/40">|</span>
-              <span className="text-olive-200">Port :3001</span>
+              <span className="text-navy-200">Port :3001</span>
               {apiDown && (
                 <span className="rounded bg-amber-400/20 px-1.5 py-0.2 text-[10px] text-amber-300">
                   API unreachable
@@ -121,10 +121,10 @@ export default async function DashboardPage() {
             <h1 className="text-2xl font-black tracking-tight sm:text-3xl text-white">
               Multi-Portal Control Center
             </h1>
-            <p className="text-xs sm:text-sm text-olive-100/85 leading-relaxed">
+            <p className="text-xs sm:text-sm text-navy-100/85 leading-relaxed">
               Centralized governance, audit trails, opportunity moderation, and microservice sync across the Citizen Portal, Services Engine, and Partner Operator desks.
             </p>
-            <p className="text-[11px] font-mono text-olive-300/80 pt-1">
+            <p className="text-[11px] font-mono text-navy-300/80 pt-1">
               Active Session · {dateFormatted}, {timeFormatted} IST
             </p>
           </div>
@@ -134,11 +134,11 @@ export default async function DashboardPage() {
               type="button"
               className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-3.5 py-2 text-xs font-semibold text-white shadow-sm backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
             >
-              <Download className="size-3.5 text-olive-200" /> Export Audit Log
+              <Download className="size-3.5 text-navy-200" /> Export Audit Log
             </button>
             <Link
               href="/opportunities"
-              className="inline-flex items-center gap-2 rounded-xl border border-olive-400/40 bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:bg-emerald-500 active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl border border-navy-400/40 bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:bg-emerald-500 active:scale-95"
             >
               <Plus className="size-4" /> Create Opportunity
             </Link>
@@ -151,11 +151,11 @@ export default async function DashboardPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Crown className="size-4 text-amber-600" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-olive-900">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-navy-900">
               Department Operations Cockpits · Role Separation
             </h2>
           </div>
-          <span className="text-[11px] font-medium text-olive-700/80">
+          <span className="text-[11px] font-medium text-navy-700/80">
             Dedicated operational workspaces for internal staff
           </span>
         </div>
@@ -172,13 +172,13 @@ export default async function DashboardPage() {
                   Active
                 </span>
               </div>
-              <h3 className="text-sm font-bold text-olive-950 pt-1">
+              <h3 className="text-sm font-bold text-navy-950 pt-1">
                 Franchise & Center Ops
               </h3>
-              <p className="text-xs text-olive-700/80 leading-relaxed">
+              <p className="text-xs text-navy-700/80 leading-relaxed">
                 Partner kiosk onboarding, MeeSeva verification, live center slots, and commission settlement ledgers.
               </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-olive-900">
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-navy-900">
                 <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-800">
                   24 Partners
                 </span>
@@ -207,13 +207,13 @@ export default async function DashboardPage() {
                   94.2% SLA
                 </span>
               </div>
-              <h3 className="text-sm font-bold text-olive-950 pt-1">
+              <h3 className="text-sm font-bold text-navy-950 pt-1">
                 Assistance & Delivery
               </h3>
-              <p className="text-xs text-olive-700/80 leading-relaxed">
+              <p className="text-xs text-navy-700/80 leading-relaxed">
                 Government service delivery, certificate applications, citizen case triage, and center handoffs.
               </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-olive-900">
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-navy-900">
                 <span className="rounded bg-blue-50 px-2 py-0.5 text-blue-800">
                   18 Kiosks
                 </span>
@@ -242,13 +242,13 @@ export default async function DashboardPage() {
                   {pendingReviewsCount} Pending
                 </span>
               </div>
-              <h3 className="text-sm font-bold text-olive-950 pt-1">
+              <h3 className="text-sm font-bold text-navy-950 pt-1">
                 Ingestion & Publishing
               </h3>
-              <p className="text-xs text-olive-700/80 leading-relaxed">
+              <p className="text-xs text-navy-700/80 leading-relaxed">
                 Raw ingestion review, confidence filters, scraper anomaly monitoring, and official notifications.
               </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-olive-900">
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-navy-900">
                 <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-800">
                   {summaryData.scrapers.length} Scrapers
                 </span>
@@ -277,13 +277,13 @@ export default async function DashboardPage() {
                   100 Colleges
                 </span>
               </div>
-              <h3 className="text-sm font-bold text-olive-950 pt-1">
+              <h3 className="text-sm font-bold text-navy-950 pt-1">
                 Colleges & Roadmaps
               </h3>
-              <p className="text-xs text-olive-700/80 leading-relaxed">
+              <p className="text-xs text-navy-700/80 leading-relaxed">
                 Top 50 Engineering & Medical Colleges, NIRF ranks, cutoff benchmarks, and trajectory roadmaps.
               </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-olive-900">
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-navy-900">
                 <span className="rounded bg-amber-50 px-2 py-0.5 text-amber-800">
                   Top 50 Engg
                 </span>
@@ -307,17 +307,17 @@ export default async function DashboardPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Layers className="size-4 text-olive-700" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-olive-900">
+            <Layers className="size-4 text-navy-700" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-navy-900">
               ApplyFields Ecosystem Portals · Live Matrix
             </h2>
           </div>
-          <span className="text-[11px] text-olive-700/80">3 sister applications connected to core</span>
+          <span className="text-[11px] text-navy-700/80">3 sister applications connected to core</span>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           {/* Portal 1: Citizen Web (:3000) */}
-          <div className="glass-card relative flex flex-col justify-between rounded-2xl border border-olive-200/80 p-5 shadow-xs transition-all hover:border-olive-400 hover:shadow-md">
+          <div className="glass-card relative flex flex-col justify-between rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md">
             <div>
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-bold text-sky-800">
@@ -326,33 +326,33 @@ export default async function DashboardPage() {
                 <PortalStatus url={WEB_URL} />
               </div>
 
-              <h3 className="mt-3 text-sm font-bold text-olive-950">
+              <h3 className="mt-3 text-sm font-bold text-navy-950">
                 Citizen Web & Career Discovery
               </h3>
-              <p className="mt-1 text-xs text-olive-800/80 leading-relaxed">
+              <p className="mt-1 text-xs text-navy-800/80 leading-relaxed">
                 Public facing portal for students & citizens: Career roadmaps, college directories, government exams, private opportunities, and direct applications.
               </p>
 
               <div className="mt-3.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-                <span className="rounded-md bg-olive-100/80 px-2 py-0.5 font-semibold text-olive-900">
+                <span className="rounded-md bg-navy-100/80 px-2 py-0.5 font-semibold text-navy-900">
                   1,420+ Listings
                 </span>
-                <span className="rounded-md bg-olive-100/80 px-2 py-0.5 font-semibold text-olive-900">
+                <span className="rounded-md bg-navy-100/80 px-2 py-0.5 font-semibold text-navy-900">
                   Colleges Directory
                 </span>
-                <span className="rounded-md bg-olive-100/80 px-2 py-0.5 font-semibold text-olive-900">
+                <span className="rounded-md bg-navy-100/80 px-2 py-0.5 font-semibold text-navy-900">
                   Citizen Auth
                 </span>
               </div>
             </div>
 
-            <div className="mt-5 pt-3 border-t border-olive-100 flex items-center justify-between">
-              <span className="text-[11px] text-olive-700">{WEB_URL}</span>
+            <div className="mt-5 pt-3 border-t border-navy-100 flex items-center justify-between">
+              <span className="text-[11px] text-navy-700">{WEB_URL}</span>
               <a
                 href={`${WEB_URL}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-olive-900 hover:text-emerald-700 hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-bold text-navy-900 hover:text-emerald-700 hover:underline"
               >
                 Open Web Portal <ExternalLink className="size-3" />
               </a>
@@ -360,7 +360,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Portal 2: Services Hub (:3003) */}
-          <div className="glass-card relative flex flex-col justify-between rounded-2xl border border-olive-200/80 p-5 shadow-xs transition-all hover:border-olive-400 hover:shadow-md">
+          <div className="glass-card relative flex flex-col justify-between rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md">
             <div>
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-800">
@@ -369,10 +369,10 @@ export default async function DashboardPage() {
                 <PortalStatus url={SERVICE_URL} />
               </div>
 
-              <h3 className="mt-3 text-sm font-bold text-olive-950">
+              <h3 className="mt-3 text-sm font-bold text-navy-950">
                 MeeSeva, CSC & Cyber Hubs
               </h3>
-              <p className="mt-1 text-xs text-olive-800/80 leading-relaxed">
+              <p className="mt-1 text-xs text-navy-800/80 leading-relaxed">
                 Citizen booking engine: Xerox, spiral binding, PAN & NSDL, caste & income certificates, and GPS geolocation search for verified kiosks.
               </p>
 
@@ -389,13 +389,13 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            <div className="mt-5 pt-3 border-t border-olive-100 flex items-center justify-between">
-              <span className="text-[11px] text-olive-700">{SERVICE_URL}</span>
+            <div className="mt-5 pt-3 border-t border-navy-100 flex items-center justify-between">
+              <span className="text-[11px] text-navy-700">{SERVICE_URL}</span>
               <a
                 href={`${SERVICE_URL}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-olive-900 hover:text-amber-700 hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-bold text-navy-900 hover:text-amber-700 hover:underline"
               >
                 Open Services Hub <ExternalLink className="size-3" />
               </a>
@@ -403,7 +403,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Portal 3: Partner Desk (:3002) */}
-          <div className="glass-card relative flex flex-col justify-between rounded-2xl border border-olive-200/80 p-5 shadow-xs transition-all hover:border-olive-400 hover:shadow-md">
+          <div className="glass-card relative flex flex-col justify-between rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md">
             <div>
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
@@ -412,10 +412,10 @@ export default async function DashboardPage() {
                 <PortalStatus url={PARTNER_URL} />
               </div>
 
-              <h3 className="mt-3 text-sm font-bold text-olive-950">
+              <h3 className="mt-3 text-sm font-bold text-navy-950">
                 Partner Desk & Kiosk Network
               </h3>
-              <p className="mt-1 text-xs text-olive-800/80 leading-relaxed">
+              <p className="mt-1 text-xs text-navy-800/80 leading-relaxed">
                 Merchant and operator cockpit: CSC/MeeSeva store registration, admissions desk (§21), hardware status, commission settlements, and client KYC.
               </p>
 
@@ -432,13 +432,13 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            <div className="mt-5 pt-3 border-t border-olive-100 flex items-center justify-between">
-              <span className="text-[11px] text-olive-700">{PARTNER_URL}</span>
+            <div className="mt-5 pt-3 border-t border-navy-100 flex items-center justify-between">
+              <span className="text-[11px] text-navy-700">{PARTNER_URL}</span>
               <a
                 href={`${PARTNER_URL}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-olive-900 hover:text-emerald-700 hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-bold text-navy-900 hover:text-emerald-700 hover:underline"
               >
                 Open Partner Desk <ExternalLink className="size-3" />
               </a>
@@ -471,15 +471,15 @@ export default async function DashboardPage() {
         {/* Card 2: Active opportunities */}
         <Link
           href="/opportunities"
-          className="glass-card group block rounded-2xl border border-olive-200/80 p-5 shadow-xs transition-all hover:border-olive-400 hover:shadow-md"
+          className="glass-card group block rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-olive-800">Active Listings</p>
-            <span className="rounded-full bg-olive-100 px-2 py-0.5 text-[10px] font-bold text-olive-800">
+            <p className="text-xs font-bold uppercase tracking-wide text-navy-800">Active Listings</p>
+            <span className="rounded-full bg-navy-100 px-2 py-0.5 text-[10px] font-bold text-navy-800">
               Citizen Web :3000
             </span>
           </div>
-          <p className="mt-2 text-3xl font-black tracking-tight text-olive-950">
+          <p className="mt-2 text-3xl font-black tracking-tight text-navy-950">
             {(publishedWeekCount + 42).toLocaleString('en-IN')}
           </p>
           <p className="mt-1 text-xs font-semibold text-emerald-700">
@@ -488,17 +488,17 @@ export default async function DashboardPage() {
         </Link>
 
         {/* Card 3: Upcoming deadlines */}
-        <div className="glass-card rounded-2xl border border-olive-200/80 p-5 shadow-xs">
+        <div className="glass-card rounded-2xl border border-navy-200/80 p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-olive-800">Closing Soon</p>
-            <span className="rounded-full bg-olive-100 px-2 py-0.5 text-[10px] font-bold text-olive-800">
+            <p className="text-xs font-bold uppercase tracking-wide text-navy-800">Closing Soon</p>
+            <span className="rounded-full bg-navy-100 px-2 py-0.5 text-[10px] font-bold text-navy-800">
               14 Days
             </span>
           </div>
-          <p className="mt-2 text-3xl font-black tracking-tight text-olive-950">
+          <p className="mt-2 text-3xl font-black tracking-tight text-navy-950">
             {deadlinesWeekCount.toLocaleString('en-IN')}
           </p>
-          <p className="mt-1 text-xs font-medium text-olive-700">
+          <p className="mt-1 text-xs font-medium text-navy-700">
             Urgent citizen deadlines
           </p>
         </div>
@@ -506,18 +506,18 @@ export default async function DashboardPage() {
         {/* Card 4: Registered users */}
         <Link
           href="/users"
-          className="glass-card group block rounded-2xl border border-olive-200/80 p-5 shadow-xs transition-all hover:border-olive-400 hover:shadow-md"
+          className="glass-card group block rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-olive-800">Verified Users</p>
-            <span className="rounded-full bg-olive-100 px-2 py-0.5 text-[10px] font-bold text-olive-800">
+            <p className="text-xs font-bold uppercase tracking-wide text-navy-800">Verified Users</p>
+            <span className="rounded-full bg-navy-100 px-2 py-0.5 text-[10px] font-bold text-navy-800">
               Accounts
             </span>
           </div>
-          <p className="mt-2 text-3xl font-black tracking-tight text-olive-950">
+          <p className="mt-2 text-3xl font-black tracking-tight text-navy-950">
             {usersCount.toLocaleString('en-IN')}
           </p>
-          <p className="mt-1 text-xs font-medium text-olive-700">
+          <p className="mt-1 text-xs font-medium text-navy-700">
             Citizens & partner operators
           </p>
         </Link>
@@ -528,29 +528,29 @@ export default async function DashboardPage() {
         {/* Left Column (2 Cols): Cross-Portal Queue & Recent Opportunities */}
         <div className="space-y-6 lg:col-span-2">
           {/* Section: Cross-Portal Verification Queue */}
-          <div className="glass-panel overflow-hidden rounded-2xl border border-olive-200/80 shadow-xs">
-            <div className="flex items-center justify-between border-b border-olive-100 bg-olive-50/60 px-5 py-4">
+          <div className="glass-panel overflow-hidden rounded-2xl border border-navy-200/80 shadow-xs">
+            <div className="flex items-center justify-between border-b border-navy-100 bg-navy-50/60 px-5 py-4">
               <div>
-                <h2 className="text-sm font-bold text-olive-950">Cross-Portal Review Queue</h2>
-                <p className="text-[11px] text-olive-700">Incoming submissions from Web, Services, and Partners</p>
+                <h2 className="text-sm font-bold text-navy-950">Cross-Portal Review Queue</h2>
+                <p className="text-[11px] text-navy-700">Incoming submissions from Web, Services, and Partners</p>
               </div>
               <Link
                 href="/review"
-                className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-bold text-olive-900 shadow-xs border border-olive-200 hover:bg-olive-50 transition-colors"
+                className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-bold text-navy-900 shadow-xs border border-navy-200 hover:bg-navy-50 transition-colors"
               >
                 Review queue ({summaryData.review_queue.length}) <ChevronRight className="size-3.5" />
               </Link>
             </div>
 
             {summaryData.review_queue.length === 0 ? (
-              <div className="p-8 text-center text-xs text-olive-700">
+              <div className="p-8 text-center text-xs text-navy-700">
                 No applications or drafts waiting in the review queue.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-olive-100 bg-white/70 text-[10px] font-bold uppercase tracking-wider text-olive-800">
+                    <tr className="border-b border-navy-100 bg-white/70 text-[10px] font-bold uppercase tracking-wider text-navy-800">
                       <th className="py-3 pl-5 pr-3">Ref ID</th>
                       <th className="py-3 px-3">Target Portal</th>
                       <th className="py-3 px-3">Item / Applicant</th>
@@ -558,7 +558,7 @@ export default async function DashboardPage() {
                       <th className="py-3 pr-5 text-right">Received</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-olive-100/70">
+                  <tbody className="divide-y divide-navy-100/70">
                     {summaryData.review_queue.slice(0, 6).map((item, idx) => {
                       // Determine portal attribution for clear operator understanding
                       const isPartnerItem = idx % 3 === 2;
@@ -578,18 +578,18 @@ export default async function DashboardPage() {
                       );
 
                       return (
-                        <tr key={item.id} className="transition-colors hover:bg-olive-50/50">
-                          <td className="py-3 pl-5 pr-3 font-mono font-bold text-olive-900">
+                        <tr key={item.id} className="transition-colors hover:bg-navy-50/50">
+                          <td className="py-3 pl-5 pr-3 font-mono font-bold text-navy-900">
                             AF-{String(idx + 24812).padStart(5, '0')}
                           </td>
                           <td className="py-3 px-3">
                             {portalBadge}
                           </td>
                           <td className="py-3 px-3">
-                            <Link href={`/review/${item.id}`} className="font-bold text-olive-950 hover:underline">
+                            <Link href={`/review/${item.id}`} className="font-bold text-navy-950 hover:underline">
                               {item.title}
                             </Link>
-                            <p className="text-[11px] text-olive-700/80 truncate max-w-[200px]">
+                            <p className="text-[11px] text-navy-700/80 truncate max-w-[200px]">
                               {item.source}
                             </p>
                           </td>
@@ -608,7 +608,7 @@ export default async function DashboardPage() {
                               </span>
                             )}
                           </td>
-                          <td className="py-3 pr-5 text-right font-medium text-olive-700">
+                          <td className="py-3 pr-5 text-right font-medium text-navy-700">
                             {formatTimeAgo(item.found_at)}
                           </td>
                         </tr>
@@ -621,29 +621,29 @@ export default async function DashboardPage() {
           </div>
 
           {/* Section: Recent Opportunities */}
-          <div className="glass-panel overflow-hidden rounded-2xl border border-olive-200/80 shadow-xs">
-            <div className="flex items-center justify-between border-b border-olive-100 bg-olive-50/60 px-5 py-4">
+          <div className="glass-panel overflow-hidden rounded-2xl border border-navy-200/80 shadow-xs">
+            <div className="flex items-center justify-between border-b border-navy-100 bg-navy-50/60 px-5 py-4">
               <div>
-                <h2 className="text-sm font-bold text-olive-950">Published Opportunities Feed</h2>
-                <p className="text-[11px] text-olive-700">Live listings distributed to Citizen Portal (:3000)</p>
+                <h2 className="text-sm font-bold text-navy-950">Published Opportunities Feed</h2>
+                <p className="text-[11px] text-navy-700">Live listings distributed to Citizen Portal (:3000)</p>
               </div>
               <Link
                 href="/opportunities"
-                className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-bold text-olive-900 shadow-xs border border-olive-200 hover:bg-olive-50 transition-colors"
+                className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-bold text-navy-900 shadow-xs border border-navy-200 hover:bg-navy-50 transition-colors"
               >
                 All listings <ChevronRight className="size-3.5" />
               </Link>
             </div>
 
             {recentOpportunities.length === 0 ? (
-              <div className="p-8 text-center text-xs text-olive-700">
+              <div className="p-8 text-center text-xs text-navy-700">
                 No opportunities published yet.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-olive-100 bg-white/70 text-[10px] font-bold uppercase tracking-wider text-olive-800">
+                    <tr className="border-b border-navy-100 bg-white/70 text-[10px] font-bold uppercase tracking-wider text-navy-800">
                       <th className="py-3 pl-5 pr-3">Title</th>
                       <th className="py-3 px-3">Type</th>
                       <th className="py-3 px-3">Status</th>
@@ -651,15 +651,15 @@ export default async function DashboardPage() {
                       <th className="py-3 pr-5 text-right">Updated</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-olive-100/70">
+                  <tbody className="divide-y divide-navy-100/70">
                     {recentOpportunities.map((opp) => (
-                      <tr key={opp.id} className="transition-colors hover:bg-olive-50/50">
+                      <tr key={opp.id} className="transition-colors hover:bg-navy-50/50">
                         <td className="py-3 pl-5 pr-3">
-                          <Link href={`/opportunities/${opp.id}`} className="font-bold text-olive-950 hover:underline max-w-[220px] truncate block">
+                          <Link href={`/opportunities/${opp.id}`} className="font-bold text-navy-950 hover:underline max-w-[220px] truncate block">
                             {opp.title}
                           </Link>
                         </td>
-                        <td className="py-3 px-3 capitalize text-olive-700 font-medium">
+                        <td className="py-3 px-3 capitalize text-navy-700 font-medium">
                           {opp.type.replace('_', ' ')}
                         </td>
                         <td className="py-3 px-3">
@@ -668,16 +668,16 @@ export default async function DashboardPage() {
                               'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold',
                               opp.status === 'published'
                                 ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
-                                : 'border border-olive-200 bg-olive-50 text-olive-700'
+                                : 'border border-navy-200 bg-navy-50 text-navy-700'
                             )}
                           >
                             {opp.status === 'published' ? 'Published' : opp.status}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-olive-700">
+                        <td className="py-3 px-3 text-navy-700">
                           {opp.organization || 'Govt of India'}
                         </td>
-                        <td className="py-3 pr-5 text-right font-medium text-olive-700">
+                        <td className="py-3 pr-5 text-right font-medium text-navy-700">
                           {formatTimeAgo(opp.updated_at)}
                         </td>
                       </tr>
@@ -692,12 +692,12 @@ export default async function DashboardPage() {
         {/* Right Column (1 Col): System Integrity & Upcoming Deadlines */}
         <div className="space-y-6">
           {/* Section: Content requiring attention */}
-          <div className="glass-card rounded-2xl border border-olive-200/80 p-5 shadow-xs">
+          <div className="glass-card rounded-2xl border border-navy-200/80 p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-olive-950">System Integrity & Alerts</h2>
+              <h2 className="text-sm font-bold text-navy-950">System Integrity & Alerts</h2>
               <ShieldAlert className="size-4 text-amber-600" />
             </div>
-            <p className="mt-0.5 text-[11px] text-olive-700">Automated ingestion & scraper audit</p>
+            <p className="mt-0.5 text-[11px] text-navy-700">Automated ingestion & scraper audit</p>
 
             <div className="mt-3.5 space-y-3">
               {careItems.length === 0 && failingScrapers.length === 0 ? (
@@ -759,30 +759,30 @@ export default async function DashboardPage() {
           </div>
 
           {/* Section: Upcoming deadlines */}
-          <div className="glass-card rounded-2xl border border-olive-200/80 p-5 shadow-xs">
+          <div className="glass-card rounded-2xl border border-navy-200/80 p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-olive-950">Upcoming Deadlines</h2>
-              <Clock className="size-4 text-olive-600" />
+              <h2 className="text-sm font-bold text-navy-950">Upcoming Deadlines</h2>
+              <Clock className="size-4 text-navy-600" />
             </div>
-            <p className="mt-0.5 text-[11px] text-olive-700">Citizen applications closing soon</p>
+            <p className="mt-0.5 text-[11px] text-navy-700">Citizen applications closing soon</p>
 
             <div className="mt-3.5 space-y-3">
               {deadlines.length === 0 ? (
-                <p className="text-xs text-olive-700">No deadlines closing in the next 14 days.</p>
+                <p className="text-xs text-navy-700">No deadlines closing in the next 14 days.</p>
               ) : (
                 deadlines.map((item) => (
                   <div
                     key={item.slug}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-olive-200/80 bg-white/80 p-3 transition-colors hover:border-olive-400"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-navy-200/80 bg-white/80 p-3 transition-colors hover:border-navy-400"
                   >
                     <div className="min-w-0">
                       <Link
                         href={`/opportunities/${item.slug}`}
-                        className="block truncate text-xs font-bold text-olive-950 hover:underline"
+                        className="block truncate text-xs font-bold text-navy-950 hover:underline"
                       >
                         {item.title}
                       </Link>
-                      <p className="mt-0.5 truncate text-[11px] text-olive-700">
+                      <p className="mt-0.5 truncate text-[11px] text-navy-700">
                         {item.organization}
                       </p>
                     </div>
@@ -797,28 +797,28 @@ export default async function DashboardPage() {
           </div>
 
           {/* Section: Ecosystem Microservices Status */}
-          <div className="glass-card rounded-2xl border border-olive-200/80 p-5 shadow-xs">
+          <div className="glass-card rounded-2xl border border-navy-200/80 p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-olive-950">Network Status</h2>
+              <h2 className="text-sm font-bold text-navy-950">Network Status</h2>
               <Activity className="size-4 text-emerald-600" />
             </div>
-            <p className="mt-0.5 text-[11px] text-olive-700">ApplyFields local cluster ports</p>
+            <p className="mt-0.5 text-[11px] text-navy-700">ApplyFields local cluster ports</p>
 
             <div className="mt-3 space-y-2 text-xs">
-              <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
-                <span className="font-semibold text-olive-900">Citizen Web (:3000)</span>
+              <div className="flex items-center justify-between rounded-lg bg-navy-50/70 p-2">
+                <span className="font-semibold text-navy-900">Citizen Web (:3000)</span>
                 <PortalStatus url={WEB_URL} upLabel="Active" />
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
-                <span className="font-semibold text-olive-900">Services Hub (:3003)</span>
+              <div className="flex items-center justify-between rounded-lg bg-navy-50/70 p-2">
+                <span className="font-semibold text-navy-900">Services Hub (:3003)</span>
                 <PortalStatus url={SERVICE_URL} upLabel="Active" />
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
-                <span className="font-semibold text-olive-900">Partner Desk (:3002)</span>
+              <div className="flex items-center justify-between rounded-lg bg-navy-50/70 p-2">
+                <span className="font-semibold text-navy-900">Partner Desk (:3002)</span>
                 <PortalStatus url={PARTNER_URL} upLabel="Active" />
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-olive-50/70 p-2">
-                <span className="font-semibold text-olive-900">API Backend (:4000)</span>
+              <div className="flex items-center justify-between rounded-lg bg-navy-50/70 p-2">
+                <span className="font-semibold text-navy-900">API Backend (:4000)</span>
                 <StatusDot state={apiDown ? 'down' : 'up'} upLabel="Connected" />
               </div>
             </div>
