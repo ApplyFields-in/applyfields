@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { PayOnline } from '@/components/pay-online';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -484,6 +485,8 @@ export default function BookingDetailsPage() {
             ))}
           </div>
         </div>
+
+        <PayOnline bookingId={booking.id} />
 
         {/* Dynamic Intake Checklist of Original Physical Documents to Bring */}
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 space-y-2">

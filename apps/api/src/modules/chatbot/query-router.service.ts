@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
+import { plusActive } from '../notifications/notifications.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { ChatbotAction, ChatbotQueryInput, ChatbotQueryResponse } from '@applyfields/types';
 import { NotificationDigestService, type OpportunityDigest } from './notification-digest.service.js';
@@ -124,8 +125,7 @@ export class QueryRouterService {
       const activeSub = await this.prisma.subscriptions.findFirst({
         where: {
           user_id: userId,
-          status: 'active',
-          ends_at: { gt: new Date() },
+          ...plusActive(),
         },
         select: { id: true },
       });

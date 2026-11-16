@@ -22,6 +22,7 @@ interface OnlinePayment {
   id: string;
   purpose: string;
   amount_paise: number;
+  platform_fee_paise: number;
   status: string;
   refunded_amount_paise: number;
   razorpay_payment_id: string | null;
@@ -65,6 +66,20 @@ export function PaymentsClient() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch; state is set after the await
     void load();
   }, [load]);
+
+  // ponytail: browser prompts for amount + reason; a proper dialog when refunds become routine.
+  async function refund(p: OnlinePayment) {
+    const left = (p.amount_paise - p.refunded_amount_paise) / 100;
+    const amount = window.prompt(`Refund how much (₹)? At most ₹${left}.`, String(left));
+    if (amount === null) return;
+    const rupeesNum = Number(amount);
+    if (!Number.isFinite(rupeesNum) || rupeesNum <= 0 || rupeesNum > left) return window.alert(`Enter an amount between 1 and ${left}.`);
+    const reason = window.prompt('Reason (shown in the audit log)?');
+    if (!reason || reason.trim().length < 3) return;
+    const res = await apiPost(`/admin/payments/${p.id}/refund`, { amount_paise: Math.round(rupeesNum * 100), reason: reason.trim() });
+    if (res.error) return window.alert(res.error);
+    await load();
+  }
 
   // New payout: gross is computed by the API from the centre's completed bookings in the period.
   const [creating, setCreating] = useState(false);
@@ -167,7 +182,7 @@ export function PaymentsClient() {
           <EmptyState
             icon={<Banknote />}
             title="No payouts yet"
-            text="Use New payout to settle a centre's completed bookings for a period."
+            text="Use New payout to settle what citizens paid online for a centre's completed bookings."
           />
         ) : (
           <div className="overflow-x-auto rounded-card shadow-card">
@@ -218,7 +233,7 @@ export function PaymentsClient() {
           <EmptyState
             icon={<CreditCard />}
             title="No online payments yet"
-            text="Subscriptions and convenience fees will show here after Razorpay is connected (needs company KYC)."
+            text="Plus subscriptions and bookings paid online show here once Razorpay keys are set on the API."
           />
         ) : (
           <div className="overflow-x-auto rounded-card shadow-card">
@@ -229,7 +244,9 @@ export function PaymentsClient() {
                   <th className="p-3">Purpose</th>
                   <th className="p-3">Partner</th>
                   <th className="p-3 text-right">Amount</th>
+                  <th className="p-3 text-right">Our fee</th>
                   <th className="p-3">Status</th>
+                  <th className="p-3" />
                 </tr>
               </thead>
               <tbody className="bg-cream text-teal">
@@ -239,7 +256,18 @@ export function PaymentsClient() {
                     <td className="p-3">{p.purpose.replace(/_/g, ' ')}</td>
                     <td className="p-3">{p.partner_name ?? '—'}</td>
                     <td className="p-3 text-right font-semibold">{rupees(p.amount_paise)}</td>
-                    <td className="p-3">{p.status}</td>
+                    <td className="p-3 text-right">{p.platform_fee_paise ? rupees(p.platform_fee_paise) : '—'}</td>
+                    <td className="p-3">
+                      {p.status}
+                      {p.refunded_amount_paise > 0 && <p className="text-[11px] text-teal/70">{rupees(p.refunded_amount_paise)} refunded</p>}
+                    </td>
+                    <td className="p-3 text-right">
+                      {p.status === 'paid' && p.razorpay_payment_id && p.refunded_amount_paise < p.amount_paise && (
+                        <button type="button" onClick={() => void refund(p)} className={buttonClass({ size: 'sm', variant: 'secondary' })}>
+                          Refund
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -253,7 +281,7 @@ export function PaymentsClient() {
           <Card className="w-full max-w-md space-y-3 p-5">
             <h2 id="new-payout-title" className="font-bold text-teal">New payout</h2>
             <p className="text-xs text-teal/80">
-              Gross = the centre&apos;s completed, priced bookings in the period (India time). Net = gross − commission.
+              Gross = what citizens paid online for the centre&apos;s completed bookings in the period (India time), minus our convenience fee and refunds. Cash paid at the counter is already with the centre. Net = gross − commission.
             </p>
             <label className="block text-xs font-semibold text-teal">
               Partner

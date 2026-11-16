@@ -37,9 +37,10 @@ export function ScannerClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const tokenParam = searchParams.get('token') || 'TK-043';
-  const nameParam = searchParams.get('name') || 'KONGARA VENKATA NAVEEN';
-  const serviceParam = searchParams.get('service') || 'SSC CGL 2026 Application Filing';
+  // Opened from the Counter with the saved walk-in; opened directly, it has no citizen yet.
+  const tokenParam = searchParams.get('token') || '—';
+  const nameParam = searchParams.get('name') || 'No citizen selected';
+  const serviceParam = searchParams.get('service') || '—';
 
   // Active Processing Bay
   const [activeBay, setActiveBay] = useState<'photo' | 'signature' | 'documents'>('photo');
@@ -269,7 +270,7 @@ export function ScannerClient() {
                 {/* Signature Preview */}
                 <div className="flex h-28 w-full items-center justify-center rounded-xl border border-slate-700 bg-white p-4">
                   <div className="text-center font-serif text-2xl font-black text-slate-950 italic tracking-wider">
-                    {nameParam.split(' ').map((n) => n[0]).join('. ')}. Naveen
+                    {nameParam}
                   </div>
                 </div>
 

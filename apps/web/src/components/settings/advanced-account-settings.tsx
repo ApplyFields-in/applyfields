@@ -185,6 +185,8 @@ export function AdvancedAccountSettings() {
 
       setShowDeleteModal(false);
       localStorage.clear();
+      document.cookie = 'accessToken=; path=/; max-age=0;';
+      document.cookie = 'refresh_token=; path=/; max-age=0;';
       showAppToast({
         message: 'Account and personal records have been completely erased under DPDP guidelines.',
         type: 'success',
@@ -605,7 +607,7 @@ export function AdvancedAccountSettings() {
           </button>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50/50 p-4 text-xs">
+        <div id="delete-account" className="scroll-mt-24 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50/50 p-4 text-xs">
           <div>
             <p className="font-bold text-red-900">Account Deletion &amp; Data Erasure</p>
             <p className="text-[11px] text-red-700 mt-0.5">

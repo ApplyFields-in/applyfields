@@ -4,6 +4,7 @@
  *   /admin/summary (any staff) · /admin/partners + /admin/bookings (support) · /admin/notifications (reviewer)
  */
 import type {
+  AdminGovServiceList,
   AdminNotificationOverview,
   AdminPartnerListResponse,
   AdminSummary,
@@ -15,7 +16,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card, ErrorNote, Loading, Muted, Page, SectionTitle } from '@/components/ui';
 import { useSession } from '@/lib/session';
-import { canUse } from '@/lib/staff';
+import { canUse, guideNeedsCheck } from '@/lib/staff';
 import { useApi, usePoll } from '@/lib/use-api';
 import { C, S, card } from '@/theme';
 
@@ -31,8 +32,12 @@ export default function Pulse() {
   const kyc = useApi<AdminPartnerListResponse>(support ? '/admin/partners?status=pending&limit=1' : null);
   const bookings = useApi<BookingListResponse>(support ? '/admin/bookings?status=new&limit=1' : null);
   const notif = useApi<AdminNotificationOverview>(reviewer ? '/admin/notifications' : null);
+  const complaints = useApi<{ total: number }>(support ? '/admin/bookings/disputes?status=open' : null);
+  const guides = useApi<AdminGovServiceList>(support ? '/admin/services?status=published&pageSize=100' : null);
+  const guidesDue = guides.data ? guides.data.items.filter((g) => guideNeedsCheck(g.last_verified_at ?? null, Date.now())).length : null;
 
-  const refreshAll = () => Promise.all([summary.refresh(), kyc.refresh(), bookings.refresh(), notif.refresh()]);
+  const refreshAll = () =>
+    Promise.all([summary.refresh(), kyc.refresh(), bookings.refresh(), notif.refresh(), complaints.refresh(), guides.refresh()]);
   usePoll(() => void refreshAll(), 60_000);
 
   if (summary.loading && !summary.data) return <Loading label="Taking the pulse…" />;
@@ -52,6 +57,8 @@ export default function Pulse() {
           <>
             <Tile icon="shield-checkmark-outline" label="KYC waiting" value={kyc.data?.total ?? null} urgent href="/kyc" />
             <Tile icon="calendar-outline" label="New bookings" value={bookings.data?.total ?? null} urgent />
+            <Tile icon="alert-circle-outline" label="Open complaints" value={complaints.data?.total ?? null} urgent href="/escalations" />
+            <Tile icon="book-outline" label="Guides to verify" value={guidesDue} urgent href="/guides" />
           </>
         ) : null}
         {content ? (
