@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderEmail } from './email.js';
+import { renderEmail, senderFor } from './email.js';
 import {
   DEFAULT_REMINDER_DAYS,
   emailAllowed,
@@ -111,15 +111,23 @@ describe('renderEmail', () => {
     const e = renderEmail({
       title: 'Result <script>alert(1)</script>',
       body: 'A & B',
-      url: 'https://applyfields.in/jobs/x',
+      url: 'https://applyfields.com/jobs/x',
       unsubscribeUrl: 'https://api/unsub?token=t',
-      preferencesUrl: 'https://applyfields.in/notifications',
+      preferencesUrl: 'https://applyfields.com/notifications',
     });
     expect(e.html).not.toContain('<script>');
     expect(e.html).toContain('&lt;script&gt;');
     expect(e.html).toContain('A &amp; B');
     expect(e.html).toContain('https://api/unsub?token=t');
     expect(e.text).toContain('Unsubscribe: https://api/unsub?token=t');
+  });
+
+  it('picks the sender: disputes → help, bookings/payments → services, the rest → no-reply', () => {
+    expect(senderFor('request_update', 'dispute:abc:resolved:1')).toBe('help');
+    expect(senderFor('request_update', 'request_filed:b1')).toBe('services');
+    expect(senderFor('request_update', 'payment:order_1')).toBe('services');
+    expect(senderFor('closing_reminder', 'x')).toBe('noreply');
+    expect(senderFor('system', null)).toBe('noreply');
   });
 });
 

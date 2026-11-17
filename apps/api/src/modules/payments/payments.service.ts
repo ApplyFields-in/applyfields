@@ -348,6 +348,26 @@ export class PaymentsService {
     const status = row?.service_requests?.status;
     if (row && (status === 'cancelled' || status === 'rejected')) {
       await this.refundBooking(row.service_request_id!, `Booking was ${status} before the payment completed`);
+    } else if (row?.user_id && row.service_request_id) {
+      // Receipt (in-app + email from services@). A failed notification must not undo the payment.
+      const rupees = (p: number) => `₹${(p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      const fee = row.platform_fee_paise;
+      await this.notifications
+        ?.notify(
+          [row.user_id],
+          {
+            type: 'request_update',
+            title: `Payment received: ${rupees(row.amount_paise)}`,
+            body:
+              `Receipt AF-${row.service_request_id.slice(0, 8).toUpperCase()} · Payment ID ${paymentId}. ` +
+              `Service charge ${rupees(row.amount_paise - fee)}` +
+              (fee ? ` + convenience fee ${rupees(fee)}` : '') +
+              '.',
+            link: `${(process.env.SERVICE_URL ?? 'https://service.applyfields.com').replace(/\/$/, '')}/bookings/${row.service_request_id}`,
+          },
+          () => `payment:${orderId}`,
+        )
+        .catch(() => null);
     }
   }
 

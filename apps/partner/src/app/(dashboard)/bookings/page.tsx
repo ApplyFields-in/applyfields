@@ -247,7 +247,7 @@ export default function BookingsPage() {
             Bookings Execution Desk
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Real-time queue of scheduled appointments from <span className="text-cyan-400 font-mono">service.applyfields.in</span> with pre-filled forms and uploaded documents.
+            Real-time queue of scheduled appointments from <span className="text-cyan-400 font-mono">service.applyfields.com</span> with pre-filled forms and uploaded documents.
           </p>
         </div>
 

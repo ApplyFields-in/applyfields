@@ -69,7 +69,7 @@ export function ReminderButton({
 VERSION:2.0
 PRODID:-//ApplyFields//Application Reminder//EN
 BEGIN:VEVENT
-UID:${Date.now()}@applyfields.in
+UID:${Date.now()}@applyfields.com
 DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z
 DTSTART:${deadline.replace(/-/g, '')}T090000
 DTEND:${deadline.replace(/-/g, '')}T180000

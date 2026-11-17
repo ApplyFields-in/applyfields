@@ -377,8 +377,8 @@ export default function HelpPage() {
 
             <div className="pt-2 border-t border-[#c4d2e3]/40 text-[11px] text-[#536780]">
               Email:{' '}
-              <a href="mailto:support@applyfields.in" className="text-[#0e7bf4] font-semibold hover:underline">
-                support@applyfields.in
+              <a href="mailto:support@applyfields.com" className="text-[#0e7bf4] font-semibold hover:underline">
+                support@applyfields.com
               </a>
               <br />
               Response time: typically within 24 business hours.

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     'Find upcoming entrance and competitive examinations in India. Get notification updates, eligibility requirements, syllabus, exam dates, admit cards, and results.',
   alternates: {
-    canonical: 'https://applyfields.in/exams',
+    canonical: 'https://applyfields.com/exams',
   },
 };
 

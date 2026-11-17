@@ -10,6 +10,24 @@ export const SENDERS = {
 };
 export type Sender = keyof typeof SENDERS;
 
+/**
+ * Which address a queued notification email comes from. Complaints/disputes → help@, everything about
+ * a booking or its payment → services@, the rest (reminders, alerts, broadcasts) → no-reply@.
+ * ponytail: disputes are told apart by their dedupe key prefix; add a `support_update` notification type if support grows.
+ */
+export function senderFor(type: string, dedupeKey: string | null): Sender {
+  if (dedupeKey?.startsWith('dispute:')) return 'help';
+  if (type === 'request_update') return 'services';
+  return 'noreply';
+}
+
+const FOOTER_REASON: Record<Sender, string> = {
+  noreply: 'You get this because you saved this item on ApplyFields.',
+  help: 'You get this because you contacted ApplyFields support.',
+  services: 'You get this because of your booking on ApplyFields.',
+  admin: 'You get this because you are ApplyFields staff.',
+};
+
 export interface EmailContent {
   subject: string;
   html: string;
@@ -23,6 +41,7 @@ export function renderEmail(n: {
   url: string | null;
   unsubscribeUrl: string;
   preferencesUrl: string;
+  sender?: Sender;
 }): EmailContent {
   const button = n.url
     ? `<p style="margin:24px 0"><a href="${esc(n.url)}" style="background:#0f4c5c;color:#fdfbf3;padding:12px 20px;border-radius:999px;text-decoration:none;font-weight:600">Open on ApplyFields</a></p>`
@@ -36,7 +55,7 @@ ${n.body ? `<p style="line-height:1.5;margin:0">${esc(n.body)}</p>` : ''}
 ${button}
 <p style="font-size:13px;margin:16px 0 0">Always apply on the official website. ApplyFields is a guide, not a government body.</p>
 </div>
-<p style="font-size:12px;margin:16px 0 0">You get this because you saved this item on ApplyFields.
+<p style="font-size:12px;margin:16px 0 0">${FOOTER_REASON[n.sender ?? 'noreply']}
 <a href="${esc(n.preferencesUrl)}" style="color:#0f4c5c">Choose what you get</a> ·
 <a href="${esc(n.unsubscribeUrl)}" style="color:#0f4c5c">Unsubscribe from emails</a></p>
 </div></body></html>`;
@@ -99,7 +118,7 @@ export async function sendWithResend(
  * Sends one-time password (OTP) verification email via Resend.
  *
  * All auth-related OTPs (verify_email, login, reset_password) are sent from
- * no-reply@applyfields.com (staff sign-in: admin@). Service / help emails use their own addresses.
+ * no-reply@applyfields.com (staff sign-in: admin@). Help / services mail goes through the notification queue (senderFor).
  *
  * Returns the Resend message id on success, or null when RESEND_API_KEY is not configured.
  */
@@ -125,12 +144,6 @@ export async function sendOtpEmail(
     purposeTitle = 'Sign-in Verification';
   } else if (purpose === 'reset_password') {
     purposeTitle = 'Password Reset';
-  } else if (purpose === 'query' || purpose === 'help') {
-    purposeTitle = 'Support Query Update';
-    fromAddress = SENDERS.help();
-  } else if (purpose === 'service_order' || purpose === 'services') {
-    purposeTitle = 'Service Order Verification';
-    fromAddress = SENDERS.services();
   }
 
   // Staff sign-in codes come from the admin address, never the public no-reply one.

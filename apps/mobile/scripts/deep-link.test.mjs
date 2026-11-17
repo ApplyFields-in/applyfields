@@ -9,7 +9,7 @@ const go = (path) => redirectSystemPath({ path, initial: true });
 test('job, exam, scholarship and admission links open the opportunity screen', () => {
   assert.equal(go('https://applyfields.com/jobs/ssc-cgl-2026'), '/opportunity/ssc-cgl-2026');
   assert.equal(go('https://applyfields.com/exams/neet-ug?utm_source=whatsapp'), '/opportunity/neet-ug');
-  assert.equal(go('https://applyfields.in/scholarships/nsp'), '/opportunity/nsp');
+  assert.equal(go('https://applyfields.com/scholarships/nsp'), '/opportunity/nsp');
   assert.equal(go('applyfields://admissions/iit-jam'), '/opportunity/iit-jam');
 });
 

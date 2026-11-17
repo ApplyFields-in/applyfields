@@ -209,7 +209,7 @@ export default function CookiePolicyPage() {
         <div className="rounded-2xl border border-line/60 bg-tea/30 p-4 text-xs space-y-1 text-teal">
           <p className="font-bold">Grievance Officer: Arvind Kumar</p>
           <p>ApplyFields Technologies Private Limited</p>
-          <p>Email: <a href="mailto:privacy@applyfields.in" className="font-bold underline text-teal">privacy@applyfields.in</a></p>
+          <p>Email: <a href="mailto:privacy@applyfields.com" className="font-bold underline text-teal">privacy@applyfields.com</a></p>
           <p className="text-[11px] text-teal/70 pt-1">Response turnaround time: Within 48 business hours.</p>
         </div>
       </Card>

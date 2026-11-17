@@ -13,7 +13,7 @@ export const API_URL = (
 const PROD = process.env.NODE_ENV === 'production';
 export const WEB_URL = process.env.NEXT_PUBLIC_WEB_URL ?? (PROD ? 'https://applyfields.com' : 'http://localhost:3000');
 export const SERVICE_URL =
-  process.env.NEXT_PUBLIC_SERVICE_PORTAL_URL ?? (PROD ? 'https://service.applyfields.in' : 'http://localhost:3003');
+  process.env.NEXT_PUBLIC_SERVICE_PORTAL_URL ?? (PROD ? 'https://service.applyfields.com' : 'http://localhost:3003');
 export const PARTNER_URL =
   process.env.NEXT_PUBLIC_PARTNER_PORTAL_URL ?? (PROD ? 'https://partners.applyfields.com' : 'http://localhost:3002');
 
