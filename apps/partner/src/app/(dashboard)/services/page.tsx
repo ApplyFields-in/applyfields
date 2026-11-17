@@ -456,7 +456,7 @@ export default function ServicesPage() {
             Services & Rate Card Catalog
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Configure your offerings, turnaround badges, and convenience fees reflected on <span className="text-emerald-400 font-mono">service.applyfields.in</span>.
+            Configure your offerings, turnaround badges, and convenience fees reflected on <span className="text-emerald-400 font-mono">service.applyfields.com</span>.
           </p>
         </div>
 

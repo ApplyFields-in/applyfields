@@ -121,7 +121,7 @@ FINANCIALS & CAREER OUTCOMES:
     const daysLeftText = opportunityData.days_left !== null && opportunityData.days_left !== undefined
       ? (opportunityData.days_left > 0 ? `${opportunityData.days_left} days remaining` : 'Closing today or closed')
       : null;
-    const applyUrl = opportunityData.links?.apply_url || opportunityData.links?.official_page_url || 'https://applyfields.in';
+    const applyUrl = opportunityData.links?.apply_url || opportunityData.links?.official_page_url || 'https://applyfields.com';
 
     const plainText = `
 SUMMARY: ${opportunityData.title}

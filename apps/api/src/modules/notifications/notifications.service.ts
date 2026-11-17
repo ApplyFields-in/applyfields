@@ -23,7 +23,7 @@ import type { staff_role } from '../../generated/prisma/enums.js';
 import { jwtAccessSecret } from '../../common/jwt-secret.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { addDays, todayIst } from '../opportunities/opportunities.service.js';
-import { renderEmail, sendWithResend } from './email.js';
+import { renderEmail, sendWithResend, senderFor, SENDERS } from './email.js';
 import { isExpoPushToken, sendExpoPush } from './expo-push.js';
 import { getVapidKeys, sendWebPush } from './web-push.js';
 import { SseService } from './sse.service.js';
@@ -528,7 +528,15 @@ export class NotificationsService {
           id: true,
           attempts: true,
           notifications: {
-            select: { title: true, body: true, link: true, user_id: true, users: { select: { email: true } } },
+            select: {
+              type: true,
+              dedupe_key: true,
+              title: true,
+              body: true,
+              link: true,
+              user_id: true,
+              users: { select: { email: true } },
+            },
           },
         },
       });
@@ -544,6 +552,7 @@ export class NotificationsService {
         try {
           if (!n.users.email) throw new Error('The user has no email address');
           const unsubscribeUrl = this.unsubscribeUrl(n.user_id);
+          const sender = senderFor(n.type, n.dedupe_key);
           const messageId = await sendWithResend(
             n.users.email,
             renderEmail({
@@ -552,9 +561,11 @@ export class NotificationsService {
               url: n.link ? (/^https?:\/\//.test(n.link) ? n.link : `${webUrl()}${n.link}`) : null,
               unsubscribeUrl,
               preferencesUrl: `${webUrl()}/notifications#preferences`,
+              sender,
             }),
             d.id,
             unsubscribeUrl,
+            SENDERS[sender](),
           );
           await this.prisma.notification_deliveries.update({
             where: { id: d.id },

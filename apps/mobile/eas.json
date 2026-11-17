@@ -7,17 +7,26 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "env": { "EXPO_PUBLIC_API_URL": "http://10.0.2.2:4000/api/v1" }
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://10.0.2.2:4000/api/v1",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "407738224731-f6q4i8ib370tf1au389jr9n00j4kih1t.apps.googleusercontent.com"
+      }
     },
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://applyfields.onrender.com/api/v1" }
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://applyfields.onrender.com/api/v1",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "407738224731-f6q4i8ib370tf1au389jr9n00j4kih1t.apps.googleusercontent.com"
+      }
     },
     "production": {
       "autoIncrement": true,
       "android": { "buildType": "app-bundle" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://api.applyfields.in/api/v1" }
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://applyfields.onrender.com/api/v1",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "407738224731-f6q4i8ib370tf1au389jr9n00j4kih1t.apps.googleusercontent.com"
+      }
     }
   },
   "submit": {

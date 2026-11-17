@@ -140,7 +140,7 @@ export function Footer() {
 
         {/* Bottom bar */}
         <div className="pt-8 border-t border-[#0d2a58] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#7896bc]">
-          <p>© 2026 ApplyFields Technologies Inc. · Dedicated Citizen Services Portal (`service.applyfields.in`)</p>
+          <p>© 2026 ApplyFields Technologies Inc. · Dedicated Citizen Services Portal (`service.applyfields.com`)</p>
           <div className="flex items-center gap-4">
             <a href={`${MAIN_WEB_URL}/help`} className="hover:text-white transition">Help &amp; FAQs</a>
             <a href={`${MAIN_WEB_URL}/privacy`} className="hover:text-white transition">Privacy Policy</a>

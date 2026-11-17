@@ -699,7 +699,7 @@ export default function OnboardWizardPage() {
               <div>
                 <h2 className="text-xl font-bold text-[#082046]">Center Location & GPS Geolocation</h2>
                 <p className="mt-1 text-xs text-[#536780]">
-                  Citizens on <span className="font-mono text-[#00876a]">service.applyfields.in</span> discover centers closest to them. GPS pinpointing maximizes your footfall.
+                  Citizens on <span className="font-mono text-[#00876a]">service.applyfields.com</span> discover centers closest to them. GPS pinpointing maximizes your footfall.
                 </p>
               </div>
 

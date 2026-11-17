@@ -137,7 +137,7 @@ export class ReportsService {
     const memReport: AdminReportDetail = {
       id: reportId,
       reporter_id: reporterId,
-      reporter_email: reporterId ? 'citizen@applyfields.in' : 'Anonymous',
+      reporter_email: reporterId ? 'citizen@applyfields.com' : 'Anonymous',
       item_type: input.item_type,
       item_id: resolvedItemId,
       reason: input.reason,

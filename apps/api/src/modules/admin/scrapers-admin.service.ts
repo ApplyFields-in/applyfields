@@ -191,7 +191,7 @@ export class ScrapersAdminService {
       if (!res.ok) {
         const errorText = await res.text();
         this.logger.warn(
-          `Ingestion service responded with status ${res.status}: ${errorText}`,
+          `Ingestion service responded with status ${res.status}: ${errorText.slice(0, 200)}`,
         );
         return {
           success: false,

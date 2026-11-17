@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
 
     # Polite crawling
-    user_agent: str = "ApplyFieldsBot/0.1 (+https://applyfields.in/bot)"
+    user_agent: str = "ApplyFieldsBot/0.1 (+https://applyfields.com/bot)"
     crawl_delay_seconds: float = 5.0
     # Newest N documents per run. Bounds one HTTP request (each PDF = one polite fetch) and the
     # review queue on a source's first run; the rest are older notices.

@@ -23,8 +23,8 @@ export function DarkNavyFooter() {
             <p className="max-w-sm text-xs leading-relaxed text-[#c8d5e6]">
               {t('footer_tagline')}
             </p>
-            <a href="mailto:support@applyfields.in" className="inline-block text-xs font-semibold text-white hover:underline">
-              support@applyfields.in
+            <a href="mailto:support@applyfields.com" className="inline-block text-xs font-semibold text-white hover:underline">
+              support@applyfields.com
             </a>
           </div>
 

@@ -201,7 +201,7 @@ export default function MyBookingsPage() {
       b.partner.address ? `Address: ${b.partner.address}` : '',
       `Services: ${b.items.map((i) => i.title).join(', ')}`,
       `Fee: INR ${b.total} (${b.isPaid ? 'Paid' : 'Pay at the counter'})`,
-      `Slip: https://service.applyfields.in/bookings/${b.id}`,
+      `Slip: https://service.applyfields.com/bookings/${b.id}`,
     ].filter(Boolean);
     window.location.href = `mailto:?subject=${encodeURIComponent(`ApplyFields appointment ${b.token}`)}&body=${encodeURIComponent(lines.join('\n'))}`;
   }
@@ -872,7 +872,7 @@ export default function MyBookingsPage() {
                 <div className="flex items-center justify-between border-t border-slate-200 pt-3">
                   <div className="space-y-0.5 text-[10px] text-slate-500">
                     <p className="font-bold text-[#082046]">{selectedSlipBooking.partner.address}</p>
-                    <p>Customer Support: support@applyfields.in - Phone: {selectedSlipBooking.partner.phone}</p>
+                    <p>Customer Support: support@applyfields.com - Phone: {selectedSlipBooking.partner.phone}</p>
                     <p className="text-emerald-700 font-bold">Digitally Sealed Token Slip</p>
                   </div>
                   <div className="flex flex-col items-center">
@@ -927,7 +927,7 @@ export default function MyBookingsPage() {
                 <div className="text-center pt-1 space-y-1">
                   <QrCode className="h-10 w-10 mx-auto text-slate-900" />
                   <p className="text-[8px] text-slate-500 uppercase">Present this slip at Counter 1 or 2</p>
-                  <p className="text-[8px] text-slate-400">service.applyfields.in</p>
+                  <p className="text-[8px] text-slate-400">service.applyfields.com</p>
                 </div>
               </div>
             )}

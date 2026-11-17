@@ -163,7 +163,7 @@ export default function InstitutionUnderReviewPage() {
           {/* Actions & Developer Testing Bypass */}
           <div className="mt-10 pt-6 border-t border-[#d5deea] flex flex-col sm:flex-row items-center justify-between gap-4">
             <a
-              href="mailto:support@applyfields.in?subject=Institutional%20Verification%20Expedite"
+              href="mailto:support@applyfields.com?subject=Institutional%20Verification%20Expedite"
               className="text-xs font-semibold text-[#0e7bf4] hover:text-[#0c6fdc] transition"
             >
               Need expedited activation? Contact institutional support →
