@@ -111,7 +111,7 @@ Before the first submission:
 - Store listings: both stores need a privacy-policy URL and a data-collection
   declaration. The app collects profile and education data under DPDP Act 2023
   consent, stores documents encrypted, and submits nothing on the user's behalf
-  — say exactly that, and link `https://applyfields.in/privacy`.
+  — say exactly that, and link `https://applyfields.com/privacy`.
 - `android.permissions` is `POST_NOTIFICATIONS` only. Keep it that way unless a
   feature genuinely needs more; every extra permission is a review question.
 
@@ -120,7 +120,7 @@ Before the first submission:
 - **Uploading documents** — the encrypted vault and DigiLocker flow stay on the
   website; the app lists what is already there.
 - **Editing the profile** — the app shows it and says what is missing, and opens
-  `applyfields.in/profile` to change it.
+  `applyfields.com/profile` to change it.
 - **Registration and password reset** — handled on the website, so there is one
   place where consent is recorded.
 - **Community, payments, partner booking, the AI chatbot** — web only for v1 of

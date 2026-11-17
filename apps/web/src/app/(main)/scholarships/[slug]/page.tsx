@@ -29,12 +29,12 @@ export async function generateMetadata({
     title,
     description,
     alternates: {
-      canonical: `https://applyfields.in/scholarships/${slug}`,
+      canonical: `https://applyfields.com/scholarships/${slug}`,
     },
     openGraph: {
       title,
       description,
-      url: `https://applyfields.in/scholarships/${slug}`,
+      url: `https://applyfields.com/scholarships/${slug}`,
       type: 'article',
     },
     twitter: {

@@ -67,8 +67,11 @@ async function bootstrap() {
     'http://127.0.0.1:3001',
     'http://127.0.0.1:3002',
     'http://127.0.0.1:3003',
+    'https://applyfields.com',
+    'https://www.applyfields.com',
     'https://partners.applyfields.com',
-    'https://service.applyfields.in',
+    'https://service.applyfields.com',
+    'https://admin.applyfields.com',
     // Our Vercel deployments, by name: anyone can host a site on *.vercel.app.
     'https://applyfields-web-two.vercel.app',
     'https://applyfields-4alm.vercel.app',

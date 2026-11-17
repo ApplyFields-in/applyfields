@@ -257,7 +257,7 @@ export default function SchedulePage() {
             Operating Hours & Slot Scheduling
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Configure weekly working shifts, citizen arrival windows, and appointment limits on <span className="text-emerald-400 font-mono">service.applyfields.in</span>.
+            Configure weekly working shifts, citizen arrival windows, and appointment limits on <span className="text-emerald-400 font-mono">service.applyfields.com</span>.
           </p>
         </div>
 

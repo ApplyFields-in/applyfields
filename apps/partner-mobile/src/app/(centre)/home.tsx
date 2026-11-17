@@ -15,7 +15,7 @@ import { useSession } from '@/lib/session';
 import { useApi } from '@/lib/use-api';
 import { C, S } from '@/theme';
 
-const SERVICE_PORTAL = 'https://service.applyfields.in';
+const SERVICE_PORTAL = 'https://service.applyfields.com';
 
 function Stat({ label, value, icon }: { label: string; value: string; icon: keyof typeof Ionicons.glyphMap }) {
   return (

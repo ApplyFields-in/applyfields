@@ -154,7 +154,7 @@ export function AuditClient({ initialItems, total }: AuditClientProps) {
       const rollbackLog: AdminAuditLogItem = {
         id: `audit-rollback-${Date.now()}`,
         actor_id: 'current-staff',
-        actor_email: 'lead.reviewer@applyfields.in',
+        actor_email: 'lead.reviewer@applyfields.com',
         actor_name: 'Lead Staff Auditor',
         actor_role: 'admin',
         action: 'rollback_restore',

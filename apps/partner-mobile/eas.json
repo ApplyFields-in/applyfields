@@ -17,7 +17,7 @@
     "production": {
       "autoIncrement": true,
       "android": { "buildType": "app-bundle" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://api.applyfields.in/api/v1" }
+      "env": { "EXPO_PUBLIC_API_URL": "https://applyfields.onrender.com/api/v1" }
     }
   },
   "submit": {
