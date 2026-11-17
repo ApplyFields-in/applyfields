@@ -381,7 +381,7 @@ export class BookingsService {
             type: 'request_update',
             title: done ? `Your complaint was ${input.status}` : 'Your complaint is being reviewed',
             body: input.note,
-            link: `${(process.env.SERVICE_URL ?? 'https://service.applyfields.in').replace(/\/$/, '')}/my-bookings`,
+            link: `${(process.env.SERVICE_URL ?? 'https://service.applyfields.com').replace(/\/$/, '')}/my-bookings`,
           },
           () => `dispute:${id}:${input.status}:${notes.length}`,
         )
@@ -747,7 +747,7 @@ export class BookingsService {
             title: 'Your application has been filed',
             body: `Official Application No. ${appNo}. Your acknowledgment slip is ready to download.`,
             // The booking page lives on the services app, not the main web app.
-            link: `${(process.env.SERVICE_URL ?? 'https://service.applyfields.in').replace(/\/$/, '')}/bookings/${bookingId}`,
+            link: `${(process.env.SERVICE_URL ?? 'https://service.applyfields.com').replace(/\/$/, '')}/bookings/${bookingId}`,
           },
           () => `request_filed:${bookingId}`,
         )

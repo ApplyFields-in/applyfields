@@ -74,7 +74,7 @@ Stop anything with **Ctrl + C**.
 | Website | http://localhost:3000 | Citizen & student portal |
 | Internal Portal | http://localhost:3001 | Team dashboard, review queue, scrapers |
 | Partner Portal | http://localhost:3002 | Dedicated Partner Portal (`partners.applyfields.com` preview), onboarding, store workspace |
-| Citizen Services | http://localhost:3003 | Dedicated Citizen Services & Booking Portal (`service.applyfields.in` preview), kiosk discovery, rate cards, appointment checkout |
+| Citizen Services | http://localhost:3003 | Dedicated Citizen Services & Booking Portal (`service.applyfields.com` preview), kiosk discovery, rate cards, appointment checkout |
 | API | http://localhost:4000/api/v1/health | `{"status":"ok"}` = API is running |
 | Scraper (Python) | http://localhost:8000/docs | Internal endpoints (try `/health`) |
 

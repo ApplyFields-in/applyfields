@@ -24,7 +24,7 @@ export function getVapidKeys(): { publicKey: string; privateKey: string } {
 }
 
 export function getVapidSubject(): string {
-  return (process.env.VAPID_SUBJECT || 'mailto:support@applyfields.in').trim();
+  return (process.env.VAPID_SUBJECT || 'mailto:support@applyfields.com').trim();
 }
 
 /** Initialize web-push details */

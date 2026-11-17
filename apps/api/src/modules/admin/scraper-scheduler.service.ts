@@ -92,6 +92,12 @@ export class ScraperSchedulerService
           this.logger.log(
             `Scheduled run for '${source.key}': ${res.message} (found: ${res.items_found ?? 0}, new: ${res.new_items ?? 0})`,
           );
+          // Rate-limited (Cloudflare in front of onrender.com): the rest would be blocked too and only prolong the block.
+          if (!res.success && res.message.includes('(429)')) {
+            failed++;
+            this.logger.warn(`Ingestion is rate-limiting us; skipping the remaining sources until the next hourly check.`);
+            break;
+          }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           failed++;

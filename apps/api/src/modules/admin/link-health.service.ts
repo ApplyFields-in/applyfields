@@ -70,7 +70,7 @@ export class LinkHealthService
       let res = await fetch(url, {
         method: 'HEAD',
         headers: {
-          'User-Agent': 'ApplyFieldsBot/0.1 (+https://applyfields.in/bot)',
+          'User-Agent': 'ApplyFieldsBot/0.1 (+https://applyfields.com/bot)',
         },
         signal: AbortSignal.timeout(6000),
       });
@@ -80,7 +80,7 @@ export class LinkHealthService
         res = await fetch(url, {
           method: 'GET',
           headers: {
-            'User-Agent': 'ApplyFieldsBot/0.1 (+https://applyfields.in/bot)',
+            'User-Agent': 'ApplyFieldsBot/0.1 (+https://applyfields.com/bot)',
             Range: 'bytes=0-100',
           },
           signal: AbortSignal.timeout(6000),

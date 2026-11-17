@@ -301,7 +301,7 @@ export default function PartnerDashboardLayout({
 
             {/* View Citizen Storefront Preview */}
             <a
-              href={`https://service.applyfields.in/partners/${partner?.slug || 'preview'}`}
+              href={`https://service.applyfields.com/partners/${partner?.slug || 'preview'}`}
               target="_blank"
               rel="noreferrer"
               className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-800/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition"

@@ -92,7 +92,7 @@ export default function PartnerDashboardPage() {
               ) : (
                 <span className="font-semibold text-rose-300">currently Offline</span>
               )}
-              . Citizens reserving slots on <span className="font-mono text-emerald-300">service.applyfields.in</span> arrive with pre-filled forms.
+              . Citizens reserving slots on <span className="font-mono text-emerald-300">service.applyfields.com</span> arrive with pre-filled forms.
             </p>
           </div>
 
@@ -194,7 +194,7 @@ export default function PartnerDashboardPage() {
                   Center Location & GPS Coordinates
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Used by the citizen discovery engine on <span className="font-mono text-emerald-300">service.applyfields.in</span>
+                  Used by the citizen discovery engine on <span className="font-mono text-emerald-300">service.applyfields.com</span>
                 </p>
               </div>
               <Link
@@ -301,7 +301,7 @@ export default function PartnerDashboardPage() {
                   </span>
                   <div>
                     <div className="font-bold text-slate-200">
-                      Dedicated Citizen Services Portal (`service.applyfields.in`)
+                      Dedicated Citizen Services Portal (`service.applyfields.com`)
                     </div>
                     <div className="text-[11px] text-slate-400">
                       Unified citizen SSO, interactive service cart & main portal navigation links.
@@ -386,7 +386,7 @@ export default function PartnerDashboardPage() {
               <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-3">
                 <span className="text-slate-400">Storefront Listing:</span>
                 <span className="text-slate-200 font-semibold">
-                  {partner?.is_listed ? 'Public on service.applyfields.in' : 'Internal Preview Only'}
+                  {partner?.is_listed ? 'Public on service.applyfields.com' : 'Internal Preview Only'}
                 </span>
               </div>
 
@@ -419,10 +419,10 @@ export default function PartnerDashboardPage() {
             </p>
             <div className="mt-4 flex flex-col gap-2">
               <a
-                href="mailto:support@applyfields.in?subject=Partner%20desk%20help"
+                href="mailto:support@applyfields.com?subject=Partner%20desk%20help"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 py-2.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-600/30 transition"
               >
-                <MessageSquare className="h-3.5 w-3.5" /> Email support@applyfields.in
+                <MessageSquare className="h-3.5 w-3.5" /> Email support@applyfields.com
               </a>
             </div>
           </div>

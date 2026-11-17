@@ -28,8 +28,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.applyfields.in/api/v1",
-        "EXPO_PUBLIC_SERVICE_URL": "https://service.applyfields.in"
+        "EXPO_PUBLIC_API_URL": "https://applyfields.onrender.com/api/v1",
+        "EXPO_PUBLIC_SERVICE_URL": "https://service.applyfields.com"
       }
     }
   }

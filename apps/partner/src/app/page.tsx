@@ -256,7 +256,7 @@ export default function PartnerLandingPage() {
               </div>
               <h3 className="mt-4 text-xl font-black text-[#00a884]">GPS Distance Discovery</h3>
               <p className="mt-2 text-sm text-[#435775] leading-relaxed">
-                Citizens find you on <span className="font-mono text-[#00a884] font-bold">service.applyfields.in</span> based on real-time distance from their home, college, or workplace.
+                Citizens find you on <span className="font-mono text-[#00a884] font-bold">service.applyfields.com</span> based on real-time distance from their home, college, or workplace.
               </p>
               <div className="mt-4">
                 <Link
@@ -352,7 +352,7 @@ export default function PartnerLandingPage() {
           <p>© 2026 ApplyFields Technologies Inc. · Dedicated Operator Portal (`partners.applyfields.com`)</p>
           <div className="flex items-center gap-4 text-xs font-semibold">
             <a href={process.env.NEXT_PUBLIC_MAIN_WEB_URL || 'https://applyfields.com'} className="hover:text-white transition">Citizen Portal</a>
-            <a href={process.env.NEXT_PUBLIC_SERVICE_PORTAL_URL || 'https://service.applyfields.in'} className="hover:text-white transition">Services Hub</a>
+            <a href={process.env.NEXT_PUBLIC_SERVICE_PORTAL_URL || 'https://service.applyfields.com'} className="hover:text-white transition">Services Hub</a>
           </div>
         </div>
       </footer>

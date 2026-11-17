@@ -12,7 +12,7 @@ export const PARTNER_PORTAL_URL =
 export const SERVICE_PORTAL_URL =
   process.env.NEXT_PUBLIC_SERVICE_PORTAL_URL ||
   (typeof window !== 'undefined' && window.location.hostname.includes('applyfields')
-    ? 'https://service.applyfields.in'
+    ? 'https://service.applyfields.com'
     : 'http://localhost:3003');
 
 export const ADMIN_PORTAL_URL =
