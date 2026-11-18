@@ -22,7 +22,8 @@ function Message({ text, uri }: { text: string; uri: string }) {
   );
 }
 
-export function DeadlinesWidget({ state }: { state: WidgetState }) {
+/** maxRows: how many fit the placed widget's height (rowsThatFit), so none is cut off. */
+export function DeadlinesWidget({ state, maxRows }: { state: WidgetState; maxRows: number }) {
   return (
     <FlexWidget
       style={{
@@ -46,7 +47,7 @@ export function DeadlinesWidget({ state }: { state: WidgetState }) {
       ) : state.rows.length === 0 ? (
         <Message text="No upcoming deadlines" uri="applyfields://saved" />
       ) : (
-        state.rows.map((r) => (
+        state.rows.slice(0, maxRows).map((r) => (
           <FlexWidget
             key={r.slug}
             style={{ width: 'match_parent', flexDirection: 'column', paddingVertical: 4 }}

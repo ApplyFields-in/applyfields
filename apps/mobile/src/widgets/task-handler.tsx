@@ -8,13 +8,26 @@
  * widget keeps working offline and rolls the next deadline up when one passes. Signing out deletes
  * the cache: a widget must never show the previous account's list.
  */
-import type { SavedList } from '@applyfields/types';
+import type { SavedItem, SavedList } from '@applyfields/types';
 import { File, Paths } from 'expo-file-system';
-import { registerWidgetTaskHandler, requestWidgetUpdate } from 'react-native-android-widget';
+import { PixelRatio } from 'react-native';
+import {
+  registerWidgetTaskHandler,
+  requestWidgetUpdate,
+  type WidgetInfo,
+} from 'react-native-android-widget';
 
 import { api, getToken } from '@/lib/api';
 
-import { type Deadline, fromSaved, parseCache, settleWidget, todayLocal, type WidgetState } from './deadlines';
+import {
+  type Deadline,
+  fromSaved,
+  parseCache,
+  rowsThatFit,
+  settleWidget,
+  todayLocal,
+  type WidgetState,
+} from './deadlines';
 import { DeadlinesWidget } from './DeadlinesWidget';
 
 const WIDGET = 'Deadlines'; // = the widget name in app.json
@@ -36,13 +49,16 @@ function clearCache(): void {
   }
 }
 
-/** Never throws: a throw here means nothing gets drawn (the library runs renders detached). */
-export async function loadWidgetState(): Promise<WidgetState> {
+/**
+ * Never throws: a throw here means nothing gets drawn (the library runs renders detached).
+ * `items`: the /saved list a screen just loaded, so the widget doesn't fetch it a second time.
+ */
+export async function loadWidgetState(items?: SavedItem[]): Promise<WidgetState> {
   try {
     let fetched: Deadline[] | null = null;
     if (await getToken()) {
-      const res = await api.get<SavedList>('/saved');
-      fetched = res.data ? fromSaved(res.data.items ?? []) : null;
+      const list = items ?? (await api.get<SavedList>('/saved')).data?.items;
+      fetched = list ? fromSaved(list) : null;
     }
     // Checked again after the fetch: a sign-out (or a dead session, cleared inside api.get)
     // while it was in flight must not write or draw the old account's list.
@@ -61,20 +77,26 @@ export async function loadWidgetState(): Promise<WidgetState> {
   }
 }
 
-export async function redrawDeadlinesWidgets(): Promise<void> {
+function draw(state: WidgetState, info: WidgetInfo) {
+  return <DeadlinesWidget state={state} maxRows={rowsThatFit(info.height, PixelRatio.getFontScale())} />;
+}
+
+export async function redrawDeadlinesWidgets(items?: SavedItem[]): Promise<void> {
   // Only placed widgets get redrawn, so clear a signed-out cache here too: otherwise the next
   // account to add the widget offline would see this one's list.
   if (!(await getToken())) clearCache();
+  let pending: Promise<WidgetState> | undefined;
   await requestWidgetUpdate({
     widgetName: WIDGET,
-    renderWidget: async () => <DeadlinesWidget state={await loadWidgetState()} />,
+    // Loaded once, on the first placed widget, and shared by the rest.
+    renderWidget: async (info) => draw(await (pending ??= loadWidgetState(items)), info),
   });
 }
 
 registerWidgetTaskHandler(async ({ widgetInfo, widgetAction, renderWidget }) => {
   if (widgetInfo.widgetName !== WIDGET) return;
   if (widgetAction === 'WIDGET_ADDED' || widgetAction === 'WIDGET_UPDATE' || widgetAction === 'WIDGET_RESIZED') {
-    renderWidget(<DeadlinesWidget state={await loadWidgetState()} />);
+    renderWidget(draw(await loadWidgetState(), widgetInfo));
   }
   // Taps use OPEN_URI, so WIDGET_CLICK never reaches here; WIDGET_DELETED needs no cleanup.
 });
