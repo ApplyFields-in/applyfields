@@ -2,6 +2,7 @@
 import type { SavedList } from '@applyfields/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
@@ -9,6 +10,7 @@ import { OpportunityCard } from '@/components/opportunity-card';
 import { Button, Empty, Loading, Muted } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { useApi, useRefreshOnFocus } from '@/lib/use-api';
+import { refreshDeadlinesWidget } from '@/widgets/refresh';
 import { C, S, card, column } from '@/theme';
 
 export default function Saved() {
@@ -19,6 +21,10 @@ export default function Saved() {
   );
   // Saving on a detail screen should show here the moment you come back.
   useRefreshOnFocus(refresh);
+  // Keep the home-screen widget in step with the list the user is looking at.
+  useEffect(() => {
+    if (data) void refreshDeadlinesWidget();
+  }, [data]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.canvas }}>
