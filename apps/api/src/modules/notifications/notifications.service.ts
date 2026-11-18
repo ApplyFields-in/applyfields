@@ -860,6 +860,7 @@ export class NotificationsService {
    * Daily 3-Slot Personalized Cadence:
    * - Slot 1 (Morning ~09:00 AM IST): Personalized greeting & career recommendation ("Hi {username}, looking good today! ✨ Have you seen this career option: ...")
    * - Slot 2 (Afternoon ~02:00 PM IST): Countdown & Deadline urgency alert ("Deadline Alert, {username} ⏳ ...")
+   *   Only when a published opportunity really closes within 7 days — never a generic "closes this week".
    * - Slot 3 (Evening ~07:00 PM IST): Career roadmap & pathway spotlight ("Evening Career Spotlight for {username} 🧭 ...")
    */
   async runDailyCadence(slot: 'morning' | 'afternoon' | 'evening'): Promise<number> {
@@ -894,6 +895,8 @@ export class NotificationsService {
     ]);
 
     if (activeUsers.length === 0) return 0;
+    // Nothing real closes this week: no deadline alert (we never claim deadlines we don't have).
+    if (slot === 'afternoon' && !closingOpp) return 0;
 
     let totalDispatched = 0;
 
@@ -918,11 +921,9 @@ export class NotificationsService {
       } else if (slot === 'afternoon') {
         notifType = 'closing_reminder';
         title = `Deadline Alert, ${firstName} ⏳`;
-        body = closingOpp
-          ? `${closingOpp.title} closes on ${isoDate(closingOpp.application_end)}! Don't miss your chance to apply.`
-          : 'Important competitive exam applications close this week. Check your saved reminders.';
-        link = closingOpp ? opportunityPath(closingOpp.type, closingOpp.slug) : '/apply?sort=deadline';
-        itemId = closingOpp?.id;
+        body = `${closingOpp!.title} closes on ${isoDate(closingOpp!.application_end)}! Don't miss your chance to apply.`;
+        link = opportunityPath(closingOpp!.type, closingOpp!.slug);
+        itemId = closingOpp!.id;
       } else {
         notifType = 'system';
         title = `Evening Career Spotlight for ${firstName} 🧭`;
