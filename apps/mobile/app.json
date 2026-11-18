@@ -211,7 +211,26 @@
         }
       ],
       "./plugins/without-ios-background-fetch.js",
-      "./plugins/with-room-keep-rule.js"
+      "./plugins/with-room-keep-rule.js",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "Deadlines",
+              "label": "Closing soon",
+              "description": "Your saved jobs and exams closing soonest",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widgets/deadlines-preview.png"
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

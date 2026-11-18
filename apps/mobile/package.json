@@ -10,7 +10,7 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild --clean",
     "typecheck": "tsc --noEmit",
-    "test": "node --test scripts/mascot-rules.test.mjs scripts/deep-link.test.mjs"
+    "test": "node --test scripts/mascot-rules.test.mjs scripts/deep-link.test.mjs scripts/deadlines-widget.test.mjs"
   },
   "dependencies": {
     "@applyfields/types": "workspace:*",
@@ -36,6 +36,7 @@
     "lottie-react-native": "~7.5.0",
     "react": "19.3.0",
     "react-native": "0.88.1",
+    "react-native-android-widget": "~0.26.0",
     "react-native-gesture-handler": "~3.3.0",
     "react-native-maps": "1.29.11",
     "react-native-reanimated": "4.7.1",

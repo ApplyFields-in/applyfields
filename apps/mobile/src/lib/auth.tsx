@@ -3,7 +3,9 @@ import type { AuthResponse, MeResponse } from '@applyfields/types';
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
-import { api, saveSession, setToken } from './api';
+import { refreshDeadlinesWidget } from '@/widgets/refresh';
+
+import { api, onSessionExpired, saveSession, setToken } from './api';
 import { clearPersonalOffline } from './offline';
 import { registerForPush, unregisterPush } from './push';
 
@@ -88,6 +90,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (me) void registerForPush();
   }, [me]);
+
+  // A session that died mid-use (refresh token rejected) signs the app out, not just api.ts.
+  useEffect(() => onSessionExpired(() => setMe(null)), []);
+
+  // Sign-in, sign-out or an expired session: the home-screen widget shows this account or none.
+  const signedIn = !!me;
+  useEffect(() => {
+    if (!loading) void refreshDeadlinesWidget();
+  }, [signedIn, loading]);
 
   const startLogin = useCallback<AuthValue['startLogin']>(
     async (identifier, password) => {
@@ -188,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       me,
       loading,
-      signedIn: !!me,
+      signedIn,
       name: me?.profile?.full_name || me?.user.email || me?.user.phone || 'Your account',
       startLogin,
       login,
@@ -198,7 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       reload,
     }),
-    [me, loading, startLogin, login, sendLoginOtp, loginWithOtp, loginWithGoogle, logout, reload],
+    [me, signedIn, loading, startLogin, login, sendLoginOtp, loginWithOtp, loginWithGoogle, logout, reload],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

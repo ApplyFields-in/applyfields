@@ -112,6 +112,16 @@ async function refreshSession(): Promise<boolean | null> {
   return refreshing;
 }
 
+const expiredListeners = new Set<() => void>();
+
+/** Called when the API rejects the refresh token: the session ended without logout(). */
+export function onSessionExpired(fn: () => void): () => void {
+  expiredListeners.add(fn);
+  return () => {
+    expiredListeners.delete(fn);
+  };
+}
+
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 async function request<T>(
@@ -143,7 +153,11 @@ async function request<T>(
     if (res.status === 401 && !path.startsWith('/auth/')) {
       const refreshed = await refreshSession();
       if (refreshed) res = await send(await getToken());
-      else if (refreshed === false) await setToken(null); // offline (null) keeps the session
+      else if (refreshed === false) {
+        // offline (null) keeps the session
+        await setToken(null);
+        for (const fn of expiredListeners) fn();
+      }
     }
 
     const json = await res.json().catch(() => null);
