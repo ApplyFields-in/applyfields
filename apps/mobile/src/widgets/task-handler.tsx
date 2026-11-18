@@ -14,15 +14,15 @@ import { registerWidgetTaskHandler, requestWidgetUpdate } from 'react-native-and
 
 import { api, getToken } from '@/lib/api';
 
-import { type Deadline, fromSaved, pickDeadlines, todayLocal } from './deadlines';
-import { DeadlinesWidget, type WidgetState } from './DeadlinesWidget';
+import { type Deadline, fromSaved, parseCache, settleWidget, todayLocal, type WidgetState } from './deadlines';
+import { DeadlinesWidget } from './DeadlinesWidget';
 
 const WIDGET = 'Deadlines'; // = the widget name in app.json
 const cache = new File(Paths.document, 'deadlines-widget.json');
 
 function readCache(): Deadline[] | null {
   try {
-    return cache.exists ? (JSON.parse(cache.textSync()) as Deadline[]) : null;
+    return cache.exists ? parseCache(cache.textSync()) : null;
   } catch {
     return null;
   }
@@ -32,36 +32,40 @@ function clearCache(): void {
   try {
     if (cache.exists) cache.delete();
   } catch {
-    // Can't delete: the signed-out state below still hides it.
+    // Can't delete: the signed-out state still hides it.
   }
 }
 
+/** Never throws: a throw here means nothing gets drawn (the library runs renders detached). */
 export async function loadWidgetState(): Promise<WidgetState> {
-  if (!(await getToken())) {
-    clearCache();
-    return { kind: 'signed_out' };
-  }
-  const res = await api.get<SavedList>('/saved');
-  if (res.data) {
-    const list = fromSaved(res.data.items);
-    try {
-      cache.writeSync(JSON.stringify(list));
-    } catch {
-      // Disk full or similar: still draw what we fetched.
+  try {
+    let fetched: Deadline[] | null = null;
+    if (await getToken()) {
+      const res = await api.get<SavedList>('/saved');
+      fetched = res.data ? fromSaved(res.data.items ?? []) : null;
     }
-    return { kind: 'rows', rows: pickDeadlines(list, todayLocal()) };
+    // Checked again after the fetch: a sign-out (or a dead session, cleared inside api.get)
+    // while it was in flight must not write or draw the old account's list.
+    const { state, cache: action } = settleWidget(!!(await getToken()), fetched, readCache(), todayLocal());
+    if (action === 'clear') clearCache();
+    if (action === 'write') {
+      try {
+        cache.writeSync(JSON.stringify(fetched));
+      } catch {
+        // Disk full or similar: still draw what we fetched.
+      }
+    }
+    return state;
+  } catch {
+    return { kind: 'error' };
   }
-  // A dead session is cleared inside api.get (401 + failed refresh), so check again.
-  if (!(await getToken())) {
-    clearCache();
-    return { kind: 'signed_out' };
-  }
-  const cached = readCache();
-  return cached ? { kind: 'rows', rows: pickDeadlines(cached, todayLocal()) } : { kind: 'error' };
 }
 
-export function redrawDeadlinesWidgets(): Promise<void> {
-  return requestWidgetUpdate({
+export async function redrawDeadlinesWidgets(): Promise<void> {
+  // Only placed widgets get redrawn, so clear a signed-out cache here too: otherwise the next
+  // account to add the widget offline would see this one's list.
+  if (!(await getToken())) clearCache();
+  await requestWidgetUpdate({
     widgetName: WIDGET,
     renderWidget: async () => <DeadlinesWidget state={await loadWidgetState()} />,
   });
