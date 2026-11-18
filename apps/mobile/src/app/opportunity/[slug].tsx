@@ -22,6 +22,7 @@ import {
 } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { refreshDeadlinesWidget } from '@/widgets/refresh';
 import { ELIGIBILITY, TYPE_LABEL, deadline, formatDate, rupees } from '@/lib/format';
 import { openOffline, saveOffline, useOfflineFiles } from '@/lib/offline';
 import { opportunityUrl, shareLink } from '@/lib/share';
@@ -96,6 +97,7 @@ export default function OpportunityScreen() {
       ? await api.put(`/saved/opportunity/${slug}`)
       : await api.del(`/saved/opportunity/${slug}`);
     if (res.error) setSaved(!next);
+    else void refreshDeadlinesWidget(); // the home-screen widget lists saved deadlines
     setSavePending(false);
   }
 
