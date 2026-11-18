@@ -1,9 +1,11 @@
 // The "Closing soon" widget rules, in plain Node (24+ strips the TypeScript types).
 // Run: pnpm --filter @applyfields/mobile test
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
-import { dayLabel, fromSaved, pickDeadlines, todayLocal } from '../src/widgets/deadlines.ts';
+import { dayLabel, fromSaved, parseCache, pickDeadlines, settleWidget, todayLocal } from '../src/widgets/deadlines.ts';
 
 const opp = (slug, last_date, title = slug) => ({
   item_type: 'opportunity',
@@ -62,4 +64,56 @@ test('days across month end', () => {
 
 test('todayLocal uses local date', () => {
   assert.equal(todayLocal(new Date(2026, 0, 5, 0, 30)), '2026-01-05');
+});
+
+// settleWidget runs after the /saved fetch; signedIn is the token check made AFTER it, so a
+// sign-out during the fetch never writes or draws the previous account's list.
+const T = '2026-11-18';
+test('signed out after fetch: signed-out state, cache cleared, fetched list ignored', () => {
+  assert.deepEqual(settleWidget(false, [d('a', '2026-11-20')], [d('b', '2026-11-21')], T), {
+    state: { kind: 'signed_out' },
+    cache: 'clear',
+  });
+});
+
+test('fetched list is drawn and written', () => {
+  const r = settleWidget(true, [d('a', '2026-11-20')], [d('b', '2026-11-21')], T);
+  assert.equal(r.cache, 'write');
+  assert.deepEqual(r.state.rows.map((x) => x.slug), ['a']);
+});
+
+test('fetch failed: cached rows drawn, cache kept', () => {
+  const r = settleWidget(true, null, [d('b', '2026-11-21')], T);
+  assert.equal(r.cache, 'keep');
+  assert.deepEqual(r.state.rows.map((x) => x.slug), ['b']);
+});
+
+test('fetch failed and no cache: error state', () => {
+  assert.deepEqual(settleWidget(true, null, null, T), { state: { kind: 'error' }, cache: 'keep' });
+});
+
+test('parseCache accepts only a list of deadlines', () => {
+  assert.equal(parseCache('{'), null);
+  assert.equal(parseCache('{"slug":"a"}'), null);
+  assert.equal(parseCache('[{"slug":1,"title":"t","lastDate":"2026-11-20"}]'), null);
+  assert.deepEqual(parseCache('[{"slug":"a","title":"t","lastDate":"2026-11-20"}]'), [
+    { slug: 'a', title: 't', lastDate: '2026-11-20' },
+  ]);
+});
+
+// The widget library calls components as plain functions, outside a React render, so React
+// Compiler memo hooks (`_c` from react/compiler-runtime) throw there. app.json turns the compiler on.
+test('widget layout is not touched by the React Compiler', () => {
+  const app = createRequire(new URL('../package.json', import.meta.url));
+  const preset = createRequire(createRequire(app.resolve('expo/package.json')).resolve('babel-preset-expo'));
+  const file = fileURLToPath(new URL('../src/widgets/DeadlinesWidget.tsx', import.meta.url));
+  const { code } = preset('@babel/core').transformFileSync(file, {
+    babelrc: false,
+    configFile: false,
+    plugins: [
+      preset.resolve('babel-plugin-react-compiler'),
+      [preset.resolve('@babel/plugin-syntax-typescript'), { isTSX: true }],
+    ],
+  });
+  assert.doesNotMatch(code, /compiler-runtime/);
 });

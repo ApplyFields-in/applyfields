@@ -48,6 +48,43 @@ export function dayLabel(days: number): string {
   return `Closes in ${days} days`;
 }
 
+export type WidgetState =
+  | { kind: 'signed_out' }
+  | { kind: 'rows'; rows: DeadlineRow[] } // empty → "No upcoming deadlines"
+  | { kind: 'error' }; // fetch failed and nothing cached
+
+/**
+ * What to draw after a /saved fetch, and what to do with the cache. `signedIn` must be checked
+ * AFTER the fetch: a sign-out while it was in flight must not write or draw the old account's list.
+ */
+export function settleWidget(
+  signedIn: boolean,
+  fetched: Deadline[] | null,
+  cached: Deadline[] | null,
+  today: string,
+): { state: WidgetState; cache: 'clear' | 'write' | 'keep' } {
+  if (!signedIn) return { state: { kind: 'signed_out' }, cache: 'clear' };
+  if (fetched) return { state: { kind: 'rows', rows: pickDeadlines(fetched, today) }, cache: 'write' };
+  if (cached) return { state: { kind: 'rows', rows: pickDeadlines(cached, today) }, cache: 'keep' };
+  return { state: { kind: 'error' }, cache: 'keep' };
+}
+
+/** The cache file's text → its list, or null if it isn't one (corrupt or from another version). */
+export function parseCache(text: string): Deadline[] | null {
+  try {
+    const v: unknown = JSON.parse(text);
+    const ok =
+      Array.isArray(v) &&
+      v.every(
+        (x: Partial<Deadline> | null) =>
+          typeof x?.slug === 'string' && typeof x.title === 'string' && typeof x.lastDate === 'string',
+      );
+    return ok ? (v as Deadline[]) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The phone's local date, not UTC: at 00:30 IST the UTC date is still yesterday. */
 export function todayLocal(now = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0');

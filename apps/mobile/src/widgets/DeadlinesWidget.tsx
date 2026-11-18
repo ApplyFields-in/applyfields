@@ -1,17 +1,16 @@
 /**
  * The Android "Closing soon" home-screen widget. Widget primitives only (no RN views):
  * the launcher draws this as a native RemoteViews tree. Taps open app deep links.
+ * The library calls these components as plain functions outside a React render, so the
+ * React Compiler's memo hooks would throw — hence 'use no memo' (pinned by a test).
  */
+'use no memo';
+
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
 
 import { C } from '@/theme';
 
-import type { DeadlineRow } from './deadlines';
-
-export type WidgetState =
-  | { kind: 'signed_out' }
-  | { kind: 'rows'; rows: DeadlineRow[] } // empty → "No upcoming deadlines"
-  | { kind: 'error' }; // fetch failed and nothing cached
+import type { WidgetState } from './deadlines';
 
 const open = (uri: string) => ({ clickAction: 'OPEN_URI', clickActionData: { uri } }) as const;
 
