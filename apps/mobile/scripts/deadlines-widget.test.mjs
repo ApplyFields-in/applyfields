@@ -1,11 +1,21 @@
 // The "Closing soon" widget rules, in plain Node (24+ strips the TypeScript types).
 // Run: pnpm --filter @applyfields/mobile test
+// India time, so the midnight test fails a UTC-based todayLocal on any machine (CI runs in UTC).
+process.env.TZ = 'Asia/Kolkata';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { dayLabel, fromSaved, parseCache, pickDeadlines, settleWidget, todayLocal } from '../src/widgets/deadlines.ts';
+import {
+  dayLabel,
+  fromSaved,
+  parseCache,
+  pickDeadlines,
+  rowsThatFit,
+  settleWidget,
+  todayLocal,
+} from '../src/widgets/deadlines.ts';
 
 const opp = (slug, last_date, title = slug) => ({
   item_type: 'opportunity',
@@ -63,7 +73,16 @@ test('days across month end', () => {
 });
 
 test('todayLocal uses local date', () => {
-  assert.equal(todayLocal(new Date(2026, 0, 5, 0, 30)), '2026-01-05');
+  // 00:30 IST on 5 Jan is still 4 Jan in UTC.
+  assert.equal(todayLocal(new Date(Date.UTC(2026, 0, 4, 19, 0))), '2026-01-05');
+});
+
+test('rowsThatFit: as many rows as the widget height holds, 1 to 3', () => {
+  assert.equal(rowsThatFit(110), 1); // the minimum size
+  assert.equal(rowsThatFit(180), 3); // a typical 4x2 placement
+  assert.equal(rowsThatFit(180, 1.3), 2); // large system font
+  assert.equal(rowsThatFit(40), 1); // never zero
+  assert.equal(rowsThatFit(500), 3); // never more than 3
 });
 
 // settleWidget runs after the /saved fetch; signedIn is the token check made AFTER it, so a

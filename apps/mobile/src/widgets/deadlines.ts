@@ -85,6 +85,16 @@ export function parseCache(text: string): Deadline[] | null {
   }
 }
 
+// Measured from the DeadlinesWidget layout at font scale 1: padding + header, and one title+label row.
+const CHROME_DP = 50;
+const ROW_DP = 41;
+
+/** How many rows fit a widget this tall (dp) without the last one being cut off: 1 to 3. */
+export function rowsThatFit(heightDp: number, fontScale = 1): number {
+  const n = Math.floor((heightDp - CHROME_DP * fontScale) / (ROW_DP * fontScale));
+  return Math.min(3, Math.max(1, n));
+}
+
 /** The phone's local date, not UTC: at 00:30 IST the UTC date is still yesterday. */
 export function todayLocal(now = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0');

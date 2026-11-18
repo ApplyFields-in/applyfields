@@ -23,7 +23,7 @@ export default function Saved() {
   useRefreshOnFocus(refresh);
   // Keep the home-screen widget in step with the list the user is looking at.
   useEffect(() => {
-    if (data) void refreshDeadlinesWidget();
+    if (data) void refreshDeadlinesWidget(data.items);
   }, [data]);
 
   return (

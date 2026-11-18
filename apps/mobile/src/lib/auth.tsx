@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 import { refreshDeadlinesWidget } from '@/widgets/refresh';
 
-import { api, saveSession, setToken } from './api';
+import { api, onSessionExpired, saveSession, setToken } from './api';
 import { clearPersonalOffline } from './offline';
 import { registerForPush, unregisterPush } from './push';
 
@@ -90,6 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (me) void registerForPush();
   }, [me]);
+
+  // A session that died mid-use (refresh token rejected) signs the app out, not just api.ts.
+  useEffect(() => onSessionExpired(() => setMe(null)), []);
 
   // Sign-in, sign-out or an expired session: the home-screen widget shows this account or none.
   const signedIn = !!me;
