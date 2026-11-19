@@ -130,3 +130,12 @@ def test_invalid_config_is_a_409() -> None:
     response, _ = post(source({"hostz": []}))
     assert response.status_code == 409
     assert "invalid config" in response.json()["detail"]
+
+
+def test_skip_words_and_limit() -> None:
+    urls = [n.url for n in scraper(skip_words=["results"], limit=2).find_notices(HTML)]
+
+    assert urls == [
+        "https://psc.example.gov.in/uploads/notif/group2.pdf",
+        "https://psc.example.gov.in/uploads/other/syllabus.pdf",
+    ]

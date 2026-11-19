@@ -17,7 +17,7 @@ from typing import Literal
 from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.scrapers.base import BaseScraper, NoticeLink
 
@@ -39,6 +39,9 @@ class GenericConfig(BaseModel):
     hosts: list[str] = []  # allowed link hosts; empty = the list page's own host
     path_contains: str = ""  # keep only links whose path contains this (case-insensitive)
     title_words: list[str] = []  # keep only links whose text has any of these words
+    skip_words: list[str] = []  # drop links whose text has any of these ("result", "key" …)
+    limit: int | None = Field(default=None, ge=1)  # first N matches in page order (newest-first
+    # sites); stops a page with years of history from flooding the review queue
     category: Category | None = None  # opportunity category for the drafts
 
 
@@ -66,6 +69,7 @@ class GenericPdfListScraper(BaseScraper):
         hosts = {h.lower() for h in self.config.hosts} or {urlsplit(self.list_url).hostname}
         path_part = self.config.path_contains.lower()
         words = [w.lower() for w in self.config.title_words]
+        skip = [w.lower() for w in self.config.skip_words]
 
         notices: list[NoticeLink] = []
         seen: set[str] = set()
@@ -84,6 +88,8 @@ class GenericPdfListScraper(BaseScraper):
                 continue
             if words and not any(w in title.lower() for w in words):
                 continue
+            if any(w in title.lower() for w in skip):
+                continue
 
             # ponytail: first date in the link text, else in its table row / list item. It may be
             # a last date, not the publish date; it only orders newest-first.
@@ -92,5 +98,7 @@ class GenericPdfListScraper(BaseScraper):
 
             seen.add(url)
             notices.append(NoticeLink(title=title, url=url, published_on=published_on))
+            if len(notices) == self.config.limit:
+                break
 
         return notices
