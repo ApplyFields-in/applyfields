@@ -16,7 +16,7 @@ import type {
 } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../common/storage.service.js';
-import { extractDocumentFields } from './document-extractor.js';
+import { sanitizeFields } from './document-fields.js';
 
 export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   marksheet_10th: '10th Marksheet / Matriculation Certificate',
@@ -205,14 +205,8 @@ export class DocumentsService {
     }
 
     const maskedId = maskSensitiveIdentifier(params.identifierNumber);
-    const extractedFields =
-      params.details?.extracted_fields ||
-      extractDocumentFields(
-        params.documentTypeCode,
-        params.fileName,
-        params.identifierNumber,
-        params.buffer,
-      );
+    // Only details the person typed; nothing is invented from the file.
+    const extractedFields = sanitizeFields(params.details?.extracted_fields);
 
     const docSource = params.source || 'upload';
     const digilockerUri = params.digilocker_uri || null;
@@ -482,6 +476,9 @@ export class DocumentsService {
         const mergedDetails = {
           ...((existing.details as Record<string, any>) || {}),
           ...input.details,
+          ...(input.details?.extracted_fields !== undefined
+            ? { extracted_fields: sanitizeFields(input.details.extracted_fields) }
+            : {}),
           ...(maskedId !== undefined ? { masked_identifier: maskedId } : {}),
           updated_at: new Date().toISOString(),
         };
@@ -536,6 +533,9 @@ export class DocumentsService {
     const updatedDetails = {
       ...(doc.details || {}),
       ...input.details,
+      ...(input.details?.extracted_fields !== undefined
+        ? { extracted_fields: sanitizeFields(input.details.extracted_fields) }
+        : {}),
       ...(maskedId !== undefined ? { masked_identifier: maskedId } : {}),
       updated_at: new Date().toISOString(),
     };

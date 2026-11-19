@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { OpportunitiesAdminService } from './opportunities-admin.service.js';
 import { recordJobRun } from '../../common/job-runs.js';
+import { schedulerOff } from '../../common/schedulers.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -23,8 +24,7 @@ export class ExpiryService
   constructor(private readonly opportunities: OpportunitiesAdminService) {}
 
   onApplicationBootstrap(): void {
-    if (process.env.NODE_ENV === 'test' || process.env.AUTO_CLOSE === 'off')
-      return;
+    if (schedulerOff('AUTO_CLOSE')) return;
     this.timers.push(
       setTimeout(() => void this.run(), 30_000).unref(),
       setInterval(() => void this.run(), HOUR_MS).unref(),

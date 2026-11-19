@@ -21,18 +21,20 @@ interface ExpoTicket {
   details?: { error?: string };
 }
 
+/** Expo accepts at most 100 messages per request. */
+export const EXPO_BATCH = 100;
+
 /**
- * Sends one notification to one device through Expo's push service, which
- * fans out to APNs (iOS) and FCM (Android).
- *
- * ponytail: one HTTP call per device. Expo accepts batches of 100, so if a
- * broadcast ever goes to thousands of phones, group the tokens first.
+ * Sends up to 100 notifications in one request through Expo's push service, which fans out to
+ * APNs (iOS) and FCM (Android). Returns one result per message, in the same order.
  */
-export async function sendExpoPush(
-  token: string,
-  payload: WebPushPayload,
-): Promise<PushResult> {
+export async function sendExpoPushBatch(
+  messages: { token: string; payload: WebPushPayload }[],
+): Promise<PushResult[]> {
+  if (messages.length === 0) return [];
+  if (messages.length > EXPO_BATCH) throw new Error(`Expo batch is ${messages.length}, max ${EXPO_BATCH}`);
   const accessToken = process.env.EXPO_ACCESS_TOKEN?.trim();
+  const failAll = (error: string): PushResult[] => messages.map(() => ({ success: false, error }));
 
   try {
     const res = await fetch(EXPO_PUSH_URL, {
@@ -43,8 +45,8 @@ export async function sendExpoPush(
         'Accept-Encoding': 'gzip, deflate',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-      body: JSON.stringify([
-        {
+      body: JSON.stringify(
+        messages.map(({ token, payload }) => ({
           to: token,
           title: payload.title,
           body: payload.body ?? '',
@@ -54,31 +56,29 @@ export async function sendExpoPush(
           badge: 1,
           // The app reads `link` to open the matching screen.
           data: { link: payload.link ?? '/notifications', type: payload.tag ?? null },
-        },
-      ]),
+        })),
+      ),
       signal: AbortSignal.timeout(15000),
     });
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       logger.warn(`Expo push rejected (${res.status}): ${text.slice(0, 300)}`);
-      return { success: false, error: `Expo push HTTP ${res.status}` };
+      return failAll(`Expo push HTTP ${res.status}`);
     }
 
-    const json = (await res.json()) as { data?: ExpoTicket[]; errors?: unknown[] };
-    const ticket = json.data?.[0];
-
-    if (ticket?.status === 'ok') return { success: true };
-
-    // The app was uninstalled or the token was replaced — stop sending to it.
-    const expired = ticket?.details?.error === 'DeviceNotRegistered';
-    if (!expired) {
-      logger.warn(`Expo push ticket error: ${ticket?.message ?? 'unknown'}`);
-    }
-    return { success: false, expired, error: ticket?.message ?? 'Expo push failed' };
+    const json = (await res.json()) as { data?: ExpoTicket[] };
+    return messages.map((_, i) => {
+      const ticket = json.data?.[i];
+      if (ticket?.status === 'ok') return { success: true };
+      // The app was uninstalled or the token was replaced — stop sending to it.
+      const expired = ticket?.details?.error === 'DeviceNotRegistered';
+      if (!expired) logger.warn(`Expo push ticket error: ${ticket?.message ?? 'unknown'}`);
+      return { success: false, expired, error: ticket?.message ?? 'Expo push failed' };
+    });
   } catch (err) {
     const message = (err as Error).message;
     logger.warn(`Expo push dispatch failed: ${message}`);
-    return { success: false, error: message };
+    return failAll(message);
   }
 }

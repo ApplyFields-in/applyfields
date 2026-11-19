@@ -25,15 +25,3 @@ export interface DigiLockerUserConnection {
   dob?: string;
   gender?: string;
 }
-
-export interface DigiLockerIssuedDocDefinition {
-  uri: string;
-  name: string;
-  type: string;
-  issuer: string;
-  date: string;
-  status: 'verified' | 'issued';
-  mimeType: string;
-  rawText: string;
-  sampleIdentifier?: string;
-}

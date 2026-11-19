@@ -61,9 +61,24 @@ describe('DocumentsService & Sensitive ID Masking', () => {
       expect(doc.document_type_code).toBe('marksheet_10th');
       expect(doc.file_name).toBe('Class_10_Memo.pdf');
       expect(doc.masked_identifier).toBe('**** **** 9900');
-      expect(doc.details.extracted_fields).toBeDefined();
-      expect(doc.details.extracted_fields?.length).toBeGreaterThan(0);
-      expect(doc.details.extracted_fields?.some((f) => f.key === 'roll_number')).toBe(true);
+      // Nothing is invented from the file: a new document has no fields until the person adds them.
+      expect(doc.details.extracted_fields).toEqual([]);
+      expect(JSON.stringify(doc.details)).not.toContain('556677889900');
+    });
+
+    it('never stores a full Aadhaar number typed into a field', async () => {
+      const list = await service.listDocuments(userId);
+      const updated = await service.updateDocumentDetails(userId, list.items[0].id, {
+        details: {
+          extracted_fields: [
+            { key: 'aadhaar_number', label: 'Aadhaar', value: '1234 5678 9012' },
+            { key: 'note', label: 'Note', value: 'Aadhaar 123456789012 on the card' },
+            { key: 'phone', label: 'Phone', value: '+91 98765 43210' },
+          ],
+        },
+      });
+      const values = updated.details.extracted_fields?.map((f) => f.value);
+      expect(values).toEqual(['XXXX XXXX 9012', 'Aadhaar XXXX XXXX 9012 on the card', '+91 98765 43210']);
     });
 
     it('returns preview info for uploaded document', async () => {

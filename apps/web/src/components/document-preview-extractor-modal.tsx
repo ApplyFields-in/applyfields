@@ -71,9 +71,8 @@ export function DocumentPreviewExtractorModal({
     if (extracted && Array.isArray(extracted) && extracted.length > 0) {
       setFields([...extracted]);
     } else {
-      // Generate default fields if missing
-      const defaults = generateFallbackFields(document);
-      setFields(defaults);
+      // Nothing is read from the file yet: start empty, never with invented details.
+      setFields([]);
     }
   }, [document]);
 
@@ -103,10 +102,10 @@ export function DocumentPreviewExtractorModal({
 
   const copyAllSummary = async () => {
     const summaryLines = [
-      `=== APPLYFIELDS VERIFIED EXTRACTED DATA ===`,
+      `=== ApplyFields: saved document details ===`,
       `Document: ${document.title || document.file_name}`,
       `Type: ${document.document_type_name || document.document_type_code}`,
-      `Verification: ${document.source === 'digilocker' ? 'DigiLocker Verified (Rule 9A IT Act 2016)' : 'Self-Uploaded Encrypted'}`,
+      `Verification: ${document.source === 'digilocker' ? 'DigiLocker Verified (Rule 9A IT Act 2016)' : 'Uploaded by you'}`,
       `-------------------------------------------`,
       ...fields.map((f) => `${f.label}: ${f.value}`),
       `===========================================`,
@@ -199,7 +198,7 @@ export function DocumentPreviewExtractorModal({
               </div>
               <p className="truncate text-xs text-slate-500">
                 {document.file_name} •{' '}
-                {document.size_bytes ? `${(document.size_bytes / 1024).toFixed(1)} KB` : 'Verified Record'} •{' '}
+                {document.size_bytes ? `${(document.size_bytes / 1024).toFixed(1)} KB` : ''} •{' '}
                 Uploaded on {new Date(document.created_at).toLocaleDateString('en-IN')}
               </p>
             </div>
@@ -317,7 +316,7 @@ export function DocumentPreviewExtractorModal({
 
             {/* Bottom Disclaimer */}
             <div className="border-t border-slate-800 bg-slate-950 px-4 py-2 text-center text-[11px] text-slate-400">
-              Encrypted end-to-end. Preview generated for verified applicant identification.
+              Stored privately. Only you can open this file.
             </div>
           </div>
 
@@ -331,8 +330,8 @@ export function DocumentPreviewExtractorModal({
                     <Sparkles className="size-4" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-[#082046]">Smart Data Extractor</h4>
-                    <p className="text-[11px] text-slate-500">1-Click copy to official exam & job forms</p>
+                    <h4 className="text-sm font-bold text-[#082046]">Saved details</h4>
+                    <p className="text-[11px] text-slate-500">Copy into official exam & job forms</p>
                   </div>
                 </div>
 
@@ -376,6 +375,15 @@ export function DocumentPreviewExtractorModal({
 
             {/* Extracted Fields List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {fields.length === 0 && !isEditing && (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-xs leading-relaxed text-slate-600">
+                  <p className="font-semibold text-[#082046]">No details saved for this document yet.</p>
+                  <p className="mt-1">
+                    Tap Edit to add the details you want to copy into application forms, such as a roll number or
+                    certificate number. Aadhaar numbers are saved as the last 4 digits only.
+                  </p>
+                </div>
+              )}
               {fields.map((field, idx) => {
                 const isMasked = field.isSensitive && !unmaskedKeys[field.key];
                 const displayVal = isMasked
@@ -490,7 +498,7 @@ export function DocumentPreviewExtractorModal({
                     className="inline-flex items-center gap-1.5 rounded-xl bg-[#0e7bf4] px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#0c6cd7] disabled:opacity-50"
                   >
                     <Save className="size-3.5" />
-                    <span>{isSaving ? 'Saving...' : 'Save Extracted Data'}</span>
+                    <span>{isSaving ? 'Saving...' : 'Save details'}</span>
                   </button>
                 </div>
               ) : (
@@ -500,7 +508,7 @@ export function DocumentPreviewExtractorModal({
                     <span className="text-[11px]">Ready for UPSC, SSC, and State Form Filling</span>
                   </div>
                   <span className="font-mono text-[11px] font-bold text-[#082046]">
-                    {fields.length} Fields Extracted
+                    {fields.length} saved {fields.length === 1 ? 'detail' : 'details'}
                   </span>
                 </div>
               )}
@@ -539,53 +547,4 @@ function maskFieldDisplay(val: string): string {
     return `*****${cleaned.slice(5)}`;
   }
   return `**** **** ${cleaned.slice(-4)}`;
-}
-
-function generateFallbackFields(doc: UserDocumentSummary): ExtractedFieldItem[] {
-  const code = doc.document_type_code;
-  const fileName = doc.file_name || '';
-
-  if (code === 'tenth_marksheet' || code === 'marksheet_10th' || /10th|tenth|ssc/i.test(fileName)) {
-    return [
-      { key: 'candidate_name', label: 'Candidate Full Name', value: 'K. Likhith Kumar', category: 'academic' },
-      { key: 'roll_number', label: 'Roll / Hall Ticket Number', value: doc.masked_identifier?.replace(/\*/g, '7') || '1814102948', category: 'academic' },
-      { key: 'board_name', label: 'Education Board', value: 'Central Board of Secondary Education (CBSE)', category: 'academic' },
-      { key: 'passing_year', label: 'Passing Year', value: '2018', category: 'academic' },
-      { key: 'score', label: 'Marks / CGPA', value: '9.4 CGPA (470 / 500)', category: 'academic' },
-      { key: 'dob', label: 'Date of Birth (in Records)', value: '15/08/2002', category: 'personal' },
-    ];
-  }
-
-  if (code === 'degree_certificate' || /degree|graduation/i.test(fileName)) {
-    return [
-      { key: 'candidate_name', label: 'Graduate Name', value: 'K. Likhith Kumar', category: 'academic' },
-      { key: 'degree_name', label: 'Degree Title', value: 'Bachelor of Technology (Computer Science)', category: 'academic' },
-      { key: 'university_name', label: 'University / Institute', value: 'JNTU College of Engineering', category: 'academic' },
-      { key: 'registration_number', label: 'Registration / Roll Number', value: '18731A0589', category: 'academic' },
-      { key: 'cgpa', label: 'Final CGPA / Percentage', value: '8.45 CGPA (First Class with Distinction)', category: 'academic' },
-      { key: 'passing_year', label: 'Year of Passing', value: '2024', category: 'academic' },
-    ];
-  }
-
-  if (code === 'caste_certificate' || /caste|category/i.test(fileName)) {
-    return [
-      { key: 'candidate_name', label: 'Beneficiary Name', value: 'K. Likhith Kumar', category: 'reservation' },
-      { key: 'certificate_number', label: 'Certificate Application ID', value: 'AP/2026/OBC/44129', category: 'reservation' },
-      { key: 'category', label: 'Reservation Category', value: 'OBC (Non-Creamy Layer)', category: 'reservation' },
-      { key: 'sub_caste', label: 'Sub-Caste', value: 'Yadava', category: 'reservation' },
-      { key: 'issuing_authority', label: 'Issuing Officer', value: 'Tahsildar / MRO, Tirupati Urban', category: 'general' },
-      { key: 'issue_date', label: 'Date of Issue', value: '14/02/2026', category: 'general' },
-    ];
-  }
-
-  // Identity / Aadhaar
-  return [
-    { key: 'aadhaar_number', label: 'Aadhaar / ID Number', value: '5824 9102 3841', isSensitive: true, category: 'identity' },
-    { key: 'full_name', label: 'Full Name', value: 'K. Likhith Kumar', category: 'identity' },
-    { key: 'dob', label: 'Date of Birth', value: '15/08/2002', category: 'personal' },
-    { key: 'gender', label: 'Gender', value: 'Male', category: 'personal' },
-    { key: 'guardian_name', label: 'Father / Guardian Name', value: 'K. Narayana Swamy', category: 'personal' },
-    { key: 'address', label: 'Permanent Address', value: 'Flat 302, Sri Sai Nilayam, Gandhi Road, Tirupati, AP - 517501', category: 'personal' },
-    { key: 'pincode', label: 'PIN Code', value: '517501', category: 'personal' },
-  ];
 }

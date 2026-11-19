@@ -273,55 +273,53 @@ export function DigiLockerCard() {
             </ul>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            <button
-              type="button"
-              onClick={handleConnectOfficial}
-              disabled={connecting}
-              className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#0e7bf4] to-[#082046] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg transition-all active:translate-y-px disabled:opacity-60"
-            >
-              {connecting ? (
-                <>
-                  <Loader2 className="size-4 animate-spin text-white" />
-                  <span>Redirecting to DigiLocker Gateway...</span>
-                </>
-              ) : (
-                <>
-                  <Landmark className="size-4 text-white" />
-                  <span>Connect Official DigiLocker</span>
-                  <ExternalLink className="size-3 text-white/80" />
-                </>
-              )}
-            </button>
+          {status.configured ? (
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleConnectOfficial}
+                disabled={connecting}
+                className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#0e7bf4] to-[#082046] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg transition-all active:translate-y-px disabled:opacity-60"
+              >
+                {connecting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin text-white" />
+                    <span>Redirecting to DigiLocker Gateway...</span>
+                  </>
+                ) : (
+                  <>
+                    <Landmark className="size-4 text-white" />
+                    <span>Connect Official DigiLocker</span>
+                    <ExternalLink className="size-3 text-white/80" />
+                  </>
+                )}
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setShowConfigModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-[#082046] hover:bg-slate-100 transition"
-            >
-              <Key className="size-3.5 text-[#0e7bf4]" />
-              <span>Gateway Credentials &amp; Guide</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setShowConfigModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-[#082046] hover:bg-slate-100 transition"
+              >
+                <Key className="size-3.5 text-[#0e7bf4]" />
+                <span>Gateway Credentials &amp; Guide</span>
+              </button>
 
-            <a
-              href="https://www.digilocker.gov.in/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#536780] hover:text-[#082046] hover:underline"
-            >
-              Learn about DigiLocker <ExternalLink className="size-3" />
-            </a>
-          </div>
-
-          {!status.configured && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-amber-900 flex items-start gap-2.5">
-              <Info className="size-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold">Production API Setu Credentials Notice</p>
-                <p className="text-amber-800/90 mt-0.5">
-                  To authenticate live citizen accounts on the official <code>api.digitallocker.gov.in</code> gateway without <code>400 invalid_client_id</code>, register your organization on <strong>API Setu (apisetu.gov.in)</strong> and set <code>DIGILOCKER_CLIENT_ID</code> in <code>apps/api/.env</code>.
-                </p>
-              </div>
+              <a
+                href="https://www.digilocker.gov.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-[#536780] hover:text-[#082046] hover:underline"
+              >
+                Learn about DigiLocker <ExternalLink className="size-3" />
+              </a>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-[#435775] flex items-start gap-2.5">
+              <Info className="size-4 text-[#0e7bf4] shrink-0 mt-0.5" />
+              <p>
+                <strong className="text-[#082046]">DigiLocker import is coming soon.</strong> Until then, upload your
+                documents directly to your vault above.
+              </p>
             </div>
           )}
         </div>

@@ -24,8 +24,8 @@ import { jwtAccessSecret } from '../../common/jwt-secret.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { addDays, todayIst } from '../opportunities/opportunities.service.js';
 import { renderEmail, sendWithResend, senderFor, SENDERS } from './email.js';
-import { isExpoPushToken, sendExpoPush } from './expo-push.js';
-import { getVapidKeys, sendWebPush } from './web-push.js';
+import { EXPO_BATCH, isExpoPushToken, sendExpoPushBatch } from './expo-push.js';
+import { getVapidKeys, sendWebPush, type PushResult } from './web-push.js';
 import { SseService } from './sse.service.js';
 import {
   DEFAULT_REMINDER_DAYS,
@@ -40,6 +40,10 @@ import {
 } from './notification-rules.js';
 
 const DAY_MS = 86_400_000;
+/** Users per notify round trip: keeps IN-lists and insert batches a sane size. */
+export const NOTIFY_CHUNK = 1000;
+/** Browser pushes in flight at once. */
+const PUSH_CONCURRENCY = 20;
 const MAX_ATTEMPTS = 3;
 const RETRY_AFTER_MS = 5 * 60_000;
 /** Resend's default limit is 2 requests/second. */
@@ -75,9 +79,19 @@ export interface NewNotification {
   item_id?: string | null;
 }
 
+/** One notification for one user (each user may get a different payload). */
+export interface NotifyItem {
+  userId: string;
+  n: NewNotification;
+  key: string | null;
+}
+
+type PushRow = { id: string; user_id: string; type: string; title: string; body: string | null; link: string | null };
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private pushQueue: Promise<void> = Promise.resolve();
   private sending: Promise<void> | null = null;
   private sendAgain = false;
 
@@ -95,7 +109,23 @@ export class NotificationsService {
    * Returns how many notifications were created.
    */
   async notify(userIds: string[], n: NewNotification, key: (userId: string) => string | null): Promise<number> {
-    const ids = [...new Set(userIds)];
+    return this.notifyMany([...new Set(userIds)].map((userId) => ({ userId, n, key: key(userId) })));
+  }
+
+  /**
+   * notify() where every user can get their own payload (e.g. “Hi {name}”). Works in chunks of
+   * NOTIFY_CHUNK users, so 1 lakh users is ~100 batched round trips instead of 1 lakh single ones.
+   */
+  async notifyMany(items: NotifyItem[]): Promise<number> {
+    let created = 0;
+    for (let i = 0; i < items.length; i += NOTIFY_CHUNK) {
+      created += await this.notifyChunk(items.slice(i, i + NOTIFY_CHUNK));
+    }
+    return created;
+  }
+
+  private async notifyChunk(items: NotifyItem[]): Promise<number> {
+    const ids = [...new Set(items.map((i) => i.userId))];
     if (ids.length === 0) return 0;
     const [users, prefs] = await Promise.all([
       this.prisma.users.findMany({
@@ -107,93 +137,113 @@ export class NotificationsService {
         select: { user_id: true, push_enabled: true, muted_types: true },
       }),
     ]);
+    const active = new Set(users.map((u) => u.id));
     const prefBy = new Map(prefs.map((p) => [p.user_id, p]));
-    const targets = users.filter((u) => wantsType(prefBy.get(u.id)?.muted_types ?? [], n.type));
+    const targets = items.filter(
+      (i) => active.has(i.userId) && wantsType(prefBy.get(i.userId)?.muted_types ?? [], i.n.type),
+    );
     if (targets.length === 0) return 0;
 
+    // The returned rows carry their own payload, so per-user titles reach SSE and push unchanged.
     const created = await this.prisma.notifications.createManyAndReturn({
-      data: targets.map((u) => ({
-        user_id: u.id,
+      data: targets.map(({ userId, n, key }) => ({
+        user_id: userId,
         type: n.type,
         title: n.title,
         body: n.body,
         link: n.link,
         item_type: n.item_type ?? null,
         item_id: n.item_id ?? null,
-        dedupe_key: key(u.id),
+        dedupe_key: key,
       })),
       skipDuplicates: true,
-      select: { id: true, user_id: true },
+      select: { id: true, user_id: true, type: true, title: true, body: true, link: true },
     });
 
-    // 1. Emit instant in-app Server-Sent Event (SSE) toasts to any active browser tabs
+    // 1. Instant in-app toasts (SSE) to open browser tabs.
+    // ponytail: SSE only reaches tabs connected to this process. With several API instances, rows
+    // created by the scheduler worker show up on the next list refresh and as push, not as a toast;
+    // add Postgres LISTEN/NOTIFY or Redis pub/sub if live toasts for scheduled alerts matter.
+    const now = new Date().toISOString();
     for (const c of created) {
       this.sse.sendToUser(c.user_id, 'notification', {
-        id: c.id,
-        type: n.type,
-        title: n.title,
-        body: n.body,
-        link: n.link,
-        read: false,
-        created_at: new Date().toISOString(),
+        id: c.id, type: c.type, title: c.title, body: c.body, link: c.link, read: false, created_at: now,
       });
     }
 
-    // 2. Push: W3C Web Push to browsers, Expo push to phones
-    const pushTargets = created.filter((c) => prefBy.get(c.user_id)?.push_enabled ?? true);
-    if (pushTargets.length) {
-      void this.dispatchWebPush(pushTargets, n);
+    // 2. Push in the background, one chunk after another so concurrency stays bounded.
+    const pushRows = created.filter((c) => prefBy.get(c.user_id)?.push_enabled ?? true);
+    if (pushRows.length) {
+      this.pushQueue = this.pushQueue.then(() => this.dispatchPush(pushRows));
     }
-
     return created.length;
   }
 
-  /** Background dispatcher for W3C Web Push using VAPID keys */
-  private async dispatchWebPush(
-    items: { id: string; user_id: string }[],
-    n: NewNotification,
-  ): Promise<void> {
+  /** Waits for queued push sends (tests and graceful shutdown). */
+  flushPush(): Promise<void> {
+    return this.pushQueue;
+  }
+
+  /**
+   * Browser Web Push (VAPID) and phone Expo push for freshly created notifications.
+   * Phones go 100 per Expo request; browsers go PUSH_CONCURRENCY at a time.
+   * Expired subscriptions are removed and delivery rows are written in one insert.
+   */
+  private async dispatchPush(rows: PushRow[]): Promise<void> {
     try {
-      const userIds = items.map((i) => i.user_id);
       const subs = await this.prisma.push_subscriptions.findMany({
-        where: { user_id: { in: userIds } },
+        where: { user_id: { in: [...new Set(rows.map((r) => r.user_id))] } },
       });
       if (subs.length === 0) return;
 
-      const itemByUser = new Map(items.map((i) => [i.user_id, i.id]));
+      const rowsByUser = new Map<string, PushRow[]>();
+      for (const r of rows) rowsByUser.set(r.user_id, [...(rowsByUser.get(r.user_id) ?? []), r]);
 
-      for (const sub of subs) {
-        const notifId = itemByUser.get(sub.user_id);
-        const payload = { title: n.title, body: n.body, link: n.link, tag: n.type };
+      type Job = { sub: (typeof subs)[number]; row: PushRow; phone: boolean };
+      const jobs: Job[] = subs.flatMap((sub) =>
+        (rowsByUser.get(sub.user_id) ?? []).map((row) => ({ sub, row, phone: isExpoPushToken(sub.endpoint) })),
+      );
+      const payload = (r: PushRow) => ({ title: r.title, body: r.body, link: r.link, tag: r.type });
+      const results: { job: Job; res: PushResult }[] = [];
 
-        // Phones (apps/mobile) store an Expo token here; browsers store a W3C endpoint.
-        const toPhone = isExpoPushToken(sub.endpoint);
-        const res = toPhone
-          ? await sendExpoPush(sub.endpoint, payload)
-          : await sendWebPush(
-              { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
-              payload,
-            );
-
-        if (res.expired) {
-          await this.prisma.push_subscriptions.delete({ where: { id: sub.id } }).catch(() => null);
-        }
-
-        if (notifId) {
-          await this.prisma.notification_deliveries.create({
-            data: {
-              notification_id: notifId,
-              channel: 'push',
-              status: res.success ? 'sent' : 'failed',
-              provider: toPhone ? 'expo-push' : 'web-push',
-              sent_at: res.success ? new Date() : null,
-              last_error: res.error ?? null,
-            },
-          }).catch(() => null);
-        }
+      // Phones: Expo takes up to 100 messages per request.
+      const phone = jobs.filter((j) => j.phone);
+      for (let i = 0; i < phone.length; i += EXPO_BATCH) {
+        const batch = phone.slice(i, i + EXPO_BATCH);
+        const res = await sendExpoPushBatch(batch.map((j) => ({ token: j.sub.endpoint, payload: payload(j.row) })));
+        batch.forEach((job, k) => results.push({ job, res: res[k] }));
       }
+
+      // Browsers: one request per subscription, a bounded number in flight.
+      const web = jobs.filter((j) => !j.phone);
+      for (let i = 0; i < web.length; i += PUSH_CONCURRENCY) {
+        const batch = web.slice(i, i + PUSH_CONCURRENCY);
+        const res = await Promise.all(
+          batch.map((j) =>
+            sendWebPush({ endpoint: j.sub.endpoint, p256dh: j.sub.p256dh, auth: j.sub.auth }, payload(j.row)),
+          ),
+        );
+        batch.forEach((job, k) => results.push({ job, res: res[k] }));
+      }
+
+      const expired = [...new Set(results.filter((r) => r.res.expired).map((r) => r.job.sub.id))];
+      if (expired.length) {
+        await this.prisma.push_subscriptions.deleteMany({ where: { id: { in: expired } } }).catch(() => null);
+      }
+      await this.prisma.notification_deliveries
+        .createMany({
+          data: results.map(({ job, res }) => ({
+            notification_id: job.row.id,
+            channel: 'push' as const,
+            status: res.success ? ('sent' as const) : ('failed' as const),
+            provider: job.phone ? 'expo-push' : 'web-push',
+            sent_at: res.success ? new Date() : null,
+            last_error: res.error ?? null,
+          })),
+        })
+        .catch(() => null);
     } catch (err) {
-      this.logger.warn(`Web push batch dispatch error: ${(err as Error).message}`);
+      this.logger.warn(`Push dispatch error: ${(err as Error).message}`);
     }
   }
 
@@ -867,59 +917,58 @@ export class NotificationsService {
     // Nothing real closes this week: no deadline alert (we never claim deadlines we don't have).
     if (slot === 'afternoon' && !closingOpp) return 0;
 
-    let totalDispatched = 0;
-
-    for (const u of activeUsers) {
+    // Build every user's message first, then send them all through the batched notifyMany().
+    const items: NotifyItem[] = activeUsers.map((u) => {
       const fullName = u.user_profiles?.full_name?.trim();
       const firstName = fullName ? fullName.split(' ')[0] : 'Friend';
-
-      let title: string;
-      let body: string;
-      let link: string;
-      let notifType: NotificationType;
-      let itemId: string | undefined;
+      const key = `daily_cadence:${slot}:${istDate}:${u.id}`;
 
       if (slot === 'morning') {
-        notifType = 'system';
-        title = `Hi ${firstName}, looking good today! ✨`;
-        body = topOpp
-          ? `Have you seen this career option: ${topOpp.title}? ${topOpp.vacancies_total ? `${topOpp.vacancies_total} posts announced.` : ''} Check eligibility & dates.`
-          : 'Explore top government recruitments and competitive admissions open today.';
-        link = topOpp ? opportunityPath(topOpp.type, topOpp.slug) : '/jobs';
-        itemId = topOpp?.id;
-      } else if (slot === 'afternoon') {
-        notifType = 'closing_reminder';
-        title = `Deadline Alert, ${firstName} ⏳`;
-        body = `${closingOpp!.title} closes on ${isoDate(closingOpp!.application_end)}! Don't miss your chance to apply.`;
-        link = opportunityPath(closingOpp!.type, closingOpp!.slug);
-        itemId = closingOpp!.id;
-      } else {
-        notifType = 'system';
-        title = `Evening Career Spotlight for ${firstName} 🧭`;
-        body = careerSpotlight
-          ? `Your first move starts here! Explore verified career pathways and salary roadmaps for ${careerSpotlight.title}.`
-          : 'Your first move starts here! Explore verified career roadmaps, degree pathways, and exam syllabi.';
-        link = careerSpotlight ? `/career/${careerSpotlight.slug}` : '/career';
-        itemId = careerSpotlight?.id;
+        return {
+          userId: u.id,
+          key,
+          n: {
+            type: 'system',
+            title: `Hi ${firstName}, looking good today! ✨`,
+            body: topOpp
+              ? `Have you seen this career option: ${topOpp.title}? ${topOpp.vacancies_total ? `${topOpp.vacancies_total} posts announced.` : ''} Check eligibility & dates.`
+              : 'Explore top government recruitments and competitive admissions open today.',
+            link: topOpp ? opportunityPath(topOpp.type, topOpp.slug) : '/jobs',
+            item_type: topOpp ? 'opportunity' : null,
+            item_id: topOpp?.id ?? null,
+          },
+        };
       }
-
-      const dedupeKey = `daily_cadence:${slot}:${istDate}:${u.id}`;
-      const count = await this.notify(
-        [u.id],
-        {
-          type: notifType,
-          title,
-          body,
-          link,
-          item_type: topOpp ? 'opportunity' : undefined,
-          item_id: itemId,
+      if (slot === 'afternoon') {
+        return {
+          userId: u.id,
+          key,
+          n: {
+            type: 'closing_reminder',
+            title: `Deadline Alert, ${firstName} ⏳`,
+            body: `${closingOpp!.title} closes on ${isoDate(closingOpp!.application_end)}! Don't miss your chance to apply.`,
+            link: opportunityPath(closingOpp!.type, closingOpp!.slug),
+            item_type: 'opportunity',
+            item_id: closingOpp!.id,
+          },
+        };
+      }
+      // Evening links to a career page, not an opportunity, so no opportunity item is attached.
+      return {
+        userId: u.id,
+        key,
+        n: {
+          type: 'system',
+          title: `Evening Career Spotlight for ${firstName} 🧭`,
+          body: careerSpotlight
+            ? `Your first move starts here! Explore verified career pathways and salary roadmaps for ${careerSpotlight.title}.`
+            : 'Your first move starts here! Explore verified career roadmaps, degree pathways, and exam syllabi.',
+          link: careerSpotlight ? `/career/${careerSpotlight.slug}` : '/career',
         },
-        () => dedupeKey,
-      );
-      totalDispatched += count;
-    }
+      };
+    });
 
-    return totalDispatched;
+    return this.notifyMany(items);
   }
 
   /* ------------------------------------------------------------------ Internal Portal */

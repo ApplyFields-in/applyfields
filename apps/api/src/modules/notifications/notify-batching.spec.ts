@@ -1,0 +1,68 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { NOTIFY_CHUNK, NotificationsService, type NotifyItem } from './notifications.service.js';
+
+/** 1 lakh users must go out in batches, not one database round trip and one HTTP call per user. */
+describe('notifyMany batching', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function setup(userCount: number) {
+    const ids = Array.from({ length: userCount }, (_, i) => `u${i}`);
+    const created: any[] = [];
+    const prisma: any = {
+      users: { findMany: vi.fn(async (a: any) => a.where.id.in.map((id: string) => ({ id }))) },
+      notification_preferences: { findMany: vi.fn(async () => [{ user_id: 'u1', push_enabled: false, muted_types: [] }]) },
+      notifications: {
+        createManyAndReturn: vi.fn(async (a: any) => {
+          const rows = a.data.map((d: any, i: number) => ({ id: `n-${created.length + i}`, ...d }));
+          created.push(...rows);
+          return rows;
+        }),
+      },
+      push_subscriptions: {
+        findMany: vi.fn(async (a: any) =>
+          a.where.user_id.in.map((id: string) => ({ id: `s-${id}`, user_id: id, endpoint: `ExponentPushToken[${id}]`, p256dh: 'android', auth: 'expo' })),
+        ),
+        deleteMany: vi.fn(async () => ({ count: 0 })),
+      },
+      notification_deliveries: { createMany: vi.fn(async (a: any) => ({ count: a.data.length })) },
+    };
+    const sse = { sendToUser: vi.fn() };
+    const svc = new NotificationsService(prisma, {} as any, sse as any);
+    const items: NotifyItem[] = ids.map((id) => ({
+      userId: id,
+      key: `k:${id}`,
+      n: { type: 'system', title: `Hi ${id}`, body: null, link: '/' },
+    }));
+    // Expo answers one ok ticket per message in the request.
+    const fetchMock = vi.fn(async (_url: string, init: any) => {
+      const n = JSON.parse(init.body).length;
+      return new Response(JSON.stringify({ data: Array.from({ length: n }, () => ({ status: 'ok' })) }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return { svc, prisma, sse, items, fetchMock };
+  }
+
+  it('creates notifications in chunks and pushes to phones 100 per request', async () => {
+    const { svc, prisma, sse, items, fetchMock } = setup(2500);
+    expect(await svc.notifyMany(items)).toBe(2500);
+    await svc.flushPush();
+
+    expect(prisma.notifications.createManyAndReturn).toHaveBeenCalledTimes(Math.ceil(2500 / NOTIFY_CHUNK));
+    expect(sse.sendToUser).toHaveBeenCalledTimes(2500);
+    // u1 switched push off → 2499 phones, 100 per Expo request.
+    expect(fetchMock).toHaveBeenCalledTimes(Math.ceil(2499 / 100));
+    const delivered = prisma.notification_deliveries.createMany.mock.calls.reduce((s: number, c: any) => s + c[0].data.length, 0);
+    expect(delivered).toBe(2499);
+  });
+
+  it('keeps each user’s own title through to the push message', async () => {
+    const { svc, items, fetchMock } = setup(3);
+    await svc.notifyMany(items);
+    await svc.flushPush();
+    const sent = JSON.parse((fetchMock.mock.calls[0] as any)[1].body);
+    expect(sent.map((m: any) => [m.to, m.title])).toEqual([
+      ['ExponentPushToken[u0]', 'Hi u0'],
+      ['ExponentPushToken[u2]', 'Hi u2'],
+    ]);
+  });
+});

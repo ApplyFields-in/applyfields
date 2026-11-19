@@ -10,6 +10,7 @@ import type {
 } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { recordJobRun } from '../../common/job-runs.js';
+import { schedulerOff } from '../../common/schedulers.js';
 
 const DAY_MS = 86_400_000;
 
@@ -25,11 +26,8 @@ export class LinkHealthService
   constructor(private readonly prisma: PrismaService) {}
 
   onApplicationBootstrap(): void {
-    if (
-      process.env.NODE_ENV === 'test' ||
-      process.env.LINK_HEALTH === 'off'
-    ) {
-      this.logger.log('Link health worker disabled (test or LINK_HEALTH=off)');
+    if (schedulerOff('LINK_HEALTH')) {
+      this.logger.log('Link health worker disabled (test, SCHEDULERS=off or LINK_HEALTH=off)');
       return;
     }
 

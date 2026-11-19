@@ -41,6 +41,7 @@ import { ExamScoresSection } from '@/components/profile/exam-scores-section';
 import { PreferencesSection } from '@/components/profile/preferences-section';
 import { SkillsLanguagesSection } from '@/components/profile/skills-languages-section';
 import { PhotoAvatarSection } from '@/components/profile/photo-avatar-section';
+import { ResumeAutofill } from '@/components/profile/resume-autofill-card';
 import type { CompetitiveExamScore } from '@/components/profile/competitive-exam-scores-card';
 
 export const INDIAN_STATES: { code: string; name: string }[] = [
@@ -348,6 +349,13 @@ export default function ProfilePage() {
           <div id="eligibility-section">
             <EligibilityCompletenessCard profile={profile} educations={educations} />
           </div>
+
+          <ResumeAutofill
+            profile={profile}
+            educations={educations}
+            onProfileUpdate={setProfile}
+            onEducationsChange={setEducations}
+          />
 
           {/* SECTION 2: Personal Details */}
           <PersonalSection

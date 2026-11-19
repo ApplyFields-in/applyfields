@@ -18,7 +18,7 @@ describe('runDailyCadence afternoon', () => {
       careers: { findFirst: vi.fn(async () => null) },
     };
     const svc = new NotificationsService(prisma, {} as any, {} as any);
-    const notify = vi.spyOn(svc, 'notify').mockResolvedValue(1);
+    const notify = vi.spyOn(svc, 'notifyMany').mockImplementation(async (items) => items.length);
     return { svc, notify };
   }
 
@@ -32,9 +32,13 @@ describe('runDailyCadence afternoon', () => {
     const job = { id: 'job-1', slug: 'ssc-cgl', type: 'govt_job', title: 'SSC CGL', application_end: new Date('2026-11-21') };
     const { svc, notify } = setup(job);
     expect(await svc.runDailyCadence('afternoon')).toBe(2);
-    const [users, payload] = notify.mock.calls[0];
-    expect(users).toEqual(['u1']);
-    expect(payload).toMatchObject({
+    // One batched call for everyone; each user gets their own name.
+    expect(notify).toHaveBeenCalledTimes(1);
+    const [items] = notify.mock.calls[0];
+    expect(items.map((i) => i.userId)).toEqual(['u1', 'u2']);
+    expect(items[1].n.title).toBe('Deadline Alert, Friend ⏳');
+    expect(items[0].key).toMatch(/^daily_cadence:afternoon:\d{4}-\d{2}-\d{2}:u1$/);
+    expect(items[0].n).toMatchObject({
       type: 'closing_reminder',
       title: 'Deadline Alert, Likhith ⏳',
       body: "SSC CGL closes on 2026-11-21! Don't miss your chance to apply.",

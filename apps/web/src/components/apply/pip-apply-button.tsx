@@ -60,10 +60,10 @@ export function PipApplyButton({
       >
         <span className="flex items-center gap-2">
           <PictureInPicture className="size-4 text-blue-300" />
-          <span>Apply in Picture-in-Picture Mode</span>
+          <span>Apply on the official site</span>
         </span>
         <span className="text-[10px] font-semibold text-blue-200 bg-white/10 px-2 py-0.5 rounded-md">
-          Dual View Copier
+          with Apply helper
         </span>
       </button>
     );
@@ -80,7 +80,7 @@ export function PipApplyButton({
         }
       >
         <PictureInPicture className="size-3.5 text-[#0e7bf4]" />
-        <span>Apply in PiP</span>
+        <span>Apply with helper</span>
       </button>
     );
   }
@@ -95,7 +95,7 @@ export function PipApplyButton({
       }
     >
       <PictureInPicture className="size-3.5" />
-      <span>Picture-in-Picture</span>
+      <span>Apply with helper</span>
     </button>
   );
 }

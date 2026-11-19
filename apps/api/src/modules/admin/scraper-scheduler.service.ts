@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { ScrapersAdminService } from './scrapers-admin.service.js';
 import { recordJobRun } from '../../common/job-runs.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { schedulerOff } from '../../common/schedulers.js';
 
 const HOUR_MS = 3_600_000;
 
@@ -31,11 +32,8 @@ export class ScraperSchedulerService
   ) {}
 
   onApplicationBootstrap(): void {
-    if (
-      process.env.NODE_ENV === 'test' ||
-      process.env.INGESTION_SCHEDULER === 'off'
-    ) {
-      this.logger.log('Ingestion scheduler is disabled (test or INGESTION_SCHEDULER=off)');
+    if (schedulerOff('INGESTION_SCHEDULER')) {
+      this.logger.log('Ingestion scheduler is disabled (test, SCHEDULERS=off or INGESTION_SCHEDULER=off)');
       return;
     }
 

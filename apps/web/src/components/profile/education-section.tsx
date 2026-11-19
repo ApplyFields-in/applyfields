@@ -1,32 +1,10 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import {
-  GraduationCap,
-  Plus,
-  Pencil,
-  Trash2,
-  X,
-  AlertCircle,
-  FileText,
-  UploadCloud,
-  Wand2,
-  Check,
-  CheckCircle2,
-  Loader2,
-} from 'lucide-react';
-import type {
-  UserEducation,
-  EducationLevel,
-  EducationStatus,
-  ScoreType,
-  UserResumeDocument,
-  ResumeApiResponse,
-  ExtractedEducationItem,
-} from '@applyfields/types';
-import { apiPost, apiPut, apiDelete, apiGet } from '@/lib/api';
+import React, { useState } from 'react';
+import { GraduationCap, Plus, Pencil, Trash2, X, AlertCircle, Loader2 } from 'lucide-react';
+import type { UserEducation, EducationLevel, EducationStatus, ScoreType } from '@applyfields/types';
+import { apiPost, apiPut, apiDelete } from '@/lib/api';
 import { showAppToast } from '@/components/toast-notification-provider';
-import { convertFileToBase64 } from '@/lib/resume-parser';
 import { useLanguage } from '@/lib/i18n/language-context';
 
 export const EDUCATION_LEVEL_LABELS: Record<EducationLevel, string> = {
@@ -67,13 +45,6 @@ export function EducationSection({
   const [eduScore, setEduScore] = useState<string>('');
   const [eduScoreType, setEduScoreType] = useState<ScoreType>('percentage');
   const [eduStatus, setEduStatus] = useState<EducationStatus>('completed');
-
-  // Resume Upload & Extraction State
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showResumeDropzone, setShowResumeDropzone] = useState(false);
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [extractedEducations, setExtractedEducations] = useState<ExtractedEducationItem[]>([]);
-  const [isImporting, setIsImporting] = useState(false);
 
   const handleOpenAddModal = () => {
     setEditingId(null);
@@ -193,69 +164,6 @@ export function EducationSection({
     }
   };
 
-  // Resume file selected
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsExtracting(true);
-    try {
-      const base64 = await convertFileToBase64(file);
-      const res = await apiPost<ResumeApiResponse>('/me/resume', {
-        fileName: file.name,
-        mimeType: file.type || 'application/pdf',
-        base64,
-      });
-
-      if (res.data?.qualifications && res.data.qualifications.length > 0) {
-        setExtractedEducations(res.data.qualifications);
-        showAppToast(`AI extracted ${res.data.qualifications.length} qualification(s) from your resume.`);
-      } else {
-        showAppToast('No structured qualifications detected in this file.');
-      }
-    } catch {
-      showAppToast('Failed to parse resume file.');
-    } finally {
-      setIsExtracting(false);
-    }
-  };
-
-  const handleImportExtracted = async () => {
-    if (extractedEducations.length === 0) return;
-    setIsImporting(true);
-
-    let addedCount = 0;
-    const current = [...educations];
-
-    for (const item of extractedEducations) {
-      try {
-        const res = await apiPost<UserEducation>('/me/education', {
-          level: (item.level as EducationLevel) || 'graduate',
-          degree: item.degree || undefined,
-          stream: item.stream || undefined,
-          board_or_university: item.board_or_university || undefined,
-          institution_name: item.institution_name || undefined,
-          year_of_passing: item.year_of_passing ?? undefined,
-          score: item.score ?? undefined,
-          score_type: (item.score_type as ScoreType) || 'percentage',
-          status: item.status || 'completed',
-        });
-        if (res.data) {
-          current.unshift(res.data);
-          addedCount++;
-        }
-      } catch {
-        // continue
-      }
-    }
-
-    setIsImporting(false);
-    onEducationsChange(current);
-    setExtractedEducations([]);
-    setShowResumeDropzone(false);
-    showAppToast(`Imported ${addedCount} qualification(s) to your profile!`);
-  };
-
   return (
     <section id="education-section" className="rounded-3xl border border-[#c4d2e3] bg-white p-6 sm:p-7 shadow-xs">
       {/* Header */}
@@ -275,15 +183,6 @@ export function EducationSection({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setShowResumeDropzone(!showResumeDropzone)}
-            className="inline-flex items-center min-h-[44px] gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none transition-colors"
-          >
-            <Wand2 className="size-4 text-[#0E7BF4]" />
-            <span>AI Resume Parser</span>
-          </button>
-
-          <button
-            type="button"
             onClick={handleOpenAddModal}
             className="inline-flex items-center min-h-[44px] gap-2 px-4 py-2 rounded-xl bg-[#082046] hover:bg-slate-800 text-white text-xs font-semibold focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none transition-colors shadow-2xs"
           >
@@ -292,93 +191,6 @@ export function EducationSection({
           </button>
         </div>
       </div>
-
-      {/* AI Resume Dropzone Drawer */}
-      {showResumeDropzone && (
-        <div className="mt-4 p-5 rounded-2xl bg-[#F8FBFF] border border-blue-200/80 space-y-4">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h4 className="text-xs font-bold text-[#082046] flex items-center gap-1.5">
-                <Wand2 className="size-4 text-[#0E7BF4]" />
-                Auto-Extract Qualifications from Resume
-              </h4>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Upload your resume (PDF, DOCX, or Image). Our local AI parser extracts degree, branch, college, and CGPA automatically.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowResumeDropzone(false)}
-              className="text-slate-400 hover:text-slate-600 p-1"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-blue-300 rounded-xl p-6 text-center cursor-pointer hover:bg-blue-50/50 transition-colors"
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg"
-              onChange={handleFileSelected}
-              className="hidden"
-            />
-            {isExtracting ? (
-              <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#0E7BF4]">
-                <Loader2 className="size-5 animate-spin" />
-                <span>Reading document & parsing degrees…</span>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <UploadCloud className="size-6 text-[#0E7BF4] mx-auto" />
-                <p className="text-xs font-semibold text-slate-800">
-                  Click or drag your Resume / CV here
-                </p>
-                <p className="text-[10px] text-slate-400">PDF, DOCX, Images up to 10MB</p>
-              </div>
-            )}
-          </div>
-
-          {extractedEducations.length > 0 && (
-            <div className="space-y-2 pt-2 border-t border-blue-100">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#082046]">
-                  Found {extractedEducations.length} Qualifications:
-                </span>
-                <button
-                  type="button"
-                  onClick={handleImportExtracted}
-                  disabled={isImporting}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#0E7BF4] text-white text-xs font-bold hover:bg-blue-600 disabled:opacity-50"
-                >
-                  {isImporting ? 'Importing…' : 'Import All to Profile'}
-                </button>
-              </div>
-              <div className="space-y-2">
-                {extractedEducations.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-xl bg-white border border-slate-200 text-xs flex items-center justify-between"
-                  >
-                    <div>
-                      <span className="font-bold text-slate-900">
-                        {item.degree || item.level} {item.stream ? `in ${item.stream}` : ''}
-                      </span>
-                      <span className="text-slate-500 block text-[11px]">
-                        {item.institution_name || item.board_or_university} {item.year_of_passing ? `· Class of ${item.year_of_passing}` : ''} {item.score != null ? `· Score: ${item.score}` : ''}
-                      </span>
-                    </div>
-                    <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Qualifications List / Empty State */}
       {educations.length === 0 ? (

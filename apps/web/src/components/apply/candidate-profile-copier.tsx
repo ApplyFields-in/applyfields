@@ -66,7 +66,16 @@ export interface CopierData {
   categoryCertNumber: string;
 }
 
-const STORAGE_KEY = 'applyfields_copier_cache_v1';
+// v2: earlier caches held invented defaults (MALE, GENERAL, CBSE…) and full Aadhaar/PAN numbers.
+const STORAGE_KEY = 'applyfields_copier_cache_v2';
+const OLD_STORAGE_KEY = 'applyfields_copier_cache_v1';
+/** Never written to the browser: on a shared or cyber-café computer they would outlive the session. */
+const SESSION_ONLY: (keyof CopierData)[] = ['aadhaarNumber', 'panNumber'];
+const forStorage = (d: CopierData) => {
+  const copy: Partial<CopierData> = { ...d };
+  for (const k of SESSION_ONLY) delete copy[k];
+  return JSON.stringify(copy);
+};
 
 const DEFAULT_COPIER_DATA: CopierData = {
   fullName: '',
@@ -78,30 +87,30 @@ const DEFAULT_COPIER_DATA: CopierData = {
   category: '',
   domicileState: '',
   district: '',
-  nationality: 'Indian',
-  maritalStatus: 'Unmarried',
+  nationality: '',
+  maritalStatus: '',
   mobile: '',
   email: '',
   aadhaarNumber: '',
   panNumber: '',
   pinCode: '',
   permanentAddress: '',
-  tenthBoard: 'CBSE / State Board',
+  tenthBoard: '',
   tenthRollNumber: '',
   tenthYear: '',
   tenthPercentage: '',
-  twelfthBoard: 'State Board / CBSE',
-  twelfthStream: 'Science (MPC) / General',
+  twelfthBoard: '',
+  twelfthStream: '',
   twelfthRollNumber: '',
   twelfthYear: '',
   twelfthPercentage: '',
-  degreeName: 'B.Tech / Degree',
+  degreeName: '',
   degreeUniversity: '',
   degreeRollNumber: '',
   degreeYear: '',
   degreeCgpa: '',
-  photoSpec: '20 KB – 50 KB (200 x 230 px, JPG)',
-  signatureSpec: '10 KB – 20 KB (140 x 60 px, JPG)',
+  photoSpec: '',
+  signatureSpec: '',
   categoryCertNumber: '',
 };
 
@@ -126,6 +135,7 @@ export function CandidateProfileCopier({
     let localCache: Partial<CopierData> = {};
     if (typeof window !== 'undefined') {
       try {
+        localStorage.removeItem(OLD_STORAGE_KEY);
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) localCache = JSON.parse(raw);
       } catch {
@@ -140,9 +150,9 @@ export function CandidateProfileCopier({
         const prof = res?.profile;
         const eduList = res?.education || [];
 
-        let tenth = eduList.find((e) => e.level === '10th');
-        let twelfth = eduList.find((e) => e.level === '12th' || e.level === 'diploma');
-        let degree = eduList.find((e) => e.level === 'graduate' || e.level === 'post_graduate');
+        const tenth = eduList.find((e) => e.level === '10th');
+        const twelfth = eduList.find((e) => e.level === '12th' || e.level === 'diploma');
+        const degree = eduList.find((e) => e.level === 'graduate' || e.level === 'post_graduate');
 
         // Format dates
         let ddmmyyyy = '';
@@ -162,31 +172,31 @@ export function CandidateProfileCopier({
           motherName: localCache.motherName || '',
           dobDdmmyyyy: ddmmyyyy || localCache.dobDdmmyyyy || '',
           dobYyyymmdd: yyyymmdd || localCache.dobYyyymmdd || '',
-          gender: prof?.gender ? prof.gender.toUpperCase() : (localCache.gender || 'MALE'),
-          category: prof?.category ? prof.category.toUpperCase() : (localCache.category || 'GENERAL'),
+          gender: prof?.gender ? prof.gender.toUpperCase() : (localCache.gender || ''),
+          category: prof?.category ? prof.category.toUpperCase() : (localCache.category || ''),
           domicileState: prof?.domicile_state_code || prof?.state_code || localCache.domicileState || '',
           district: prof?.district || localCache.district || '',
-          nationality: localCache.nationality || 'Indian',
-          maritalStatus: localCache.maritalStatus || 'Unmarried',
+          nationality: localCache.nationality || '',
+          maritalStatus: localCache.maritalStatus || '',
           mobile: user?.phone || localCache.mobile || '',
           email: user?.email || localCache.email || '',
-          aadhaarNumber: localCache.aadhaarNumber || '',
-          panNumber: localCache.panNumber || '',
+          aadhaarNumber: '',
+          panNumber: '',
           pinCode: localCache.pinCode || '',
           permanentAddress: localCache.permanentAddress || '',
           // 10th
-          tenthBoard: tenth?.board_or_university || localCache.tenthBoard || 'CBSE / State Board',
+          tenthBoard: tenth?.board_or_university || localCache.tenthBoard || '',
           tenthRollNumber: localCache.tenthRollNumber || '',
           tenthYear: tenth?.year_of_passing ? String(tenth.year_of_passing) : (localCache.tenthYear || ''),
           tenthPercentage: tenth?.score ? `${tenth.score}%` : (localCache.tenthPercentage || ''),
           // 12th
-          twelfthBoard: twelfth?.board_or_university || localCache.twelfthBoard || 'State Board / CBSE',
-          twelfthStream: twelfth?.stream || localCache.twelfthStream || 'Science / Commerce / Arts',
+          twelfthBoard: twelfth?.board_or_university || localCache.twelfthBoard || '',
+          twelfthStream: twelfth?.stream || localCache.twelfthStream || '',
           twelfthRollNumber: localCache.twelfthRollNumber || '',
           twelfthYear: twelfth?.year_of_passing ? String(twelfth.year_of_passing) : (localCache.twelfthYear || ''),
           twelfthPercentage: twelfth?.score ? `${twelfth.score}%` : (localCache.twelfthPercentage || ''),
           // Degree
-          degreeName: degree?.degree || degree?.stream || localCache.degreeName || 'Bachelor Degree',
+          degreeName: degree?.degree || degree?.stream || localCache.degreeName || '',
           degreeUniversity: degree?.board_or_university || degree?.institution_name || localCache.degreeUniversity || '',
           degreeRollNumber: localCache.degreeRollNumber || '',
           degreeYear: degree?.year_of_passing ? String(degree.year_of_passing) : (localCache.degreeYear || ''),
@@ -199,7 +209,7 @@ export function CandidateProfileCopier({
 
         setData(merged);
         if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          localStorage.setItem(STORAGE_KEY, forStorage(merged));
         }
       })
       .catch(() => {
@@ -229,7 +239,7 @@ export function CandidateProfileCopier({
     setData(updated);
     setEditingKey(null);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      localStorage.setItem(STORAGE_KEY, forStorage(updated));
     }
   };
 
@@ -278,8 +288,8 @@ export function CandidateProfileCopier({
       { group: 'education', key: 'degreeCgpa', label: 'Degree CGPA / Percentage', value: data.degreeCgpa, hint: 'Final score' },
 
       // Specs
-      { group: 'specs', key: 'photoSpec', label: 'Photo Upload Specs', value: data.photoSpec, hint: 'Standard PSC/SSC spec' },
-      { group: 'specs', key: 'signatureSpec', label: 'Signature Upload Specs', value: data.signatureSpec, hint: 'Standard PSC/SSC spec' },
+      { group: 'specs', key: 'photoSpec', label: 'Photo Upload Specs', value: data.photoSpec, hint: 'Check the size rules in the notification' },
+      { group: 'specs', key: 'signatureSpec', label: 'Signature Upload Specs', value: data.signatureSpec, hint: 'Check the size rules in the notification' },
       { group: 'specs', key: 'categoryCertNumber', label: 'Category Certificate No', value: data.categoryCertNumber, hint: 'Caste / EWS cert no' },
     ];
   }, [data]);

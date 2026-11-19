@@ -62,19 +62,6 @@ export class DigilockerController {
   }
 
   /**
-   * Connect candidate to DigiLocker in Sandbox mode
-   * POST /digilocker/connect-sandbox
-   */
-  @Post('connect-sandbox')
-  @HttpCode(HttpStatus.OK)
-  async connectSandbox(
-    @Req() req: AuthenticatedRequest,
-    @Body('digilockerId') digilockerId?: string,
-  ) {
-    return this.digilockerService.connectSandbox(req.user.userId, digilockerId);
-  }
-
-  /**
    * Unlinks candidate's DigiLocker connection
    * POST /digilocker/disconnect
    */

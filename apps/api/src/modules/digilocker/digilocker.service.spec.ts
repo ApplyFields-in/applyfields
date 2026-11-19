@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DigilockerService } from './digilocker.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
@@ -36,84 +37,65 @@ describe('DigilockerService', () => {
     expect(documentsService).toBeDefined();
   });
 
-  describe('generateAuthorizationUrl', () => {
-    it('should generate a valid PKCE authorization URL with state and code verifier', async () => {
+  describe('without DigiLocker (API Setu) credentials', () => {
+    beforeEach(() => {
+      delete process.env.DIGILOCKER_CLIENT_ID;
+    });
+
+    it('offers no sign-in link and lists no documents (never sample ones)', async () => {
+      const status = await service.getStatus(testUserId);
+      expect(status.configured).toBe(false);
+      expect(status.linked).toBe(false);
+      expect(status.authorizeUrl).toBe('');
+      await expect(service.generateAuthorizationUrl(testUserId)).rejects.toThrow('not connected');
+      expect((await service.getIssuedDocuments(testUserId)).items).toEqual([]);
+    });
+
+    it('never creates a stand-in certificate on import', async () => {
+      await expect(service.importDocument(testUserId, 'in.gov.cbse-CLASS-X-2021-9182734')).rejects.toThrow(
+        'not available yet',
+      );
+      const vault = await documentsService.listDocuments(testUserId);
+      expect(vault.items.filter((d) => d.source === 'digilocker')).toEqual([]);
+    });
+
+    it('does not link an account from an unknown or fake sign-in', async () => {
+      await expect(service.handleCallback('sandbox_auth_code_123', 'unknown-state', testUserId)).rejects.toThrow();
+      expect((await service.getStatus(testUserId)).linked).toBe(false);
+    });
+  });
+
+  describe('with credentials', () => {
+    beforeEach(() => {
+      process.env.DIGILOCKER_CLIENT_ID = 'test-client';
+    });
+    afterEach(() => {
+      delete process.env.DIGILOCKER_CLIENT_ID;
+    });
+
+    it('builds a PKCE authorization URL with state and code challenge', async () => {
       const res = await service.generateAuthorizationUrl(testUserId);
-
-      expect(res.authorizationUrl).toBeDefined();
       expect(res.state).toHaveLength(32);
-      expect(res.codeVerifier).toBeDefined();
-
       const parsed = new URL(res.authorizationUrl);
       expect(parsed.searchParams.get('response_type')).toBe('code');
+      expect(parsed.searchParams.get('client_id')).toBe('test-client');
       expect(parsed.searchParams.get('state')).toBe(res.state);
       expect(parsed.searchParams.get('code_challenge_method')).toBe('S256');
-      expect(parsed.searchParams.get('code_challenge')).toBeDefined();
     });
-  });
 
-  describe('handleCallback and getStatus', () => {
-    it('should exchange code for access token and link DigiLocker account', async () => {
+    it('links the account only when DigiLocker returns a real token', async () => {
       const auth = await service.generateAuthorizationUrl(testUserId);
-      const callbackRes = await service.handleCallback('sandbox_auth_code_123', auth.state, testUserId);
-
-      expect(callbackRes.success).toBe(true);
-      expect(callbackRes.digilockerId).toMatch(/^DL-IN-/);
-
-      const status = await service.getStatus(testUserId);
-      expect(status.linked).toBe(true);
-      expect(status.digilocker_id).toBe(callbackRes.digilockerId);
-      expect(status.linked_at).toBeDefined();
-    });
-  });
-
-  describe('getIssuedDocuments and importDocument', () => {
-    it('should list candidate issued certificates and import them into user_documents', async () => {
-      // 1. Initial list of issued documents
-      const docsRes = await service.getIssuedDocuments(testUserId);
-      expect(docsRes.items.length).toBeGreaterThanOrEqual(3);
-
-      const class10Doc = docsRes.items.find((d) => d.type === 'class_10_marksheet');
-      expect(class10Doc).toBeDefined();
-      expect(class10Doc?.isImported).toBe(false);
-
-      // 2. Import the Class 10 certificate
-      const importRes = await service.importDocument(testUserId, class10Doc!.uri);
-      expect(importRes.success).toBe(true);
-      expect(importRes.document).toBeDefined();
-      expect(importRes.document.source).toBe('digilocker');
-      expect(importRes.document.digilocker_uri).toBe(class10Doc!.uri);
-      expect(importRes.document.document_type_code).toBe('class_10_marksheet');
-      expect(importRes.document.details.verified_by_digilocker).toBe(true);
-
-      // 3. Re-query issued documents — it should now show as imported
-      const updatedDocsRes = await service.getIssuedDocuments(testUserId);
-      const updatedClass10 = updatedDocsRes.items.find((d) => d.uri === class10Doc!.uri);
-      expect(updatedClass10?.isImported).toBe(true);
-
-      // 4. Document Vault list should also reflect the imported document
-      const vaultRes = await documentsService.listDocuments(testUserId);
-      const vaultClass10 = vaultRes.items.find((d) => d.digilocker_uri === class10Doc!.uri);
-      expect(vaultClass10).toBeDefined();
-      expect(vaultClass10?.source).toBe('digilocker');
-    });
-
-    it('should reject importing an invalid URI', async () => {
-      await expect(service.importDocument(testUserId, 'invalid-non-existent-uri')).rejects.toThrow(
-        'not found in DigiLocker account',
-      );
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('denied', { status: 400 }));
+      await expect(service.handleCallback('code-1', auth.state, testUserId)).rejects.toThrow('could not be completed');
+      fetchSpy.mockRestore();
+      expect((await service.getStatus(testUserId)).linked).toBe(false);
     });
   });
 
   describe('disconnect', () => {
-    it('should unlink DigiLocker account', async () => {
-      await service.connectSandbox(testUserId, 'DL-IN-999999');
-      const before = await service.getStatus(testUserId);
-      expect(before.linked).toBe(true);
-
+    it('unlinks a DigiLocker account', async () => {
       await service.disconnect(testUserId);
-      const after = await service.getStatus(testUserId);
-      expect(after.linked).toBe(false);
+      expect((await service.getStatus(testUserId)).linked).toBe(false);
     });
   });
 });

@@ -1,6 +1,7 @@
 import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import { NotificationsService } from './notifications.service.js';
 import { recordJobRun } from '../../common/job-runs.js';
+import { schedulerOff } from '../../common/schedulers.js';
 
 const TICK_MS = 15 * 60_000;
 const IST_OFFSET_MS = 5.5 * 3_600_000;
@@ -13,7 +14,7 @@ export const isDaytimeIst = (now = new Date()) => {
 
 /**
  * Every 15 minutes: create due reminders, then send queued emails (retries included).
- * Same timer pattern as ExpiryService; off when NODE_ENV=test or NOTIFICATIONS=off.
+ * Same timer pattern as ExpiryService; off when NODE_ENV=test, SCHEDULERS=off or NOTIFICATIONS=off.
  */
 @Injectable()
 export class NotificationsScheduler implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -24,7 +25,7 @@ export class NotificationsScheduler implements OnApplicationBootstrap, OnApplica
   constructor(private readonly notifications: NotificationsService) {}
 
   onApplicationBootstrap(): void {
-    if (process.env.NODE_ENV === 'test' || process.env.NOTIFICATIONS === 'off') return;
+    if (schedulerOff('NOTIFICATIONS')) return;
     this.timers.push(
       setTimeout(() => void this.run(), 45_000).unref(),
       setInterval(() => void this.run(), TICK_MS).unref(),
