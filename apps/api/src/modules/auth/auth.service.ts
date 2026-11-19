@@ -18,7 +18,6 @@ import { UsersStore } from '../users/users.store.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import type {
   LoginDto,
-  LoginOtpDto,
   SocialLoginDto,
 } from './dto/login.dto.js';
 import type {
@@ -375,65 +374,6 @@ export class AuthService {
     } catch (err: any) {
       console.warn('Could not record staff.login in audit_logs:', err?.message);
     }
-  }
-
-  async loginWithOtp(
-    dto: LoginOtpDto,
-    meta: { userAgent?: string; ipAddress?: string } = {},
-  ): Promise<LoginResult> {
-    const target = (dto.identifier || dto.email || dto.phone || '').trim();
-    if (!target) {
-      throw new BadRequestException('Phone number or email is required');
-    }
-
-    await this.verifyOtp({
-      target,
-      purpose: 'login',
-      code: dto.code,
-    });
-
-    const isEmail = target.includes('@');
-    let user = isEmail
-      ? await this.store.findUserByEmail(target.toLowerCase())
-      : await this.store.findUserByPhone(target);
-
-    // Blocked/suspended accounts stay out whichever way they sign in (password login checks this too).
-    if (user && user.status !== 'active') {
-      throw new UnauthorizedException('This account is not active. Contact ApplyFields support.');
-    }
-
-    if (!user) {
-      // Create user if not existing
-      const dummyPassword = randomBytes(24).toString('hex');
-      const password_hash = await argon2.hash(dummyPassword, ARGON2_OPTIONS);
-      user = await this.store.createUser({
-        email: isEmail ? target.toLowerCase() : undefined,
-        phone: !isEmail ? target : undefined,
-        password_hash,
-      });
-      if (isEmail) {
-        await this.store.updateUser(user.id, {
-          email_verified_at: new Date().toISOString(),
-        });
-      } else {
-        await this.store.updateUser(user.id, {
-          phone_verified_at: new Date().toISOString(),
-        });
-      }
-    }
-
-    const [, tokens] = await Promise.all([
-      this.store.updateUser(user.id, {
-        last_login_at: new Date().toISOString(),
-      }),
-      this.issueTokens(user, meta),
-    ]);
-
-    return {
-      user: this.store.toUserSummary(user),
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    };
   }
 
   /**

@@ -55,6 +55,8 @@ function RegisterForm() {
 
   const [step, setStep] = useState<'form' | 'verify'>('form');
   const [fullName, setFullName] = useState('');
+  // Email sign-up → code by email; phone sign-up → code by SMS. One or the other.
+  const [signupWith, setSignupWith] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('+91');
   const [password, setPassword] = useState('');
@@ -83,16 +85,12 @@ function RegisterForm() {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    if (!cleanEmail) {
-      setError('Please provide a valid email address to prevent fake account registrations.');
+    const cleanPhone = phone.trim();
+    if (signupWith === 'email' && !cleanEmail.includes('@')) {
+      setError('Please enter a valid email address.');
       return;
     }
-
-    // Phone is optional, but if entered it must have valid digits
-    const cleanPhone = phone.trim();
-    const nationalDigits = extractNationalDigits(cleanPhone);
-    const hasPhoneDigits = nationalDigits.length > 0;
-    if (hasPhoneDigits && !isValidPhone(cleanPhone)) {
+    if (signupWith === 'phone' && (!extractNationalDigits(cleanPhone) || !isValidPhone(cleanPhone))) {
       setError('Please enter a valid phone number with your country code selected.');
       return;
     }
@@ -120,8 +118,8 @@ function RegisterForm() {
       '/auth/register',
       {
         fullName: cleanName,
-        email: cleanEmail,
-        phone: hasPhoneDigits ? cleanPhone : undefined,
+        email: signupWith === 'email' ? cleanEmail : undefined,
+        phone: signupWith === 'phone' ? cleanPhone : undefined,
         password,
       },
     );
@@ -217,7 +215,9 @@ function RegisterForm() {
       <div className="w-full">
         <Steps step={step} />
 
-        <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-teal sm:text-4xl">Verify your email</h1>
+        <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-teal sm:text-4xl">
+          {target.includes('@') ? 'Verify your email' : 'Verify your mobile number'}
+        </h1>
         <p className="mt-2 text-base text-teal/60">
           Enter the 6-digit code we sent to <strong className="font-semibold text-teal">{target}</strong>.
         </p>
@@ -230,7 +230,11 @@ function RegisterForm() {
           <div>
             <span className={LABEL}>6-digit code</span>
             <OtpInput value={otpCode} onChange={setOtpCode} disabled={loading} length={6} />
-            <p className="mt-1.5 text-xs text-teal/50">Dev mode: the code appears in the API terminal, no email is sent.</p>
+            {devOtp && (
+              <p className="mt-1.5 text-xs text-teal/50">
+                Dev mode: the code appears in the API terminal, no {target.includes('@') ? 'email' : 'SMS'} is sent.
+              </p>
+            )}
           </div>
 
           <button type="submit" disabled={loading || otpCode.length !== 6} className={PRIMARY}>
@@ -274,7 +278,7 @@ function RegisterForm() {
           onError={setError}
           onSuccess={setSuccessMsg}
         />
-        <AuthDivider label="or create account with email & password" />
+        <AuthDivider label="or create account with email or mobile & password" />
       </div>
       )}
 
@@ -296,29 +300,38 @@ function RegisterForm() {
         </div>
 
         <div>
-          <label htmlFor="reg-email" className={LABEL}>
-            Email address
-          </label>
-          <IconInput
-            icon={Mail}
-            id="reg-email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-          />
-        </div>
-
-        <div>
           <div className="mb-1.5 flex items-center justify-between gap-3">
-            <label htmlFor="reg-phone" className="text-sm font-semibold text-teal">
-              Mobile number
+            <label htmlFor="reg-id" className="text-sm font-semibold text-teal">
+              {signupWith === 'email' ? 'Email address' : 'Mobile number'}
             </label>
-            <span className="text-xs text-teal/50">Optional</span>
+            <button
+              type="button"
+              onClick={() => {
+                setSignupWith(signupWith === 'email' ? 'phone' : 'email');
+                setError(null);
+              }}
+              className="text-xs font-semibold text-sea hover:underline"
+            >
+              {signupWith === 'email' ? 'Use mobile number instead' : 'Use email instead'}
+            </button>
           </div>
-          <CountryPhoneInput id="reg-phone" value={phone} onChange={setPhone} placeholder="9876543210" />
+          {signupWith === 'email' ? (
+            <IconInput
+              icon={Mail}
+              id="reg-id"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+            />
+          ) : (
+            <CountryPhoneInput id="reg-id" value={phone} onChange={setPhone} placeholder="9876543210" />
+          )}
+          <p className="mt-1.5 text-xs text-teal/50">
+            We&apos;ll send a 6-digit code to {signupWith === 'email' ? 'this email' : 'this number by SMS'} to verify it.
+          </p>
         </div>
 
         <div>

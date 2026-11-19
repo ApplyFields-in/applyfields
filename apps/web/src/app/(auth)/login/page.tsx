@@ -31,7 +31,8 @@ function LoginForm() {
   const rawRedirect = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next');
   const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/account';
 
-  const [mode, setMode] = useState<'password' | 'otp' | 'forgot'>('password');
+  // Sign in = Google or email/phone + password. Codes only for sign-up and forgot password.
+  const [mode, setMode] = useState<'password' | 'forgot'>('password');
 
   // Password mode states
   const [passwordCredType, setPasswordCredType] = useState<'phone' | 'email'>('phone');
@@ -43,12 +44,6 @@ function LoginForm() {
   const [pwCodeTo, setPwCodeTo] = useState<string | null>(null);
   const [pwCode, setPwCode] = useState('');
 
-  // OTP mode states
-  const [otpCredType, setOtpCredType] = useState<'phone' | 'email'>('phone');
-  const [otpEmail, setOtpEmail] = useState('');
-  const [phone, setPhone] = useState('+91');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
   const [devOtp, setDevOtp] = useState<string | null>(null);
 
   // Forgot password states
@@ -124,78 +119,6 @@ function LoginForm() {
     }, 1000);
   }
 
-  async function handleSendOtp() {
-    setError(null);
-    const target = otpCredType === 'phone' ? phone.trim() : otpEmail.toLowerCase().trim();
-
-    if (otpCredType === 'phone') {
-      const national = extractNationalDigits(target);
-      if (!national || !isValidPhone(target)) {
-        setError('Please select your country and enter your mobile number.');
-        return;
-      }
-    } else {
-      if (!target.includes('@')) {
-        setError('Please enter a valid email address.');
-        return;
-      }
-    }
-
-    setLoading(true);
-    const res = await apiPost<{ success: boolean; message: string; devOtp?: string }>('/auth/otp/send', {
-      target,
-      purpose: 'login',
-    });
-    setLoading(false);
-
-    if (res.error) {
-      setError(res.error);
-    } else {
-      setOtpSent(true);
-      setSuccess(`A 6-digit login code has been generated for ${target}.`);
-      if (res.data?.devOtp) {
-        setDevOtp(res.data.devOtp);
-        setOtpCode(res.data.devOtp);
-      }
-    }
-  }
-
-  async function handleOtpLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (otpCode.length !== 6) {
-      setError('Please enter the full 6-digit code.');
-      return;
-    }
-
-    const target = otpCredType === 'phone' ? phone.trim() : otpEmail.toLowerCase().trim();
-
-    setLoading(true);
-    const res = await apiPost<AuthResponse>('/auth/login/otp', {
-      identifier: target,
-      phone: otpCredType === 'phone' ? target : undefined,
-      email: otpCredType === 'email' ? target : undefined,
-      code: otpCode.trim(),
-      rememberMe,
-    });
-    setLoading(false);
-
-    if (res.error || !res.data) {
-      setError(res.error || 'Invalid OTP code.');
-      return;
-    }
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('currentUser', JSON.stringify(res.data.user));
-      window.dispatchEvent(new Event('auth-changed'));
-    }
-
-    setSuccess('Authenticated successfully! Redirecting...');
-    setTimeout(() => {
-      router.push(redirectTarget);
-    }, 1000);
-  }
-
   async function handleSendForgotOtp() {
     setError(null);
     const target = forgotCredType === 'phone' ? forgotPhone.trim() : forgotEmail.trim();
@@ -261,7 +184,7 @@ function LoginForm() {
     setForgotOtpSent(false);
   }
 
-  const switchMode = (next: 'password' | 'otp' | 'forgot') => {
+  const switchMode = (next: 'password' | 'forgot') => {
     setMode(next);
     setError(null);
   };
@@ -276,25 +199,6 @@ function LoginForm() {
           ? "We'll send a reset code to your mobile number or email."
           : 'Log in to explore opportunities tailored for you.'}
       </p>
-
-      {mode !== 'forgot' && (
-        <div role="tablist" aria-label="How to log in" className="mt-6 grid grid-cols-2 gap-1 rounded-xl bg-paper p-1">
-          {(['password', 'otp'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="tab"
-              aria-selected={mode === m}
-              onClick={() => switchMode(m)}
-              className={`h-10 rounded-lg text-sm font-semibold transition ${
-                mode === m ? 'bg-cream text-teal shadow-[0_2px_8px_-2px_rgb(8_32_70/0.18)]' : 'text-teal/55 hover:text-teal'
-              }`}
-            >
-              {m === 'password' ? 'Password' : 'One-time code'}
-            </button>
-          ))}
-        </div>
-      )}
 
       <Notice error={error} success={success} />
 
@@ -405,93 +309,6 @@ function LoginForm() {
             {loading ? 'Signing in...' : pwCodeTo ? 'Verify and sign in' : 'Sign in'}
             {!loading && <ArrowRight className="size-4" aria-hidden="true" />}
           </button>
-        </form>
-      )}
-
-      {mode === 'otp' && (
-        <form onSubmit={handleOtpLogin} className="mt-5 space-y-4">
-          <div>
-            <div className="mb-1.5 flex items-center justify-between gap-3">
-              <label htmlFor="otp-target" className="text-sm font-semibold text-teal">
-                {otpCredType === 'phone' ? 'Mobile number' : 'Email address'}
-              </label>
-              {!otpSent && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpCredType(otpCredType === 'phone' ? 'email' : 'phone');
-                    setError(null);
-                  }}
-                  className="text-xs font-semibold text-sea hover:underline cursor-pointer"
-                >
-                  {otpCredType === 'phone' ? 'Use email instead' : 'Use mobile number instead'}
-                </button>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <div className="min-w-0 flex-1">
-                {otpCredType === 'phone' ? (
-                  <CountryPhoneInput
-                    id="otp-target"
-                    value={phone}
-                    onChange={setPhone}
-                    disabled={otpSent}
-                    placeholder="9876543210"
-                  />
-                ) : (
-                  <IconInput
-                    icon={Mail}
-                    id="otp-target"
-                    type="email"
-                    autoComplete="email"
-                    value={otpEmail}
-                    onChange={(e) => setOtpEmail(e.target.value)}
-                    placeholder="yourname@example.com"
-                    disabled={otpSent}
-                    required
-                  />
-                )}
-              </div>
-              {!otpSent ? (
-                <button type="button" onClick={handleSendOtp} disabled={loading} className={SIDE_BTN}>
-                  Send code
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpSent(false);
-                    setOtpCode('');
-                  }}
-                  className={SIDE_BTN}
-                >
-                  Change
-                </button>
-              )}
-            </div>
-            <p className="mt-1.5 text-xs text-teal/50">
-              Dev mode: the code appears in the API terminal, no {otpCredType === 'phone' ? 'SMS' : 'email'} is sent.
-            </p>
-          </div>
-
-          {otpSent && devOtp && <DevCode code={devOtp} onFill={() => setOtpCode(devOtp)} />}
-
-          {otpSent && (
-            <>
-              <div>
-                <span className={LABEL}>Enter the 6-digit code</span>
-                <OtpInput value={otpCode} onChange={setOtpCode} disabled={loading} length={6} />
-              </div>
-              <Checkbox checked={rememberMe} onChange={setRememberMe}>
-                Remember me
-              </Checkbox>
-              <button type="submit" disabled={loading || otpCode.length !== 6} className={PRIMARY}>
-                {loading ? 'Checking code...' : 'Sign in'}
-                {!loading && <ArrowRight className="size-4" aria-hidden="true" />}
-              </button>
-            </>
-          )}
         </form>
       )}
 

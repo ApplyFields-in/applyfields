@@ -386,13 +386,9 @@ export default function Profile() {
             thumbColor={C.white}
           />
         </View>
-        {prefs ? (
+        {prefs?.reminder_days_before.length ? (
           <Muted style={{ marginTop: S.sm }}>
-            Email alerts are {prefs.email_enabled ? 'on' : 'off'}
-            {prefs.reminder_days_before.length
-              ? ` · reminders ${prefs.reminder_days_before.join(', ')} days before`
-              : ''}
-            .
+            Reminders {prefs.reminder_days_before.join(', ')} days before.
           </Muted>
         ) : null}
       </Card>

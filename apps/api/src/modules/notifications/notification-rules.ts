@@ -58,20 +58,6 @@ export function wantsType(mutedTypes: string[], type: NotificationType): boolean
   return !(MUTABLE_TYPES as string[]).includes(type) || !mutedTypes.includes(type);
 }
 
-/**
- * Email only to a verified address, when the user hasn't switched email off or withdrawn the
- * email_updates consent. Reminders and updates are for items the user saved, so they don't need an
- * opt-in, but an explicit opt-out always wins.
- */
-export function emailAllowed(u: {
-  email: string | null;
-  emailVerified: boolean;
-  emailEnabled: boolean;
-  emailConsentWithdrawn: boolean;
-}): boolean {
-  return Boolean(u.email) && u.emailVerified && u.emailEnabled && !u.emailConsentWithdrawn;
-}
-
 const WEB_BASE: Record<OpportunityType, string> = {
   govt_job: '/jobs',
   exam: '/exams',

@@ -22,28 +22,6 @@ export class LoginVerifyDto extends LoginDto {
   code!: string;
 }
 
-export class LoginOtpDto {
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  @IsOptional()
-  @IsString()
-  email?: string;
-
-  @IsOptional()
-  @IsString()
-  identifier?: string;
-
-  @IsNotEmpty({ message: 'OTP code is required' })
-  @IsString()
-  code!: string;
-
-  @IsOptional()
-  @IsBoolean()
-  rememberMe?: boolean;
-}
-
 export class SocialLoginDto {
   @IsNotEmpty({ message: 'Provider is required' })
   @IsString()

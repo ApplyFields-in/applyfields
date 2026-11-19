@@ -23,13 +23,12 @@ const LOGO = require('../../assets/images/logo-mark.png');
 
 export default function Login() {
   const router = useRouter();
-  const { startLogin, login, sendLoginOtp, loginWithOtp, loginWithGoogle } = useAuth();
+  // Sign in = Google or email/phone + password. Codes only for sign-up and forgot password.
+  const { startLogin, login, loginWithGoogle } = useAuth();
   const insets = useSafeAreaInsets();
-  const [mode, setMode] = useState<'password' | 'otp'>('password');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
   // Set only on a first sign-in, when the account still has to confirm its email/phone once.
   const [codeTo, setCodeTo] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -40,14 +39,6 @@ export default function Login() {
   // A field that takes an email or a phone number needs the plain keyboard, not
   // the email layout (which hides the number row).
   const usesEmail = identifier.includes('@');
-
-  function switchMode(next: 'password' | 'otp') {
-    setMode(next);
-    setError(null);
-    setOtpSent(false);
-    setCodeTo(null);
-    setCode('');
-  }
 
   async function submit(resend = false) {
     if (!identifier.trim() || !password) {
@@ -74,32 +65,6 @@ export default function Login() {
       return;
     }
     const failure = await login(identifier, password, code);
-    setBusy(false);
-    if (failure) setError(failure);
-    else router.back();
-  }
-
-  async function sendCode() {
-    if (!identifier.trim()) {
-      setError('Enter your email or mobile number first.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const failure = await sendLoginOtp(identifier);
-    setBusy(false);
-    if (failure) setError(failure);
-    else setOtpSent(true);
-  }
-
-  async function verifyCode() {
-    if (code.trim().length !== 6) {
-      setError('Enter the 6-digit code we sent you.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const failure = await loginWithOtp(identifier, code);
     setBusy(false);
     if (failure) setError(failure);
     else router.back();
@@ -150,22 +115,6 @@ export default function Login() {
           <Text style={s.h1}>Welcome back</Text>
           <Text style={s.sub}>Log in to explore opportunities tailored for you.</Text>
 
-          <View style={s.tabs} accessibilityRole="tablist">
-            {(['password', 'otp'] as const).map((m) => (
-              <Pressable
-                key={m}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: mode === m }}
-                onPress={() => switchMode(m)}
-                style={[s.tab, mode === m && s.tabActive]}
-              >
-                <Text style={[s.tabText, mode === m && s.tabTextActive]}>
-                  {m === 'password' ? 'Password' : 'One-time code'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
           {error ? (
             <View style={s.error}>
               <Ionicons name="alert-circle-outline" size={16} color={C.bad} />
@@ -198,14 +147,13 @@ export default function Login() {
                 autoCorrect={false}
                 keyboardType={usesEmail ? 'email-address' : 'default'}
                 textContentType="username"
-                editable={!(mode === 'otp' && otpSent) && !codeTo}
+                editable={!codeTo}
                 style={s.input}
               />
             </View>
           </View>
 
-          {mode === 'password' ? (
-            <View style={s.field}>
+          <View style={s.field}>
               <View style={s.labelRow}>
                 <Text style={s.label}>Password</Text>
                 <Pressable
@@ -256,45 +204,8 @@ export default function Login() {
                 </Pressable>
               </View>
             </View>
-          ) : otpSent ? (
-            <View style={s.field}>
-              <View style={s.labelRow}>
-                <Text style={s.label}>6-digit code</Text>
-                <Pressable onPress={sendCode} disabled={busy} hitSlop={8}>
-                  <Text style={s.smallLink}>Resend code</Text>
-                </Pressable>
-              </View>
-              <View
-                style={[
-                  s.inputWrap,
-                  focusedField === 'code' && s.inputWrapFocused,
-                ]}
-              >
-                <Ionicons
-                  name="keypad-outline"
-                  size={18}
-                  color={focusedField === 'code' ? C.blue : C.muted}
-                  style={s.inputIcon}
-                />
-                <TextInput
-                  value={code}
-                  onChangeText={setCode}
-                  onFocus={() => setFocusedField('code')}
-                  onBlur={() => setFocusedField(null)}
-                  placeholder="● ● ● ● ● ●"
-                  placeholderTextColor={C.muted}
-                  keyboardType="number-pad"
-                  textContentType="oneTimeCode"
-                  maxLength={6}
-                  onSubmitEditing={verifyCode}
-                  returnKeyType="go"
-                  style={s.input}
-                />
-              </View>
-            </View>
-          ) : null}
 
-          {mode === 'password' && codeTo ? (
+          {codeTo ? (
             <View style={s.field}>
               <View style={s.labelRow}>
                 <Text style={[s.label, { flex: 1 }]}>First sign-in: code sent to {codeTo}</Text>
@@ -332,42 +243,18 @@ export default function Login() {
             </View>
           ) : null}
 
-          {mode === 'password' ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: busy }}
-              disabled={busy}
-              onPress={() => submit()}
-              style={[s.primaryBtn, busy && s.btnDisabled]}
-            >
-              <Text style={s.primaryBtnText}>
-                {busy ? 'Signing in…' : codeTo ? 'Verify & log in' : 'Sign in'}
-              </Text>
-              <Ionicons name="arrow-forward" size={18} color={C.white} />
-            </Pressable>
-          ) : otpSent ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: busy }}
-              disabled={busy}
-              onPress={verifyCode}
-              style={[s.primaryBtn, busy && s.btnDisabled]}
-            >
-              <Text style={s.primaryBtnText}>{busy ? 'Verifying…' : 'Verify & Sign in'}</Text>
-              <Ionicons name="arrow-forward" size={18} color={C.white} />
-            </Pressable>
-          ) : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: busy }}
-              disabled={busy}
-              onPress={sendCode}
-              style={[s.primaryBtn, busy && s.btnDisabled]}
-            >
-              <Text style={s.primaryBtnText}>{busy ? 'Sending…' : 'Send me a code'}</Text>
-              <Ionicons name="arrow-forward" size={18} color={C.white} />
-            </Pressable>
-          )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={() => submit()}
+            style={[s.primaryBtn, busy && s.btnDisabled]}
+          >
+            <Text style={s.primaryBtnText}>
+              {busy ? 'Signing in…' : codeTo ? 'Verify & log in' : 'Sign in'}
+            </Text>
+            <Ionicons name="arrow-forward" size={18} color={C.white} />
+          </Pressable>
 
           {googleSignInAvailable ? (
             <>
@@ -459,26 +346,6 @@ const s = StyleSheet.create({
     textAlign: 'center',
   },
   sub: { color: C.muted, fontSize: 14, textAlign: 'center' },
-  tabs: {
-    flexDirection: 'row',
-    gap: 4,
-    padding: 4,
-    borderRadius: R.pill,
-    backgroundColor: '#EDF2F8',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  tab: { flex: 1, minHeight: 44, borderRadius: R.pill, alignItems: 'center', justifyContent: 'center' },
-  tabActive: {
-    backgroundColor: C.white,
-    shadowColor: C.navy,
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
-  tabText: { color: '#435775', fontSize: 13, fontWeight: '600' },
-  tabTextActive: { color: C.blue, fontWeight: '700' },
   field: { gap: 6 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { color: C.navy, fontSize: 14, fontWeight: '600' },

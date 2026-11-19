@@ -22,7 +22,6 @@ import { AuthGuard, type AuthenticatedRequest } from './auth.guard.js';
 import { RegisterDto } from './dto/register.dto.js';
 import {
   LoginDto,
-  LoginOtpDto,
   LoginVerifyDto,
   SocialLoginDto,
   PasskeyVerifyDto,
@@ -139,27 +138,6 @@ export class AuthController {
       ipAddress: req.ip || req.socket.remoteAddress,
     };
     const result = await this.authService.verifyPasswordLogin(dto, meta);
-
-    const opts = cookieOpts(dto.rememberMe);
-    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
-    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
-
-    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
-  }
-
-  @Throttle(AUTH_THROTTLE)
-  @Post('login/otp')
-  @HttpCode(HttpStatus.OK)
-  async loginWithOtp(
-    @Body() dto: LoginOtpDto,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const meta = {
-      userAgent: req.headers['user-agent'],
-      ipAddress: req.ip || req.socket.remoteAddress,
-    };
-    const result = await this.authService.loginWithOtp(dto, meta);
 
     const opts = cookieOpts(dto.rememberMe);
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);

@@ -291,16 +291,12 @@ describe('AuthService', () => {
       expect(profile?.full_name).toBe('Karthik Candidate');
     });
 
-    it('keeps a blocked account out of Google and one-time-code login', async () => {
+    it('keeps a blocked account out of Google login', async () => {
       const reg = await authService.register({ email: 'blocked@gmail.com', password: 'Password123!' });
       await store.updateUser(reg.user.id, { status: 'suspended' } as any);
 
       mockTokeninfo(200, { aud: 'web-client.apps.googleusercontent.com', email: 'blocked@gmail.com', email_verified: 'true' });
       await expect(authService.socialLogin({ provider: 'google', idToken: 'a.b.c' })).rejects.toThrow('not active');
-
-      vi.spyOn(authService as any, 'generate6DigitOtp').mockReturnValue('135790');
-      await authService.sendOtp({ target: 'blocked@gmail.com', purpose: 'login' });
-      await expect(authService.loginWithOtp({ identifier: 'blocked@gmail.com', code: '135790' })).rejects.toThrow('not active');
     });
 
     it('accepts a popup access token whose azp is one of our client IDs', async () => {

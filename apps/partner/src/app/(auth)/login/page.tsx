@@ -28,12 +28,10 @@ function LoginFormContent() {
   const { refreshSession } = usePartnerAuth();
 
   const [persona, setPersona] = useState<Persona>('kiosk');
-  const [mode, setMode] = useState<'password' | 'otp'>('password');
+  // Sign in = Google or mobile/email + password. Codes only for sign-up and forgot password.
   const [phoneOrEmail, setPhoneOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
   // Set only when the account still has to confirm its email/phone once (first sign-in).
   const [codeTo, setCodeTo] = useState<string | null>(null);
   // Remember me: stay signed in across browser restarts until sign-out.
@@ -132,44 +130,6 @@ function LoginFormContent() {
       return;
     }
     signedIn(res.data.user, 'Signed in. Opening your desk…');
-  }
-
-  async function handleSendOtp() {
-    setError(null);
-    if (!phoneOrEmail.trim()) {
-      setError('Enter the mobile number you registered with.');
-      return;
-    }
-    setLoading(true);
-    const res = await apiPost('/auth/otp/send', { target: loginId(), purpose: 'login' });
-    setLoading(false);
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-    setOtpSent(true);
-    setSuccess('We sent you a 6-digit code.');
-  }
-
-  async function handleVerifyOtp(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (otpCode.trim().length !== 6) {
-      setError('Enter the 6-digit code.');
-      return;
-    }
-    setLoading(true);
-    const res = await apiPost<{ user: unknown }>('/auth/login/otp', {
-      identifier: loginId(),
-      code: otpCode.trim(),
-      rememberMe,
-    });
-    setLoading(false);
-    if (res.error || !res.data) {
-      setError(res.error || 'That code did not work. Check it or send a new one.');
-      return;
-    }
-    signedIn(res.data.user, 'Verified. Opening your desk…');
   }
 
   const isInst = persona === 'institution';
@@ -291,32 +251,6 @@ function LoginFormContent() {
               ))}
             </div>
 
-            {/* How to sign in */}
-            <div className="mt-6 flex gap-6 border-b border-[#e3eaf3]" role="tablist" aria-label="Sign-in method">
-              {(
-                [
-                  ['password', 'Password'],
-                  ['otp', 'Mobile code'],
-                ] as const
-              ).map(([value, text]) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === value}
-                  onClick={() => {
-                    setMode(value);
-                    setError(null);
-                  }}
-                  className={`-mb-px border-b-2 pb-2.5 text-sm font-bold transition focus-visible:outline-none focus-visible:text-[#0e7bf4] ${
-                    mode === value ? 'border-[#0e7bf4] text-[#082046]' : 'border-transparent text-[#8a9bb3] hover:text-[#435775]'
-                  }`}
-                >
-                  {text}
-                </button>
-              ))}
-            </div>
-
             <div className="mt-5" aria-live="polite">
               {error && (
                 <p role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] font-medium text-rose-700">
@@ -330,8 +264,7 @@ function LoginFormContent() {
               )}
             </div>
 
-            {mode === 'password' ? (
-              <form onSubmit={handlePasswordLogin} className="space-y-4">
+            <form onSubmit={handlePasswordLogin} className="space-y-4">
                 <div>
                   <label htmlFor="login-id" className={label}>
                     {isInst ? 'Official email or mobile' : 'Mobile number or email'}
@@ -417,59 +350,6 @@ function LoginFormContent() {
                   {loading ? 'Signing in…' : codeTo ? 'Verify and sign in' : 'Sign in'}
                 </button>
               </form>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="otp-phone" className={label}>
-                    Registered mobile number
-                  </label>
-                  <input
-                    id="otp-phone"
-                    type="tel"
-                    autoComplete="tel-national"
-                    value={phoneOrEmail}
-                    onChange={(e) => setPhoneOrEmail(e.target.value)}
-                    placeholder="98765 43210"
-                    className={`mt-1.5 ${input}`}
-                  />
-                </div>
-
-                {!otpSent ? (
-                  <button type="button" onClick={handleSendOtp} disabled={loading} className={primary}>
-                    {loading ? 'Sending code…' : 'Send code'}
-                  </button>
-                ) : (
-                  <form onSubmit={handleVerifyOtp} className="space-y-4">
-                    <div>
-                      <label htmlFor="otp-code" className={label}>
-                        6-digit code
-                      </label>
-                      <input
-                        id="otp-code"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                        maxLength={6}
-                        className={`mt-1.5 ${input} text-center text-lg tracking-[0.4em] tabular-nums`}
-                        required
-                      />
-                    </div>
-                    {rememberBox}
-                    <button type="submit" disabled={loading} className={primary}>
-                      {loading ? 'Verifying…' : 'Verify and sign in'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSendOtp}
-                      className="w-full text-center text-[13px] font-semibold text-[#536780] hover:text-[#082046]"
-                    >
-                      Didn&apos;t get it? Send a new code
-                    </button>
-                  </form>
-                )}
-              </div>
-            )}
 
             {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
               <div className="mt-6">

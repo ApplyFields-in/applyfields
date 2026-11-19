@@ -29,7 +29,6 @@ import { getVapidKeys, sendWebPush } from './web-push.js';
 import { SseService } from './sse.service.js';
 import {
   DEFAULT_REMINDER_DAYS,
-  emailAllowed,
   MAX_REMINDER_DAYS,
   MUTABLE_TYPES,
   notificationTypeForUpdate,
@@ -89,24 +88,24 @@ export class NotificationsService {
   ) {}
 
   /**
-   * One in-app notification per user, plus real-time SSE toast, web push (where allowed),
-   * and a queued email where allowed. Users who muted the type are skipped; anyone already
-   * notified under the same dedupe key is skipped by the database.
+   * One in-app notification per user, plus real-time SSE toast and push (browser web push / phone
+   * Expo push) where allowed. Never email: email and SMS are only for sign-up and password-reset
+   * codes (AuthService.sendOtp). Users who muted the type are skipped; anyone already notified
+   * under the same dedupe key is skipped by the database.
    * Returns how many notifications were created.
    */
   async notify(userIds: string[], n: NewNotification, key: (userId: string) => string | null): Promise<number> {
     const ids = [...new Set(userIds)];
     if (ids.length === 0) return 0;
-    const [users, prefs, withdrawn] = await Promise.all([
+    const [users, prefs] = await Promise.all([
       this.prisma.users.findMany({
         where: { id: { in: ids }, status: 'active', deleted_at: null },
-        select: { id: true, email: true, email_verified_at: true },
+        select: { id: true },
       }),
       this.prisma.notification_preferences.findMany({
         where: { user_id: { in: ids } },
-        select: { user_id: true, email_enabled: true, push_enabled: true, muted_types: true },
+        select: { user_id: true, push_enabled: true, muted_types: true },
       }),
-      this.emailConsentWithdrawn(ids),
     ]);
     const prefBy = new Map(prefs.map((p) => [p.user_id, p]));
     const targets = users.filter((u) => wantsType(prefBy.get(u.id)?.muted_types ?? [], n.type));
@@ -140,25 +139,7 @@ export class NotificationsService {
       });
     }
 
-    // 2. Queue emails where allowed
-    const userBy = new Map(targets.map((u) => [u.id, u]));
-    const emails = created.filter((c) => {
-      const u = userBy.get(c.user_id)!;
-      return emailAllowed({
-        email: u.email,
-        emailVerified: Boolean(u.email_verified_at),
-        emailEnabled: prefBy.get(u.id)?.email_enabled ?? true,
-        emailConsentWithdrawn: withdrawn.has(u.id),
-      });
-    });
-    if (emails.length) {
-      await this.prisma.notification_deliveries.createMany({
-        data: emails.map((c) => ({ notification_id: c.id, channel: 'email' as const })),
-      });
-      this.kick();
-    }
-
-    // 3. Dispatch native W3C Web Push notifications
+    // 2. Push: W3C Web Push to browsers, Expo push to phones
     const pushTargets = created.filter((c) => prefBy.get(c.user_id)?.push_enabled ?? true);
     if (pushTargets.length) {
       void this.dispatchWebPush(pushTargets, n);
@@ -214,18 +195,6 @@ export class NotificationsService {
     } catch (err) {
       this.logger.warn(`Web push batch dispatch error: ${(err as Error).message}`);
     }
-  }
-
-  /** Users whose latest email_updates consent says no. */
-  private async emailConsentWithdrawn(userIds: string[]): Promise<Set<string>> {
-    const rows = await this.prisma.consents.findMany({
-      where: { user_id: { in: userIds }, purpose: 'email_updates' },
-      select: { user_id: true, granted: true, withdrawn_at: true },
-      orderBy: { granted_at: 'desc' },
-    });
-    const latest = new Map<string, (typeof rows)[number]>();
-    for (const r of rows) if (!latest.has(r.user_id)) latest.set(r.user_id, r);
-    return new Set([...latest.values()].filter((r) => !r.granted || r.withdrawn_at).map((r) => r.user_id));
   }
 
   /* ------------------------------------------------------------------ events */

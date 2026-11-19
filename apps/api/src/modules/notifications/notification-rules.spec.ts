@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { renderEmail, senderFor } from './email.js';
 import {
   DEFAULT_REMINDER_DAYS,
-  emailAllowed,
   notificationTypeForUpdate,
   reminderBucket,
   reminderKey,
@@ -83,16 +82,6 @@ describe('isDaytimeIst', () => {
 });
 
 describe('who gets what', () => {
-  const base = { email: 'a@b.in', emailVerified: true, emailEnabled: true, emailConsentWithdrawn: false };
-
-  it('email only to a verified address, not switched off, consent not withdrawn', () => {
-    expect(emailAllowed(base)).toBe(true);
-    expect(emailAllowed({ ...base, email: null })).toBe(false);
-    expect(emailAllowed({ ...base, emailVerified: false })).toBe(false);
-    expect(emailAllowed({ ...base, emailEnabled: false })).toBe(false);
-    expect(emailAllowed({ ...base, emailConsentWithdrawn: true })).toBe(false);
-  });
-
   it('muted types are dropped; system messages can never be muted', () => {
     expect(wantsType(['result'], 'result')).toBe(false);
     expect(wantsType(['result'], 'admit_card')).toBe(true);

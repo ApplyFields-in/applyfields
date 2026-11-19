@@ -14,7 +14,6 @@ import {
   Eye,
   Type,
   Sliders,
-  Mail,
   RotateCcw,
   Save,
 } from 'lucide-react';
@@ -52,7 +51,6 @@ export default function SettingsPage() {
 
   // --- Notification Preferences (the API is the source of truth; nothing kept in localStorage) ---
   const [emailEnabled, setEmailEnabled] = useState(true);
-  const [emailAvailable, setEmailAvailable] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
 
   // --- Display Preferences ---
@@ -91,7 +89,6 @@ export default function SettingsPage() {
       .then((res) => {
         if (res) {
           setEmailEnabled(res.email_enabled);
-          setEmailAvailable(res.email_available);
           if (res.push_enabled && push.isSubscribed) {
             setPushEnabled(true);
           }
@@ -441,42 +438,7 @@ export default function SettingsPage() {
             </div>
 
             {/* Channels Switchers */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Email */}
-              <div className="rounded-2xl border border-[#e2eaf4] bg-[#F8FAFC] p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex size-9 items-center justify-center rounded-xl bg-blue-100 text-[#0e7bf4]">
-                      <Mail className="size-4" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-black text-[#082046]">{t('settings_notif_email')}</p>
-                      {emailAvailable ? (
-                        <span className="text-[10px] text-emerald-600 font-bold uppercase">{t('settings_channel_email_verified')}</span>
-                      ) : (
-                        <span className="text-[10px] text-amber-600 font-bold uppercase">No verified email</span>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEmailEnabled(!emailEnabled)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      emailEnabled ? 'bg-[#0e7bf4]' : 'bg-slate-300'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        emailEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-                <p className="text-xs text-[#526987] leading-relaxed">
-                  {t('settings_notif_email_desc')}
-                </p>
-              </div>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Push */}
               <div className="rounded-2xl border border-[#e2eaf4] bg-[#F8FAFC] p-5 space-y-3">
                 <div className="flex items-center justify-between">

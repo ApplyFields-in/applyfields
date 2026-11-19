@@ -203,26 +203,7 @@ export function NotificationSettings({ initial }: { initial: NotificationPrefere
                   ? 'Notifications are blocked in your browser settings. Unblock to receive alerts.'
                   : prefs.is_subscribed
                     ? 'Subscribed account: You receive instant notifications as soon as jobs, admit cards, or results are published.'
-                    : 'Standard account: Free 12-hour consolidated digests at 9 AM & 9 PM IST.'}
-            </span>
-          </span>
-        </label>
-
-        {/* Email Notification Toggle */}
-        <label className="flex items-start gap-3 rounded-2xl bg-canvas p-3 cursor-pointer">
-          <input
-            type="checkbox"
-            className="mt-0.5 size-4 accent-teal"
-            checked={prefs.email_enabled && prefs.email_available}
-            disabled={!prefs.email_available}
-            onChange={(e) => save({ ...prefs, email_enabled: e.target.checked })}
-          />
-          <span className="text-sm">
-            <span className="font-semibold">Also send these by email</span>
-            <span className="block text-teal/80 mt-0.5 text-xs">
-              {prefs.email_available
-                ? 'Every email has an unsubscribe link.'
-                : 'Add and verify an email address in your account to get emails.'}
+                    : 'Standard account: 3 updates a day — morning, afternoon and evening (IST).'}
             </span>
           </span>
         </label>

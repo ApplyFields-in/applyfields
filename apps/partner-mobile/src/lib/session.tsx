@@ -54,8 +54,6 @@ interface SessionValue {
   startLogin: (identifier: string, password: string) => Promise<{ error: string | null; sentTo?: string }>;
   /** First sign-in only: password + the one-time code → session. Returns an error string or null. */
   login: (identifier: string, password: string, code: string) => Promise<string | null>;
-  sendLoginOtp: (identifier: string) => Promise<string | null>;
-  loginWithOtp: (identifier: string, code: string) => Promise<string | null>;
   logout: () => Promise<void>;
   reload: () => Promise<void>;
   /** Replace the partner after a PATCH so the header/toggle update without a refetch. */
@@ -146,23 +144,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [afterLogin],
   );
 
-  const sendLoginOtp = useCallback<SessionValue['sendLoginOtp']>(async (identifier) => {
-    const res = await api.post('/auth/otp/send', { target: identifier.trim(), purpose: 'login' });
-    return res.error ?? null;
-  }, []);
-
-  const loginWithOtp = useCallback<SessionValue['loginWithOtp']>(
-    async (identifier, code) =>
-      afterLogin(
-        await api.post<AuthResponse & { accessToken?: string; refreshToken?: string }>('/auth/login/otp', {
-          identifier: identifier.trim(),
-          code: code.trim(),
-          rememberMe: true,
-        }),
-      ),
-    [afterLogin],
-  );
-
   const logout = useCallback(async () => {
     await unregisterPush();
     await api.post('/auth/logout');
@@ -178,8 +159,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<SessionValue>(
-    () => ({ status, me, partner, error, startLogin, login, sendLoginOtp, loginWithOtp, logout, reload, setPartner }),
-    [status, me, partner, error, startLogin, login, sendLoginOtp, loginWithOtp, logout, reload, setPartner],
+    () => ({ status, me, partner, error, startLogin, login, logout, reload, setPartner }),
+    [status, me, partner, error, startLogin, login, logout, reload, setPartner],
   );
 
   return <SessionContext value={value}>{children}</SessionContext>;

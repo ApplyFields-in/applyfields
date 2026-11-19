@@ -45,7 +45,7 @@ function ServiceLoginForm() {
 
   const { login } = useAuth();
 
-  const [mode, setMode] = useState<'password' | 'otp'>('password');
+  // Sign in = Google or mobile/email + password. Codes only for sign-up and forgot password.
   const [credType, setCredType] = useState<'phone' | 'email'>('phone');
   const [phone, setPhone] = useState('+91');
   const [email, setEmail] = useState('');
@@ -56,11 +56,6 @@ function ServiceLoginForm() {
   // Remember me: stay signed in across browser restarts until sign-out.
   const [rememberMe, setRememberMe] = useState(true);
   const [code, setCode] = useState('');
-
-  // OTP mode states
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,64 +129,6 @@ function ServiceLoginForm() {
     setTimeout(() => router.push(redirectTarget), 600);
   }
 
-  async function handleSendOtp() {
-    setError(null);
-    setSuccess(null);
-    const target = credType === 'phone' ? phone.trim() : email.trim();
-
-    if (!target || (credType === 'phone' && target.length < 5)) {
-      setError('Please provide your registered mobile number or email.');
-      return;
-    }
-
-    setLoading(true);
-    const res = await apiPost<{ success: boolean; message: string; devOtp?: string }>('/auth/otp/send', {
-      target,
-      purpose: 'login',
-    });
-    setLoading(false);
-
-    if (res.error) {
-      setError(res.error);
-    } else {
-      setOtpSent(true);
-      setSuccess(`A 6-digit verification code has been sent to ${target}.`);
-      if (res.data?.devOtp) {
-        setDevOtp(res.data.devOtp);
-        setOtpCode(res.data.devOtp);
-      }
-    }
-  }
-
-  async function handleOtpLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (otpCode.length !== 6) {
-      setError('Please enter the full 6-digit OTP code.');
-      return;
-    }
-
-    const target = credType === 'phone' ? phone.trim() : email.trim();
-    setLoading(true);
-    const res = await apiPost<{ user: CitizenUser; accessToken: string }>('/auth/login/otp', {
-      identifier: target,
-      phone: credType === 'phone' ? target : undefined,
-      email: credType === 'email' ? target : undefined,
-      code: otpCode.trim(),
-      rememberMe,
-    });
-    setLoading(false);
-
-    if (res.error || !res.data) {
-      setError(res.error || 'Invalid OTP code.');
-      return;
-    }
-
-    login(res.data.user, res.data.accessToken);
-    setSuccess('Authenticated successfully! Redirecting...');
-    setTimeout(() => router.push(redirectTarget), 600);
-  }
-
   return (
     <div className="mx-auto w-full max-w-md px-4 py-10 sm:py-14">
       <div>
@@ -232,37 +169,6 @@ function ServiceLoginForm() {
           </div>
         </div>
 
-        {/* Tab switcher: Password vs OTP */}
-        <div className="mt-5 grid grid-cols-2 gap-1 rounded-2xl border border-[#d5deea] bg-white p-1 shadow-sm">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('password');
-              setError(null);
-            }}
-            className={`h-10 rounded-xl text-xs font-bold transition ${
-              mode === 'password'
-                ? 'bg-[#082046] text-white shadow-sm'
-                : 'text-slate-600 hover:text-[#082046]'
-            }`}
-          >
-            Password Login
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('otp');
-              setError(null);
-            }}
-            className={`h-10 rounded-xl text-xs font-bold transition ${
-              mode === 'otp'
-                ? 'bg-[#082046] text-white shadow-sm'
-                : 'text-slate-600 hover:text-[#082046]'
-            }`}
-          >
-            One-Time Code (OTP)
-          </button>
-        </div>
       </div>
 
       <div className="mt-4">
@@ -281,8 +187,7 @@ function ServiceLoginForm() {
             </div>
           )}
 
-          {mode === 'password' ? (
-            <form onSubmit={handlePasswordLogin} className="space-y-5">
+          <form onSubmit={handlePasswordLogin} className="space-y-5">
               {/* Identifier Input */}
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
@@ -447,109 +352,6 @@ function ServiceLoginForm() {
                 {!loading && <ArrowRight className="h-4 w-4" />}
               </button>
             </form>
-          ) : (
-            <form onSubmit={handleOtpLogin} className="space-y-5">
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label className="text-xs font-bold text-[#082046]">
-                    {credType === 'phone' ? 'Mobile Number' : 'Email Address'}
-                  </label>
-                  {!otpSent && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCredType(credType === 'phone' ? 'email' : 'phone');
-                        setError(null);
-                      }}
-                      className="text-xs font-bold text-[#0e7bf4] hover:underline"
-                    >
-                      {credType === 'phone' ? 'Use email instead' : 'Use mobile instead'}
-                    </button>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type={credType === 'phone' ? 'tel' : 'email'}
-                    value={credType === 'phone' ? phone : email}
-                    onChange={(e) => (credType === 'phone' ? setPhone(e.target.value) : setEmail(e.target.value))}
-                    disabled={otpSent}
-                    placeholder={credType === 'phone' ? '+91 98765 43210' : 'yourname@example.com'}
-                    className="h-11 flex-1 rounded-2xl border border-[#d5deea] bg-[#F8FAFC] px-3 text-xs font-semibold text-[#082046] placeholder-slate-400 transition focus:border-[#0e7bf4] focus:bg-white focus:outline-none"
-                    required
-                  />
-                  {!otpSent ? (
-                    <button
-                      type="button"
-                      onClick={handleSendOtp}
-                      disabled={loading}
-                      className="h-11 px-4 rounded-2xl border border-[#d5deea] bg-[#0e7bf4] text-xs font-bold text-white shadow hover:bg-[#0c6fdc] transition"
-                    >
-                      Send Code
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpSent(false);
-                        setOtpCode('');
-                      }}
-                      className="h-11 px-3 rounded-2xl border border-[#d5deea] bg-white text-xs font-bold text-[#082046] hover:bg-slate-50 transition"
-                    >
-                      Change
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {otpSent && devOtp && (
-                <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-blue-300 bg-blue-50/60 px-3.5 py-2.5 text-xs">
-                  <div>
-                    <span className="block text-[11px] font-bold text-slate-500">Dev Mode Code</span>
-                    <span className="font-mono text-base font-black tracking-widest text-[#082046]">{devOtp}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setOtpCode(devOtp)}
-                    className="rounded-xl bg-[#0e7bf4] px-3 py-1 text-[11px] font-bold text-white hover:bg-[#0c6fdc]"
-                  >
-                    Auto-Fill
-                  </button>
-                </div>
-              )}
-
-              {otpSent && (
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-[#082046]">6-Digit Code</label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="123456"
-                    className="h-12 w-full text-center font-mono text-xl tracking-[0.5em] font-black rounded-2xl border border-[#d5deea] bg-[#F8FAFC] text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
-                    required
-                  />
-                </div>
-              )}
-
-              {otpSent && (
-                <>
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="size-4 accent-current" />
-                  Keep me signed in on this device
-                </label>
-                <button
-                  type="submit"
-                  disabled={loading || otpCode.length !== 6}
-                  className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#082046] text-xs font-bold text-white shadow-md transition hover:bg-[#0c2f66] disabled:opacity-60"
-                >
-                  {loading ? 'Verifying...' : 'Sign In With Code'}
-                  {!loading && <ArrowRight className="h-4 w-4" />}
-                </button>
-                </>
-              )}
-            </form>
-          )}
 
           {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
             <div className="mt-6 space-y-3 border-t border-slate-100 pt-5">

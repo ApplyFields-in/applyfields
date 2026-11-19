@@ -28,10 +28,6 @@ interface AuthValue {
   startLogin: (identifier: string, password: string) => Promise<{ error: string | null; sentTo?: string }>;
   /** First sign-in only: password + the one-time code → session. Returns an error string or null. */
   login: (identifier: string, password: string, code: string) => Promise<string | null>;
-  /** Send a 6-digit login code to the email/phone. Returns an error string or null. */
-  sendLoginOtp: (identifier: string) => Promise<string | null>;
-  /** Sign in with the code from sendLoginOtp. Returns an error string or null. */
-  loginWithOtp: (identifier: string, code: string) => Promise<string | null>;
   /**
    * Google account picker → POST /auth/social-login (creates the account on first use, like the
    * website). Returns an error string, null on success, or 'cancelled' when the user backed out.
@@ -130,29 +126,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [reload],
   );
 
-  const sendLoginOtp = useCallback<AuthValue['sendLoginOtp']>(async (identifier) => {
-    const res = await api.post('/auth/otp/send', {
-      target: identifier.trim(),
-      purpose: 'login',
-    });
-    return res.error ?? null;
-  }, []);
-
-  const loginWithOtp = useCallback<AuthValue['loginWithOtp']>(
-    async (identifier, code) => {
-      const res = await api.post<AuthResponse & { accessToken?: string; refreshToken?: string }>('/auth/login/otp', {
-        identifier: identifier.trim(),
-        code: code.trim(),
-        rememberMe: true,
-      });
-      if (res.error || !res.data) return res.error ?? 'Could not sign you in';
-      await saveSession(res.data);
-      await reload();
-      return null;
-    },
-    [reload],
-  );
-
   const loginWithGoogle = useCallback<AuthValue['loginWithGoogle']>(async () => {
     if (!googleSignInAvailable) return 'Google sign-in is not available in this version of the app.';
     const { GoogleSignin, isCancelledResponse, isErrorWithCode, statusCodes } = googleLib!;
@@ -203,13 +176,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name: me?.profile?.full_name || me?.user.email || me?.user.phone || 'Your account',
       startLogin,
       login,
-      sendLoginOtp,
-      loginWithOtp,
       loginWithGoogle,
       logout,
       reload,
     }),
-    [me, signedIn, loading, startLogin, login, sendLoginOtp, loginWithOtp, loginWithGoogle, logout, reload],
+    [me, signedIn, loading, startLogin, login, loginWithGoogle, logout, reload],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;
