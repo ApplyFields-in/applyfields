@@ -590,13 +590,6 @@ export default function DocumentsPage() {
                             <span>{uploaded.details?.extracted_fields?.length} {t('doc_fields_extracted', 'Saved details')}</span>
                           </span>
                         )}
-
-                        {uploaded.source === 'digilocker' && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 rounded-lg px-2 py-0.5">
-                            <ShieldCheck className="size-3 text-emerald-600" />
-                            <span>DigiLocker</span>
-                          </span>
-                        )}
                       </div>
 
                       {uploaded.masked_identifier && (

@@ -105,7 +105,7 @@ export function DocumentPreviewExtractorModal({
       `=== ApplyFields: saved document details ===`,
       `Document: ${document.title || document.file_name}`,
       `Type: ${document.document_type_name || document.document_type_code}`,
-      `Verification: ${document.source === 'digilocker' ? 'DigiLocker Verified (Rule 9A IT Act 2016)' : 'Uploaded by you'}`,
+      `Verification: Uploaded by you`,
       `-------------------------------------------`,
       ...fields.map((f) => `${f.label}: ${f.value}`),
       `===========================================`,
@@ -184,17 +184,10 @@ export function DocumentPreviewExtractorModal({
                 <span className="shrink-0 rounded-md bg-slate-200/80 px-2 py-0.5 text-[11px] font-mono font-bold text-slate-700">
                   {isPdf ? 'PDF' : 'IMAGE'}
                 </span>
-                {document.source === 'digilocker' ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-                    <ShieldCheck className="size-3" />
-                    DigiLocker Verified
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-800">
-                    <Lock className="size-3" />
-                    Encrypted Vault
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-800">
+                  <Lock className="size-3" />
+                  Encrypted Vault
+                </span>
               </div>
               <p className="truncate text-xs text-slate-500">
                 {document.file_name} •{' '}

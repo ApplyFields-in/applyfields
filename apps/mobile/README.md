@@ -117,8 +117,8 @@ Before the first submission:
 
 ## What is deliberately not here
 
-- **Uploading documents** — the encrypted vault and DigiLocker flow stay on the
-  website; the app lists what is already there.
+- **Uploading documents** — the encrypted vault stays on the website; the app
+  lists what is already there.
 - **Editing the profile** — the app shows it and says what is missing, and opens
   `applyfields.com/profile` to change it.
 - **Registration and password reset** — handled on the website, so there is one

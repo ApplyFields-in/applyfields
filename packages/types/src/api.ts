@@ -1819,11 +1819,8 @@ export interface UserDocumentSummary {
   details: Record<string, any> & {
     extracted_fields?: ExtractedFieldItem[];
     raw_text?: string;
-    verified_by_digilocker?: boolean;
-    verification_source?: string;
   };
-  source: 'upload' | 'digilocker';
-  digilocker_uri?: string | null;
+  source: 'upload';
   created_at: string;
   updated_at: string;
 }
@@ -1976,42 +1973,6 @@ export interface SupportTicketResponse {
   success: boolean;
   ticket_id: string;
   message: string;
-}
-
-// ---------- DigiLocker OAuth & Document Integration ----------
-
-export interface DigiLockerIssuedDocument {
-  uri: string;
-  name: string;
-  type: string;
-  issuer: string;
-  date: string;
-  status: string;
-  isImported?: boolean;
-  mimeType?: string;
-  sizeBytes?: number;
-}
-
-export interface DigiLockerStatusResponse {
-  linked: boolean;
-  digilocker_id?: string | null;
-  linked_at?: string | null;
-}
-
-export interface DigiLockerAuthorizeResponse {
-  authorizationUrl: string;
-  state: string;
-  codeVerifier?: string;
-}
-
-export interface DigiLockerIssuedDocumentsResponse {
-  items: DigiLockerIssuedDocument[];
-}
-
-export interface DigiLockerImportResponse {
-  success: boolean;
-  document: UserDocumentSummary;
-  message?: string;
 }
 
 // ---------- Session 04: Scrapers, Sources & Link Health ----------

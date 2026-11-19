@@ -89,3 +89,8 @@ drop trigger if exists trg_community_comments_count on community_comments;
 create trigger trg_community_comments_count
 after insert or delete on community_comments
 for each row execute function trg_community_comments_count_sync();
+
+-- 6. Lock the tables from Supabase's public REST API (anon key). The API connects as the DB owner, so it is unaffected.
+alter table community_threads  enable row level security;
+alter table community_comments enable row level security;
+alter table community_upvotes  enable row level security;

@@ -103,8 +103,7 @@ export class DocumentsService {
           masked_identifier:
             (r.details as Record<string, any>)?.masked_identifier || null,
           details: (r.details as Record<string, any>) || {},
-          source: (r.source as any) || 'upload',
-          digilocker_uri: r.digilocker_uri || null,
+          source: 'upload',
           created_at: r.created_at.toISOString(),
           updated_at: r.updated_at.toISOString(),
         }));
@@ -155,7 +154,6 @@ export class DocumentsService {
       issuingAuthority: dto.issuingAuthority,
       identifierNumber: dto.identifierNumber,
       details: dto.details,
-      source: 'upload',
     });
   }
 
@@ -172,8 +170,6 @@ export class DocumentsService {
       issuingAuthority?: string;
       identifierNumber?: string;
       details?: Record<string, any>;
-      source?: 'upload' | 'digilocker';
-      digilocker_uri?: string;
     },
   ): Promise<UserDocumentSummary> {
     const safeName = (params.fileName || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -208,21 +204,11 @@ export class DocumentsService {
     // Only details the person typed; nothing is invented from the file.
     const extractedFields = sanitizeFields(params.details?.extracted_fields);
 
-    const docSource = params.source || 'upload';
-    const digilockerUri = params.digilocker_uri || null;
-
     const details = {
       ...(params.details || {}),
       masked_identifier: maskedId,
       extracted_fields: extractedFields,
       uploaded_at: new Date().toISOString(),
-      ...(docSource === 'digilocker'
-        ? {
-            verified_by_digilocker: true,
-            verification_source: 'digilocker',
-            digilocker_uri: digilockerUri,
-          }
-        : {}),
     };
 
     const docId = randomUUID();
@@ -267,8 +253,6 @@ export class DocumentsService {
             expires_on: params.expiresOn ? new Date(params.expiresOn) : null,
             issuing_authority: params.issuingAuthority || null,
             details: details as any,
-            source: docSource as any,
-            digilocker_uri: digilockerUri,
           },
         });
 
@@ -290,8 +274,7 @@ export class DocumentsService {
           issuing_authority: created.issuing_authority,
           masked_identifier: maskedId,
           details,
-          source: (created.source as any) || docSource,
-          digilocker_uri: created.digilocker_uri || digilockerUri,
+          source: 'upload',
           created_at: created.created_at.toISOString(),
           updated_at: created.updated_at.toISOString(),
         };
@@ -316,8 +299,7 @@ export class DocumentsService {
       issuing_authority: params.issuingAuthority || null,
       masked_identifier: maskedId,
       details,
-      source: docSource,
-      digilocker_uri: digilockerUri,
+      source: 'upload',
       created_at: now,
       updated_at: now,
       storage_path: storagePath,
@@ -366,8 +348,7 @@ export class DocumentsService {
             masked_identifier:
               (doc.details as Record<string, any>)?.masked_identifier || null,
             details: (doc.details as Record<string, any>) || {},
-            source: (doc.source as any) || 'upload',
-            digilocker_uri: doc.digilocker_uri || null,
+            source: 'upload',
             created_at: doc.created_at.toISOString(),
             updated_at: doc.updated_at.toISOString(),
           };

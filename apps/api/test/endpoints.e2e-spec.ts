@@ -119,7 +119,6 @@ describe('All API Endpoints Verification (e2e)', { timeout: 60_000 }, () => {
       '/partners/me/conversations',
       '/notifications',
       '/notifications/preferences',
-      '/digilocker/status',
       '/career/profile/me',
       '/career/guidance/history',
       '/career/colleges/my-enquiries',

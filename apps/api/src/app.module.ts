@@ -24,7 +24,6 @@ import { CommunityModule } from './modules/community/community.module.js';
 import { DocumentsModule } from './modules/documents/documents.module.js';
 import { ApplicationsModule } from './modules/applications/applications.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
-import { DigilockerModule } from './modules/digilocker/digilocker.module.js';
 import { AnalyticsModule } from './modules/analytics/analytics.module.js';
 import { MessagesModule } from './modules/messages/messages.module.js';
 import { ChatbotModule } from './modules/chatbot/chatbot.module.js';
@@ -59,7 +58,6 @@ import { PaymentsModule } from './modules/payments/payments.module.js';
     DocumentsModule,
     ApplicationsModule,
     ReportsModule,
-    DigilockerModule,
     PaymentsModule,
     AnalyticsModule,
     MessagesModule,

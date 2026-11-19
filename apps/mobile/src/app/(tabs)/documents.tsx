@@ -1,6 +1,6 @@
 /**
  * Documents — the certificates the user keeps for applications. GET /documents.
- * Uploading stays on the website (encrypted vault, DigiLocker). Any document can
+ * Uploading stays on the website (encrypted vault). Any document can
  * be saved to the phone for offline use; "On this phone" is always shown first —
  * also while loading, signed out or with no signal — because the exam hall is
  * exactly where the network fails.
@@ -108,9 +108,6 @@ export default function Documents() {
                     {expired ? 'Expired on ' : 'Valid until '}
                     {formatDate(item.expires_on)}
                   </Muted>
-                ) : null}
-                {item.source === 'digilocker' || item.details?.verified_by_digilocker ? (
-                  <Badge label="DigiLocker" color={C.good} />
                 ) : null}
               </View>
               <Pressable

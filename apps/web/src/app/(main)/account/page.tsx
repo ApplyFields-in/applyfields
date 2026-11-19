@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import type { MeResponse } from '@applyfields/types';
-import { DigiLockerCard } from '@/components/digilocker-card';
 import { PasskeysCard } from '@/components/passkeys';
 import { PlusCard, loadPlus, type PlusStatus } from '@/components/plus-card';
 import { PARTNER_PORTAL_URL } from '@/lib/urls';
@@ -145,9 +144,6 @@ function AccountContent() {
               </Link>
             </div>
           </div>
-
-          {/* Government DigiLocker Integration Card */}
-          <DigiLockerCard />
 
           {/* Display, Language & Reading Accessibility Settings */}
           <AccessibilityReadingSettings />
