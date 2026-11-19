@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type {
+  ReextractResponse,
   ScrapeSourceItem,
   ScrapeSourcesListResponse,
   ScrapeSourceRunsResponse,
@@ -170,56 +171,59 @@ export class ScrapersAdminService {
       throw new BadRequestException(`Scraper source '${source.name}' is inactive`);
     }
 
-    const ingestionBaseUrl = (
-      process.env.INGESTION_URL || 'http://localhost:8000'
-    ).replace(/\/$/, '');
-    const internalToken = process.env.INTERNAL_SERVICE_TOKEN || '';
+    const res = await this.postToIngestion(`/scrape/${source.key}`, 60_000);
+    if (!res.ok) return { success: false, message: res.message, source_key: source.key };
+    const payload = res.payload;
+    return {
+      success: true,
+      message: `Scrape run completed with status '${payload.status ?? 'success'}'`,
+      source_key: source.key,
+      run_id: payload.run_id,
+      status: payload.status,
+      items_found: payload.items_found,
+      new_items: payload.new_items,
+      duplicates: payload.duplicates,
+      failed_items: payload.failed_items,
+    };
+  }
 
-    const targetUrl = `${ingestionBaseUrl}/scrape/${source.key}`;
-    this.logger.log(`Triggering ingestion for source '${source.key}' at ${targetUrl}`);
+  /** Re-read a draft's notification (Groq) and refill its fields — session 05 "Re-extract". */
+  async reextract(opportunityId: string): Promise<ReextractResponse> {
+    // Groq can wait up to 60 s on its free-tier rate limit, plus the request itself.
+    const res = await this.postToIngestion(`/extract/${opportunityId}`, 180_000);
+    if (!res.ok) return { success: false, message: res.message };
+    const { extracted, confidence, error } = res.payload;
+    return extracted
+      ? { success: true, message: 'Fields refilled from the notification.', confidence }
+      : { success: false, message: error || 'Nothing could be read from the notification.' };
+  }
 
+  private async postToIngestion(
+    path: string,
+    timeoutMs: number,
+  ): Promise<{ ok: true; payload: Record<string, any> } | { ok: false; message: string }> {
+    const base = (process.env.INGESTION_URL || 'http://localhost:8000').replace(/\/$/, '');
+    const targetUrl = `${base}${path}`;
+    this.logger.log(`Calling ingestion: POST ${targetUrl}`);
     try {
       const res = await fetch(targetUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-internal-token': internalToken,
+          'x-internal-token': process.env.INTERNAL_SERVICE_TOKEN || '',
         },
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
-
       if (!res.ok) {
-        const errorText = await res.text();
-        this.logger.warn(
-          `Ingestion service responded with status ${res.status}: ${errorText.slice(0, 200)}`,
-        );
-        return {
-          success: false,
-          message: `Ingestion failed (${res.status}): ${errorText.slice(0, 200)}`,
-          source_key: source.key,
-        };
+        const errorText = (await res.text()).slice(0, 200);
+        this.logger.warn(`Ingestion responded ${res.status}: ${errorText}`);
+        return { ok: false, message: `Ingestion failed (${res.status}): ${errorText}` };
       }
-
-      const payload = (await res.json()) as Record<string, any>;
-      return {
-        success: true,
-        message: `Scrape run completed with status '${payload.status ?? 'success'}'`,
-        source_key: source.key,
-        run_id: payload.run_id,
-        status: payload.status,
-        items_found: payload.items_found,
-        new_items: payload.new_items,
-        duplicates: payload.duplicates,
-        failed_items: payload.failed_items,
-      };
+      return { ok: true, payload: (await res.json()) as Record<string, any> };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to reach ingestion service at ${targetUrl}: ${msg}`);
-      return {
-        success: false,
-        message: `Could not reach ingestion service: ${msg}`,
-        source_key: source.key,
-      };
+      return { ok: false, message: `Could not reach ingestion service: ${msg}` };
     }
   }
 }

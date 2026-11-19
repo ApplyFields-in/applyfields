@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import type {
   LinkHealthReport,
+  ReextractResponse,
   ScrapeSourcesListResponse,
   ScrapeSourceRunsResponse,
   ScrapeTriggerResponse,
@@ -59,6 +60,16 @@ export class ScrapersAdminController {
     @ActorId() actorId: string,
   ): Promise<ScrapeTriggerResponse> {
     return this.scrapersService.triggerSource(id, actorId);
+  }
+
+  /**
+   * POST /api/v1/admin/review/:id/re-extract — read the draft's notification again (Groq)
+   * and refill its fields. Never touches published opportunities (ingestion enforces it).
+   */
+  @Post('review/:id/re-extract')
+  @Roles('reviewer', 'content_editor')
+  reextract(@Param('id', ParseUUIDPipe) id: string): Promise<ReextractResponse> {
+    return this.scrapersService.reextract(id);
   }
 
   /**

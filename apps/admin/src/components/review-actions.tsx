@@ -3,10 +3,14 @@
 import { useState, useTransition } from 'react';
 import { buttonClass, Card, cn } from '@applyfields/ui';
 import type { UpdateKind } from '@applyfields/types';
-import { ChevronDown, CircleAlert, CircleCheck, Edit, Megaphone, Send, TriangleAlert, X } from 'lucide-react';
+import { ChevronDown, CircleAlert, CircleCheck, Edit, Megaphone, Send, Sparkles, TriangleAlert, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { publishOpportunityAction, setOpportunityStatusAction } from '@/lib/actions';
+import {
+  publishOpportunityAction,
+  reextractOpportunityAction,
+  setOpportunityStatusAction,
+} from '@/lib/actions';
 import { UPDATE_KIND_LABEL } from './updates-ui';
 
 /** Kinds a corrigendum to a reviewed notice can be (the menu under "Corrigendum"). */
@@ -46,6 +50,7 @@ export function ReviewActions({
 }) {
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const router = useRouter();
@@ -59,6 +64,22 @@ export function ReviewActions({
         router.push('/review');
       } else {
         setErrorMsg(res.error ?? 'Cannot publish draft');
+      }
+    });
+  };
+
+  const handleReextract = () => {
+    if (!confirm('Read the notification again and refill this draft? Fields the AI finds replace the current ones; empty ones are kept.')) return;
+    setErrorMsg(null);
+    setInfoMsg(null);
+    startTransition(async () => {
+      const res = await reextractOpportunityAction(id);
+      if (res.ok) {
+        const pct = res.data?.confidence != null ? ` · confidence ${Math.round(res.data.confidence * 100)}%` : '';
+        setInfoMsg(`Refilled from the notification${pct}. Check every field against the PDF.`);
+        router.refresh();
+      } else {
+        setErrorMsg(res.error ?? 'Re-extract failed');
       }
     });
   };
@@ -112,6 +133,12 @@ export function ReviewActions({
             <span>{errorMsg}</span>
           </p>
         )}
+        {infoMsg && (
+          <p role="status" className="mt-3 text-xs font-bold flex items-center gap-1">
+            <Sparkles className="size-3.5 shrink-0" aria-hidden="true" />
+            <span>{infoMsg}</span>
+          </p>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
@@ -130,6 +157,17 @@ export function ReviewActions({
           >
             <Edit aria-hidden="true" className="size-3.5" /> Full editor
           </Link>
+
+          <button
+            type="button"
+            onClick={handleReextract}
+            disabled={isPending}
+            title="Read the notification again with AI and refill this draft"
+            className={buttonClass({ variant: ready ? 'inverse' : 'secondary', size: 'sm' })}
+          >
+            <Sparkles aria-hidden="true" className="size-3.5" />
+            {isPending ? 'Working...' : 'Re-extract'}
+          </button>
 
           {/* Native <details> menu: pick the corrigendum kind, the update form opens pre-filled. */}
           <details className="relative">

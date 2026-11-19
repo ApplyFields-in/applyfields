@@ -15,3 +15,9 @@ class SSCScraper(BaseScraper):
 ```
 
 First 5 sources: SSC · UPSC · APPSC · TSPSC · RRB
+
+## Simple sites: no file needed
+If the site's page just lists notice PDFs as links, use the generic scraper (`generic.py`):
+add a `scrape_sources` row with a `config`, e.g.
+`{"path_contains": "/uploads/", "title_words": ["notification"], "category": "state_govt"}`.
+Write a file here only when the site needs JavaScript, an API or detail pages.

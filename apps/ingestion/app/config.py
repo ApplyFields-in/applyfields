@@ -2,7 +2,6 @@
 
 
 
-from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,16 +14,12 @@ class Settings(BaseSettings):
     # Shared secret: only the NestJS API / admin jobs may call this service
     internal_service_token: str = ""
 
-    # Supabase Storage (for downloaded notification PDFs)
-    supabase_url: str = Field(
-    default="",
-    validation_alias=AliasChoices("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"),
-    )
-    supabase_service_role_key: str = ""
-    storage_bucket: str = "notifications"
-
-    # AI extraction
-    llm_api_key: str = ""
+    # AI extraction (Groq). PDFs are read in memory and never stored — only text + JSON are kept.
+    groq_api_key: str = ""
+    groq_model: str = "openai/gpt-oss-120b"
+    # Max PDF characters sent per document (~4 chars per token). Keeps one request under
+    # Groq's free-tier tokens-per-minute cap; the key facts sit in the first pages.
+    extract_max_chars: int = 16000
 
     # Polite crawling
     user_agent: str = "ApplyFieldsBot/0.1 (+https://applyfields.com/bot)"

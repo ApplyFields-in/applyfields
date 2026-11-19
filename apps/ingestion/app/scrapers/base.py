@@ -20,6 +20,7 @@ class NoticeLink:
 class BaseScraper(ABC):
     source_key: str
     list_url: str
+    category: str | None = None  # None = the default in main.py
 
     @abstractmethod
     def find_notices(self, html: str) -> list[NoticeLink]:

@@ -1,4 +1,3 @@
-
 """
 ApplyFields ingestion service (INTERNAL ONLY).
 
@@ -8,8 +7,10 @@ Run locally:
 
 import datetime as dt
 import secrets
+import uuid
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
@@ -20,9 +21,10 @@ from app.db.repository import (
     update_opportunity_related_links,
 )
 from app.fetcher import fetch
-from app.pipeline import process_pdf_notice
+from app.pipeline import process_pdf_notice, reextract_opportunity
 from app.scrapers.appsc import AppscScraper
 from app.scrapers.cdsco import CDSCOScraper
+from app.scrapers.generic import GenericPdfListScraper
 from app.scrapers.indiapost import IndiaPostScraper
 from app.scrapers.isro import (
     IsroScraper,
@@ -45,8 +47,6 @@ SCRAPERS = {
     "npcil": NPCILScraper,
     "cdsco": CDSCOScraper,
 }
-
-
 
 
 def require_internal_token(
@@ -79,14 +79,6 @@ def health() -> dict[str, str]:
 def run_scraper(source_key: str) -> dict[str, object]:
     """Run one registered scraper and save discovered PDFs as drafts."""
 
-    scraper_class = SCRAPERS.get(source_key)
-
-    if scraper_class is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Unknown scraper source: {source_key}",
-        )
-
     # Load the source from the existing database registry.
     try:
         source = get_active_source(source_key)
@@ -115,8 +107,24 @@ def run_scraper(source_key: str) -> dict[str, object]:
             detail=f"Source '{source_key}' has no listing URL",
         )
 
-    scraper = scraper_class()
-    scraper.list_url = source["list_url"]
+    # A dedicated scraper file wins; otherwise a row with `config` uses the generic scraper.
+    scraper_class = SCRAPERS.get(source_key)
+    if scraper_class is not None:
+        scraper = scraper_class()
+        scraper.list_url = source["list_url"]
+    elif source.get("config") is not None:
+        try:
+            scraper = GenericPdfListScraper(source_key, source["list_url"], source["config"])
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Source '{source_key}' has an invalid config: {exc.errors()[0]['msg']}",
+            ) from exc
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unknown scraper source: {source_key}",
+        )
 
     try:
         run_id = start_scrape_run(str(source["id"]))
@@ -135,8 +143,6 @@ def run_scraper(source_key: str) -> dict[str, object]:
     isro_bundles_by_pdf_url: dict[str, RecruitmentPdfBundle] = {}
 
     try:
-
-
         if source_key == "ssc":
             notices = scraper.discover_notices()
         elif source_key == "isro":
@@ -180,7 +186,6 @@ def run_scraper(source_key: str) -> dict[str, object]:
                 notices.append(main_notice)
                 isro_bundles_by_pdf_url[main_notice.url] = bundle
 
-
         else:
             response = fetch(scraper.list_url)
             notices = scraper.find_notices(response.text)
@@ -205,31 +210,20 @@ def run_scraper(source_key: str) -> dict[str, object]:
 
         for notice in documents:
             bundle = isro_bundles_by_pdf_url.get(notice.url)
-            notice_title = (
-                bundle.recruitment_title
-                if bundle is not None
-                else notice.title
-            )
+            notice_title = bundle.recruitment_title if bundle is not None else notice.title
             try:
                 result = process_pdf_notice(
                     source_id=str(source["id"]),
                     run_id=run_id,
                     source_key=source_key,
                     organization_id=str(source["organization_id"]),
-                    category=(
-                        "railways"
-                        if source_key == "rrb"
-                        else "central_govt"
-                    ),
+                    category=scraper.category
+                    or ("railways" if source_key == "rrb" else "central_govt"),
                     url=scraper.resolve_document_url(notice.url),
                     title=notice_title,
                     published_on=notice.published_on,
                 )
-                if (
-                    bundle is not None
-                    and bundle.related_links
-                    and result.get("opportunity_id")
-                ):
+                if bundle is not None and bundle.related_links and result.get("opportunity_id"):
                     update_opportunity_related_links(
                         opportunity_id=str(result["opportunity_id"]),
                         related_links=[
@@ -269,11 +263,7 @@ def run_scraper(source_key: str) -> dict[str, object]:
             status_value=run_status,
             items_found=items_found,
             new_items=new_items,
-            error=(
-                f"{failed_items} notice(s) failed"
-                if failed_items
-                else None
-            ),
+            error=(f"{failed_items} notice(s) failed" if failed_items else None),
         )
 
         return {
@@ -315,3 +305,21 @@ def run_scraper(source_key: str) -> dict[str, object]:
             detail=f"Scraping source '{source_key}' failed",
         ) from exc
 
+
+@app.post(
+    "/extract/{opportunity_id}",
+    dependencies=[Depends(require_internal_token)],
+)
+def rerun_extraction(opportunity_id: uuid.UUID) -> dict[str, object]:
+    """Admin "Re-extract": read the opportunity's notification again and refill the draft."""
+    try:
+        return reextract_opportunity(str(opportunity_id))
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database error while saving the extraction",
+        ) from exc
+    except ValueError as exc:  # the official PDF could not be downloaded again
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc

@@ -2028,6 +2028,13 @@ export interface ScrapeSourceRunsResponse {
   total: number;
 }
 
+/** POST /admin/review/:id/re-extract — the notification was read again and the draft refilled. */
+export interface ReextractResponse {
+  success: boolean;
+  message: string;
+  confidence?: number | null;
+}
+
 export interface ScrapeTriggerResponse {
   success: boolean;
   message: string;

@@ -1181,6 +1181,7 @@ model scrape_sources {
   notes                String?
   created_at           DateTime            @default(now()) @db.Timestamptz(6)
   updated_at           DateTime            @default(now()) @db.Timestamptz(6)
+  config               Json?
   scrape_runs          scrape_runs[]
   organizations        organizations?      @relation(fields: [organization_id], references: [id], onUpdate: NoAction)
   scraped_documents    scraped_documents[]
@@ -1205,6 +1206,7 @@ model scraped_documents {
   opportunity_id       String?                @db.Uuid
   update_id            String?                @db.Uuid
   extraction           Json?
+  extracted_text       String?
   confidence           Decimal?               @db.Decimal(3, 2)
   error                String?
   fetched_at           DateTime               @default(now()) @db.Timestamptz(6)
@@ -1217,6 +1219,7 @@ model scraped_documents {
   updates              updates?               @relation(fields: [update_id], references: [id], onUpdate: NoAction)
 
   @@unique([url, content_hash])
+  @@index([content_hash], map: "idx_scraped_documents_content_hash")
   @@index([opportunity_id])
   @@index([run_id])
   @@index([source_id])

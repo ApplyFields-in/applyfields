@@ -13,6 +13,7 @@ import type {
   OpportunityInput,
   OpportunityStatus,
   OpportunityVersionListResponse,
+  ReextractResponse,
   StatusChange,
   UpdateInput,
   WriteResult,
@@ -35,6 +36,18 @@ export async function publishOpportunityAction(id: string): Promise<ActionRespon
   revalidatePath(`/review/${id}`);
   revalidatePath('/');
   return { ok: true, data: res.data! };
+}
+
+/** Read the draft's notification again (Groq) and refill its fields. */
+export async function reextractOpportunityAction(
+  id: string,
+): Promise<ActionResponse<ReextractResponse>> {
+  const res = await apiPost<ReextractResponse>(`/admin/review/${encodeURIComponent(id)}/re-extract`);
+  if (!res.ok) return { ok: false, error: res.error };
+  if (!res.data?.success) return { ok: false, error: res.data?.message ?? 'Re-extract failed' };
+  revalidatePath(`/review/${id}`);
+  revalidatePath('/review');
+  return { ok: true, data: res.data };
 }
 
 /** Change opportunity status (unpublish → draft, close → closed, archive/reject → archived). */

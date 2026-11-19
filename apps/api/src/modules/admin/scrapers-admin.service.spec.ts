@@ -99,6 +99,40 @@ describe('ScrapersAdminService', () => {
       service.triggerSource('00000000-0000-0000-0000-000000000000'),
     ).rejects.toThrow('not found');
   });
+
+  describe('reextract', () => {
+    const id = '33333333-3333-3333-3333-333333333333';
+    const service = new ScrapersAdminService({} as any);
+    const respond = (status: number, body: unknown) =>
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(typeof body === 'string' ? body : JSON.stringify(body), { status }),
+      );
+
+    it('reports success with the new confidence', async () => {
+      const fetchSpy = respond(200, { extracted: true, confidence: 0.82, error: null });
+      await expect(service.reextract(id)).resolves.toEqual({
+        success: true,
+        message: 'Fields refilled from the notification.',
+        confidence: 0.82,
+      });
+      expect(String(fetchSpy.mock.calls[0][0])).toMatch(new RegExp(`/extract/${id}$`));
+    });
+
+    it('passes on why nothing was extracted (e.g. scanned PDF)', async () => {
+      respond(200, { extracted: false, confidence: null, error: 'Scanned PDF (no text layer)' });
+      await expect(service.reextract(id)).resolves.toEqual({
+        success: false,
+        message: 'Scanned PDF (no text layer)',
+      });
+    });
+
+    it('reports an ingestion failure without throwing', async () => {
+      respond(404, 'This opportunity has no scraped notification to read');
+      const res = await service.reextract(id);
+      expect(res.success).toBe(false);
+      expect(res.message).toContain('Ingestion failed (404)');
+    });
+  });
 });
 
 describe('LinkHealthService', () => {

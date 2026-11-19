@@ -14,7 +14,7 @@ def get_active_source(source_key: str) -> dict[str, Any] | None:
     """Return an active scraper source by its registered key."""
     query = text(
         """
-        SELECT id, key, name, organization_id, list_url, kind, interval_hours
+        SELECT id, key, name, organization_id, list_url, kind, interval_hours, config
         FROM scrape_sources
         WHERE key = :source_key AND is_active = TRUE
         """
@@ -107,6 +107,7 @@ def save_scraped_document(
     content_hash: str,
     storage_path: str | None = None,
     mime_type: str | None = None,
+    extracted_text: str | None = None,
 ) -> str | None:
     """
     Save a downloaded notice if this URL and content hash are new.
@@ -118,12 +119,12 @@ def save_scraped_document(
         """
         INSERT INTO scraped_documents (
             source_id, run_id, url, title, published_on,
-            content_hash, storage_path, mime_type
+            content_hash, storage_path, mime_type, extracted_text
         )
         VALUES (
             CAST(:source_id AS uuid), CAST(:run_id AS uuid),
             :url, :title, :published_on, :content_hash,
-            :storage_path, :mime_type
+            :storage_path, :mime_type, :extracted_text
         )
         ON CONFLICT (url, content_hash) DO NOTHING
         RETURNING id
@@ -141,6 +142,7 @@ def save_scraped_document(
             "content_hash": content_hash,
             "storage_path": storage_path,
             "mime_type": mime_type,
+            "extracted_text": extracted_text,
         },
     )
 
@@ -508,3 +510,281 @@ def create_draft_for_document(
     )
 
     return opportunity_id
+
+
+# ---------- Session 05: extraction (PDF text -> job JSON) ----------
+
+
+def find_extraction_by_hash(content_hash: str, extractor_version: str) -> dict[str, Any] | None:
+    """Cost guard: reuse an earlier extraction of the exact same PDF (same SHA-256)."""
+    query = text(
+        """
+        SELECT extraction
+        FROM scraped_documents
+        WHERE content_hash = :content_hash
+          AND extraction ->> 'extractor_version' = :extractor_version
+        ORDER BY fetched_at DESC
+        LIMIT 1
+        """
+    )
+    with get_engine().connect() as connection:
+        row = connection.execute(
+            query, {"content_hash": content_hash, "extractor_version": extractor_version}
+        ).scalar_one_or_none()
+    return row if isinstance(row, dict) else None
+
+
+def get_document_for_reextract(opportunity_id: str) -> dict[str, Any] | None:
+    """The newest scraped document of an opportunity (its saved text is NULL for old rows)."""
+    query = text(
+        """
+        SELECT d.id, d.url, d.content_hash, d.extracted_text, o.title
+        FROM scraped_documents d
+        JOIN opportunities o ON o.id = d.opportunity_id
+        WHERE d.opportunity_id = CAST(:opportunity_id AS uuid)
+        ORDER BY d.fetched_at DESC
+        LIMIT 1
+        """
+    )
+    with get_engine().connect() as connection:
+        row = connection.execute(query, {"opportunity_id": opportunity_id}).mappings().first()
+    return dict(row) if row else None
+
+
+def save_extraction(
+    connection: Connection,
+    *,
+    document_id: str,
+    opportunity_id: str | None,
+    extracted_text: str | None,
+    result: dict[str, Any] | None,
+    error: str | None,
+) -> None:
+    """Store the extraction on the scraped document and fill the draft it belongs to.
+
+    - Draft opportunities get the extracted fields (never erasing what a reviewer typed).
+    - Published/closed ones are not touched: the changes go on the pending version for review.
+    """
+    from app.extract.extractor import diff_fields, to_json
+
+    previous = None
+    if opportunity_id:
+        previous = connection.execute(
+            text(
+                """
+                SELECT extraction FROM scraped_documents
+                WHERE opportunity_id = CAST(:opportunity_id AS uuid)
+                  AND id <> CAST(:document_id AS uuid)
+                  AND extraction IS NOT NULL
+                ORDER BY fetched_at DESC
+                LIMIT 1
+                """
+            ),
+            {"opportunity_id": opportunity_id, "document_id": document_id},
+        ).scalar_one_or_none()
+
+    connection.execute(
+        text(
+            """
+            UPDATE scraped_documents
+            SET extracted_text = COALESCE(:extracted_text, extracted_text),
+                extraction = COALESCE(CAST(:extraction AS jsonb), extraction),
+                confidence = COALESCE(:confidence, confidence),
+                error = :error,
+                updated_at = now()
+            WHERE id = CAST(:document_id AS uuid)
+            """
+        ),
+        {
+            "document_id": document_id,
+            "extracted_text": extracted_text,
+            "extraction": to_json(result) if result else None,
+            "confidence": result["confidence"] if result else None,
+            "error": error,
+        },
+    )
+    if not result or not opportunity_id:
+        return
+
+    fields = result["fields"]
+    status_value = connection.execute(
+        text("SELECT status FROM opportunities WHERE id = CAST(:id AS uuid) FOR UPDATE"),
+        {"id": opportunity_id},
+    ).scalar_one_or_none()
+
+    if isinstance(previous, dict) and previous.get("fields"):
+        changed, note = diff_fields(previous["fields"], to_plain(fields))
+        if changed:
+            connection.execute(
+                text(
+                    """
+                    UPDATE opportunity_versions
+                    SET changed_fields = CAST(:changed AS text[]),
+                        change_note = :note,
+                        snapshot = snapshot
+                          || jsonb_build_object('extracted', CAST(:fields AS jsonb))
+                    WHERE opportunity_id = CAST(:opportunity_id AS uuid)
+                      AND scraped_document_id = CAST(:document_id AS uuid)
+                    """
+                ),
+                {
+                    "changed": changed,
+                    "note": note,
+                    "fields": to_json(fields),
+                    "opportunity_id": opportunity_id,
+                    "document_id": document_id,
+                },
+            )
+
+    if status_value == "draft":
+        _fill_draft(connection, opportunity_id, result)
+
+
+def to_plain(value: Any) -> Any:
+    """Dates -> ISO strings, so a fresh extraction compares equal to one read back from jsonb."""
+    import json
+
+    from app.extract.extractor import to_json
+
+    return json.loads(to_json(value))
+
+
+def _fill_draft(connection: Connection, opportunity_id: str, result: dict[str, Any]) -> None:
+    """Write extracted fields into a draft. Empty extracted values never overwrite existing ones."""
+    import json
+
+    from app.extract.extractor import to_json
+
+    f = result["fields"]
+    by_kind = {d["kind"]: d["date"] for d in f["dates"]}
+    status = result["field_status"]
+    available = {k: v for k, v in status.items() if v == "available"}
+    missing = {k: v for k, v in status.items() if v != "available"}
+
+    connection.execute(
+        text(
+            """
+            UPDATE opportunities SET
+              notification_number = COALESCE(:notification_number, notification_number),
+              summary = COALESCE(:summary, summary),
+              vacancies_total = COALESCE(:vacancies_total, vacancies_total),
+              fees = CASE WHEN :has_fees THEN CAST(:fees AS jsonb) ELSE fees END,
+              fee_text = COALESCE(:fee_text, fee_text),
+              payment_modes = CASE WHEN :has_modes
+                              THEN CAST(:payment_modes AS text[]) ELSE payment_modes END,
+              selection_process = CASE WHEN :has_selection
+                                  THEN CAST(:selection AS text[]) ELSE selection_process END,
+              required_documents = CASE WHEN :has_docs THEN CAST(:documents AS jsonb)
+                                   ELSE required_documents END,
+              apply_url = COALESCE(:apply_url, apply_url),
+              official_website = COALESCE(:official_website, official_website),
+              state_codes = COALESCE(CAST(:state_codes AS text[]), state_codes),
+              application_start = COALESCE(:application_start, application_start),
+              application_end = COALESCE(:application_end, application_end),
+              field_status = CAST(:missing AS jsonb) || field_status || CAST(:available AS jsonb),
+              ai_model = :ai_model,
+              extractor_version = :extractor_version,
+              confidence = :confidence,
+              updated_at = now()
+            WHERE id = CAST(:id AS uuid)
+            """
+        ),
+        {
+            "id": opportunity_id,
+            "notification_number": f["notification_number"],
+            "summary": f["summary"],
+            "vacancies_total": f["vacancies_total"],
+            "has_fees": bool(f["fees"]),
+            "fees": json.dumps(f["fees"]),
+            "fee_text": f["fee_text"],
+            "has_modes": bool(f["payment_modes"]),
+            "payment_modes": f["payment_modes"],
+            "has_selection": bool(f["selection_process"]),
+            "selection": f["selection_process"],
+            "has_docs": bool(f["required_documents"]),
+            "documents": json.dumps(f["required_documents"]),
+            "apply_url": f["apply_url"],
+            "official_website": f["official_website"],
+            "state_codes": f["state_codes"],
+            "application_start": by_kind.get("application_start"),
+            "application_end": by_kind.get("application_end"),
+            "missing": json.dumps(missing),
+            "available": json.dumps(available),
+            "ai_model": result.get("ai_model"),
+            "extractor_version": result.get("extractor_version"),
+            "confidence": result["confidence"],
+        },
+    )
+
+    if f["posts"]:
+        connection.execute(
+            text("DELETE FROM opportunity_posts WHERE opportunity_id = CAST(:id AS uuid)"),
+            {"id": opportunity_id},
+        )
+        for order, post in enumerate(f["posts"]):
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO opportunity_posts (
+                      opportunity_id, name, vacancies_total, vacancies_by_category,
+                      pay_level, salary_min, salary_max, salary_text, sort_order)
+                    VALUES (CAST(:id AS uuid), :name, :vacancies_total, CAST(:by_cat AS jsonb),
+                      :pay_level, :salary_min, :salary_max, :salary_text, :sort_order)
+                    """
+                ),
+                {
+                    **post,
+                    "id": opportunity_id,
+                    "by_cat": to_json(post["vacancies_by_category"])
+                    if post["vacancies_by_category"] else None,
+                    "sort_order": order,
+                },
+            )
+
+    elig = f["eligibility"]
+    if elig:
+        connection.execute(
+            text(
+                """
+                DELETE FROM opportunity_eligibility
+                WHERE opportunity_id = CAST(:id AS uuid) AND post_id IS NULL
+                """
+            ),
+            {"id": opportunity_id},
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO opportunity_eligibility (
+                  opportunity_id, age_min, age_max, age_as_on_date, age_relaxations,
+                  qualification_level, qualification_streams, min_percentage,
+                  final_year_allowed, gender, domicile_states, categories_allowed,
+                  other_conditions, official_text)
+                VALUES (CAST(:id AS uuid), :age_min, :age_max, :age_as_on_date,
+                  CAST(:relaxations AS jsonb), :qualification_level,
+                  CAST(:qualification_streams AS text[]), :min_percentage, :final_year_allowed,
+                  CAST(:gender AS gender_rule), CAST(:domicile_states AS text[]),
+                  CAST(:categories_allowed AS text[]), CAST(:other_conditions AS text[]),
+                  :official_text)
+                """
+            ),
+            {**elig, "id": opportunity_id, "relaxations": to_json(elig["age_relaxations"])},
+        )
+
+    if f["dates"]:
+        connection.execute(
+            text("DELETE FROM opportunity_dates WHERE opportunity_id = CAST(:id AS uuid)"),
+            {"id": opportunity_id},
+        )
+        for d in f["dates"]:
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO opportunity_dates (
+                      opportunity_id, kind, date, end_date, is_tentative, note)
+                    VALUES (CAST(:id AS uuid), CAST(:kind AS date_kind), :date, :end_date,
+                      :is_tentative, :note)
+                    """
+                ),
+                {**d, "id": opportunity_id},
+            )
