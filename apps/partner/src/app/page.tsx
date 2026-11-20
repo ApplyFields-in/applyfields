@@ -346,16 +346,6 @@ export default function PartnerLandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-[#0d2a58] bg-[#082046] py-8 text-xs text-[#a8c1de]">
-        <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© 2026 ApplyFields Technologies Inc. · Dedicated Operator Portal (`partners.applyfields.com`)</p>
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            <a href={process.env.NEXT_PUBLIC_MAIN_WEB_URL || 'https://applyfields.com'} className="hover:text-white transition">Citizen Portal</a>
-            <a href={process.env.NEXT_PUBLIC_SERVICE_PORTAL_URL || 'https://service.applyfields.com'} className="hover:text-white transition">Services Hub</a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
