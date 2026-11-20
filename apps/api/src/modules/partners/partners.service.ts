@@ -7,6 +7,7 @@ import {
   Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { existsSync, readFileSync } from 'node:fs';
 import type {
   AdminPartnerItem,
   AdminPartnerListResponse,
@@ -1464,13 +1465,38 @@ export class PartnersService {
       throw new NotFoundException(`Partner with ID "${partnerId}" not found`);
     }
     const detail = this.mapToDetail(existing);
-    detail.documents = await Promise.all(
-      (detail.documents ?? []).map(async (d) => ({
-        ...d,
-        url: await this.storage.signedUrl(this.storage.documentsBucket, d.storage_path, 600),
-      })),
-    );
+    const baseUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+    detail.documents = (detail.documents ?? []).map((d) => ({
+      ...d,
+      url: `${baseUrl}/api/v1/admin/partners/documents/${d.id}/file`,
+    }));
     return detail;
+  }
+
+  async getPartnerDocumentFile(documentId: string): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
+    const doc = await this.prisma.partner_documents.findUnique({
+      where: { id: documentId },
+    });
+    if (!doc) {
+      throw new NotFoundException(`Partner document with ID "${documentId}" not found`);
+    }
+
+    let buffer: Buffer | null = null;
+    if (existsSync(doc.storage_path)) {
+      buffer = readFileSync(doc.storage_path);
+    } else if (this.storage) {
+      buffer = await this.storage.download(this.storage.documentsBucket, doc.storage_path);
+    }
+    if (!buffer) {
+      throw new NotFoundException('Document file not found in storage.');
+    }
+    const ext = doc.storage_path.split('.').pop() || 'pdf';
+    const mimeType = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'application/pdf';
+    return {
+      buffer,
+      fileName: `${doc.document_kind}.${ext}`,
+      mimeType,
+    };
   }
 
   async adminVerifyDocument(

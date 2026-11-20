@@ -3,6 +3,7 @@ import {
   DocumentsService,
   maskSensitiveIdentifier,
 } from './documents.service.js';
+import { VaultService } from '../../common/vault.service.js';
 
 describe('DocumentsService & Sensitive ID Masking', () => {
   describe('maskSensitiveIdentifier', () => {
@@ -32,9 +33,11 @@ describe('DocumentsService & Sensitive ID Masking', () => {
       documentsBucket: 'documents',
       upload: async () => null, // fallback to local/in-memory
       signedUrl: async () => 'https://signed.supabase.co/doc.pdf',
+      download: async () => null,
     } as any;
+    const vaultService = new VaultService();
 
-    const service = new DocumentsService(mockPrisma, mockStorage);
+    const service = new DocumentsService(mockPrisma, mockStorage, vaultService);
     const userId = '11111111-1111-1111-1111-111111111111';
 
     it('rejects unsupported file mime types', async () => {
@@ -139,6 +142,48 @@ describe('DocumentsService & Sensitive ID Masking', () => {
 
       const remaining = await service.listDocuments(userId);
       expect(remaining.items.find((d) => d.id === docId)).toBeUndefined();
+    });
+
+    it('encrypts new uploaded document and decrypts back to original bytes via getDecryptedFile', async () => {
+      const originalContent = 'CONFIDENTIAL: Aadhaar 1234 5678 9012 Marks 98%';
+      const uploaded = await service.uploadDocument(userId, {
+        documentTypeCode: 'id_proof',
+        fileName: 'Aadhaar_Card.pdf',
+        mimeType: 'application/pdf',
+        fileBase64: Buffer.from(originalContent).toString('base64'),
+      });
+
+      const file = await service.getDecryptedFile(userId, uploaded.id);
+      expect(file.fileName).toBe('Aadhaar_Card.pdf');
+      expect(file.mimeType).toBe('application/pdf');
+      expect(file.buffer.toString('utf8')).toBe(originalContent);
+    });
+
+    it('successfully serves legacy unencrypted file where encrypted_key is null', async () => {
+      // Directly inject a legacy unencrypted document into in-memory store
+      const legacyId = '99999999-9999-9999-9999-999999999999';
+      const legacyContent = 'Legacy unencrypted certificate from 2024';
+      const tmpPath = require('node:path').join(process.cwd(), 'uploads', 'documents', userId, 'legacy.pdf');
+      const fs = require('node:fs');
+      if (!fs.existsSync(require('node:path').dirname(tmpPath))) {
+        fs.mkdirSync(require('node:path').dirname(tmpPath), { recursive: true });
+      }
+      fs.writeFileSync(tmpPath, Buffer.from(legacyContent));
+
+      (service as any).inMemoryDocs.set(legacyId, {
+        id: legacyId,
+        user_id: userId,
+        document_type_code: 'degree_certificate',
+        file_name: 'legacy.pdf',
+        mime_type: 'application/pdf',
+        storage_path: tmpPath,
+        encrypted_key: null, // Legacy unencrypted file
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      const file = await service.getDecryptedFile(userId, legacyId);
+      expect(file.buffer.toString('utf8')).toBe(legacyContent);
     });
   });
 });

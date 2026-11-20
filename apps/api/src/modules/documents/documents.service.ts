@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -16,6 +16,7 @@ import type {
 } from '@applyfields/types';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../common/storage.service.js';
+import { VaultService } from '../../common/vault.service.js';
 import { sanitizeFields } from './document-fields.js';
 
 export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
@@ -65,11 +66,12 @@ export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
 
   // In-memory fallback map for unit tests and local mock storage
-  private inMemoryDocs = new Map<string, UserDocumentSummary & { storage_path: string }>();
+  private inMemoryDocs = new Map<string, UserDocumentSummary & { storage_path: string; encrypted_key?: Buffer | null }>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
+    private readonly vaultService: VaultService,
   ) {}
 
   private isPrismaUsable(): boolean {
@@ -176,11 +178,14 @@ export class DocumentsService {
     const objectName = `${Date.now()}_${safeName}`;
     const remotePath = `documents/${userId}/${params.documentTypeCode}/${objectName}`;
 
-    // Upload to Supabase Storage; fallback to local disk for dev
+    // Encrypt file buffer with AES-256-GCM via VaultService
+    const { data: encryptedData, encryptedKey } = this.vaultService.encrypt(params.buffer);
+
+    // Upload encrypted bytes to Supabase Storage; fallback to local disk for dev
     const uploadedPath = await this.storageService.upload(
       this.storageService.documentsBucket,
       remotePath,
-      params.buffer,
+      encryptedData,
       params.mimeType,
     );
 
@@ -197,7 +202,7 @@ export class DocumentsService {
       );
       if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
       storagePath = join(uploadDir, objectName);
-      writeFileSync(storagePath, params.buffer);
+      writeFileSync(storagePath, encryptedData);
     }
 
     const maskedId = maskSensitiveIdentifier(params.identifierNumber);
@@ -246,6 +251,7 @@ export class DocumentsService {
             document_type_code: params.documentTypeCode,
             title,
             storage_path: storagePath,
+            encrypted_key: new Uint8Array(encryptedKey),
             file_name: params.fileName,
             mime_type: params.mimeType,
             size_bytes: params.buffer.length,
@@ -312,7 +318,7 @@ export class DocumentsService {
       }
     }
 
-    this.inMemoryDocs.set(docId, docSummary);
+    this.inMemoryDocs.set(docId, { ...docSummary, encrypted_key: encryptedKey });
     const { storage_path: _, ...resSummary } = docSummary;
     return resSummary;
   }
@@ -364,6 +370,96 @@ export class DocumentsService {
     }
     const { storage_path: _, ...resSummary } = doc;
     return resSummary;
+  }
+
+  /**
+   * Retrieves, decrypts in memory, and returns the citizen document file.
+   * If the file was uploaded prior to vault encryption (encrypted_key is NULL),
+   * returns the original plain bytes unchanged.
+   * Writes a document_access_logs entry on every access.
+   */
+  async getDecryptedFile(
+    userId: string,
+    docId: string,
+  ): Promise<{
+    buffer: Buffer;
+    fileName: string;
+    mimeType: string;
+  }> {
+    let storagePath: string | undefined;
+    let fileName = 'document.pdf';
+    let mimeType = 'application/pdf';
+    let encryptedKey: Buffer | null = null;
+    let foundDocId: string | undefined;
+
+    if (this.isPrismaUsable()) {
+      try {
+        const doc = await this.prisma.user_documents.findFirst({
+          where: { id: docId, user_id: userId, deleted_at: null },
+        });
+        if (doc) {
+          storagePath = doc.storage_path;
+          fileName = doc.file_name || fileName;
+          mimeType = doc.mime_type || mimeType;
+          encryptedKey = doc.encrypted_key ? Buffer.from(doc.encrypted_key) : null;
+          foundDocId = doc.id;
+        }
+      } catch (err) {
+        this.logger.warn(`Failed to find document from DB: ${(err as Error).message}`);
+      }
+    }
+
+    if (!storagePath) {
+      const memDoc = this.inMemoryDocs.get(docId);
+      if (memDoc && memDoc.user_id === userId) {
+        storagePath = memDoc.storage_path;
+        fileName = memDoc.file_name || fileName;
+        mimeType = memDoc.mime_type || mimeType;
+        encryptedKey = memDoc.encrypted_key || null;
+        foundDocId = memDoc.id;
+      }
+    }
+
+    if (!storagePath) {
+      throw new NotFoundException('Document not found.');
+    }
+
+    let rawBytes: Buffer | null = null;
+
+    if (existsSync(storagePath)) {
+      rawBytes = readFileSync(storagePath);
+    } else {
+      rawBytes = await this.storageService.download(
+        this.storageService.documentsBucket,
+        storagePath,
+      );
+    }
+
+    if (!rawBytes) {
+      throw new NotFoundException('Document file not found in storage.');
+    }
+
+    // Decrypt in memory (if encrypted_key is null, vaultService.decrypt returns rawBytes directly)
+    const decryptedBuffer = this.vaultService.decrypt(rawBytes, encryptedKey);
+
+    // Record document access log
+    if (this.isPrismaUsable() && foundDocId) {
+      await this.prisma.document_access_logs
+        .create({
+          data: {
+            document_id: foundDocId,
+            actor_user_id: userId,
+            action: 'view',
+          },
+        })
+        .catch(() => null);
+    }
+
+    return {
+      buffer: decryptedBuffer,
+      fileName,
+      mimeType,
+    };
   }
 
   async getDownloadInfo(

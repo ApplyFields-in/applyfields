@@ -5,8 +5,10 @@ import {
   Param,
   Patch,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import type {
   AdminPartnerListResponse,
   AdminPartnerVerifyInput,
@@ -48,6 +50,18 @@ export class PartnersAdminController {
   @Get(':id')
   async getPartner(@Param('id') partnerId: string): Promise<PartnerDetail> {
     return this.partnersService.adminGetPartner(partnerId);
+  }
+
+  @Get('documents/:id/file')
+  async streamDocumentFile(
+    @Param('id') documentId: string,
+    @Res() res: Response,
+  ) {
+    const file = await this.partnersService.getPartnerDocumentFile(documentId);
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(file.buffer);
   }
 
   @Patch('documents/:id/verify')

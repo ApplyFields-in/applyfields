@@ -9,8 +9,10 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { z } from 'zod';
 import type {
   BookingDispute,
@@ -117,6 +119,20 @@ export class BookingsController {
     return this.bookingsService.slipUrl(req.user.userId, bookingId);
   }
 
+  @Get(':id/slip/file')
+  @UseGuards(AuthGuard)
+  async getSlipFile(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') bookingId: string,
+    @Res() res: Response,
+  ) {
+    const slip = await this.bookingsService.getSlipFile(req.user.userId, bookingId);
+    res.setHeader('Content-Type', slip.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${slip.fileName}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(slip.buffer);
+  }
+
   /** Citizen: which locker documents the centre may open for this booking (replaces the set). */
   @Put(':id/documents')
   @UseGuards(AuthGuard)
@@ -128,7 +144,7 @@ export class BookingsController {
     return this.bookingsService.shareDocuments(req.user.userId, bookingId, body.document_ids);
   }
 
-  /** Centre (or the citizen): 10-minute link to one shared document. */
+  /** Centre (or the citizen): link to stream one shared document. */
   @Get(':id/documents/:shareId')
   @UseGuards(AuthGuard)
   async sharedDocument(
@@ -137,6 +153,26 @@ export class BookingsController {
     @Param('shareId', ParseUUIDPipe) shareId: string,
   ): Promise<{ url: string }> {
     return this.bookingsService.sharedDocumentUrl(req.user.userId, bookingId, shareId);
+  }
+
+  /** Centre (or citizen): stream decrypted shared document in memory (Cache-Control: no-store). */
+  @Get(':id/documents/:shareId/file')
+  @UseGuards(AuthGuard)
+  async streamSharedDocument(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') bookingId: string,
+    @Param('shareId', ParseUUIDPipe) shareId: string,
+    @Res() res: Response,
+  ) {
+    const doc = await this.bookingsService.getDecryptedSharedDocument(
+      req.user.userId,
+      bookingId,
+      shareId,
+    );
+    res.setHeader('Content-Type', doc.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${doc.fileName}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(doc.buffer);
   }
 
   @Get(':id')
