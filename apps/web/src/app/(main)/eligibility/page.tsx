@@ -5,20 +5,13 @@ import Link from 'next/link';
 import {
   BadgeCheck,
   CheckCircle2,
-  Clock,
-  GraduationCap,
-  MapPin,
-  Search,
   SlidersHorizontal,
   UserCheck,
   Sparkles,
-  ArrowRight,
   ShieldCheck,
-  Building2,
-  Calendar,
 } from 'lucide-react';
 import { apiGet } from '@/lib/api';
-import type { OpportunityCard, OpportunityList, UserProfile, MeResponse } from '@applyfields/types';
+import type { OpportunityCard, OpportunityList, MeResponse } from '@applyfields/types';
 import { HorizontalOpportunityCard } from '@/components/opportunity/horizontal-opportunity-card';
 
 const EDUCATION_LEVELS = [
@@ -30,7 +23,7 @@ const EDUCATION_LEVELS = [
 ];
 
 const CATEGORIES = [
-  { id: 'GENERAL', label: 'General / Unreserved' },
+  { id: 'GEN', label: 'General / Unreserved' },
   { id: 'OBC', label: 'OBC (Other Backward Classes)' },
   { id: 'SC', label: 'SC (Scheduled Caste)' },
   { id: 'ST', label: 'ST (Scheduled Tribe)' },
@@ -48,79 +41,92 @@ const STATES = [
   { code: 'UP', name: 'Uttar Pradesh' },
 ];
 
+/** Completed years today (display only; the API checks age on each notice's own cut-off date). */
+function ageFrom(dob: string): number | null {
+  if (!dob) return null;
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
 export default function EligibilityPage() {
-  const [dob, setDob] = useState('2000-01-01');
-  const [qualification, setQualification] = useState('graduate');
-  const [category, setCategory] = useState('OBC');
+  // Empty until the visitor types their details or their saved profile fills them in.
+  const [dob, setDob] = useState('');
+  const [qualification, setQualification] = useState('');
+  const [category, setCategory] = useState('');
   const [domicile, setDomicile] = useState('ALL');
-  const [gender, setGender] = useState('any');
+  const [gender, setGender] = useState(''); // from the saved profile only (women-only posts)
 
   const [opportunities, setOpportunities] = useState<OpportunityCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // The criteria the list on screen was checked with; null = nothing checked yet.
+  const [checked, setChecked] = useState<{ category: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Calculate age
-  const calculatedAge = React.useMemo(() => {
-    if (!dob) return null;
-    const birthDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+  const calculatedAge = React.useMemo(() => ageFrom(dob), [dob]);
+
+  /** Checks open notifications against the real rules (age on each notice's cut-off date with
+   *  relaxation, qualification, gender, domicile). Never shows demo data: no match = empty state. */
+  const runCheck = (c = { dob, qualification, category, domicile, gender }) => {
+    if (!c.dob || !c.qualification) {
+      setError('Enter your date of birth and highest qualification to check.');
+      return;
     }
-    return age >= 0 ? age : null;
-  }, [dob]);
-
-  useEffect(() => {
-    // Check if user has saved profile
-    apiGet<MeResponse>('/me').then((me) => {
-      if (me?.profile) {
-        setIsLoggedIn(true);
-        if (me.profile.date_of_birth) {
-          setDob(me.profile.date_of_birth.slice(0, 10));
-        }
-        if (me.profile.category) {
-          setCategory(me.profile.category);
-        }
-        if (me.profile.domicile_state_code) {
-          setDomicile(me.profile.domicile_state_code);
-        }
-      }
-    });
-
-    fetchMatches();
-  }, []);
-
-  const fetchMatches = () => {
+    setError(null);
     setLoading(true);
-    const params = new URLSearchParams();
-    if (qualification) params.set('qualification', qualification);
-    if (domicile && domicile !== 'ALL') params.set('state', domicile);
+    const params = new URLSearchParams({ eligible: 'true', dob: c.dob, edu: c.qualification });
+    if (c.category) params.set('social', c.category);
+    if (c.domicile && c.domicile !== 'ALL') params.set('domicile', c.domicile);
+    if (c.gender && c.gender !== 'prefer_not_to_say') params.set('gender', c.gender);
 
     apiGet<OpportunityList>(`/opportunities?${params.toString()}`)
-      .then(async (res) => {
-        if (res?.items && res.items.length > 0) {
-          setOpportunities(res.items);
-        } else {
-          const { getMockOpportunities } = await import('@/lib/mock-data');
-          const mock = getMockOpportunities(undefined, {
-            qualification,
-            state: domicile !== 'ALL' ? domicile : undefined,
-          });
-          setOpportunities(mock.items);
+      .then((res) => {
+        if (!res) {
+          setOpportunities([]);
+          setChecked(null);
+          setError('Could not reach ApplyFields right now. Please try again.');
+          return;
         }
-      })
-      .catch(async () => {
-        const { getMockOpportunities } = await import('@/lib/mock-data');
-        const mock = getMockOpportunities(undefined, {
-          qualification,
-          state: domicile !== 'ALL' ? domicile : undefined,
-        });
-        setOpportunities(mock.items);
+        setOpportunities(res.items);
+        setChecked({ category: c.category });
       })
       .finally(() => setLoading(false));
   };
+
+  useEffect(() => {
+    // A logged-in visitor's saved profile fills the form and runs the check once.
+    apiGet<MeResponse>('/me').then((me) => {
+      if (!me?.profile) return;
+      setIsLoggedIn(true);
+      const levels = EDUCATION_LEVELS.map((l) => l.id);
+      const highest = (me.education ?? [])
+        .map((e) => e.level as string)
+        .filter((l) => levels.includes(l))
+        .sort((a, b) => levels.indexOf(b) - levels.indexOf(a))[0];
+      const saved = {
+        dob: me.profile.date_of_birth?.slice(0, 10) ?? '',
+        qualification: highest ?? '',
+        category: me.profile.category ?? '',
+        domicile: me.profile.domicile_state_code ?? 'ALL',
+        gender: me.profile.gender ?? '',
+      };
+      setDob(saved.dob);
+      setQualification(saved.qualification);
+      setCategory(saved.category);
+      setDomicile(saved.domicile);
+      setGender(saved.gender);
+      if (saved.dob && saved.qualification) runCheck(saved);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const eligibleCount = opportunities.filter((o) => o.eligibility === 'eligible').length;
+  const toCheckCount = opportunities.length - eligibleCount;
 
   return (
     <div className="space-y-8">
@@ -181,6 +187,7 @@ export default function EligibilityPage() {
                 onChange={(e) => setQualification(e.target.value)}
                 className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3 py-2 text-sm text-[#082046] outline-none focus:border-[#0e7bf4]"
               >
+                <option value="">Select your qualification</option>
                 {EDUCATION_LEVELS.map((lvl) => (
                   <option key={lvl.id} value={lvl.id}>
                     {lvl.label}
@@ -200,6 +207,7 @@ export default function EligibilityPage() {
                 onChange={(e) => setCategory(e.target.value)}
                 className="mt-1.5 w-full rounded-xl border border-[#c4d2e3] bg-[#F8FBFF] px-3 py-2 text-sm text-[#082046] outline-none focus:border-[#0e7bf4]"
               >
+                <option value="">Select your category</option>
                 {CATEGORIES.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.label}
@@ -233,11 +241,12 @@ export default function EligibilityPage() {
             {/* Update button */}
             <button
               type="button"
-              onClick={fetchMatches}
+              onClick={() => runCheck()}
               className="w-full rounded-xl bg-[#082046] py-2.5 text-xs font-semibold text-white transition hover:bg-[#061835]"
             >
-              Re-calculate Matching Opportunities
+              {checked ? 'Check again' : 'Check my eligibility'}
             </button>
+            {error && <p className="text-xs font-medium text-red-600">{error}</p>}
           </div>
 
           {/* Sync with profile note */}
@@ -266,7 +275,7 @@ export default function EligibilityPage() {
               100% { transform: translateY(60px) rotate(360deg); opacity: 0; }
             }
           `}</style>
-          {!loading && opportunities.length > 0 && (
+          {!loading && checked && eligibleCount > 0 && (
             <div className="relative overflow-hidden rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-green-50 p-5 shadow-xs">
               {/* CSS Confetti burst particles */}
               <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -300,14 +309,15 @@ export default function EligibilityPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-extrabold text-emerald-950">
-                      You&apos;re Eligible! 🎉
+                      You&apos;re eligible for {eligibleCount} open notification{eligibleCount === 1 ? '' : 's'}
                     </h3>
-                    <span className="rounded-full bg-emerald-200/80 px-2 py-0.5 text-[11px] font-bold text-emerald-900">
-                      {opportunities.length} Matches Found
-                    </span>
                   </div>
                   <p className="mt-1 text-xs font-medium text-emerald-800 leading-relaxed">
-                    Based on your age ({calculatedAge ?? '—'} yrs), {category} category reservation, and highest qualification, you meet all primary criteria for the notifications listed below.
+                    Checked against each notice&apos;s own age limit on its cut-off date
+                    {checked.category ? ` (with the ${checked.category} relaxation where the notice gives one)` : ''}, its
+                    qualification and its state rules, using the details you entered.
+                    {toCheckCount > 0 &&
+                      ` ${toCheckCount} more need a manual check: they have conditions we can't verify automatically.`}
                   </p>
                 </div>
               </div>
@@ -318,7 +328,9 @@ export default function EligibilityPage() {
             <div>
               <h2 className="text-lg font-bold text-[#082046]">Eligible Opportunities</h2>
               <p className="text-xs text-[#536780]">
-                Notifications matching your criteria ({opportunities.length} found)
+                {checked
+                  ? `Open notifications you are not ruled out of (${opportunities.length})`
+                  : 'Enter your details and press "Check my eligibility".'}
               </p>
             </div>
             <Link
@@ -333,12 +345,12 @@ export default function EligibilityPage() {
             <div className="rounded-2xl border border-[#c4d2e3] bg-white p-8 text-center text-sm text-[#536780]">
               Checking criteria against open notifications...
             </div>
-          ) : opportunities.length === 0 ? (
+          ) : !checked ? null : opportunities.length === 0 ? (
             <div className="rounded-2xl border border-[#c4d2e3] bg-white p-8 text-center">
               <UserCheck className="mx-auto size-12 text-[#91a8c7]" />
-              <h3 className="mt-3 text-base font-bold text-[#082046]">No open notifications matched</h3>
+              <h3 className="mt-3 text-base font-bold text-[#082046]">No published notifications match yet</h3>
               <p className="mt-1 text-sm text-[#536780]">
-                Try selecting &quot;All India&quot; state or another qualification level to see general recruitments.
+                None of the open notifications on ApplyFields fit the details you entered. New notices are added as they are published.
               </p>
             </div>
           ) : (
