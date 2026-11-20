@@ -69,7 +69,7 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
   const postEligibility = d.eligibility.filter((e) => e.post_id !== null);
 
   // PDF / 1-Page Digest / Corrigendum Diff Viewer State
-  const [viewerMode, setViewerMode] = useState<'pdf' | 'digest' | 'diff'>('pdf');
+  const [viewerMode, setViewerMode] = useState<'pdf' | 'digest' | 'diff' | 'raw'>('pdf');
   const [activeHighlight, setActiveHighlight] = useState<BoundingBoxHighlight | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pdfZoom, setPdfZoom] = useState<number>(100);
@@ -139,6 +139,13 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
                   className={`px-2 py-0.5 text-[11px] font-bold rounded transition ${viewerMode === 'diff' ? 'bg-teal text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'}`}
                 >
                   Corrigendum Diff
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewerMode('raw')}
+                  className={`px-2 py-0.5 text-[11px] font-bold rounded transition ${viewerMode === 'raw' ? 'bg-teal text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Raw data
                 </button>
               </div>
             </div>
@@ -227,7 +234,9 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
 
           {/* PDF Canvas vs 1-Page AI Digest vs Corrigendum Diff View */}
           <div className="relative flex-1 rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 flex items-center justify-center">
-            {viewerMode === 'diff' ? (
+            {viewerMode === 'raw' ? (
+              <RawDataPane raw={d.raw} />
+            ) : viewerMode === 'diff' ? (
               <div className="relative w-full h-full flex flex-col overflow-y-auto p-5 text-xs text-slate-200 space-y-4">
                 <div className="border-b border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div>
@@ -778,6 +787,44 @@ export function ReviewWorkspaceClient({ detail: d }: Props) {
           </div>
         </FormSection>
       </div>
+    </div>
+  );
+}
+
+/** Exactly what the scraper read from the PDF and what the AI returned, for checking a draft. */
+function RawDataPane({ raw }: { raw: ReviewDetail['raw'] }) {
+  if (!raw) {
+    return (
+      <p className="p-6 text-center text-xs text-slate-400">
+        This draft was not created by a scraper, so there is no raw data.
+      </p>
+    );
+  }
+  const json = raw.extraction == null ? null : JSON.stringify(raw.extraction, null, 2);
+  return (
+    <div className="flex h-full w-full flex-col gap-3 overflow-y-auto p-4 text-xs text-slate-200">
+      <a href={raw.document_url} target="_blank" rel="noopener noreferrer" className="truncate font-mono text-[11px] text-teal hover:underline">
+        {raw.document_url}
+      </a>
+      {raw.error && (
+        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-amber-200">{raw.error}</p>
+      )}
+      <section className="flex min-h-48 flex-1 flex-col">
+        <h4 className="mb-1 font-bold uppercase tracking-wider text-slate-400">
+          AI output (JSON){json ? '' : ': none'}
+        </h4>
+        {json && (
+          <pre className="flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-3 font-mono text-[11px] text-emerald-200">{json}</pre>
+        )}
+      </section>
+      <section className="flex min-h-48 flex-1 flex-col">
+        <h4 className="mb-1 font-bold uppercase tracking-wider text-slate-400">
+          PDF text{raw.extracted_text ? ` (${raw.extracted_text.length.toLocaleString('en-IN')} characters)` : ': none (scanned PDF or older draft)'}
+        </h4>
+        {raw.extracted_text && (
+          <pre className="flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-3 font-mono text-[11px] text-slate-300">{raw.extracted_text}</pre>
+        )}
+      </section>
     </div>
   );
 }

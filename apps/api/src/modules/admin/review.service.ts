@@ -151,9 +151,16 @@ export class ReviewService {
         opportunity_posts: { orderBy: { sort_order: 'asc' } },
         opportunity_eligibility: { orderBy: { created_at: 'asc' } },
         opportunity_dates: { orderBy: { date: 'asc' } },
+        // Newest scraped copy: its PDF text + AI JSON feed the "Raw data" tab. New rows have no
+        // storage_path (PDFs are no longer stored); old ones still get a signed PDF link.
         scraped_documents: {
-          where: { storage_path: { not: null } },
-          select: { storage_path: true },
+          select: {
+            storage_path: true,
+            url: true,
+            extracted_text: true,
+            extraction: true,
+            error: true,
+          },
           orderBy: { fetched_at: 'desc' },
           take: 1,
         },
@@ -162,10 +169,8 @@ export class ReviewService {
     if (!o) throw new NotFoundException(`No opportunity with id ${id}`);
 
     const confidence = num(o.confidence);
-    const pdf = await this.pdfFor(
-      o.scraped_documents[0]?.storage_path ?? null,
-      o.notification_pdf_url,
-    );
+    const doc = o.scraped_documents[0];
+    const pdf = await this.pdfFor(doc?.storage_path ?? null, o.notification_pdf_url);
 
     return {
       id: o.id,
@@ -206,6 +211,14 @@ export class ReviewService {
         ai_model: o.ai_model,
         confidence,
       },
+      raw: doc
+        ? {
+            document_url: doc.url,
+            extracted_text: doc.extracted_text,
+            extraction: doc.extraction ?? null,
+            error: doc.error,
+          }
+        : null,
       posts: o.opportunity_posts.map((p) => ({
         id: p.id,
         name: p.name,

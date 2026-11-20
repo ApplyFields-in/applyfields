@@ -269,6 +269,15 @@ export interface ReviewDetail {
     ai_model: string | null;
     confidence: number | null;
   };
+  /** What the scraper read (PDF text) and what the AI returned. null = draft not from a scraper. */
+  raw: {
+    document_url: string;
+    /** null = scanned PDF (no text layer) or an old row from before text was kept */
+    extracted_text: string | null;
+    /** The checked job-format JSON the AI produced; null when extraction did not run */
+    extraction: unknown;
+    error: string | null;
+  } | null;
   posts: ReviewPost[];
   eligibility: ReviewEligibility[];
   dates: ReviewDate[];
@@ -2017,6 +2026,18 @@ export interface ScrapeSourcesListResponse {
     healthy: number;
     failing: number;
     stale: number;
+  };
+  /** Every scraped notice so far, across all sources. */
+  documents: {
+    total: number;
+    /** AI read the PDF and filled the draft. */
+    ai_filled: number;
+    /** Scanned PDF or AI error: staff fill the draft by hand. */
+    needs_manual: number;
+    /** Drafts still waiting in /review. */
+    drafts_waiting: number;
+    /** Published or closed (ended) on the site. */
+    published: number;
   };
 }
 
