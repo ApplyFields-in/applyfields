@@ -132,6 +132,14 @@ export function openWhere(today: Date): Prisma.opportunitiesWhereInput {
   };
 }
 
+/** Ended: the hourly auto-close sets these `closed`; a published one past its date counts too
+ *  (the hour before auto-close runs). Shown with the red "Ended" light. */
+export function endedWhere(today: Date): Prisma.opportunitiesWhereInput {
+  return {
+    OR: [{ status: 'closed' }, { status: 'published', application_end: { lt: today } }],
+  };
+}
+
 @Injectable()
 export class OpportunitiesService {
   private readonly logger = new Logger(OpportunitiesService.name);
@@ -320,9 +328,7 @@ export class OpportunitiesService {
     const rows = await this.prisma.opportunities.findMany({
       where: {
         AND: [
-          deadline === 'ended'
-            ? { status: 'published', application_end: { lt: today } }
-            : openWhere(today),
+          deadline === 'ended' ? endedWhere(today) : openWhere(today),
           ...(type ? [{ type }] : []),
           ...categoryConditions,
           ...stateConditions,
@@ -357,7 +363,7 @@ export class OpportunitiesService {
 
   }
 
-  /** Find complete published opportunity details by slug. */
+  /** Find complete published (or closed, shown as ended) opportunity details by slug. */
   async findBySlug(
     slug: string,
     lang?: string,
@@ -366,7 +372,7 @@ export class OpportunitiesService {
     const row = await this.prisma.opportunities.findFirst({
       where: {
         slug,
-        status: 'published',
+        status: { in: ['published', 'closed'] },
       },
       include: {
         organizations: {

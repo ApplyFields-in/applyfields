@@ -278,6 +278,13 @@ export class InstitutionsService {
   // =========================================================================
 
   /** List colleges/universities with filters & pagination (default 20 per page) */
+  async listPublishedSlugs(): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<Array<{ slug: string }>>`
+      select slug from institutions where status = 'published' order by slug
+    `;
+    return rows.map((r) => r.slug);
+  }
+
   async listInstitutions(query: InstitutionListQuery): Promise<InstitutionListResponse> {
     const q = query.q?.trim().toLowerCase();
     const type = query.type?.trim();
