@@ -1,4 +1,4 @@
-import type { ReviewList, ReviewReadiness, ReviewSort } from '@applyfields/types';
+import type { AdminOpportunityList, ReviewList, ReviewReadiness, ReviewSort } from '@applyfields/types';
 import { Card, cn, EmptyState, PageHeader } from '@applyfields/ui';
 import { ChevronLeft, ChevronRight, CircleAlert, CircleCheck, FileClock, Inbox, Send, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
 
-import { apiGetWithStatus } from '@/lib/api';
+import { apiGet, apiGetWithStatus } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
 import { ReviewQueueClient } from './review-queue-client';
 import { ReviewSortMenu } from './review-sort-menu';
@@ -34,7 +34,10 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
     if (st.page > 1) q.set('page', String(st.page));
     return q;
   };
-  const res = await apiGetWithStatus<ReviewList>(`/admin/review?${toQuery(state)}`);
+  const [res, live] = await Promise.all([
+    apiGetWithStatus<ReviewList>(`/admin/review?${toQuery(state)}`),
+    apiGet<AdminOpportunityList>('/admin/opportunities?status=published'),
+  ]);
   const data = res.data;
 
   // Changing any filter goes back to page 1; only page links keep `page`.
@@ -72,7 +75,7 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
               <CircleCheck aria-hidden="true" /> Ready to publish <Count n={data.ready} />
             </FilterChip>
             <FilterChip href="/opportunities?status=published" active={false}>
-              <Send aria-hidden="true" /> Published
+              <Send aria-hidden="true" /> Published {live && <Count n={live.counts.published} />}
             </FilterChip>
             <FilterChip href={href({ ready: 'missing' })} active={ready === 'missing'}>
               <CircleAlert aria-hidden="true" /> Missing info <Count n={data.missing_info} />

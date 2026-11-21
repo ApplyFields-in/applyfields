@@ -2,6 +2,7 @@
  * The ONLY place the website talks to the backend (apps/api, NestJS).
  * Rule: the website never calls Supabase or the scraper directly — only this API.
  */
+import { describeHttpError } from './errors';
 
 /** The API's own address (server code; also what UI text shows, so server and browser render the same). */
 export const BACKEND_API_URL = (
@@ -76,14 +77,18 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 
     if (!res.ok) {
       console.warn(`[admin apiFetch] Status ${res.status} for ${path}`);
-      let errorText = `Request failed with status ${res.status}`;
+      let errorText = '';
       try {
         const body = await res.json();
         if (body?.message) {
           errorText = Array.isArray(body.message) ? body.message.join(', ') : body.message;
         }
+        // Publish 400s carry the reasons in `missing` (e.g. "Last date passed …"); show them.
+        if (Array.isArray(body?.missing) && body.missing.length) {
+          errorText += `: ${body.missing.join('; ')}`;
+        }
       } catch {}
-      return { data: null, status: res.status, ok: false, error: errorText };
+      return { data: null, status: res.status, ok: false, error: describeHttpError(res.status, errorText) };
     }
 
     const data = (await res.json()) as T;
@@ -91,7 +96,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.warn(`[admin apiFetch] Error fetching ${url}:`, msg);
-    return { data: null, status: 0, ok: false, error: msg };
+    return { data: null, status: 0, ok: false, error: describeHttpError(0, msg) };
   }
 }
 

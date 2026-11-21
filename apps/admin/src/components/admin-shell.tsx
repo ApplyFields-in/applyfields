@@ -338,7 +338,7 @@ export function ApiOffline({ status = 0, error }: { status?: number; error?: str
       <Card tone="tea" className="flex items-start gap-3 p-5 border-amber-300 bg-amber-50/80">
         <WifiOff className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden="true" />
         <div>
-          <p className="font-bold text-amber-900">The API returned an error ({status})</p>
+          <p className="font-bold text-amber-900">This page couldn&apos;t load its data</p>
           <p className="mt-1 text-sm text-amber-800">{error ?? 'No details.'}</p>
         </div>
       </Card>
