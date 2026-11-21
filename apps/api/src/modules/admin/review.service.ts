@@ -11,6 +11,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { StorageService } from '../../common/storage.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { pageReviewItems } from './review-paging.js';
+import { todayIst } from '../opportunities/opportunities.service.js';
 
 /** Below this confidence a draft is flagged "check carefully" (job-format §4.8). */
 export const CAREFUL_REVIEW_BELOW = 0.6;
@@ -49,6 +50,13 @@ export function publishBlockers(row: PublishCheckRow): string[] {
   if (!row.application_end && !datesNotInSource)
     missing.push('Last date (or mark dates "not in source")');
   return missing;
+}
+
+/** A draft whose last date is already gone can't go live (close or reject it instead). */
+export function expiryBlockers(applicationEnd: Date | null, today = todayIst()): string[] {
+  return applicationEnd && applicationEnd < today
+    ? [`Last date passed (${applicationEnd.toISOString().slice(0, 10)}) — reject it instead`]
+    : [];
 }
 
 @Injectable()
@@ -131,7 +139,7 @@ export class ReviewService {
         confidence,
         found_at: (r.source_fetched_at ?? r.created_at).toISOString(),
         needs_care: needsCare(confidence),
-        missing: publishBlockers(r),
+        missing: [...expiryBlockers(r.application_end), ...publishBlockers(r)],
         last_date: r.application_end ? r.application_end.toISOString().slice(0, 10) : null,
       };
     });
@@ -268,7 +276,7 @@ export class ReviewService {
         note: d.note,
       })),
       pdf,
-      missing: publishBlockers(o),
+      missing: [...expiryBlockers(o.application_end), ...publishBlockers(o)],
       needs_care: needsCare(confidence),
       created_at: o.created_at.toISOString(),
       updated_at: o.updated_at.toISOString(),

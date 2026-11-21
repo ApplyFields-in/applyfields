@@ -16,7 +16,7 @@ import type {
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { todayIst } from '../opportunities/opportunities.service.js';
-import { publishBlockers } from './review.service.js';
+import { expiryBlockers, publishBlockers } from './review.service.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -238,9 +238,7 @@ export class OpportunitiesAdminService {
       const o = await this.load(tx, id);
       if (o.status === 'published')
         throw new ConflictException('Already published');
-      const missing = publishBlockers(o);
-      if (o.application_end && o.application_end < todayIst())
-        missing.push('The last date has passed — close it instead');
+      const missing = [...publishBlockers(o), ...expiryBlockers(o.application_end)];
       if (missing.length)
         throw new BadRequestException({
           message: 'Fix these before publishing',

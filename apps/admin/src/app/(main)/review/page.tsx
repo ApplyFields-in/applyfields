@@ -1,6 +1,6 @@
 import type { ReviewList, ReviewReadiness, ReviewSort } from '@applyfields/types';
 import { Card, cn, EmptyState, PageHeader } from '@applyfields/ui';
-import { ChevronLeft, ChevronRight, CircleAlert, CircleCheck, FileClock, Inbox, TriangleAlert } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleAlert, CircleCheck, FileClock, Inbox, Send, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { connection } from 'next/server';
@@ -70,6 +70,9 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
             </FilterChip>
             <FilterChip href={href({ ready: 'ready' })} active={ready === 'ready'}>
               <CircleCheck aria-hidden="true" /> Ready to publish <Count n={data.ready} />
+            </FilterChip>
+            <FilterChip href="/opportunities?status=published" active={false}>
+              <Send aria-hidden="true" /> Published
             </FilterChip>
             <FilterChip href={href({ ready: 'missing' })} active={ready === 'missing'}>
               <CircleAlert aria-hidden="true" /> Missing info <Count n={data.missing_info} />

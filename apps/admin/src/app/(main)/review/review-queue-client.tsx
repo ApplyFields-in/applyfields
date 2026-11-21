@@ -71,6 +71,9 @@ export function ReviewQueueClient({
 
   // Rows published/rejected here disappear at once; the server refresh catches up in the background.
   const [removed, setRemoved] = useState<Set<string>>(new Set());
+  // Published here: kept on screen in a "Just published" strip so the click visibly did something.
+  const [justPublished, setJustPublished] = useState<ReviewListItem[]>([]);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const visible = items.filter((d) => !removed.has(d.id));
   const hide = (ids: string[]) =>
     setRemoved((prev) => {
@@ -81,7 +84,7 @@ export function ReviewQueueClient({
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setFeedback({ text, type });
-    setTimeout(() => setFeedback(null), 4000);
+    setTimeout(() => setFeedback(null), type === 'error' ? 9000 : 5000);
   };
 
   // Toggle selection for an item
@@ -127,18 +130,22 @@ export function ReviewQueueClient({
         showToast(`Cannot publish "${item.title.slice(0, 30)}..." — ${item.missing.length} fields missing. Open details to edit.`, 'error');
         return;
       }
+      setPublishingId(item.id);
       startTransition(async () => {
         try {
           const res = await publishOpportunityAction(item.id);
           if (res.ok) {
             hide([item.id]);
+            setJustPublished((prev) => [item, ...prev]);
             showToast(`Published: "${item.title.slice(0, 40)}..."`);
             router.refresh();
           } else {
-            showToast(res.error || 'Failed to publish draft', 'error');
+            showToast(`Not published: ${res.error || 'unknown error'}`, 'error');
           }
         } catch {
           showToast('Failed to publish draft', 'error');
+        } finally {
+          setPublishingId(null);
         }
       });
     },
@@ -178,6 +185,7 @@ export function ReviewQueueClient({
       const done = await inBatches(ids, async (id) => (await publishOpportunityAction(id)).ok);
       const published = done.length;
       hide(done);
+      setJustPublished((prev) => [...items.filter((d) => done.includes(d.id)), ...prev]);
       setSelectedIds(new Set());
       showToast(`Batch published ${published} of ${ids.length} opportunities!`);
       router.refresh();
@@ -360,6 +368,30 @@ export function ReviewQueueClient({
         </div>
       </div>
 
+      {justPublished.length > 0 && (
+        <Card className="overflow-hidden border-emerald-200 p-0">
+          <p className="flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-5 py-2.5 text-xs font-bold text-emerald-900">
+            <CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
+            Just published ({justPublished.length}) — now live on the site
+          </p>
+          <ul className="divide-y divide-emerald-100">
+            {justPublished.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-3 px-5 py-2.5">
+                <span className="min-w-0 truncate text-sm font-semibold text-teal">{d.title}</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                    <CircleCheck className="size-3" aria-hidden="true" /> Published
+                  </span>
+                  <Link href={`/opportunities/${d.id}`} className="text-xs font-semibold text-teal/70 hover:text-teal">
+                    View <ArrowRight className="inline size-3" aria-hidden="true" />
+                  </Link>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {/* Drafts List Card */}
       <Card className="overflow-hidden p-0">
         {/* Table Header */}
@@ -436,6 +468,10 @@ export function ReviewQueueClient({
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
                         <CircleCheck className="size-3" aria-hidden="true" /> Ready to publish
                       </span>
+                    ) : d.missing[0].startsWith('Last date passed') ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-800 ring-1 ring-rose-200">
+                        <CircleAlert className="size-3" aria-hidden="true" /> Expired · last date {d.last_date}
+                      </span>
                     ) : (
                       <span className="flex min-w-0 items-start gap-1 text-[11px] font-medium text-amber-900">
                         <CircleAlert className="mt-px size-3 shrink-0 text-amber-600" aria-hidden="true" />
@@ -455,7 +491,15 @@ export function ReviewQueueClient({
                       className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-600/30"
                       title={isReady ? 'Publish (A)' : `Can't publish yet. Missing: ${d.missing.join(', ')}`}
                     >
-                      <Send className="size-3" aria-hidden="true" /> Publish
+                      {publishingId === d.id ? (
+                        <>
+                          <Loader2 className="size-3 animate-spin" aria-hidden="true" /> Publishing…
+                        </>
+                      ) : (
+                        <>
+                          <Send className="size-3" aria-hidden="true" /> Publish
+                        </>
+                      )}
                     </button>
                     <button
                       type="button"
