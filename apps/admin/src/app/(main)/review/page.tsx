@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
 
-import { apiGet } from '@/lib/api';
+import { apiGetWithStatus } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
 import { ReviewQueueClient } from './review-queue-client';
 import { ReviewSortMenu } from './review-sort-menu';
@@ -34,7 +34,8 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
     if (st.page > 1) q.set('page', String(st.page));
     return q;
   };
-  const data = await apiGet<ReviewList>(`/admin/review?${toQuery(state)}`);
+  const res = await apiGetWithStatus<ReviewList>(`/admin/review?${toQuery(state)}`);
+  const data = res.data;
 
   // Changing any filter goes back to page 1; only page links keep `page`.
   const href = (next: Partial<State>) => {
@@ -52,7 +53,7 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
       />
 
       {data === null ? (
-        <ApiOffline />
+        <ApiOffline status={res.status} error={res.error} />
       ) : (
         <>
           {/* Summary */}

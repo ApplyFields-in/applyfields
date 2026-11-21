@@ -331,12 +331,25 @@ function Footer() {
   );
 }
 
-export function ApiOffline() {
+/** `status`/`error` from apiGetWithStatus: a non-zero status means the API answered with an error, not that it is down. */
+export function ApiOffline({ status = 0, error }: { status?: number; error?: string }) {
+  if (status > 0) {
+    return (
+      <Card tone="tea" className="flex items-start gap-3 p-5 border-amber-300 bg-amber-50/80">
+        <WifiOff className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden="true" />
+        <div>
+          <p className="font-bold text-amber-900">The API returned an error ({status})</p>
+          <p className="mt-1 text-sm text-amber-800">{error ?? 'No details.'}</p>
+        </div>
+      </Card>
+    );
+  }
   return (
     <Card tone="tea" className="flex items-start gap-3 p-5 border-amber-300 bg-amber-50/80">
       <WifiOff className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden="true" />
       <div>
         <p className="font-bold text-amber-900">Can’t reach the API</p>
+        {error && <p className="mt-1 text-sm text-amber-800">{error}</p>}
         <p className="mt-1 text-sm text-amber-800">
           This portal reads from <code className="font-mono">{BACKEND_API_URL}</code>. Start it with{' '}
           <code className="font-mono font-semibold">pnpm dev:api</code>.
