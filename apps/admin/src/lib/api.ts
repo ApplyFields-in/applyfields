@@ -3,11 +3,19 @@
  * Rule: the website never calls Supabase or the scraper directly — only this API.
  */
 
-export const API_URL = (
+const BACKEND_API_URL = (
   process.env.API_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
   'http://localhost:4000/api/v1'
 ).replace(/\/$/, '');
+
+/**
+ * Browser → same-site '/api/v1' (next.config rewrite proxies it to the API), so the login cookies
+ * are stored for THIS site and the server-side session check in (main)/layout.tsx can see them.
+ * Calling the API's own domain stored them for onrender.com instead, and every staff login bounced
+ * back to /login. Server code calls the API directly.
+ */
+export const API_URL = typeof window === 'undefined' ? BACKEND_API_URL : '/api/v1';
 
 // Links to the other portals (real domains in production, local ports in dev).
 const PROD = process.env.NODE_ENV === 'production';
