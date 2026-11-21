@@ -109,8 +109,6 @@ export default async function DashboardPage() {
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur-md">
               <span className={cn('size-2 rounded-full', apiDown ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse')} />
               <span>ApplyFields Global Operations</span>
-              <span className="text-white/40">|</span>
-              <span className="text-navy-200">Port :3001</span>
               {apiDown && (
                 <span className="rounded bg-amber-400/20 px-1.5 py-0.2 text-[10px] text-amber-300">
                   API unreachable
