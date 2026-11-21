@@ -10,6 +10,7 @@ import {
 } from 'react';
 import type { PartnerDetail, UserSummary } from '@applyfields/types';
 import { apiGet, apiPost, getMyPartner } from './api';
+import { flashToast } from '@applyfields/ui';
 
 export type PartnerAuthStatus =
   | 'loading'
@@ -145,6 +146,7 @@ export function PartnerAuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setPartner(null);
     setStatus('unauthenticated');
+    flashToast('Logged out successfully.');
   }, []);
 
   const setPartnerOptimistic = useCallback(

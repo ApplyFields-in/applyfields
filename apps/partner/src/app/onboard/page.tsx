@@ -29,6 +29,7 @@ import {
   UploadCloud,
   User,
 } from 'lucide-react';
+import { flashToast } from '@applyfields/ui';
 
 const CATEGORIES: {
   id: PartnerType;
@@ -372,6 +373,7 @@ export default function OnboardWizardPage() {
 
       // 4. Refresh session and route to holding screen
       await refreshSession();
+      flashToast('Application submitted successfully. We will review it soon.');
       router.push('/under-review');
     } catch (err: any) {
       setError(err?.message || 'An unexpected error occurred during submission.');

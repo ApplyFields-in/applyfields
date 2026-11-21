@@ -21,6 +21,7 @@ import {
   validatePassword,
 } from '@/components/auth-ui';
 import type { UserSummary } from '@applyfields/types';
+import { flashAppToast } from '@/components/toast-notification-provider';
 
 function Steps({ step }: { step: 'form' | 'verify' }) {
   const verifying = step === 'verify';
@@ -177,6 +178,7 @@ function RegisterForm() {
         window.dispatchEvent(new Event('auth-changed'));
       }
       setSuccessMsg('Account verified! Redirecting to dashboard...');
+      flashAppToast('Account created successfully. Welcome to ApplyFields!');
       setTimeout(() => {
         router.push('/');
       }, 800);

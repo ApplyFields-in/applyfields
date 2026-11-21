@@ -23,6 +23,7 @@ import {
   validatePassword,
 } from '@/components/auth-ui';
 import type { AuthResponse } from '@applyfields/types';
+import { flashAppToast } from '@/components/toast-notification-provider';
 
 function LoginForm() {
   const router = useRouter();
@@ -114,6 +115,7 @@ function LoginForm() {
     }
 
     setSuccess('Logged in successfully! Redirecting...');
+    flashAppToast('Logged in successfully. Welcome back!');
     setTimeout(() => {
       router.push(redirectTarget);
     }, 1000);

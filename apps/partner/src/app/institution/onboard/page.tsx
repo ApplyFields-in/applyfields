@@ -27,6 +27,7 @@ import {
   uploadPartnerFile,
 } from '@/lib/api';
 import type { InstitutionSummary } from '@applyfields/types';
+import { flashToast } from '@applyfields/ui';
 
 export default function InstitutionOnboardPage() {
   const router = useRouter();
@@ -139,6 +140,7 @@ export default function InstitutionOnboardPage() {
       // Upload authorization verification stub if provided
       if (authDoc) await uploadPartnerFile('principal_authorization_letter', authDoc);
 
+      flashToast('Institution registered successfully. We will review it soon.');
       router.push('/institution/under-review');
     } catch (err: any) {
       setError(err?.message || 'Unexpected error while registering institution.');

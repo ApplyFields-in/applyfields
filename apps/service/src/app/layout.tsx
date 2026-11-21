@@ -7,7 +7,7 @@ import { LanguageProvider } from '@/lib/i18n';
 import { Navbar } from '@/components/navbar';
 import { CartDrawer } from '@/components/cart-drawer';
 import { Footer } from '@/components/footer';
-import { ScrollToTop } from '@applyfields/ui';
+import { FlashToast, ScrollToTop } from '@applyfields/ui';
 
 export const metadata: Metadata = {
   title: 'ApplyFields Services — Book MeeSeva, CSC, PAN, Aadhaar & Xerox Online',
@@ -41,6 +41,7 @@ export default function RootLayout({
               </div>
               <CartDrawer />
               <ScrollToTop />
+        <FlashToast />
             </CartProvider>
           </AuthProvider>
         </LanguageProvider>

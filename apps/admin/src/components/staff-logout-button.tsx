@@ -4,6 +4,7 @@ import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { API_URL } from '@/lib/api';
+import { flashToast } from '@applyfields/ui';
 
 export function StaffLogoutButton() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export function StaffLogoutButton() {
       localStorage.removeItem('currentUser');
     }
 
+    flashToast('Logged out successfully.');
     router.push('/login');
     router.refresh();
   }

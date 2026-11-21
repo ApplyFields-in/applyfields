@@ -11,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { GoogleButton } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
 import type { AuthResponse } from '@applyfields/types';
+import { flashAppToast } from '@/components/toast-notification-provider';
 
 interface SocialAuthButtonsProps {
   mode: 'login' | 'register';
@@ -36,6 +37,7 @@ export function SocialAuthButtons({ mode, redirectUrl, onError, onSuccess }: Soc
     localStorage.setItem('currentUser', JSON.stringify(res.data.user));
     window.dispatchEvent(new Event('auth-changed'));
     onSuccess?.(`${mode === 'register' ? 'Account created' : 'Signed in'} with Google! Redirecting...`);
+    flashAppToast(mode === 'register' ? 'Account created successfully with Google.' : 'Logged in successfully with Google.');
     setTimeout(() => router.push(targetPath), 700);
   }
 

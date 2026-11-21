@@ -15,7 +15,7 @@ type GoogleId = {
 const googleId = () => (window as { google?: { accounts?: { id?: GoogleId } } }).google?.accounts?.id;
 
 export function GoogleButton({
-  clientId,
+  clientId: rawClientId,
   onCredential,
   text = 'continue_with',
   theme = 'outline',
@@ -25,6 +25,8 @@ export function GoogleButton({
   text?: 'signin_with' | 'signup_with' | 'continue_with';
   theme?: 'outline' | 'filled_blue' | 'filled_black';
 }) {
+  // Hosting dashboards sometimes save the ID with a trailing newline; Google then says "client not found".
+  const clientId = rawClientId?.trim();
   const holder = useRef<HTMLDivElement>(null);
   const callback = useRef(onCredential);
   callback.current = onCredential;

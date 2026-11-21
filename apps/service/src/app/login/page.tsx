@@ -20,6 +20,7 @@ import {
 import { GoogleButton } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
 import { useAuth, type CitizenUser } from '@/lib/auth-context';
+import { flashToast } from '@applyfields/ui';
 
 export function validatePassword(password: string) {
   const hasLength = (password || '').length >= 8;
@@ -106,6 +107,7 @@ function ServiceLoginForm() {
 
     login(res.data.user, res.data.accessToken);
     setSuccess('Signed in successfully! Redirecting...');
+    flashToast('Logged in successfully. Welcome back!');
     setTimeout(() => {
       router.push(redirectTarget);
     }, 600);
@@ -126,6 +128,7 @@ function ServiceLoginForm() {
     }
     login(res.data.user, res.data.accessToken);
     setSuccess('Signed in with Google! Redirecting...');
+    flashToast('Logged in successfully with Google.');
     setTimeout(() => router.push(redirectTarget), 600);
   }
 

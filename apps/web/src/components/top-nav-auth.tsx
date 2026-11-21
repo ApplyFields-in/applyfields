@@ -8,6 +8,7 @@ import { LogIn, LogOut, UserPlus } from 'lucide-react';
 import { PixelAvatar } from '@/components/pixel-avatars';
 import { apiGet, apiPost } from '@/lib/api';
 import type { MeResponse, UserSummary } from '@applyfields/types';
+import { flashAppToast } from '@/components/toast-notification-provider';
 
 export function TopNavAuth() {
   const router = useRouter();
@@ -110,6 +111,7 @@ export function TopNavAuth() {
       window.dispatchEvent(new Event('auth-changed'));
     }
 
+    flashAppToast('Logged out successfully.');
     router.push('/account');
   }
 

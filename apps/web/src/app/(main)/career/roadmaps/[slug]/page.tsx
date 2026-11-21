@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { apiGet, apiPost } from '@/lib/api';
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { PrintExportButton } from '@/components/print-export-button';
+import { showAppToast } from '@/components/toast-notification-provider';
 
 const KIND_BADGES: Record<string, { label: string }> = {
   education: { label: 'Degree / Academic' },
@@ -106,10 +107,13 @@ export default function RoadmapDetailPage({
     setSavingRoadmap(true);
     setIsSaved(true);
     try {
-      await apiPost(`/career/roadmaps/${slug}/save`, {});
+      const res = await apiPost(`/career/roadmaps/${slug}/save`, {});
+      if (res.error) throw new Error(res.error);
+      showAppToast({ message: 'Roadmap saved successfully.', type: 'success' });
     } catch (err) {
       console.error('Failed to save roadmap:', err);
       setIsSaved(false);
+      showAppToast({ message: 'Could not save this roadmap. Please try again.', type: 'remove' });
     } finally {
       setSavingRoadmap(false);
     }

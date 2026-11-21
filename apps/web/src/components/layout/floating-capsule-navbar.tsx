@@ -25,6 +25,7 @@ import type { MeResponse, UserSummary } from '@applyfields/types';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { PARTNER_PORTAL_URL, SERVICE_PORTAL_URL } from '@/lib/urls';
 import { openCommandPalette } from '@/components/search/command-palette';
+import { flashAppToast } from '@/components/toast-notification-provider';
 
 export function FloatingCapsuleNavbar() {
   const pathname = usePathname();
@@ -135,6 +136,7 @@ export function FloatingCapsuleNavbar() {
       window.dispatchEvent(new Event('auth-changed'));
     }
 
+    flashAppToast('Logged out successfully.');
     router.push('/account');
   }
 
