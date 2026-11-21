@@ -183,7 +183,12 @@ export interface ReviewListItem {
   needs_care: boolean;
   /** publish blockers (job-format §5) — empty = ready to publish */
   missing: string[];
+  /** application last date YYYY-MM-DD, when known */
+  last_date: string | null;
 }
+
+export type ReviewSort = 'newest' | 'oldest' | 'closing' | 'confidence';
+export type ReviewReadiness = 'ready' | 'missing';
 
 export interface ReviewList {
   total: number;
@@ -191,7 +196,16 @@ export interface ReviewList {
   /** downloaded notices the extractor hasn't turned into drafts yet */
   waiting_extraction: number;
   sources: string[];
+  /** this page of drafts (after source / careful / readiness filters and sort) */
   items: ReviewListItem[];
+  /** drafts matching every filter (all pages) */
+  matching: number;
+  /** in the current source / careful filter: nothing missing vs something missing */
+  ready: number;
+  missing_info: number;
+  page: number;
+  page_size: number;
+  pages: number;
 }
 
 export interface ReviewPost {

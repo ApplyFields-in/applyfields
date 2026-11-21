@@ -4,9 +4,18 @@
  * Sends and receives cookies for session authentication.
  */
 
-export const API_URL =
+/** The API's own address (server code, and long-lived browser connections like the notification stream). */
+export const BACKEND_API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ||
   'http://localhost:4000/api/v1';
+
+/**
+ * Browser → same-site '/api/v1' (next.config rewrite proxies it to the API), so login cookies are
+ * stored for THIS site and server-rendered pages (/saved, Home's personal part…) can see them.
+ * Calling the API's own domain stored them for onrender.com, so those pages showed "Log in" even
+ * when signed in. Works locally too (the rewrite points at localhost:4000).
+ */
+export const API_URL = typeof window === 'undefined' ? BACKEND_API_URL : '/api/v1';
 
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;

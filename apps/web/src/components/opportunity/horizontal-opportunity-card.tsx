@@ -9,6 +9,7 @@ import { apiPut, apiDelete } from '@/lib/api';
 import { showAppToast } from '@/components/toast-notification-provider';
 
 import { useLanguage } from '@/lib/i18n/language-context';
+import { SaveBurst } from '@/components/save-burst';
 
 export interface ExtendedOpportunityCard extends Omit<OpportunityCard, 'type'> {
   type: OpportunityType | 'service';
@@ -23,6 +24,7 @@ export function HorizontalOpportunityCard({
 }) {
   const { t } = useLanguage();
   const [isSaved, setIsSaved] = useState(Boolean(item.saved));
+  const [pulse, setPulse] = useState(0); // bumped per click to replay the save animation
 
   // Determine official domain from item or known patterns
   const domain =
@@ -82,6 +84,7 @@ export function HorizontalOpportunityCard({
     e.preventDefault();
     const nextState = !isSaved;
     setIsSaved(nextState);
+    setPulse((n) => n + 1);
 
     const path = `/saved/${item.type === 'service' ? 'service' : 'opportunity'}/${encodeURIComponent(item.slug)}`;
     const res = nextState ? await apiPut(path, {}) : await apiDelete(path);
@@ -178,11 +181,16 @@ export function HorizontalOpportunityCard({
           type="button"
           onClick={toggleSave}
           aria-label={isSaved ? t('card_remove_saved') : t('card_save_item')}
-          className={`p-2 rounded-xl transition-colors ${
+          aria-pressed={isSaved}
+          className={`relative p-2 rounded-xl transition-colors active:scale-95 ${
             isSaved ? 'text-[#0e7bf4] bg-blue-50' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
           }`}
         >
-          <Bookmark className={`size-4 ${isSaved ? 'fill-current' : ''}`} />
+          {pulse > 0 && isSaved && <SaveBurst key={pulse} />}
+          <Bookmark
+            key={pulse}
+            className={`size-4 ${isSaved ? 'fill-current' : ''} ${pulse > 0 ? (isSaved ? 'af-save-pop' : 'af-save-unpop') : ''}`}
+          />
         </button>
 
         {/* View Details Action */}

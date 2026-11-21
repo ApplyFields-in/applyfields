@@ -1,14 +1,15 @@
-import type { ReviewList } from '@applyfields/types';
-import { Badge, Card, cn, EmptyState, PageHeader } from '@applyfields/ui';
-import { ArrowRight, CircleAlert, CircleCheck, FileClock, Inbox, TriangleAlert } from 'lucide-react';
+import type { ReviewList, ReviewReadiness, ReviewSort } from '@applyfields/types';
+import { Card, cn, EmptyState, PageHeader } from '@applyfields/ui';
+import { ChevronLeft, ChevronRight, CircleAlert, CircleCheck, FileClock, Inbox, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
-import { ConfidenceMeter, formatFoundAt, TYPE_LABEL } from '@/components/review-ui';
+
 import { apiGet } from '@/lib/api';
 import { SECTIONS } from '@/lib/sections';
 import { ReviewQueueClient } from './review-queue-client';
+import { ReviewSortMenu } from './review-sort-menu';
 
 export const metadata = { title: SECTIONS.review.title };
 
@@ -18,18 +19,26 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
   const sp = await searchParams;
   const source = typeof sp.source === 'string' ? sp.source : '';
   const careful = sp.careful === '1';
+  const ready: ReviewReadiness | '' = sp.ready === 'ready' || sp.ready === 'missing' ? sp.ready : '';
+  const sort: ReviewSort = sp.sort === 'oldest' || sp.sort === 'closing' || sp.sort === 'confidence' ? sp.sort : 'newest';
+  const page = Math.max(1, Number(typeof sp.page === 'string' ? sp.page : 1) || 1);
 
-  const query = new URLSearchParams();
-  if (source) query.set('source', source);
-  if (careful) query.set('careful', '1');
-  const data = await apiGet<ReviewList>(`/admin/review${query.size ? `?${query}` : ''}`);
-
-  const href = (next: { source?: string; careful?: boolean }) => {
+  const state = { source, careful, ready, sort, page };
+  type State = typeof state;
+  const toQuery = (st: State) => {
     const q = new URLSearchParams();
-    const s = next.source ?? source;
-    const c = next.careful ?? careful;
-    if (s) q.set('source', s);
-    if (c) q.set('careful', '1');
+    if (st.source) q.set('source', st.source);
+    if (st.careful) q.set('careful', '1');
+    if (st.ready) q.set('ready', st.ready);
+    if (st.sort !== 'newest') q.set('sort', st.sort);
+    if (st.page > 1) q.set('page', String(st.page));
+    return q;
+  };
+  const data = await apiGet<ReviewList>(`/admin/review?${toQuery(state)}`);
+
+  // Changing any filter goes back to page 1; only page links keep `page`.
+  const href = (next: Partial<State>) => {
+    const q = toQuery({ ...state, page: 1, ...next });
     return q.size ? `/review?${q}` : '/review';
   };
 
@@ -55,12 +64,19 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
 
           {/* Filters */}
           <div className="mb-4 flex flex-wrap items-center gap-2" role="navigation" aria-label="Filter the queue">
-            <FilterChip href={href({ careful: false })} active={!careful}>
-              All drafts
+            <FilterChip href={href({ ready: '' })} active={!ready}>
+              All drafts <Count n={data.ready + data.missing_info} />
             </FilterChip>
-            <FilterChip href={href({ careful: true })} active={careful}>
+            <FilterChip href={href({ ready: 'ready' })} active={ready === 'ready'}>
+              <CircleCheck aria-hidden="true" /> Ready to publish <Count n={data.ready} />
+            </FilterChip>
+            <FilterChip href={href({ ready: 'missing' })} active={ready === 'missing'}>
+              <CircleAlert aria-hidden="true" /> Missing info <Count n={data.missing_info} />
+            </FilterChip>
+            <FilterChip href={href({ careful: !careful })} active={careful}>
               <TriangleAlert aria-hidden="true" /> Check carefully
             </FilterChip>
+
             {data.sources.length > 0 && <span className="mx-1 h-6 w-px bg-teal/15" aria-hidden="true" />}
             {data.sources.length > 0 && (
               <FilterChip href={href({ source: '' })} active={!source}>
@@ -73,11 +89,14 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
               </FilterChip>
             ))}
           </div>
+          <div className="-mt-1 mb-4 flex justify-end">
+            <ReviewSortMenu value={sort} />
+          </div>
 
           {data.items.length === 0 ? (
             <EmptyState
               icon={<CircleCheck />}
-              title={source || careful ? 'Nothing matches this filter' : 'The queue is empty'}
+              title={source || careful || ready ? 'Nothing matches this filter' : 'The queue is empty'}
               text={
                 data.waiting_extraction > 0
                   ? `${data.waiting_extraction} downloaded notices are waiting to be read by the extractor. They appear here as drafts once they are.`
@@ -85,13 +104,26 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
               }
             />
           ) : (
-            <ReviewQueueClient
-              items={data.items}
-              total={data.total}
-              sources={data.sources}
-              currentSource={source}
-              isCareful={careful}
-            />
+            <>
+              <ReviewQueueClient
+                items={data.items}
+                total={data.total}
+                sources={data.sources}
+                currentSource={source}
+                isCareful={careful}
+              />
+              <Pagination
+                page={data.page}
+                pages={data.pages}
+                from={(data.page - 1) * data.page_size + 1}
+                to={(data.page - 1) * data.page_size + data.items.length}
+                of={data.matching}
+                href={(p) => {
+                  const q = toQuery({ ...state, page: p });
+                  return q.size ? `/review?${q}` : '/review';
+                }}
+              />
+            </>
           )}
         </>
       )}
@@ -126,5 +158,83 @@ function FilterChip({ href, active, children }: { href: string; active: boolean;
     >
       {children}
     </Link>
+  );
+}
+
+function Count({ n }: { n: number }) {
+  return <span className="rounded-full bg-current/10 px-1.5 text-[10px] font-bold tabular-nums">{n}</span>;
+}
+
+/** "Showing 26–50 of 102" + Previous / page numbers / Next. Pages are links, so they prefetch. */
+function Pagination({
+  page,
+  pages,
+  from,
+  to,
+  of,
+  href,
+}: {
+  page: number;
+  pages: number;
+  from: number;
+  to: number;
+  of: number;
+  href: (page: number) => string;
+}) {
+  // Up to 5 numbers around the current page, plus first and last.
+  const start = Math.max(1, Math.min(page - 2, pages - 4));
+  const nums = Array.from({ length: Math.min(5, pages) }, (_, i) => start + i);
+  const link = 'grid h-8 min-w-8 place-items-center rounded-full px-2.5 text-xs font-semibold transition';
+  return (
+    <nav aria-label="Review queue pages" className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+      <p className="text-xs text-teal/70">
+        Showing <strong className="tabular-nums text-teal">{from}–{to}</strong> of{' '}
+        <strong className="tabular-nums text-teal">{of}</strong>
+      </p>
+      {pages > 1 && (
+        <div className="flex items-center gap-1">
+          {page > 1 ? (
+            <Link href={href(page - 1)} className={cn(link, 'gap-1 bg-cream shadow-clay hover:bg-tea/70')} aria-label="Previous page">
+              <ChevronLeft className="size-3.5" aria-hidden="true" />
+            </Link>
+          ) : (
+            <span className={cn(link, 'text-teal/30')} aria-hidden="true">
+              <ChevronLeft className="size-3.5" />
+            </span>
+          )}
+          {nums[0] > 1 && (
+            <>
+              <Link href={href(1)} className={cn(link, 'hover:bg-tea/70')}>1</Link>
+              {nums[0] > 2 && <span className="px-1 text-teal/40">…</span>}
+            </>
+          )}
+          {nums.map((n) => (
+            <Link
+              key={n}
+              href={href(n)}
+              aria-current={n === page ? 'page' : undefined}
+              className={cn(link, n === page ? 'bg-teal text-cream' : 'hover:bg-tea/70')}
+            >
+              {n}
+            </Link>
+          ))}
+          {nums[nums.length - 1] < pages && (
+            <>
+              {nums[nums.length - 1] < pages - 1 && <span className="px-1 text-teal/40">…</span>}
+              <Link href={href(pages)} className={cn(link, 'hover:bg-tea/70')}>{pages}</Link>
+            </>
+          )}
+          {page < pages ? (
+            <Link href={href(page + 1)} className={cn(link, 'gap-1 bg-cream shadow-clay hover:bg-tea/70')} aria-label="Next page">
+              <ChevronRight className="size-3.5" aria-hidden="true" />
+            </Link>
+          ) : (
+            <span className={cn(link, 'text-teal/30')} aria-hidden="true">
+              <ChevronRight className="size-3.5" />
+            </span>
+          )}
+        </div>
+      )}
+    </nav>
   );
 }

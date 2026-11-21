@@ -3,7 +3,8 @@
  * Rule: the website never calls Supabase or the scraper directly — only this API.
  */
 
-const BACKEND_API_URL = (
+/** The API's own address (server code; also what UI text shows, so server and browser render the same). */
+export const BACKEND_API_URL = (
   process.env.API_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
   'http://localhost:4000/api/v1'

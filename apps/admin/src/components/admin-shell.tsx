@@ -23,7 +23,7 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { API_URL, PARTNER_URL, SERVICE_URL, WEB_URL } from '@/lib/api';
+import { BACKEND_API_URL, PARTNER_URL, SERVICE_URL, WEB_URL } from '@/lib/api';
 import {
   DEPARTMENTS,
   canOpenPath,
@@ -312,7 +312,7 @@ export function ApiOffline() {
       <div>
         <p className="font-bold text-amber-900">Can’t reach the API</p>
         <p className="mt-1 text-sm text-amber-800">
-          This portal reads from <code className="font-mono">{API_URL}</code>. Start it with{' '}
+          This portal reads from <code className="font-mono">{BACKEND_API_URL}</code>. Start it with{' '}
           <code className="font-mono font-semibold">pnpm dev:api</code>.
         </p>
       </div>

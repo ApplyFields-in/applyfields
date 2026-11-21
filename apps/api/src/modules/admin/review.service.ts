@@ -6,11 +6,11 @@ import type {
   RequiredDocument,
   ReviewDetail,
   ReviewList,
-  ReviewListItem,
-} from '@applyfields/types';
+  ReviewListItem, ReviewReadiness, ReviewSort } from '@applyfields/types';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { StorageService } from '../../common/storage.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { pageReviewItems } from './review-paging.js';
 
 /** Below this confidence a draft is flagged "check carefully" (job-format §4.8). */
 export const CAREFUL_REVIEW_BELOW = 0.6;
@@ -62,6 +62,9 @@ export class ReviewService {
   async list(filter: {
     source?: string;
     careful?: boolean;
+    readiness?: ReviewReadiness;
+    sort?: ReviewSort;
+    page?: number;
   }): Promise<ReviewList> {
     const drafts: Prisma.opportunitiesWhereInput = { status: 'draft' };
     const careful: Prisma.opportunitiesWhereInput = {
@@ -98,7 +101,10 @@ export class ReviewService {
             { source_fetched_at: { sort: 'desc', nulls: 'last' } },
             { created_at: 'desc' },
           ],
-          take: 200,
+          // ponytail: whole filtered draft set in memory so "ready / missing" (computed in code)
+          // can be filtered and paged correctly; fine for thousands of drafts, move readiness
+          // into a stored column if the queue ever gets far bigger.
+          take: 5000,
         }),
         this.prisma.opportunities.count({ where: drafts }),
         this.prisma.opportunities.count({ where: { AND: [drafts, careful] } }),
@@ -126,8 +132,10 @@ export class ReviewService {
         found_at: (r.source_fetched_at ?? r.created_at).toISOString(),
         needs_care: needsCare(confidence),
         missing: publishBlockers(r),
+        last_date: r.application_end ? r.application_end.toISOString().slice(0, 10) : null,
       };
     });
+    const paged = pageReviewItems(items, filter);
 
     return {
       total,
@@ -136,7 +144,7 @@ export class ReviewService {
       sources: sources
         .map((s) => s.source_key)
         .filter((k): k is string => k !== null),
-      items,
+      ...paged,
     };
   }
 

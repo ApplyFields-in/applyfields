@@ -15,7 +15,7 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
-import { API_URL } from '@/lib/api';
+import { BACKEND_API_URL } from '@/lib/api';
 import { DeadlineBadge, DeadlineLegend, ELIGIBILITY_META, TYPE_META, formatDate } from '@/lib/format';
 import { apiGetAsUser } from '@/lib/server-api';
 import { SaveButton } from '@/components/save-button';
@@ -97,7 +97,7 @@ export function ApiOffline() {
         <p className="mt-1 text-sm">Our server may be waking up. Please refresh in a minute.</p>
         {process.env.NODE_ENV !== 'production' && (
           <p className="mt-1 text-xs">
-            Dev: the website reads from <code className="font-mono">{API_URL}</code>. Start it with{' '}
+            Dev: the website reads from <code className="font-mono">{BACKEND_API_URL}</code>. Start it with{' '}
             <code className="font-mono font-semibold">pnpm dev:api</code>.
           </p>
         )}

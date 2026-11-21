@@ -4,19 +4,14 @@ import React, { useState, useEffect, useCallback, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ReviewListItem } from '@applyfields/types';
-import { Badge, buttonClass, Card, cn } from '@applyfields/ui';
+import { Card, cn } from '@applyfields/ui';
 import {
   AlertTriangle,
   ArrowRight,
-  Check,
   CheckCircle2,
   CircleAlert,
   CircleCheck,
-  Command,
-  FileClock,
-  Inbox,
   Keyboard,
-  Layers,
   Loader2,
   Send,
   Trash2,
@@ -41,6 +36,17 @@ const QUICK_REJECTION_REASONS = [
   'Eligibility criteria missing from source text',
 ];
 
+/** Runs `task` for every id, 5 at a time (instead of one after another); returns the ids that succeeded. */
+async function inBatches(ids: string[], task: (id: string) => Promise<boolean>): Promise<string[]> {
+  const ok: string[] = [];
+  for (let i = 0; i < ids.length; i += 5) {
+    const chunk = ids.slice(i, i + 5);
+    const results = await Promise.all(chunk.map((id) => task(id).catch(() => false)));
+    chunk.forEach((id, k) => results[k] && ok.push(id));
+  }
+  return ok;
+}
+
 export function ReviewQueueClient({
   items,
   total,
@@ -63,6 +69,16 @@ export function ReviewQueueClient({
   const [rejectionReason, setRejectionReason] = useState<string>(QUICK_REJECTION_REASONS[0]);
   const [feedback, setFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // Rows published/rejected here disappear at once; the server refresh catches up in the background.
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const visible = items.filter((d) => !removed.has(d.id));
+  const hide = (ids: string[]) =>
+    setRemoved((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setFeedback({ text, type });
     setTimeout(() => setFeedback(null), 4000);
@@ -81,7 +97,7 @@ export function ReviewQueueClient({
 
   // Select all high-confidence drafts (>90%)
   const handleSelectHighConfidence = () => {
-    const highConf = items.filter((d) => (d.confidence ?? 0) >= 0.9 && d.missing.length === 0);
+    const highConf = visible.filter((d) => (d.confidence ?? 0) >= 0.9 && d.missing.length === 0);
     const ids = new Set(highConf.map((d) => d.id));
     setSelectedIds(ids);
     showToast(`Selected ${ids.size} high-confidence (>90%) ready drafts.`);
@@ -89,7 +105,7 @@ export function ReviewQueueClient({
 
   // Select all expired/stale notifications
   const handleSelectExpired = () => {
-    const stale = items.filter((d) => d.needs_care || d.missing.length > 2);
+    const stale = visible.filter((d) => d.needs_care || d.missing.length > 2);
     const ids = new Set(stale.map((d) => d.id));
     setSelectedIds(ids);
     showToast(`Selected ${ids.size} stale/incomplete drafts for cleanup.`);
@@ -97,10 +113,10 @@ export function ReviewQueueClient({
 
   // Select all drafts
   const handleSelectAll = () => {
-    if (selectedIds.size === items.length) {
+    if (selectedIds.size === visible.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(items.map((d) => d.id)));
+      setSelectedIds(new Set(visible.map((d) => d.id)));
     }
   };
 
@@ -115,6 +131,7 @@ export function ReviewQueueClient({
         try {
           const res = await publishOpportunityAction(item.id);
           if (res.ok) {
+            hide([item.id]);
             showToast(`Published: "${item.title.slice(0, 40)}..."`);
             router.refresh();
           } else {
@@ -135,6 +152,7 @@ export function ReviewQueueClient({
       try {
         const res = await setOpportunityStatusAction(rejectingItem.id, 'archived', rejectionReason);
         if (res.ok) {
+          hide([rejectingItem.id]);
           showToast(`Rejected: "${rejectingItem.title.slice(0, 30)}..."`);
           setRejectingItem(null);
           router.refresh();
@@ -157,15 +175,9 @@ export function ReviewQueueClient({
     }
 
     startTransition(async () => {
-      let published = 0;
-      for (const id of ids) {
-        try {
-          const res = await publishOpportunityAction(id);
-          if (res.ok) published++;
-        } catch {
-          // continue
-        }
-      }
+      const done = await inBatches(ids, async (id) => (await publishOpportunityAction(id)).ok);
+      const published = done.length;
+      hide(done);
       setSelectedIds(new Set());
       showToast(`Batch published ${published} of ${ids.length} opportunities!`);
       router.refresh();
@@ -182,15 +194,11 @@ export function ReviewQueueClient({
     }
 
     startTransition(async () => {
-      let rejected = 0;
-      for (const id of ids) {
-        try {
-          const res = await setOpportunityStatusAction(id, 'archived', 'Batch rejected by staff review');
-          if (res.ok) rejected++;
-        } catch {
-          // continue
-        }
-      }
+      const done = await inBatches(ids, async (id) =>
+        (await setOpportunityStatusAction(id, 'archived', 'Batch rejected by staff review')).ok,
+      );
+      const rejected = done.length;
+      hide(done);
       setSelectedIds(new Set());
       showToast(`Batch rejected ${rejected} opportunities.`);
       router.refresh();
@@ -205,13 +213,13 @@ export function ReviewQueueClient({
         return;
       }
 
-      if (items.length === 0) return;
+      if (visible.length === 0) return;
 
-      const currentItem = items[focusedIndex];
+      const currentItem = visible[Math.min(focusedIndex, visible.length - 1)];
 
       if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault();
-        setFocusedIndex((prev) => (prev < items.length - 1 ? prev + 1 : prev));
+        setFocusedIndex((prev) => (prev < visible.length - 1 ? prev + 1 : prev));
       } else if (e.key === 'k' || e.key === 'ArrowUp') {
         e.preventDefault();
         setFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
@@ -249,7 +257,7 @@ export function ReviewQueueClient({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [items, focusedIndex, router, handleApproveSingle]);
+  }, [visible, focusedIndex, router, handleApproveSingle]);
 
   // Rejection modal numerical shortcuts (1-5) and Escape
   useEffect(() => {
@@ -296,7 +304,7 @@ export function ReviewQueueClient({
             onClick={handleSelectAll}
             className="px-2.5 py-1 rounded-lg border border-teal/20 bg-canvas text-teal font-semibold hover:bg-teal/10 transition-colors"
           >
-            {selectedIds.size === items.length && items.length > 0 ? 'Deselect All' : 'Select All'}
+            {selectedIds.size === visible.length && visible.length > 0 ? 'Deselect All' : 'Select All'}
           </button>
 
           <button
@@ -355,18 +363,17 @@ export function ReviewQueueClient({
       {/* Drafts List Card */}
       <Card className="overflow-hidden p-0">
         {/* Table Header */}
-        <div className="hidden grid-cols-[36px_minmax(0,1fr)_110px_120px_120px_130px_110px] gap-4 border-b border-teal/10 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-teal/70 lg:grid">
+        <div className="hidden gap-4 border-b border-teal/10 bg-paper/60 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-teal/60 lg:grid lg:grid-cols-[28px_minmax(0,1fr)_110px_120px_minmax(150px,190px)_auto]">
           <span />
-          <span>Draft Details</span>
-          <span>Source</span>
-          <span>Confidence</span>
+          <span>Draft</span>
           <span>Found</span>
+          <span>Confidence</span>
           <span>Readiness</span>
           <span className="text-right">Actions</span>
         </div>
 
         <ul className="divide-y divide-teal/10">
-          {items.map((d, index) => {
+          {visible.map((d, index) => {
             const isFocused = focusedIndex === index;
             const isSelected = selectedIds.has(d.id);
             const isReady = d.missing.length === 0;
@@ -379,103 +386,92 @@ export function ReviewQueueClient({
                   isFocused ? 'bg-amber-50/70 border-l-4 border-l-amber-500' : isSelected ? 'bg-teal/5' : 'hover:bg-cream/40'
                 }`}
               >
-                <div className="grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-3.5 lg:grid-cols-[36px_minmax(0,1fr)_110px_120px_120px_130px_110px]">
-                  {/* Select Checkbox */}
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleToggleSelect(d.id)}
-                      className="size-4 rounded border-teal/30 text-teal focus:ring-teal cursor-pointer"
-                    />
-                  </div>
+                <div className="grid grid-cols-[28px_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-3.5 lg:grid-cols-[28px_minmax(0,1fr)_110px_120px_minmax(150px,190px)_auto]">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleToggleSelect(d.id)}
+                    aria-label={`Select ${d.title}`}
+                    className="size-4 cursor-pointer rounded border-teal/30 text-teal focus:ring-teal"
+                  />
 
-                  {/* Title & Organization */}
+                  {/* Title, then organisation · type · source · care flag */}
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/review/${d.id}`}
-                        className="truncate font-bold text-teal hover:underline text-sm"
-                      >
-                        {d.title}
-                      </Link>
-                      {isFocused && (
-                        <span className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 text-[9px] font-mono font-bold uppercase">
-                          Active
+                    <Link href={`/review/${d.id}`} className="line-clamp-2 text-sm font-bold leading-snug text-teal hover:underline">
+                      {d.title}
+                    </Link>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-teal/70">
+                      <span>{d.organization}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{TYPE_LABEL[d.type as keyof typeof TYPE_LABEL] ?? d.type}</span>
+                      {d.source_key && (
+                        <span className="rounded bg-teal/8 px-1.5 py-px font-mono text-[10px] font-bold uppercase text-teal/80">
+                          {d.source_key}
                         </span>
                       )}
-                    </div>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-teal/80">
-                      <span>{d.organization}</span>
-                      <span>·</span>
-                      <span>{TYPE_LABEL[d.type as keyof typeof TYPE_LABEL] ?? d.type}</span>
                       {d.needs_care && (
-                        <Badge tone="celadon" className="text-[10px] py-0.2">
-                          <AlertTriangle className="size-2.5 mr-1 inline" /> Check carefully
-                        </Badge>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-px text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                          <AlertTriangle className="size-2.5" aria-hidden="true" /> Check carefully
+                        </span>
                       )}
                     </p>
                   </div>
 
-                  {/* Source Key */}
-                  <span className="text-xs font-semibold uppercase lg:text-sm">
-                    <span className="text-teal/70 lg:hidden">Source: </span>
-                    <span className="font-mono bg-teal/10 px-1.5 py-0.5 rounded text-[11px] text-teal">
-                      {d.source_key ?? '—'}
-                    </span>
-                  </span>
-
-                  {/* Confidence */}
-                  <div>
-                    <ConfidenceMeter value={d.confidence} />
-                  </div>
-
-                  {/* Found At */}
-                  <span className="text-xs text-teal/80 lg:text-sm">
+                  <span className="col-start-2 text-xs text-teal/70 lg:col-start-auto">
+                    <span className="lg:hidden">Found </span>
                     {formatFoundAt(d.found_at)}
                   </span>
 
-                  {/* Readiness Badge */}
-                  <div>
-                    {isReady ? (
-                      <Badge tone="teal" className="text-[11px]">
-                        <CircleCheck className="size-3 mr-1 inline text-emerald-600" /> Ready
-                      </Badge>
+                  <div className="col-start-2 lg:col-start-auto">
+                    {d.confidence === null ? (
+                      <span className="text-xs text-teal/50">Not scored</span>
                     ) : (
-                      <Badge tone="outline" className="bg-cream text-[11px]">
-                        <CircleAlert className="size-3 mr-1 inline text-amber-600" /> {d.missing.length} missing
-                      </Badge>
+                      <ConfidenceMeter value={d.confidence} />
                     )}
                   </div>
 
-                  {/* Quick Hotkey Action Buttons */}
-                  <div className="flex items-center justify-end gap-1.5">
+                  {/* Readiness: say WHAT is missing, not just how many */}
+                  <div className="col-start-2 min-w-0 lg:col-start-auto" title={isReady ? 'Ready to publish' : d.missing.join('\n')}>
+                    {isReady ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                        <CircleCheck className="size-3" aria-hidden="true" /> Ready to publish
+                      </span>
+                    ) : (
+                      <span className="flex min-w-0 items-start gap-1 text-[11px] font-medium text-amber-900">
+                        <CircleAlert className="mt-px size-3 shrink-0 text-amber-600" aria-hidden="true" />
+                        <span className="min-w-0">
+                          Missing: {d.missing[0].replace(/ \(.*\)$/, '').toLowerCase()}
+                          {d.missing.length > 1 && <span className="text-teal/50"> +{d.missing.length - 1} more</span>}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="col-start-2 flex items-center gap-1.5 lg:col-start-auto lg:justify-end">
                     <button
                       type="button"
                       disabled={!isReady || isPending}
                       onClick={() => handleApproveSingle(d)}
-                      className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-40 transition-colors border border-emerald-200"
-                      title="Quick Publish (Hotkey: A)"
+                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-600/30"
+                      title={isReady ? 'Publish (A)' : `Can't publish yet. Missing: ${d.missing.join(', ')}`}
                     >
-                      <Send className="size-3.5" />
+                      <Send className="size-3" aria-hidden="true" /> Publish
                     </button>
-
                     <button
                       type="button"
                       disabled={isPending}
                       onClick={() => setRejectingItem(d)}
-                      className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:opacity-40 transition-colors border border-rose-200"
-                      title="Quick Reject (Hotkey: R)"
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-50 disabled:opacity-40"
+                      title="Reject (R)"
                     >
-                      <Trash2 className="size-3.5" />
+                      <Trash2 className="size-3" aria-hidden="true" /> Reject
                     </button>
-
                     <Link
                       href={`/review/${d.id}`}
-                      className="p-1.5 rounded-lg text-teal/60 hover:text-teal hover:bg-teal/10 transition-colors"
-                      title="Inspect Notice & PDF (Hotkey: Enter)"
+                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-teal/70 transition hover:bg-teal/10 hover:text-teal"
+                      title="Open draft and PDF (Enter)"
                     >
-                      <ArrowRight className="size-3.5" />
+                      Open <ArrowRight className="size-3" aria-hidden="true" />
                     </Link>
                   </div>
                 </div>
