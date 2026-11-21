@@ -23,7 +23,7 @@ interface SocialAuthButtonsProps {
 export function SocialAuthButtons({ mode, redirectUrl, onError, onSuccess }: SocialAuthButtonsProps) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const targetPath = redirectUrl && redirectUrl !== '/me' ? redirectUrl : '/account';
+  const targetPath = redirectUrl && redirectUrl !== '/me' ? redirectUrl : '/';
 
   async function complete(credential: string) {
     onError?.(null);

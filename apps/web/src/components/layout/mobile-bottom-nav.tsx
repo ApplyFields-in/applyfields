@@ -59,6 +59,7 @@ export function MobileBottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              data-tour={item.href.slice(1) || 'home'}
               className={`flex flex-1 flex-col items-center justify-center py-1.5 transition-colors relative ${
                 item.isActive ? 'text-[#082046] font-bold' : 'text-[#536780] hover:text-[#082046]'
               }`}

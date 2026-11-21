@@ -12,6 +12,7 @@ import { ToastNotificationProvider } from '@/components/toast-notification-provi
 import { CommandPalette } from '@/components/search/command-palette';
 import { ReadingThemeInitializer } from '@/components/layout/reading-theme-initializer';
 import { OpenInAppBanner } from '@/components/open-in-app-banner';
+import { WelcomeTour } from '@/components/welcome-tour';
 
 export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -41,6 +42,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
         <MobileBottomNav />
         <ToastNotificationProvider />
         <CommandPalette />
+        <WelcomeTour />
         <ReadingThemeInitializer />
       </div>
     </CompareProvider>

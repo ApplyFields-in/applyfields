@@ -1570,6 +1570,19 @@ model user_passkeys {
   @@index([user_id])
 }
 
+/// First-sign-in answers used to rank Home recommendations: database/changes/2026-11-21_likhith_user_preferences.sql
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_preferences {
+  user_id        String    @id @db.Uuid
+  personas       String[]  @default([])
+  interests      String[]  @default([])
+  location_scope String?
+  skipped        Boolean   @default(false)
+  onboarded_at   DateTime? @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+  users          users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
 model user_sessions {
   id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id            String    @db.Uuid
@@ -1643,6 +1656,7 @@ model users {
   user_documents                                               user_documents[]
   user_education                                               user_education[]
   user_passkeys                                                user_passkeys[]
+  user_preferences                                             user_preferences?
   user_profiles                                                user_profiles?
   user_roadmaps                                                user_roadmaps[]
   user_roles_user_roles_granted_byTousers                      user_roles[]                   @relation("user_roles_granted_byTousers")

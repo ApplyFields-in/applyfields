@@ -42,6 +42,10 @@ export interface OpportunityCard {
   match_score?: number;
   /** only when the request came from a logged-in user */
   saved?: boolean;
+  /** listing category (railways, banking, state_govt…); used for preference matching */
+  category?: string;
+  /** state codes the listing is for; ['ALL'] = all India / central */
+  state_codes?: string[];
 }
 
 // ---------- Eligibility (GET /opportunities/:slug/eligibility) ----------
@@ -131,7 +135,7 @@ export interface HomePersonal {
   profile_ready: boolean;
   /** Profile fields the eligibility check uses that are still empty (ready can be true while some are). */
   profile_missing: ProfileGapField[];
-  /** eligible or likely eligible, closing soonest first */
+  /** up to 6: eligible/likely eligible items, ranked by setup answers when present (else closing soonest first) */
   recommended: OpportunityCard[];
   saved: OpportunityCard[];
   recently_viewed: OpportunityCard[];

@@ -52,7 +52,7 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawRedirect = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next');
-  const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/account';
+  const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/';
 
   const [step, setStep] = useState<'form' | 'verify'>('form');
   const [fullName, setFullName] = useState('');

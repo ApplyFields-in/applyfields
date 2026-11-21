@@ -14,6 +14,7 @@ import { ApiOffline } from '@/components/opportunity';
 import { apiGetAsUser } from '@/lib/server-api';
 import { ClientAuthDashboardSwitch } from '@/components/dashboard/client-auth-dashboard-switch';
 import { MOCK_HOME_SUMMARY } from '@/lib/mock-data';
+import { OnboardingGate } from '@/components/onboarding/onboarding-gate';
 
 /** Home dashboard. Automatically presents the unauthenticated view when signed out and the personalized dashboard when signed in. */
 export default async function HomePage() {
@@ -38,10 +39,13 @@ export default async function HomePage() {
   );
 
   return (
-    <ClientAuthDashboardSwitch
-      home={liveHome}
-      publicDashboard={publicDashboard}
-      initialLoggedIn={Boolean(liveHome?.personal)}
-    />
+    <>
+      <OnboardingGate />
+      <ClientAuthDashboardSwitch
+        home={liveHome}
+        publicDashboard={publicDashboard}
+        initialLoggedIn={Boolean(liveHome?.personal)}
+      />
+    </>
   );
 }

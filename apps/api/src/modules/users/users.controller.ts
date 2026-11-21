@@ -24,6 +24,7 @@ import {
   VerifyChangeContactDto,
 } from './dto/account.dto.js';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard.js';
+import { SavePreferencesDto } from './dto/preferences.dto.js';
 
 @Controller('me')
 @UseGuards(AuthGuard)
@@ -41,6 +42,17 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.usersService.updateProfile(req.user.userId, dto);
+  }
+
+  /** First-sign-in setup answers. Wrapped so "not set up yet" (preferences: null) differs from a failed request. */
+  @Get('preferences')
+  async getPreferences(@Req() req: AuthenticatedRequest) {
+    return { preferences: await this.usersService.getPreferences(req.user.userId) };
+  }
+
+  @Put('preferences')
+  savePreferences(@Req() req: AuthenticatedRequest, @Body() dto: SavePreferencesDto) {
+    return this.usersService.savePreferences(req.user.userId, dto);
   }
 
   @Get('education')

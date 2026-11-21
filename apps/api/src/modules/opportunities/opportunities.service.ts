@@ -186,6 +186,8 @@ export class OpportunitiesService {
       tags: [org.short_name, CATEGORY[row.category]].filter((t): t is string =>
         Boolean(t),
       ),
+      category: row.category,
+      state_codes: row.state_codes,
     };
   }
 

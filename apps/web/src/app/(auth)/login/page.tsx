@@ -30,7 +30,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const verifiedNotice = searchParams.get('verified') === 'true';
   const rawRedirect = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next');
-  const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/account';
+  const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/';
 
   // Sign in = Google or email/phone + password. Codes only for sign-up and forgot password.
   const [mode, setMode] = useState<'password' | 'forgot'>('password');
