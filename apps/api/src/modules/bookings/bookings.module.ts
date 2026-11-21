@@ -4,13 +4,14 @@ import { BookingsAdminController } from './bookings-admin.controller.js';
 import { BookingsService } from './bookings.service.js';
 import { StaffGuard } from '../../common/staff.guard.js';
 import { StorageService } from '../../common/storage.service.js';
+import { VaultService } from '../../common/vault.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { PaymentsModule } from '../payments/payments.module.js';
 
 @Module({
   imports: [NotificationsModule, PaymentsModule],
   controllers: [BookingsController, BookingsAdminController],
-  providers: [BookingsService, StaffGuard, StorageService],
+  providers: [BookingsService, StaffGuard, StorageService, VaultService],
   exports: [BookingsService],
 })
 export class BookingsModule {}

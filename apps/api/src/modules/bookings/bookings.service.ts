@@ -7,6 +7,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { existsSync, readFileSync } from 'node:fs';
 import type {
   AdminBookingDispute,
   BookingDispute,
@@ -26,6 +27,7 @@ import type {
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../common/storage.service.js';
+import { VaultService } from '../../common/vault.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { PaymentsService } from '../payments/payments.service.js';
 import type { request_status } from '../../generated/prisma/enums.js';
@@ -186,6 +188,7 @@ export class BookingsService {
     private readonly storage?: StorageService,
     private readonly notifications?: NotificationsService,
     @Optional() private readonly payments?: PaymentsService,
+    @Optional() private readonly vault?: VaultService,
   ) {}
 
   // =========================================================================
@@ -757,27 +760,55 @@ export class BookingsService {
     return this.mapToDetail(updated);
   }
 
+  /** Acknowledgment slip file stream: only the citizen or authorized partner centre member. */
+  async getSlipFile(userId: string, bookingId: string): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
+    const req = await this.prisma.service_requests.findUnique({
+      where: { id: bookingId },
+      select: { user_id: true, partner_id: true, acknowledgment_slip_url: true, official_app_number: true },
+    });
+    if (!req || !req.acknowledgment_slip_url) {
+      throw new NotFoundException('No acknowledgment slip for this booking.');
+    }
+    const allowed = req.user_id === userId || (await this.isPartnerMember(userId, req.partner_id));
+    if (!allowed) {
+      throw new ForbiddenException('Not authorized to access this slip.');
+    }
+    const path = req.acknowledgment_slip_url;
+    let buffer: Buffer | null = null;
+    if (existsSync(path)) {
+      buffer = readFileSync(path);
+    } else if (this.storage) {
+      buffer = await this.storage.download(this.storage.documentsBucket, path);
+    }
+    if (!buffer) {
+      throw new NotFoundException('Slip file not found.');
+    }
+    const ext = path.split('.').pop() || 'pdf';
+    const mimeType = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'application/pdf';
+    return {
+      buffer,
+      fileName: `acknowledgment-${req.official_app_number ?? bookingId}.${ext}`,
+      mimeType,
+    };
+  }
+
   /** Short-lived download link for the acknowledgment slip: only the citizen or the partner centre. */
   async slipUrl(userId: string, bookingId: string): Promise<{ url: string }> {
     const req = await this.prisma.service_requests.findUnique({
       where: { id: bookingId },
       select: { user_id: true, partner_id: true, acknowledgment_slip_url: true, official_app_number: true },
     });
-    const allowed = req && (req.user_id === userId || (await this.isPartnerMember(userId, req.partner_id)));
-    if (!req || !allowed || !req.acknowledgment_slip_url) {
+    if (!req || !req.acknowledgment_slip_url) {
       throw new NotFoundException('No acknowledgment slip for this booking.');
     }
-    const ext = req.acknowledgment_slip_url.split('.').pop();
-    const url = this.storage
-      ? await this.storage.signedUrl(
-          this.storage.documentsBucket,
-          req.acknowledgment_slip_url,
-          600,
-          `acknowledgment-${req.official_app_number ?? bookingId}.${ext}`,
-        )
-      : null;
-    if (!url) throw new ServiceUnavailableException('The slip is not available right now. Please try again.');
-    return { url };
+    const allowed = req.user_id === userId || (await this.isPartnerMember(userId, req.partner_id));
+    if (!allowed) {
+      throw new ForbiddenException('Not authorized to access this slip.');
+    }
+    const baseUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+    return {
+      url: `${baseUrl}/api/v1/bookings/${bookingId}/slip/file`,
+    };
   }
 
   /**
@@ -833,7 +864,83 @@ export class BookingsService {
     return this.getUserBooking(userId, bookingId);
   }
 
-  /** 10-minute link to one shared document: the citizen who shared it or a member of that centre. Logged. */
+  /** Stream decrypted shared document: citizen owner or authorized centre partner. */
+  async getDecryptedSharedDocument(
+    userId: string,
+    bookingId: string,
+    shareId: string,
+  ): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
+    const share = await this.prisma.document_shares.findFirst({
+      where: { id: shareId, service_request_id: bookingId, revoked_at: null, expires_at: { gt: new Date() } },
+      select: {
+        id: true,
+        owner_user_id: true,
+        partner_id: true,
+        document_id: true,
+        user_documents: {
+          select: {
+            id: true,
+            storage_path: true,
+            file_name: true,
+            mime_type: true,
+            deleted_at: true,
+            encrypted_key: true,
+          },
+        },
+      },
+    });
+
+    if (!share || share.user_documents.deleted_at) {
+      throw new NotFoundException('This document is not shared with you.');
+    }
+
+    const isOwner = share.owner_user_id === userId;
+    const isCentre = Boolean(share.partner_id && (await this.isPartnerMember(userId, share.partner_id)));
+    if (!isOwner && !isCentre) {
+      throw new ForbiddenException('This document is not shared with you.');
+    }
+
+    const storagePath = share.user_documents.storage_path;
+    let rawBytes: Buffer | null = null;
+    if (existsSync(storagePath)) {
+      rawBytes = readFileSync(storagePath);
+    } else if (this.storage) {
+      rawBytes = await this.storage.download(this.storage.documentsBucket, storagePath);
+    }
+
+    if (!rawBytes) {
+      throw new NotFoundException('The document is not available right now.');
+    }
+
+    const decrypted = this.vault
+      ? this.vault.decrypt(
+          rawBytes,
+          share.user_documents.encrypted_key ? Buffer.from(share.user_documents.encrypted_key) : null,
+        )
+      : rawBytes;
+
+    if (isCentre) {
+      await this.prisma.document_access_logs
+        .create({
+          data: {
+            document_id: share.document_id,
+            share_id: share.id,
+            actor_user_id: userId,
+            partner_id: share.partner_id,
+            action: 'view',
+          },
+        })
+        .catch(() => null);
+    }
+
+    return {
+      buffer: decrypted,
+      fileName: share.user_documents.file_name || 'shared-document.pdf',
+      mimeType: share.user_documents.mime_type || 'application/pdf',
+    };
+  }
+
+  /** Stream link to one shared document: the citizen who shared it or a member of that centre. Logged. */
   async sharedDocumentUrl(userId: string, bookingId: string, shareId: string): Promise<{ url: string }> {
     const share = await this.prisma.document_shares.findFirst({
       where: { id: shareId, service_request_id: bookingId, revoked_at: null, expires_at: { gt: new Date() } },
@@ -845,23 +952,18 @@ export class BookingsService {
         user_documents: { select: { storage_path: true, deleted_at: true } },
       },
     });
-    const isOwner = share?.owner_user_id === userId;
-    const isCentre = Boolean(share?.partner_id && (await this.isPartnerMember(userId, share.partner_id)));
-    if (!share || share.user_documents.deleted_at || (!isOwner && !isCentre)) {
+    if (!share || share.user_documents.deleted_at) {
       throw new NotFoundException('This document is not shared with you.');
     }
-    const url = this.storage
-      ? await this.storage.signedUrl(this.storage.documentsBucket, share.user_documents.storage_path, 600) // inline, so the centre can view + print
-      : null;
-    if (!url) throw new ServiceUnavailableException('The document is not available right now. Please try again.');
-    if (isCentre) {
-      await this.prisma.document_access_logs
-        .create({
-          data: { document_id: share.document_id, share_id: share.id, actor_user_id: userId, partner_id: share.partner_id, action: 'view' },
-        })
-        .catch(() => null);
+    const isOwner = share.owner_user_id === userId;
+    const isCentre = Boolean(share.partner_id && (await this.isPartnerMember(userId, share.partner_id)));
+    if (!isOwner && !isCentre) {
+      throw new ForbiddenException('This document is not shared with you.');
     }
-    return { url };
+    const baseUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+    return {
+      url: `${baseUrl}/api/v1/bookings/${bookingId}/documents/${shareId}/file`,
+    };
   }
 
   private async isPartnerMember(userId: string, partnerId: string): Promise<boolean> {

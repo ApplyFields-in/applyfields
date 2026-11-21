@@ -71,29 +71,37 @@ export class DocumentsController {
     return this.documentsService.getDocumentById(req.user.userId, id);
   }
 
+  /** Stream decrypted document file inline for the owner (Cache-Control: no-store) */
+  @Get(':id/file')
+  async getDocumentFile(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const file = await this.documentsService.getDecryptedFile(req.user.userId, id);
+    res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${file.fileName || 'document.pdf'}"`,
+    );
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(file.buffer);
+  }
+
   @Get(':id/download')
   async downloadDocument(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Res() res: Response,
   ) {
-    const info = await this.documentsService.getDownloadInfo(req.user.userId, id);
-
-    // Redirect to short-lived Supabase signed URL if available
-    if (info.signedUrl) {
-      return res.redirect(302, info.signedUrl);
-    }
-
-    if (!info.storagePath || !existsSync(info.storagePath)) {
-      throw new NotFoundException('Document file not found on disk.');
-    }
-
-    res.setHeader('Content-Type', info.mimeType || 'application/octet-stream');
+    const file = await this.documentsService.getDecryptedFile(req.user.userId, id);
+    res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${info.fileName || 'document.pdf'}"`,
+      `attachment; filename="${file.fileName || 'document.pdf'}"`,
     );
-    return res.sendFile(info.storagePath);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(file.buffer);
   }
 
   @Get(':id/preview')
@@ -102,22 +110,14 @@ export class DocumentsController {
     @Param('id') id: string,
     @Res() res: Response,
   ) {
-    const info = await this.documentsService.getPreviewInfo(req.user.userId, id);
-
-    if (info.signedUrl) {
-      return res.redirect(302, info.signedUrl);
-    }
-
-    if (!info.storagePath || !existsSync(info.storagePath)) {
-      throw new NotFoundException('Document file not found on disk.');
-    }
-
-    res.setHeader('Content-Type', info.mimeType || 'application/pdf');
+    const file = await this.documentsService.getDecryptedFile(req.user.userId, id);
+    res.setHeader('Content-Type', file.mimeType || 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `inline; filename="${info.fileName || 'document.pdf'}"`,
+      `inline; filename="${file.fileName || 'document.pdf'}"`,
     );
-    return res.sendFile(info.storagePath);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(file.buffer);
   }
 
   @Patch(':id/details')

@@ -71,6 +71,52 @@ export class StorageService {
   }
 
   /**
+   * Download a private object's bytes from Supabase Storage using service role credentials.
+   * Returns a Buffer on success, or null if storage is unconfigured or request fails.
+   */
+  async download(bucket: string, path: string): Promise<Buffer | null> {
+    const base = process.env.SUPABASE_URL?.replace(/\/$/, '');
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!base || !key) return null;
+
+    const objectPath = path.replace(/^\/+/, '');
+    const encoded = objectPath.split('/').map(encodeURIComponent).join('/');
+
+    // 1. Authenticated direct storage API download
+    try {
+      const res = await fetch(`${base}/storage/v1/object/authenticated/${bucket}/${encoded}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          apikey: key,
+        },
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer();
+        return Buffer.from(arrayBuffer);
+      }
+    } catch (err) {
+      this.logger.debug(`Authenticated direct download failed: ${(err as Error).message}`);
+    }
+
+    // 2. Fallback via signed URL
+    try {
+      const signed = await this.signedUrl(bucket, objectPath, 60);
+      if (!signed) return null;
+      const res = await fetch(signed, { signal: AbortSignal.timeout(30000) });
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer();
+        return Buffer.from(arrayBuffer);
+      }
+      return null;
+    } catch (err) {
+      this.logger.warn(`Download failed for ${bucket}/${objectPath}: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
    * A short-lived link to a private file, or null if Storage isn't configured or the file is missing.
    * `path` is the exact object key that was uploaded. (It used to strip a leading "<bucket>/", which
    * broke every locker document — keys are "documents/<user>/…" inside the documents bucket — and resumes.)
