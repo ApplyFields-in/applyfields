@@ -679,3 +679,55 @@ describe('Partner approval rules', () => {
     ).rejects.toThrow('already has an approved desk');
   });
 });
+
+describe('Shop sign-up services', () => {
+  const input = {
+    business_name: 'Sri Sai Xerox',
+    type: 'xerox_printing',
+    owner_name: 'Ravi',
+    phone: '+919848012345',
+    address: 'Shop 4, Main Road',
+    state_code: 'AP',
+    district: 'Vizianagaram',
+    city: 'Vizianagaram',
+    pincode: '535001',
+  } as any;
+  const PAN = '00000000-0000-4000-8000-0000000000aa';
+
+  const setup = (catalogCount: number) => {
+    const createMany = vi.fn().mockResolvedValue({ count: 2 });
+    const tx = {
+      partners: { create: vi.fn().mockResolvedValue({ id: 'p1', slug: 'sri-sai-xerox', type: 'xerox_printing', business_name: 'Sri Sai Xerox' }) },
+      partner_services: { createMany },
+      partner_members: { create: vi.fn() },
+    };
+    const prisma: any = {
+      partners: { findUnique: vi.fn().mockResolvedValue(null) },
+      gov_services: { count: vi.fn().mockResolvedValue(catalogCount) },
+      $transaction: (fn: any) => fn(tx),
+    };
+    return { service: new PartnersService(prisma), createMany };
+  };
+
+  it('saves ticked services, linking catalog ones and keeping prices in paise', async () => {
+    const { service, createMany } = setup(1);
+    await service.register('u1', {
+      ...input,
+      services: [
+        { name: 'PAN Card', service_id: PAN, charge_paise: 15000 },
+        { name: 'Lamination' },
+      ],
+    });
+    expect(createMany.mock.calls[0][0].data).toEqual([
+      { partner_id: 'p1', service_id: PAN, name: 'PAN Card', charge_paise: 15000 },
+      { partner_id: 'p1', service_id: null, name: 'Lamination', charge_paise: null },
+    ]);
+  });
+
+  it('refuses a catalog service that does not exist', async () => {
+    const { service } = setup(0);
+    await expect(
+      service.register('u1', { ...input, services: [{ name: 'Ghost', service_id: PAN }] }),
+    ).rejects.toThrow('no longer exists');
+  });
+});
