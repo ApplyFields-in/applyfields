@@ -9,6 +9,7 @@ import { RealtimeNotificationToast } from '@/components/realtime-notification-to
 import { NotificationPermissionPrompt } from '@/components/notification-permission-prompt';
 import { FloatingAiAssistant } from '@/components/chat/floating-ai-assistant';
 import { ScrollToTop } from '@applyfields/ui';
+import { PageViewTracker } from '@/components/page-view-tracker';
 
 export const metadata: Metadata = {
   title: {
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>
           <PipApplyProvider>
             {children}
+            <PageViewTracker />
             <RealtimeNotificationToast />
             <NotificationPermissionPrompt />
             <PipApplyCompanion />

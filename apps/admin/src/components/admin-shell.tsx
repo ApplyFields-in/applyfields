@@ -99,8 +99,8 @@ export function AdminShell({
               Access Restricted to {DEPARTMENTS[userScopedDepartment].name} Staff
             </h2>
             <p className="text-xs text-navy-700/80 leading-relaxed max-w-md mx-auto">
-              Your staff credentials are scoped strictly to the <strong>{DEPARTMENTS[userScopedDepartment].name}</strong> department. 
-              You do not have administrative clearance to access operations outside your assigned department.
+              Your account can open <strong>{DEPARTMENTS[userScopedDepartment].name}</strong> pages only. Ask an admin
+              if you need access to this page.
             </p>
           </div>
           <div className="pt-2 flex justify-center">
@@ -108,7 +108,7 @@ export function AdminShell({
               href={DEPARTMENTS[userScopedDepartment].homePath}
               className={buttonClass({ variant: 'primary', size: 'md' })}
             >
-              Return to {DEPARTMENTS[userScopedDepartment].shortLabel} Cockpit
+              Back to {DEPARTMENTS[userScopedDepartment].shortLabel}
             </Link>
           </div>
         </div>
@@ -139,11 +139,11 @@ function SidebarFooter({ department }: { department: typeof DEPARTMENTS.super_ad
 }
 
 const DEPARTMENT_TABS: Record<DepartmentType, string> = {
-  super_admin: 'Master Cockpit',
+  super_admin: 'Everything',
   partners: 'Partners',
-  services: 'Citizen Services',
-  apply: 'Apply & Review',
-  career: 'Career & Colleges',
+  services: 'Citizen services',
+  apply: 'Content',
+  career: 'Colleges & careers',
 };
 
 const DEPARTMENT_ICONS: Record<DepartmentType, ReactNode> = {
@@ -319,9 +319,7 @@ function Footer() {
   return (
     <footer className="flex flex-col gap-3 border-t border-navy-200/60 bg-white/60 px-4 py-4 text-xs text-navy-900/80 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold text-navy-950">ApplyFields Operations Core</span>
-        <span className="text-navy-400">·</span>
-        <span>Departmental Cockpit System</span>
+        <span className="font-semibold text-navy-950">ApplyFields Admin</span>
       </div>
       <div className="flex items-center gap-4">
         <ScrollToTopButton className="text-navy-700 hover:text-navy-950 border-navy-200/80 hover:border-navy-400" />

@@ -731,3 +731,35 @@ describe('Shop sign-up services', () => {
     ).rejects.toThrow('no longer exists');
   });
 });
+
+describe('Partner decision notices', () => {
+  it('tells every member of the centre when it is approved, with a link to their dashboard', async () => {
+    const notifyAccount = vi.fn().mockResolvedValue(1);
+    const prisma: any = {
+      partners: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'p1',
+          type: 'xerox_printing',
+          verification_status: 'pending',
+          partner_documents: ['trade_license', 'kiosk_photo', 'owner_id'].map((k) => ({ document_kind: k, status: 'verified' })),
+        }),
+        update: vi.fn().mockImplementation(({ data }) => ({
+          id: 'p1',
+          type: 'xerox_printing',
+          business_name: 'Sri Sai Xerox',
+          created_at: new Date(),
+          ...data,
+        })),
+      },
+      partner_members: { findMany: vi.fn().mockResolvedValue([{ user_id: 'owner' }, { user_id: 'staff' }]) },
+    };
+    const service = new PartnersService(prisma, {} as any, { notifyAccount, notifyStaff: vi.fn() } as any);
+    await service.adminVerifyPartner('p1', 'reviewer', { verification_status: 'verified', is_listed: true });
+    await vi.waitFor(() => expect(notifyAccount).toHaveBeenCalled());
+    const [users, n, key] = notifyAccount.mock.calls[0];
+    expect(users).toEqual(['owner', 'staff']);
+    expect(n.title).toBe('Your centre is approved on ApplyFields');
+    expect(n.link).toMatch(/\/dashboard$/);
+    expect(key).toMatch(/^partner_status:p1:verified:\d+$/);
+  });
+});

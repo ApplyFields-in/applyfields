@@ -1,6 +1,6 @@
 import type { AdminOpportunityList, ReviewList, ReviewReadiness, ReviewSort } from '@applyfields/types';
 import { Card, cn, EmptyState, PageHeader } from '@applyfields/ui';
-import { ChevronLeft, ChevronRight, CircleAlert, CircleCheck, FileClock, Inbox, Send, TriangleAlert } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, FileClock, Inbox, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { connection } from 'next/server';
@@ -49,10 +49,18 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
   return (
     <>
       <PageHeader
-        eyebrow="Apply & Ingestion Department · Review Cockpit"
+        eyebrow="Content"
         title="Review queue"
         description="Drafts found by the scrapers. Check each one against its official PDF before it goes live."
         icon={<Inbox />}
+        actions={
+          <Link
+            href="/opportunities?status=published"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal/70 hover:text-teal"
+          >
+            Published listings {live && <Count n={live.counts.published} />} <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        }
       />
 
       {data === null ? (
@@ -67,15 +75,13 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
           </div>
 
           {/* Filters */}
-          <div className="mb-4 flex flex-wrap items-center gap-2" role="navigation" aria-label="Filter the queue">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2" role="navigation" aria-label="Filter the queue">
             <FilterChip href={href({ ready: '' })} active={!ready}>
               All drafts <Count n={data.ready + data.missing_info} />
             </FilterChip>
             <FilterChip href={href({ ready: 'ready' })} active={ready === 'ready'}>
               <CircleCheck aria-hidden="true" /> Ready to publish <Count n={data.ready} />
-            </FilterChip>
-            <FilterChip href="/opportunities?status=published" active={false}>
-              <Send aria-hidden="true" /> Published {live && <Count n={live.counts.published} />}
             </FilterChip>
             <FilterChip href={href({ ready: 'missing' })} active={ready === 'missing'}>
               <CircleAlert aria-hidden="true" /> Missing info <Count n={data.missing_info} />
@@ -96,8 +102,9 @@ export default async function Page({ searchParams }: PageProps<'/review'>) {
               </FilterChip>
             ))}
           </div>
-          <div className="-mt-1 mb-4 flex justify-end">
+          <div className="ml-auto">
             <ReviewSortMenu value={sort} />
+          </div>
           </div>
 
           {data.items.length === 0 ? (

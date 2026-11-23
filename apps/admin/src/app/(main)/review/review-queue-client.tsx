@@ -103,15 +103,7 @@ export function ReviewQueueClient({
     const highConf = visible.filter((d) => (d.confidence ?? 0) >= 0.9 && d.missing.length === 0);
     const ids = new Set(highConf.map((d) => d.id));
     setSelectedIds(ids);
-    showToast(`Selected ${ids.size} high-confidence (>90%) ready drafts.`);
-  };
-
-  // Select all expired/stale notifications
-  const handleSelectExpired = () => {
-    const stale = visible.filter((d) => d.needs_care || d.missing.length > 2);
-    const ids = new Set(stale.map((d) => d.id));
-    setSelectedIds(ids);
-    showToast(`Selected ${ids.size} stale/incomplete drafts for cleanup.`);
+    showToast(`Selected ${ids.size} ready drafts with 90%+ confidence.`);
   };
 
   // Select all drafts
@@ -177,7 +169,7 @@ export function ReviewQueueClient({
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
-    if (!confirm(`Approve and publish all ${ids.length} selected opportunities to the live platform?`)) {
+    if (!confirm(`Publish ${ids.length} selected draft${ids.length > 1 ? 's' : ''} to the live site? Drafts with missing information are skipped.`)) {
       return;
     }
 
@@ -187,7 +179,12 @@ export function ReviewQueueClient({
       hide(done);
       setJustPublished((prev) => [...items.filter((d) => done.includes(d.id)), ...prev]);
       setSelectedIds(new Set());
-      showToast(`Batch published ${published} of ${ids.length} opportunities!`);
+      showToast(
+        published === ids.length
+          ? `Published ${published} draft${published > 1 ? 's' : ''}.`
+          : `Published ${published} of ${ids.length}. The rest need information first.`,
+        published === ids.length ? 'success' : 'error',
+      );
       router.refresh();
     });
   };
@@ -197,7 +194,7 @@ export function ReviewQueueClient({
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
-    if (!confirm(`Reject all ${ids.length} selected drafts?`)) {
+    if (!confirm(`Reject ${ids.length} selected draft${ids.length > 1 ? 's' : ''}? They will not go live.`)) {
       return;
     }
 
@@ -208,7 +205,7 @@ export function ReviewQueueClient({
       const rejected = done.length;
       hide(done);
       setSelectedIds(new Set());
-      showToast(`Batch rejected ${rejected} opportunities.`);
+      showToast(`Rejected ${rejected} draft${rejected === 1 ? '' : 's'}.`);
       router.refresh();
     });
   };
@@ -218,6 +215,13 @@ export function ReviewQueueClient({
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't intercept if user is typing in an input
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+      // Ctrl/Cmd/Alt combos belong to the browser (Ctrl+A used to publish a draft, Ctrl+R to open Reject).
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // A dialog is open: its own keys only (A used to publish the row behind the Reject box).
+      if (rejectingItem || showHotkeysHelp) {
+        if (e.key === 'Escape') setShowHotkeysHelp(false);
         return;
       }
 
@@ -249,7 +253,7 @@ export function ReviewQueueClient({
         if (currentItem) {
           if (currentItem.source_url) {
             window.open(currentItem.source_url, '_blank');
-            showToast(`Opened source document: "${currentItem.title.slice(0, 30)}..."`);
+
           } else {
             router.push(`/review/${currentItem.id}`);
           }
@@ -265,7 +269,7 @@ export function ReviewQueueClient({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [visible, focusedIndex, router, handleApproveSingle]);
+  }, [visible, focusedIndex, router, handleApproveSingle, rejectingItem, showHotkeysHelp]);
 
   // Rejection modal numerical shortcuts (1-5) and Escape
   useEffect(() => {
@@ -304,75 +308,41 @@ export function ReviewQueueClient({
         </div>
       )}
 
-      {/* Hotkeys Bar & Batch Actions Tray */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white border border-teal/15 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <button
-            type="button"
-            onClick={handleSelectAll}
-            className="px-2.5 py-1 rounded-lg border border-teal/20 bg-canvas text-teal font-semibold hover:bg-teal/10 transition-colors"
-          >
-            {selectedIds.size === visible.length && visible.length > 0 ? 'Deselect All' : 'Select All'}
-          </button>
-
+      {/* Selection + shortcuts */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal/15 bg-white px-4 py-2.5 text-xs">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex cursor-pointer items-center gap-2 font-semibold text-teal">
+            <input
+              type="checkbox"
+              checked={selectedIds.size > 0 && selectedIds.size === visible.length}
+              onChange={handleSelectAll}
+              className="size-4 rounded border-teal/30 text-teal focus:ring-teal"
+            />
+            Select all on this page
+          </label>
           <button
             type="button"
             onClick={handleSelectHighConfidence}
-            className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold hover:bg-emerald-100 transition-colors"
+            className="font-semibold text-teal/70 underline-offset-2 hover:text-teal hover:underline"
           >
-            Select High Confidence (&gt;90%)
+            Select ready drafts (90%+ confidence)
           </button>
-
-          <button
-            type="button"
-            onClick={handleSelectExpired}
-            className="px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 font-semibold hover:bg-amber-100 transition-colors"
-          >
-            Select Stale / Incomplete
-          </button>
-
-          {selectedIds.size > 0 && (
-            <span className="font-bold text-teal bg-teal/10 px-2 py-0.5 rounded-md text-[11px]">
-              {selectedIds.size} Selected
-            </span>
-          )}
+          {selectedIds.size > 0 && <span className="font-bold text-teal">{selectedIds.size} selected</span>}
         </div>
-
-        {/* Hotkeys Quick Reference Pill */}
-        <div className="flex items-center gap-2">
-          <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-teal/70 font-mono">
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">J / K</span>
-            <span>Navigate</span>
-            <span className="text-teal/30">·</span>
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">A</span>
-            <span>Approve</span>
-            <span className="text-teal/30">·</span>
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">R</span>
-            <span>Reject</span>
-            <span className="text-teal/30">·</span>
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">V</span>
-            <span>PDF</span>
-            <span className="text-teal/30">·</span>
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">X</span>
-            <span>Select</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowHotkeysHelp(true)}
-            className="p-1 rounded-lg text-teal/60 hover:text-teal hover:bg-teal/10 transition-colors"
-            title="Keyboard shortcuts help"
-          >
-            <Keyboard className="size-4" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowHotkeysHelp(true)}
+          className="inline-flex items-center gap-1.5 font-semibold text-teal/60 hover:text-teal"
+        >
+          <Keyboard className="size-4" aria-hidden="true" /> Keyboard shortcuts <kbd className="rounded bg-teal/10 px-1 font-mono">?</kbd>
+        </button>
       </div>
 
       {justPublished.length > 0 && (
         <Card className="overflow-hidden border-emerald-200 p-0">
           <p className="flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-5 py-2.5 text-xs font-bold text-emerald-900">
             <CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
-            Just published ({justPublished.length}) — now live on the site
+            Just published ({justPublished.length}), now live on the site
           </p>
           <ul className="divide-y divide-emerald-100">
             {justPublished.map((d) => (
@@ -541,7 +511,7 @@ export function ReviewQueueClient({
             className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition-colors shadow-sm"
           >
             {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-            <span>Approve &amp; Publish Batch</span>
+            <span>Publish {selectedIds.size}</span>
           </button>
 
           <button
@@ -551,7 +521,7 @@ export function ReviewQueueClient({
             className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-rose-300 hover:bg-white/20 transition-colors"
           >
             <Trash2 className="size-3.5" />
-            <span>Reject Selected</span>
+            <span>Reject {selectedIds.size}</span>
           </button>
 
           <button
@@ -568,9 +538,9 @@ export function ReviewQueueClient({
       {/* Reject Modal */}
       {rejectingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-teal/20 bg-canvas p-6 shadow-2xl space-y-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="reject-title" className="w-full max-w-md rounded-3xl border border-teal/20 bg-canvas p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-teal/10">
-              <h3 className="text-sm font-bold text-teal">Reject Scraped Draft</h3>
+              <h3 id="reject-title" className="text-sm font-bold text-teal">Reject draft</h3>
               <button
                 type="button"
                 onClick={() => setRejectingItem(null)}
@@ -581,12 +551,12 @@ export function ReviewQueueClient({
             </div>
 
             <p className="text-xs text-teal/80">
-              Rejecting <strong className="text-teal">&ldquo;{rejectingItem.title}&rdquo;</strong> from publication queue.
+              <strong className="text-teal">&ldquo;{rejectingItem.title}&rdquo;</strong> will not go live.
             </p>
 
             <div className="space-y-2">
               <label className="block text-xs font-semibold text-teal">
-                Select Rejection Reason (Press 1–5 or Click)
+                Reason (press 1–5 or click)
               </label>
               <div className="space-y-1.5">
                 {QUICK_REJECTION_REASONS.map((reason, idx) => (
@@ -624,7 +594,7 @@ export function ReviewQueueClient({
                 onClick={handleConfirmReject}
                 className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-500 shadow-sm"
               >
-                {isPending ? 'Rejecting...' : 'Confirm Rejection'}
+                {isPending ? 'Rejecting…' : 'Reject'}
               </button>
             </div>
           </div>
@@ -634,11 +604,11 @@ export function ReviewQueueClient({
       {/* Hotkeys Cheat Sheet Modal */}
       {showHotkeysHelp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-teal/20 bg-canvas p-6 shadow-2xl space-y-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="keys-title" className="w-full max-w-md rounded-3xl border border-teal/20 bg-canvas p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-teal/10">
               <div className="flex items-center gap-2">
                 <Keyboard className="size-5 text-teal" />
-                <h3 className="text-base font-bold text-teal">Review Queue Hotkeys</h3>
+                <h3 id="keys-title" className="text-base font-bold text-teal">Keyboard shortcuts</h3>
               </div>
               <button
                 type="button"
@@ -663,11 +633,11 @@ export function ReviewQueueClient({
                 <span className="font-mono bg-teal/10 px-2 py-0.5 rounded font-bold">X</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-teal/5">
-                <span className="font-medium">Quick Approve &amp; Publish</span>
+                <span className="font-medium">Publish the highlighted draft</span>
                 <span className="font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">A</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-teal/5">
-                <span className="font-medium">Quick Reject (Modal)</span>
+                <span className="font-medium">Reject the highlighted draft</span>
                 <span className="font-mono bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">R</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-teal/5">
@@ -679,7 +649,7 @@ export function ReviewQueueClient({
                 <span className="font-mono bg-teal/10 px-2 py-0.5 rounded font-bold">V</span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="font-medium">Select All High Confidence (&gt;90%)</span>
+                <span className="font-medium">Select ready drafts (90%+)</span>
                 <span className="font-mono bg-teal/10 px-2 py-0.5 rounded font-bold">Shift + A</span>
               </div>
             </div>
@@ -690,7 +660,7 @@ export function ReviewQueueClient({
                 onClick={() => setShowHotkeysHelp(false)}
                 className="px-4 py-2 rounded-xl bg-teal text-white text-xs font-semibold"
               >
-                Got It
+                Close
               </button>
             </div>
           </div>

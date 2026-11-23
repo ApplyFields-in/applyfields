@@ -137,7 +137,7 @@ function SignupForm() {
                 className={`${input} mt-1`}
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
-                placeholder={isCollege ? 'admissions@yourcollege.edu.in' : '98480 12345'}
+                placeholder={isCollege ? 'admissions@yourcollege.edu.in' : 'yourshop@gmail.com'}
                 autoComplete="username"
               />
             </div>

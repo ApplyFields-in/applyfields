@@ -169,6 +169,24 @@ describe('AuthService', () => {
     });
   });
 
+  describe('phone codes without SMS set up', () => {
+    it('in production, refuses phone-only sign-up and phone codes with a clear message', async () => {
+      const env = { ...process.env };
+      process.env.NODE_ENV = 'production';
+      delete process.env.MSG91_AUTH_KEY;
+      try {
+        await expect(authService.register({ phone: '+919848012345', password: 'Password123!' })).rejects.toThrow(
+          'Please use your email address instead',
+        );
+        await expect(authService.sendOtp({ target: '+919848012345', purpose: 'verify_phone' } as any)).rejects.toThrow(
+          'Text-message codes are not available yet',
+        );
+      } finally {
+        process.env = env;
+      }
+    });
+  });
+
   describe('cross-site handoff', () => {
     it('trades a code for a session once, and the code is not an access token', async () => {
       const { user } = await authService.register({ email: 'handoff@example.com', password: 'Password123!' });
