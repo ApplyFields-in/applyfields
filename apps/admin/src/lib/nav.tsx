@@ -4,14 +4,10 @@ import {
   Bell,
   Briefcase,
   Building,
-  CheckCircle2,
   ClipboardList,
   Clock,
   Compass,
   CreditCard,
-  Crown,
-  FileCheck2,
-  FileText,
   Flag,
   GraduationCap,
   HandHelping,
@@ -23,7 +19,6 @@ import {
   Radar,
   Scale,
   ScrollText,
-  Settings,
   ShieldCheck,
   Store,
   TrendingUp,
@@ -44,169 +39,130 @@ export interface DepartmentMeta {
 export const DEPARTMENTS: Record<DepartmentType, DepartmentMeta> = {
   super_admin: {
     id: 'super_admin',
-    name: 'Super Administration',
-    shortLabel: 'Master Cockpit',
-    badge: 'Root Access',
-    description: 'Central platform command, cross-department governance, and audit ledger.',
+    name: 'Everything',
+    shortLabel: 'Everything',
+    badge: 'Admin',
+    description: 'All of ApplyFields: content, partners, services, people and settings.',
     homePath: '/',
   },
   partners: {
     id: 'partners',
-    name: 'Partners & Franchise Network',
+    name: 'Partners',
     shortLabel: 'Partners',
-    badge: 'Franchise Ops',
-    description: 'Partner center onboarding, KYC compliance, center slots, and payout ledger.',
+    badge: 'Support',
+    description: 'Approve service centres and colleges, and help them run their desks.',
     homePath: '/partners',
   },
   services: {
     id: 'services',
-    name: 'Citizen Services & Assistance',
-    shortLabel: 'Citizen Services',
-    badge: 'Services Ops',
-    description: 'Government service delivery, document verification, and MeeSeva center handoffs.',
+    name: 'Citizen services',
+    shortLabel: 'Citizen services',
+    badge: 'Support',
+    description: 'The services catalog and help requests from citizens.',
     homePath: '/services',
   },
   apply: {
     id: 'apply',
-    name: 'Apply & Opportunities Engine',
-    shortLabel: 'Apply & Ingestion',
-    badge: 'Review & Content',
-    description: 'Ingestion review queue, scraper pipelines, and official notification publishing.',
+    name: 'Content',
+    shortLabel: 'Content',
+    badge: 'Review',
+    description: 'Review scraped notices and publish jobs, exams, scholarships and admissions.',
     homePath: '/review',
   },
   career: {
     id: 'career',
-    name: 'Career & Higher Education',
-    shortLabel: 'Career & Colleges',
-    badge: 'Higher Ed Ops',
-    description: 'Top 50 Medical and Engineering colleges, cutoff benchmarks, and roadmaps.',
+    name: 'Colleges & careers',
+    shortLabel: 'Colleges & careers',
+    badge: 'Review',
+    description: 'College pages, courses and career paths.',
     homePath: '/colleges',
   },
 };
 
-/** Department 1: Super Admin Navigation (Master Cockpit) */
+/**
+ * One name per page, used in every sidebar, so the same page is never called two different things.
+ * Department sidebars below also decide which pages limited staff may open (canOpenPath), so their
+ * page lists only change on purpose.
+ */
+const PAGE = {
+  overview: { href: '/', label: 'Overview', icon: <LayoutDashboard />, exact: true },
+  review: { href: '/review', label: 'Review queue', icon: <Inbox /> },
+  opportunities: { href: '/opportunities', label: 'Opportunities', icon: <Briefcase /> },
+  updates: { href: '/updates', label: 'Announcements', icon: <Megaphone /> },
+  scrapers: { href: '/scrapers', label: 'Scrapers', icon: <Radar /> },
+  sources: { href: '/sources', label: 'Scraper sources', icon: <Layers /> },
+  centres: { href: '/partners', label: 'Service centres', icon: <Store />, exact: true },
+  collegePartners: { href: '/partners/colleges', label: 'College partners', icon: <GraduationCap /> },
+  enquiries: { href: '/partners/enquiries', label: 'Student enquiries', icon: <ClipboardList /> },
+  partnerMap: { href: '/partners/map', label: 'Partner map', icon: <Compass /> },
+  services: { href: '/services', label: 'Services catalog', icon: <Landmark /> },
+  assistance: { href: '/assistance', label: 'Help requests', icon: <HandHelping /> },
+  disputes: { href: '/disputes', label: 'Disputes & refunds', icon: <Scale /> },
+  payments: { href: '/payments', label: 'Payments', icon: <CreditCard /> },
+  colleges: { href: '/colleges', label: 'Colleges', icon: <Building /> },
+  careers: { href: '/careers', label: 'Careers', icon: <Award /> },
+  users: { href: '/users', label: 'Users', icon: <Users /> },
+  staff: { href: '/settings', label: 'Staff & roles', icon: <ShieldCheck /> },
+  notifications: { href: '/notifications', label: 'Notifications', icon: <Bell /> },
+  analytics: { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
+  reports: { href: '/reports', label: 'Reports', icon: <Flag /> },
+  audit: { href: '/audit', label: 'Activity log', icon: <ScrollText /> },
+  scheduled: { href: '/scheduled-tasks', label: 'Scheduled jobs', icon: <Clock /> },
+};
+const home = (item: (typeof PAGE)[keyof typeof PAGE]) => ({ ...item, exact: true });
+
+/** Full admins: every page, grouped by the job it is for. */
 export const SUPER_ADMIN_NAV: NavGroup[] = [
-  { items: [{ href: '/', label: 'Master Cockpit', icon: <LayoutDashboard />, exact: true }] },
-  {
-    label: 'Opportunities & Apply',
-    items: [
-      { href: '/review', label: 'Review Queue', icon: <Inbox /> },
-      { href: '/opportunities', label: 'All Opportunities', icon: <Briefcase /> },
-      { href: '/scrapers', label: 'Scrapers Pipeline', icon: <Radar /> },
-      { href: '/updates', label: 'Announcements', icon: <Megaphone /> },
-    ],
-  },
-  {
-    label: 'Citizen Services & Partners',
-    items: [
-      { href: '/services', label: 'Services Catalog', icon: <Landmark /> },
-      { href: '/partners', label: 'Partner Centers', icon: <Store /> },
-      { href: '/assistance', label: 'Assistance Network', icon: <HandHelping /> },
-    ],
-  },
-  {
-    label: 'Career & Colleges',
-    items: [
-      { href: '/colleges', label: 'Colleges Directory', icon: <Building /> },
-      { href: '/careers', label: 'Career Trajectories', icon: <Compass /> },
-    ],
-  },
-  {
-    label: 'Governance & Audits',
-    items: [
-      { href: '/users', label: 'User Directory', icon: <Users /> },
-      { href: '/analytics', label: 'Funnel Analytics', icon: <TrendingUp /> },
-      { href: '/reports', label: 'Operational Reports', icon: <Flag /> },
-      { href: '/disputes', label: 'Disputes & Refunds', icon: <Scale /> },
-      { href: '/scheduled-tasks', label: 'Scheduled Tasks & Cron', icon: <Clock /> },
-      { href: '/payments', label: 'Financial Ledger', icon: <CreditCard /> },
-      { href: '/audit', label: 'Audit Trail', icon: <ScrollText /> },
-      { href: '/settings', label: 'Staff Roles & Config', icon: <Settings /> },
-    ],
-  },
+  { items: [PAGE.overview] },
+  { label: 'Content', items: [PAGE.review, PAGE.opportunities, PAGE.updates, PAGE.scrapers, PAGE.sources] },
+  { label: 'Partners', items: [PAGE.centres, PAGE.collegePartners, PAGE.enquiries, PAGE.partnerMap] },
+  { label: 'Citizen services', items: [PAGE.services, PAGE.assistance, PAGE.disputes, PAGE.payments] },
+  { label: 'Colleges & careers', items: [PAGE.colleges, PAGE.careers] },
+  { label: 'Insights', items: [PAGE.analytics, PAGE.reports, PAGE.audit] },
+  { label: 'People & settings', items: [PAGE.users, PAGE.staff, PAGE.notifications, PAGE.scheduled] },
 ];
 
-/** Department 2: Partners & Franchise Network Navigation */
+/** Support staff: partners. */
 export const PARTNERS_NAV: NavGroup[] = [
-  { items: [{ href: '/partners', label: 'Partners Cockpit', icon: <Store />, exact: true }] },
-  {
-    label: 'Center Operations',
-    items: [
-      { href: '/assistance', label: 'Assistance Network', icon: <HandHelping /> },
-      { href: '/users', label: 'Partner Agents & Staff', icon: <Users /> },
-    ],
-  },
-  {
-    label: 'Financials & Compliance',
-    items: [
-      { href: '/payments', label: 'Commission & Payouts', icon: <CreditCard /> },
-      { href: '/reports', label: 'Performance Reports', icon: <Flag /> },
-      { href: '/audit', label: 'Partner Activity Log', icon: <ScrollText /> },
-    ],
-  },
+  { items: [PAGE.centres, PAGE.collegePartners, PAGE.enquiries, PAGE.partnerMap] },
+  { label: 'Support', items: [PAGE.assistance, PAGE.users] },
+  { label: 'Records', items: [PAGE.payments, PAGE.reports, PAGE.audit] },
 ];
 
-/** Department 3: Citizen Services & Assistance Navigation */
+/** Support staff: citizen services. */
 export const SERVICES_NAV: NavGroup[] = [
-  { items: [{ href: '/services', label: 'Services Cockpit', icon: <Landmark />, exact: true }] },
-  {
-    label: 'Fulfillment & Cases',
-    items: [
-      { href: '/assistance', label: 'Citizen Inquiries & Cases', icon: <HandHelping /> },
-      { href: '/users', label: 'Applicant Profiles', icon: <Users /> },
-    ],
-  },
-  {
-    label: 'Monitoring & SLA',
-    items: [
-      { href: '/reports', label: 'SLA Resolution Reports', icon: <Flag /> },
-      { href: '/payments', label: 'Citizen Service Fees', icon: <CreditCard /> },
-      { href: '/audit', label: 'Case Audit Trail', icon: <ScrollText /> },
-    ],
-  },
+  { items: [home(PAGE.services)] },
+  { label: 'Support', items: [PAGE.assistance, PAGE.users] },
+  { label: 'Records', items: [PAGE.reports, PAGE.payments, PAGE.audit] },
 ];
 
-/** Department 4: Apply & Opportunities Pipeline Navigation */
+/** Reviewers / editors: jobs, exams, scholarships, admissions. */
 export const APPLY_NAV: NavGroup[] = [
-  { items: [{ href: '/review', label: 'Ingestion Review Queue', icon: <Inbox />, exact: true }] },
+  { items: [home(PAGE.review)] },
   {
-    label: 'Live Inventory',
+    label: 'Published',
     items: [
-      { href: '/opportunities?type=government_job', label: 'Government Jobs', icon: <Briefcase /> },
-      { href: '/opportunities?type=exam', label: 'Entrance Exams', icon: <ClipboardList /> },
+      { href: '/opportunities?type=government_job', label: 'Jobs', icon: <Briefcase /> },
+      { href: '/opportunities?type=exam', label: 'Exams', icon: <ClipboardList /> },
       { href: '/opportunities?type=scholarship', label: 'Scholarships', icon: <Award /> },
       { href: '/opportunities?type=admission', label: 'Admissions', icon: <GraduationCap /> },
     ],
   },
-  {
-    label: 'Automation & Publishing',
-    items: [
-      { href: '/scrapers', label: 'Scrapers & Ingestion', icon: <Radar /> },
-      { href: '/updates', label: 'Notification Broadcasts', icon: <Megaphone /> },
-      { href: '/analytics', label: 'Application Trends', icon: <TrendingUp /> },
-      { href: '/audit', label: 'Publishing Audit Log', icon: <ScrollText /> },
-    ],
-  },
+  { label: 'Tools', items: [PAGE.scrapers, PAGE.updates, PAGE.analytics, PAGE.audit] },
 ];
 
-/** Department 5: Career & Higher Education Navigation */
+/** Reviewers / editors: colleges and careers. */
 export const CAREER_NAV: NavGroup[] = [
-  { items: [{ href: '/colleges', label: 'Colleges Directory', icon: <Building />, exact: true }] },
+  { items: [home(PAGE.colleges)] },
   {
-    label: 'Academic Curation',
+    label: 'Content',
     items: [
-      { href: '/careers', label: 'Degree Programs & Paths', icon: <Compass /> },
-      { href: '/opportunities?type=admission', label: 'College Admissions', icon: <GraduationCap /> },
-      { href: '/updates', label: 'Cutoff Announcements', icon: <Megaphone /> },
+      PAGE.careers,
+      { href: '/opportunities?type=admission', label: 'Admissions', icon: <GraduationCap /> },
+      PAGE.updates,
     ],
   },
-  {
-    label: 'Metrics & Oversight',
-    items: [
-      { href: '/analytics', label: 'Student Search Trends', icon: <TrendingUp /> },
-      { href: '/audit', label: 'Curation Change Log', icon: <ScrollText /> },
-    ],
-  },
+  { label: 'Insights', items: [PAGE.analytics, PAGE.audit] },
 ];
 
 /** Helper to retrieve the appropriate navigation menu for a department */

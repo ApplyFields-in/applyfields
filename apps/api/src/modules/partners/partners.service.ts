@@ -387,6 +387,38 @@ export class PartnersService {
       .catch((err: Error) => this.logger.warn(`Staff alert failed (${key}): ${err.message}`));
   }
 
+  /**
+   * Tell the partner's owner + staff that staff approved or rejected them: in-app, web push, phone push
+   * and email. Never blocks or fails the review.
+   */
+  private notifyDecision(p: { id: string; type: string; business_name: string; verification_status: string; verification_note: string | null; updated_at: Date }): void {
+    if (!this.notifications || !['verified', 'rejected'].includes(p.verification_status)) return;
+    const college = (COLLEGE_PARTNER_TYPES as readonly string[]).includes(p.type);
+    const base = (process.env.PARTNER_URL ?? 'https://applyfields.vercel.app').replace(/\/$/, '');
+    const approved = p.verification_status === 'verified';
+    const n = approved
+      ? {
+          type: 'system' as const,
+          title: college ? 'Your college desk is approved' : 'Your centre is approved on ApplyFields',
+          body: college
+            ? `${p.business_name} is verified. Sign in to update your courses, fees and admission dates, and reply to student enquiries.`
+            : `${p.business_name} is now live in the ApplyFields services portal. Citizens can find you, see your prices and book a slot. Add a price to any service that doesn't have one yet.`,
+          link: `${base}${college ? '/institution/dashboard' : '/dashboard'}`,
+        }
+      : {
+          type: 'system' as const,
+          title: 'Your ApplyFields application needs changes',
+          body: `${p.verification_note || 'We could not verify your documents.'} Upload the corrected document to send it back for review.`,
+          link: `${base}${college ? '/institution/under-review' : '/under-review'}`,
+        };
+    void (async () => {
+      const members = await this.prisma.partner_members.findMany({ where: { partner_id: p.id }, select: { user_id: true } });
+      // One per decision: a later re-approval after a rejection is a new message.
+      const key = `partner_status:${p.id}:${p.verification_status}:${p.updated_at.getTime()}`;
+      await this.notifications!.notifyAccount(members.map((m) => m.user_id), n, key);
+    })().catch((err: Error) => this.logger.warn(`Partner decision notice failed (${p.id}): ${err.message}`));
+  }
+
   // =========================================================================
   // PUBLIC DIRECTORY & SEARCH
   // =========================================================================
@@ -1523,12 +1555,14 @@ export class PartnersService {
         is_listed: input.is_listed,
         verified_by: reviewerId,
         verified_at: new Date(),
+        updated_at: new Date(),
       },
       include: {
         partner_services: true,
         partner_documents: true,
       },
     });
+    if (updated.verification_status !== existing.verification_status) this.notifyDecision(updated);
 
     return this.mapToDetail(updated);
   }

@@ -2127,12 +2127,14 @@ export type AnalyticsEventName =
   | 'external_apply_click'
   | 'service_browse'
   | 'booking_slot_start'
-  | 'booking_slot_completed';
+  | 'booking_slot_completed'
+  /** Anonymous page view (path only, never the query string). */
+  | 'page_view';
 
 export interface AnalyticsEventInput {
   event_name: AnalyticsEventName;
   session_id?: string;
-  entity_type?: 'opportunity' | 'service' | 'partner' | 'career' | 'search';
+  entity_type?: 'opportunity' | 'service' | 'partner' | 'career' | 'search' | 'page';
   entity_id?: string;
   metadata?: Record<string, unknown>;
 }
@@ -2146,6 +2148,21 @@ export interface FunnelStepMetric {
   label: string;
   count: number;
   dropoff_percent: number;
+}
+
+/** Admin analytics headline numbers: people, visits, partners and bookings over the last N days. */
+export interface AnalyticsOverview {
+  period_days: number;
+  users: { total: number; new: number; active: number; signups_by_day: Array<{ day: string; count: number }> };
+  visits: {
+    page_views: number;
+    visitors: number;
+    views_by_day: Array<{ day: string; count: number }>;
+    top_pages: Array<{ site: string; path: string; views: number }>;
+  };
+  partners: Record<'centres' | 'colleges', { pending: number; verified: number; rejected: number }>;
+  bookings: { total: number; completed: number };
+  opportunities: { published: number; views: number; saves: number };
 }
 
 export interface AnalyticsFunnelSummary {

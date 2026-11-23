@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { KycDocuments } from '@/components/kyc-documents';
 import { RejectedNotice } from '@/components/rejected-notice';
+import { NotifyMeButton } from '@/components/notify-me-button';
 import { usePartnerAuth } from '@/lib/auth-context';
 import {
   AlertCircle,
@@ -98,6 +99,7 @@ export default function UnderReviewPage() {
       <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <div className="rounded-3xl border border-[#d5deea] bg-white p-6 sm:p-10 shadow-[0_1px_2px_rgba(8,32,70,0.04),0_12px_32px_-16px_rgba(8,32,70,0.18)] backdrop-blur-xl">
           {partner && <RejectedNotice partner={partner} />}
+          <NotifyMeButton />
           {/* Status Badge */}
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 border border-amber-500/20">

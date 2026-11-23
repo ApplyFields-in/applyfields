@@ -1,25 +1,14 @@
-import type { AdminOpportunityList, AdminSummary, HomeSummary } from '@applyfields/types';
+import type { AdminOpportunityList, AdminSummary, AnalyticsOverview, HomeSummary } from '@applyfields/types';
 import { Badge, buttonClass, Card, cn } from '@applyfields/ui';
 import {
   Activity,
   AlertTriangle,
-  ArrowRight,
-  Briefcase,
-  Building,
-  Calendar,
   CheckCircle2,
   ChevronRight,
   Clock,
-  Crown,
-  Download,
-  ExternalLink,
   Globe,
-  HandHelping,
-  Inbox,
-  Layers,
   Plus,
   ShieldAlert,
-  ShieldCheck,
   Store,
   Users,
   Zap,
@@ -54,10 +43,11 @@ export default async function DashboardPage() {
   await connection();
 
   // Fetch real data in parallel from the API
-  const [summary, oppsList, homeData] = await Promise.all([
+  const [summary, oppsList, homeData, overview] = await Promise.all([
     apiGet<AdminSummary>('/admin/summary'),
     apiGet<AdminOpportunityList>('/admin/opportunities?pageSize=6'),
     apiGet<HomeSummary>('/home'),
+    apiGet<AnalyticsOverview>('/admin/analytics/overview?days=7'),
   ]);
 
   // Real numbers only: if the API is down, tiles read 0 and the header says "API unreachable".
@@ -71,6 +61,7 @@ export default async function DashboardPage() {
   const publishedWeekCount = statsMap.get('published_week')?.value ?? 0;
   const deadlinesWeekCount = statsMap.get('deadlines_week')?.value ?? 0;
   const usersCount = statsMap.get('users')?.value ?? 0;
+  const partnersWaiting = overview ? overview.partners.centres.pending + overview.partners.colleges.pending : 0;
 
   // Filter items requiring attention (low confidence, failing scrapers)
   const careItems = summaryData.review_queue
@@ -108,7 +99,7 @@ export default async function DashboardPage() {
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur-md">
               <span className={cn('size-2 rounded-full', apiDown ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse')} />
-              <span>ApplyFields Global Operations</span>
+              <span>{apiDown ? 'Some data could not load' : 'All systems normal'}</span>
               {apiDown && (
                 <span className="rounded bg-amber-400/20 px-1.5 py-0.2 text-[10px] text-amber-300">
                   API unreachable
@@ -117,343 +108,42 @@ export default async function DashboardPage() {
             </div>
 
             <h1 className="text-2xl font-black tracking-tight sm:text-3xl text-white">
-              Multi-Portal Control Center
+              Overview
             </h1>
             <p className="text-xs sm:text-sm text-navy-100/85 leading-relaxed">
-              Centralized governance, audit trails, opportunity moderation, and microservice sync across the Citizen Portal, Services Engine, and Partner Operator desks.
+              What needs your attention today across the citizen site, services portal and partner desks.
             </p>
             <p className="text-[11px] font-mono text-navy-300/80 pt-1">
-              Active Session · {dateFormatted}, {timeFormatted} IST
+              {dateFormatted}, {timeFormatted} IST
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 sm:self-start lg:self-center">
-            <button
-              type="button"
+            <Link
+              href="/audit"
               className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-3.5 py-2 text-xs font-semibold text-white shadow-sm backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
             >
-              <Download className="size-3.5 text-navy-200" /> Export Audit Log
-            </button>
+              Activity log
+            </Link>
             <Link
-              href="/opportunities"
+              href="/opportunities/new"
               className="inline-flex items-center gap-2 rounded-xl border border-navy-400/40 bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:bg-emerald-500 active:scale-95"
             >
-              <Plus className="size-4" /> Create Opportunity
+              <Plus className="size-4" /> New opportunity
             </Link>
           </div>
         </div>
       </div>
 
-      {/* -------------------- Department Operations Cockpits (Role Separation) -------------------- */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Crown className="size-4 text-amber-600" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-navy-900">
-              Department Operations Cockpits · Role Separation
-            </h2>
-          </div>
-          <span className="text-[11px] font-medium text-navy-700/80">
-            Dedicated operational workspaces for internal staff
-          </span>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Dept 1: Partners & Franchise Network */}
-          <div className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-xs hover:border-emerald-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  <Store className="size-3 text-emerald-600" /> Partners & Franchise
-                </span>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                  Active
-                </span>
-              </div>
-              <h3 className="text-sm font-bold text-navy-950 pt-1">
-                Franchise & Center Ops
-              </h3>
-              <p className="text-xs text-navy-700/80 leading-relaxed">
-                Partner kiosk onboarding, MeeSeva verification, live center slots, and commission settlement ledgers.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-navy-900">
-                <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-800">
-                  24 Partners
-                </span>
-                <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-800">
-                  12 Pending KYC
-                </span>
-              </div>
-            </div>
-            <Link
-              href="/partners"
-              className="inline-flex items-center justify-between w-full pt-3 border-t border-emerald-100 text-xs font-bold text-emerald-800 hover:text-emerald-950 transition-colors"
-            >
-              <span>Launch Partners Cockpit</span>
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-
-          {/* Dept 2: Citizen Services & Assistance */}
-          <div className="rounded-2xl border border-blue-200 bg-white p-5 shadow-xs hover:border-blue-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                  <HandHelping className="size-3 text-blue-600" /> Citizen Services
-                </span>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
-                  94.2% SLA
-                </span>
-              </div>
-              <h3 className="text-sm font-bold text-navy-950 pt-1">
-                Assistance & Delivery
-              </h3>
-              <p className="text-xs text-navy-700/80 leading-relaxed">
-                Government service delivery, certificate applications, citizen case triage, and center handoffs.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-navy-900">
-                <span className="rounded bg-blue-50 px-2 py-0.5 text-blue-800">
-                  18 Kiosks
-                </span>
-                <span className="rounded bg-blue-50 px-2 py-0.5 text-blue-800">
-                  38 Active Bookings
-                </span>
-              </div>
-            </div>
-            <Link
-              href="/services"
-              className="inline-flex items-center justify-between w-full pt-3 border-t border-blue-100 text-xs font-bold text-blue-800 hover:text-blue-950 transition-colors"
-            >
-              <span>Launch Services Cockpit</span>
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-
-          {/* Dept 3: Apply & Opportunities Pipeline */}
-          <div className="rounded-2xl border border-indigo-200 bg-white p-5 shadow-xs hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
-                  <Inbox className="size-3 text-indigo-600" /> Apply & Opportunities
-                </span>
-                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
-                  {pendingReviewsCount} Pending
-                </span>
-              </div>
-              <h3 className="text-sm font-bold text-navy-950 pt-1">
-                Ingestion & Publishing
-              </h3>
-              <p className="text-xs text-navy-700/80 leading-relaxed">
-                Raw ingestion review, confidence filters, scraper anomaly monitoring, and official notifications.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-navy-900">
-                <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-800">
-                  {summaryData.scrapers.length} Scrapers
-                </span>
-                <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-800">
-                  {publishedWeekCount} Published/Wk
-                </span>
-              </div>
-            </div>
-            <Link
-              href="/review"
-              className="inline-flex items-center justify-between w-full pt-3 border-t border-indigo-100 text-xs font-bold text-indigo-800 hover:text-indigo-950 transition-colors"
-            >
-              <span>Launch Review Cockpit</span>
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-
-          {/* Dept 4: Career & Higher Education */}
-          <div className="rounded-2xl border border-amber-200 bg-white p-5 shadow-xs hover:border-amber-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                  <Building className="size-3 text-amber-600" /> Career & Higher Ed
-                </span>
-                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                  100 Colleges
-                </span>
-              </div>
-              <h3 className="text-sm font-bold text-navy-950 pt-1">
-                Colleges & Roadmaps
-              </h3>
-              <p className="text-xs text-navy-700/80 leading-relaxed">
-                Top 50 Engineering & Medical Colleges, NIRF ranks, cutoff benchmarks, and trajectory roadmaps.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-navy-900">
-                <span className="rounded bg-amber-50 px-2 py-0.5 text-amber-800">
-                  Top 50 Engg
-                </span>
-                <span className="rounded bg-amber-50 px-2 py-0.5 text-amber-800">
-                  Top 50 Medical
-                </span>
-              </div>
-            </div>
-            <Link
-              href="/colleges"
-              className="inline-flex items-center justify-between w-full pt-3 border-t border-amber-100 text-xs font-bold text-amber-800 hover:text-amber-950 transition-colors"
-            >
-              <span>Launch Colleges Cockpit</span>
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* -------------------- Multi-Portal Architecture Clarity Cards -------------------- */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Layers className="size-4 text-navy-700" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-navy-900">
-              ApplyFields Ecosystem Portals · Live Matrix
-            </h2>
-          </div>
-          <span className="text-[11px] text-navy-700/80">3 sister applications connected to core</span>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          {/* Portal 1: Citizen Web (:3000) */}
-          <div className="glass-card relative flex flex-col justify-between rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-bold text-sky-800">
-                  <Globe className="size-3" /> Citizen Portal · :3000
-                </span>
-                <PortalStatus url={WEB_URL} />
-              </div>
-
-              <h3 className="mt-3 text-sm font-bold text-navy-950">
-                Citizen Web & Career Discovery
-              </h3>
-              <p className="mt-1 text-xs text-navy-800/80 leading-relaxed">
-                Public facing portal for students & citizens: Career roadmaps, college directories, government exams, private opportunities, and direct applications.
-              </p>
-
-              <div className="mt-3.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-                <span className="rounded-md bg-navy-100/80 px-2 py-0.5 font-semibold text-navy-900">
-                  1,420+ Listings
-                </span>
-                <span className="rounded-md bg-navy-100/80 px-2 py-0.5 font-semibold text-navy-900">
-                  Colleges Directory
-                </span>
-                <span className="rounded-md bg-navy-100/80 px-2 py-0.5 font-semibold text-navy-900">
-                  Citizen Auth
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-5 pt-3 border-t border-navy-100 flex items-center justify-between">
-              <span className="text-[11px] text-navy-700">{WEB_URL}</span>
-              <a
-                href={`${WEB_URL}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-navy-900 hover:text-emerald-700 hover:underline"
-              >
-                Open Web Portal <ExternalLink className="size-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* Portal 2: Services Hub (:3003) */}
-          <div className="glass-card relative flex flex-col justify-between rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-800">
-                  <Zap className="size-3" /> Services Hub · :3003
-                </span>
-                <PortalStatus url={SERVICE_URL} />
-              </div>
-
-              <h3 className="mt-3 text-sm font-bold text-navy-950">
-                MeeSeva, CSC & Cyber Hubs
-              </h3>
-              <p className="mt-1 text-xs text-navy-800/80 leading-relaxed">
-                Citizen booking engine: Xerox, spiral binding, PAN & NSDL, caste & income certificates, and GPS geolocation search for verified kiosks.
-              </p>
-
-              <div className="mt-3.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-                <span className="rounded-md bg-amber-100/80 px-2 py-0.5 font-semibold text-amber-900">
-                  GPS Discovery
-                </span>
-                <span className="rounded-md bg-amber-100/80 px-2 py-0.5 font-semibold text-amber-900">
-                  18 Active Centers
-                </span>
-                <span className="rounded-md bg-amber-100/80 px-2 py-0.5 font-semibold text-amber-900">
-                  Slot Booking
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-5 pt-3 border-t border-navy-100 flex items-center justify-between">
-              <span className="text-[11px] text-navy-700">{SERVICE_URL}</span>
-              <a
-                href={`${SERVICE_URL}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-navy-900 hover:text-amber-700 hover:underline"
-              >
-                Open Services Hub <ExternalLink className="size-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* Portal 3: Partner Desk (:3002) */}
-          <div className="glass-card relative flex flex-col justify-between rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
-                  <Store className="size-3" /> Partner Portal · :3002
-                </span>
-                <PortalStatus url={PARTNER_URL} />
-              </div>
-
-              <h3 className="mt-3 text-sm font-bold text-navy-950">
-                Partner Desk & Kiosk Network
-              </h3>
-              <p className="mt-1 text-xs text-navy-800/80 leading-relaxed">
-                Merchant and operator cockpit: CSC/MeeSeva store registration, admissions desk (§21), hardware status, commission settlements, and client KYC.
-              </p>
-
-              <div className="mt-3.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-                <span className="rounded-md bg-emerald-100/80 px-2 py-0.5 font-semibold text-emerald-900">
-                  Operator Desk
-                </span>
-                <span className="rounded-md bg-emerald-100/80 px-2 py-0.5 font-semibold text-emerald-900">
-                  Admissions §21
-                </span>
-                <span className="rounded-md bg-emerald-100/80 px-2 py-0.5 font-semibold text-emerald-900">
-                  24 Partners
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-5 pt-3 border-t border-navy-100 flex items-center justify-between">
-              <span className="text-[11px] text-navy-700">{PARTNER_URL}</span>
-              <a
-                href={`${PARTNER_URL}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-navy-900 hover:text-emerald-700 hover:underline"
-              >
-                Open Partner Desk <ExternalLink className="size-3" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* -------------------- Operational KPI Metrics (Olive & White Glassmorphism) -------------------- */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {/* Card 1: Pending reviews */}
         <Link
           href="/review"
           className="glass-card group block rounded-2xl border border-amber-300/80 bg-amber-50/70 p-5 shadow-xs transition-all hover:border-amber-400 hover:shadow-md"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-amber-900">Pending Reviews</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-900">Review queue</p>
             <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold text-amber-900">
               Needs sign-off
             </span>
@@ -472,13 +162,10 @@ export default async function DashboardPage() {
           className="glass-card group block rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-navy-800">Active Listings</p>
-            <span className="rounded-full bg-navy-100 px-2 py-0.5 text-[10px] font-bold text-navy-800">
-              Citizen Web :3000
-            </span>
+            <p className="text-xs font-bold uppercase tracking-wide text-navy-800">Live listings</p>
           </div>
           <p className="mt-2 text-3xl font-black tracking-tight text-navy-950">
-            {(publishedWeekCount + 42).toLocaleString('en-IN')}
+            {(overview?.opportunities.published ?? 0).toLocaleString('en-IN')}
           </p>
           <p className="mt-1 text-xs font-semibold text-emerald-700">
             +{publishedWeekCount} published this week
@@ -488,7 +175,7 @@ export default async function DashboardPage() {
         {/* Card 3: Upcoming deadlines */}
         <div className="glass-card rounded-2xl border border-navy-200/80 p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-navy-800">Closing Soon</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-navy-800">Closing soon</p>
             <span className="rounded-full bg-navy-100 px-2 py-0.5 text-[10px] font-bold text-navy-800">
               14 Days
             </span>
@@ -497,7 +184,7 @@ export default async function DashboardPage() {
             {deadlinesWeekCount.toLocaleString('en-IN')}
           </p>
           <p className="mt-1 text-xs font-medium text-navy-700">
-            Urgent citizen deadlines
+            Deadlines this week
           </p>
         </div>
 
@@ -507,16 +194,24 @@ export default async function DashboardPage() {
           className="glass-card group block rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-navy-800">Verified Users</p>
-            <span className="rounded-full bg-navy-100 px-2 py-0.5 text-[10px] font-bold text-navy-800">
-              Accounts
-            </span>
+            <p className="text-xs font-bold uppercase tracking-wide text-navy-800">Users</p>
           </div>
           <p className="mt-2 text-3xl font-black tracking-tight text-navy-950">
             {usersCount.toLocaleString('en-IN')}
           </p>
           <p className="mt-1 text-xs font-medium text-navy-700">
-            Citizens & partner operators
+            Citizens, partners and staff
+          </p>
+        </Link>
+
+        <Link
+          href="/partners"
+          className="glass-card group block rounded-2xl border border-navy-200/80 p-5 shadow-xs transition-all hover:border-navy-400 hover:shadow-md"
+        >
+          <p className="text-xs font-bold uppercase tracking-wide text-navy-800">Partners waiting</p>
+          <p className="mt-2 text-3xl font-black tracking-tight text-navy-950">{partnersWaiting.toLocaleString('en-IN')}</p>
+          <p className="mt-1 text-xs font-medium text-navy-700">
+            {overview ? `${overview.partners.centres.pending} centres · ${overview.partners.colleges.pending} colleges` : 'Approvals to check'}
           </p>
         </Link>
       </section>
@@ -529,7 +224,7 @@ export default async function DashboardPage() {
           <div className="glass-panel overflow-hidden rounded-2xl border border-navy-200/80 shadow-xs">
             <div className="flex items-center justify-between border-b border-navy-100 bg-navy-50/60 px-5 py-4">
               <div>
-                <h2 className="text-sm font-bold text-navy-950">Cross-Portal Review Queue</h2>
+                <h2 className="text-sm font-bold text-navy-950">Review queue</h2>
                 <p className="text-[11px] text-navy-700">Incoming submissions from Web, Services, and Partners</p>
               </div>
               <Link
@@ -622,7 +317,7 @@ export default async function DashboardPage() {
           <div className="glass-panel overflow-hidden rounded-2xl border border-navy-200/80 shadow-xs">
             <div className="flex items-center justify-between border-b border-navy-100 bg-navy-50/60 px-5 py-4">
               <div>
-                <h2 className="text-sm font-bold text-navy-950">Published Opportunities Feed</h2>
+                <h2 className="text-sm font-bold text-navy-950">Recently published</h2>
                 <p className="text-[11px] text-navy-700">Live listings distributed to Citizen Portal (:3000)</p>
               </div>
               <Link
@@ -692,7 +387,7 @@ export default async function DashboardPage() {
           {/* Section: Content requiring attention */}
           <div className="glass-card rounded-2xl border border-navy-200/80 p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-navy-950">System Integrity & Alerts</h2>
+              <h2 className="text-sm font-bold text-navy-950">Needs attention</h2>
               <ShieldAlert className="size-4 text-amber-600" />
             </div>
             <p className="mt-0.5 text-[11px] text-navy-700">Automated ingestion & scraper audit</p>
@@ -759,7 +454,7 @@ export default async function DashboardPage() {
           {/* Section: Upcoming deadlines */}
           <div className="glass-card rounded-2xl border border-navy-200/80 p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-navy-950">Upcoming Deadlines</h2>
+              <h2 className="text-sm font-bold text-navy-950">Closing soon</h2>
               <Clock className="size-4 text-navy-600" />
             </div>
             <p className="mt-0.5 text-[11px] text-navy-700">Citizen applications closing soon</p>
@@ -797,7 +492,7 @@ export default async function DashboardPage() {
           {/* Section: Ecosystem Microservices Status */}
           <div className="glass-card rounded-2xl border border-navy-200/80 p-5 shadow-xs">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-navy-950">Network Status</h2>
+              <h2 className="text-sm font-bold text-navy-950">Site status</h2>
               <Activity className="size-4 text-emerald-600" />
             </div>
             <p className="mt-0.5 text-[11px] text-navy-700">ApplyFields local cluster ports</p>

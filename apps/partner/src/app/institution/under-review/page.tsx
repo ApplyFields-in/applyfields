@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { KycDocuments } from '@/components/kyc-documents';
 import { RejectedNotice } from '@/components/rejected-notice';
+import { NotifyMeButton } from '@/components/notify-me-button';
 import { usePartnerAuth } from '@/lib/auth-context';
 import { API_URL } from '@/lib/api';
 import {
@@ -101,6 +102,7 @@ export default function InstitutionUnderReviewPage() {
       <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-[#d5deea] bg-white p-6 sm:p-10 shadow-[0_1px_2px_rgba(8,32,70,0.04),0_12px_32px_-16px_rgba(8,32,70,0.18)] backdrop-blur-xl">
           {partner && <RejectedNotice partner={partner} />}
+          <NotifyMeButton />
           {/* Status Badge */}
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-800 mb-6">
             <Clock className="h-4 w-4 animate-pulse" />

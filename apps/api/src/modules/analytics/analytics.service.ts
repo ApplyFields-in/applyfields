@@ -3,7 +3,22 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type {
   AnalyticsEventInput,
   AnalyticsFunnelSummary,
+  AnalyticsOverview,
 } from '@applyfields/types';
+
+const COLLEGE_TYPES = new Set(['college', 'university', 'training_institute']);
+
+/** Fills the days with no rows, so the chart has one bar per day (IST dates). */
+function everyDay(rows: Array<{ day: string; count: bigint | number }>, days: number): Array<{ day: string; count: number }> {
+  const by = new Map(rows.map((r) => [r.day, Number(r.count)]));
+  const out: Array<{ day: string; count: number }> = [];
+  const istToday = new Date(Date.now() + 5.5 * 3600_000);
+  for (let i = days - 1; i >= 0; i--) {
+    const day = new Date(istToday.getTime() - i * 86_400_000).toISOString().slice(0, 10);
+    out.push({ day, count: by.get(day) ?? 0 });
+  }
+  return out;
+}
 
 @Injectable()
 export class AnalyticsService {
@@ -59,6 +74,70 @@ export class AnalyticsService {
       this.logger.warn(`Failed to record analytics batch: ${err?.message}`);
       return { success: false, count: 0 };
     }
+  }
+
+  /** People, visits, partners and bookings for the admin Analytics page. */
+  async getOverview(days = 30): Promise<AnalyticsOverview> {
+    const d = Math.max(1, Math.min(90, days || 30));
+    const since = new Date(Date.now() - d * 86_400_000);
+    const ist = (col: string) => `to_char((${col} at time zone 'Asia/Kolkata')::date, 'YYYY-MM-DD')`;
+
+    const [total, fresh, active, signups, views, visitors, viewsByDay, topPages, partners, bookings, completed, published, events] =
+      await Promise.all([
+        this.prisma.users.count({ where: { deleted_at: null } }),
+        this.prisma.users.count({ where: { deleted_at: null, created_at: { gte: since } } }),
+        this.prisma.users.count({ where: { deleted_at: null, last_login_at: { gte: since } } }),
+        this.prisma.$queryRawUnsafe<Array<{ day: string; count: bigint }>>(
+          `select ${ist('created_at')} as day, count(*) as count from users
+           where deleted_at is null and created_at >= $1 group by 1`,
+          since,
+        ),
+        this.prisma.analytics_events.count({ where: { event_name: 'page_view', created_at: { gte: since } } }),
+        this.prisma.$queryRaw<Array<{ n: bigint }>>`
+          select count(distinct session_id) as n from analytics_events
+          where event_name = 'page_view' and created_at >= ${since}`,
+        this.prisma.$queryRawUnsafe<Array<{ day: string; count: bigint }>>(
+          `select ${ist('created_at')} as day, count(*) as count from analytics_events
+           where event_name = 'page_view' and created_at >= $1 group by 1`,
+          since,
+        ),
+        this.prisma.$queryRaw<Array<{ site: string | null; path: string | null; views: bigint }>>`
+          select metadata->>'site' as site, metadata->>'path' as path, count(*) as views from analytics_events
+          where event_name = 'page_view' and created_at >= ${since}
+          group by 1, 2 order by views desc limit 10`,
+        this.prisma.partners.groupBy({ by: ['type', 'verification_status'], _count: { _all: true } }),
+        this.prisma.service_requests.count({ where: { created_at: { gte: since } } }),
+        this.prisma.service_requests.count({ where: { created_at: { gte: since }, status: 'completed' } }),
+        this.prisma.opportunities.count({ where: { status: 'published' } }),
+        this.prisma.analytics_events.groupBy({
+          by: ['event_name'],
+          where: { event_name: { in: ['opportunity_view', 'opportunity_save'] }, created_at: { gte: since } },
+          _count: { _all: true },
+        }),
+      ]);
+
+    const blank = () => ({ pending: 0, verified: 0, rejected: 0 });
+    const byKind = { centres: blank(), colleges: blank() };
+    for (const p of partners) {
+      const st = p.verification_status;
+      if (st === 'suspended') continue; // shown on the Partners page, not in these three columns
+      byKind[COLLEGE_TYPES.has(p.type) ? 'colleges' : 'centres'][st] += p._count._all;
+    }
+    const ev = (name: string) => events.find((e) => e.event_name === name)?._count._all ?? 0;
+
+    return {
+      period_days: d,
+      users: { total, new: fresh, active, signups_by_day: everyDay(signups, d) },
+      visits: {
+        page_views: views,
+        visitors: Number(visitors[0]?.n ?? 0),
+        views_by_day: everyDay(viewsByDay, d),
+        top_pages: topPages.map((r) => ({ site: r.site ?? 'web', path: r.path ?? '/', views: Number(r.views) })),
+      },
+      partners: byKind,
+      bookings: { total: bookings, completed },
+      opportunities: { published, views: ev('opportunity_view'), saves: ev('opportunity_save') },
+    };
   }
 
   /**

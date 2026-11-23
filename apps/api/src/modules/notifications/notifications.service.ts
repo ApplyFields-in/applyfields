@@ -113,6 +113,38 @@ export class NotificationsService {
   }
 
   /**
+   * Decisions about the person's own account (partner approved / rejected): notify() plus one email,
+   * the one exception to "no notification emails". Only to a verified address, and never to someone
+   * who turned email off. Nothing is resent if the key was already used.
+   */
+  async notifyAccount(userIds: string[], n: NewNotification, key: string): Promise<number> {
+    const created = await this.notify(userIds, n, () => key);
+    if (created === 0) return 0;
+    const rows = await this.prisma.notifications.findMany({
+      where: {
+        user_id: { in: userIds },
+        dedupe_key: key,
+        notification_deliveries: { none: { channel: 'email' } },
+        users: { email: { not: null }, email_verified_at: { not: null } },
+      },
+      select: { id: true, user_id: true },
+    });
+    const off = await this.prisma.notification_preferences.findMany({
+      where: { user_id: { in: rows.map((r) => r.user_id) }, email_enabled: false },
+      select: { user_id: true },
+    });
+    const optedOut = new Set(off.map((p) => p.user_id));
+    const emails = rows.filter((r) => !optedOut.has(r.user_id));
+    if (emails.length) {
+      await this.prisma.notification_deliveries.createMany({
+        data: emails.map((r) => ({ notification_id: r.id, channel: 'email' as const })),
+      });
+      this.kick();
+    }
+    return created;
+  }
+
+  /**
    * notify() where every user can get their own payload (e.g. “Hi {name}”). Works in chunks of
    * NOTIFY_CHUNK users, so 1 lakh users is ~100 batched round trips instead of 1 lakh single ones.
    */

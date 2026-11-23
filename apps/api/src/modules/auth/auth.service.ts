@@ -27,7 +27,9 @@ import type {
 } from './dto/otp.dto.js';
 import type { UserSummary } from '@applyfields/types';
 import { sendOtpEmail } from '../notifications/email.js';
-import { sendOtpSms } from '../notifications/sms.js';
+import { phoneCodesUnavailable, sendOtpSms } from '../notifications/sms.js';
+
+const NO_SMS = 'Text-message codes are not available yet. Please use your email address instead.';
 
 // Internal type — includes tokens so the controller can set cookies. Never sent to clients.
 type LoginResult = { user: UserSummary; accessToken: string; refreshToken: string };
@@ -74,6 +76,8 @@ export class AuthService {
     if (!dto.email && !dto.phone) {
       throw new BadRequestException('Either email or phone must be provided');
     }
+    // Phone-only sign-up needs an SMS code; without SMS the account could never be confirmed.
+    if (!dto.email && phoneCodesUnavailable()) throw new ServiceUnavailableException(NO_SMS);
 
     // Check existing email/phone and compute password hash concurrently
     const [existingEmail, existingPhone, password_hash] = await Promise.all([
@@ -140,6 +144,7 @@ export class AuthService {
     target: string;
     devOtp?: string;
   }> {
+    if (!dto.target.includes('@') && phoneCodesUnavailable()) throw new ServiceUnavailableException(NO_SMS);
     // Each code allows 5 guesses; capping sends stops "request a fresh code" brute force and SMS pumping.
     // ponytail: per-target limit only; add per-IP + Turnstile when public SMS goes live.
     const recent = await this.store.countOtpsSince(dto.target, new Date(Date.now() - 15 * 60 * 1000));

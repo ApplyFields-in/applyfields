@@ -3,6 +3,12 @@
  * Returns false when MSG91 is not configured — callers fall back to the dev console print.
  * Needs DLT approval first: see APPLYGIELDS/requirements/02_sms_otp.md.
  */
+/** False until MSG91 is set up: in production phone codes can't be delivered, so phone-only flows must say so. */
+export const smsAvailable = () => Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_OTP_TEMPLATE_ID);
+
+/** Production without SMS: a phone code would never arrive, so refuse up front instead of saying "sent". */
+export const phoneCodesUnavailable = () => process.env.NODE_ENV === 'production' && !smsAvailable();
+
 export async function sendOtpSms(phone: string, otp: string): Promise<boolean> {
   const authKey = process.env.MSG91_AUTH_KEY;
   const templateId = process.env.MSG91_OTP_TEMPLATE_ID;
