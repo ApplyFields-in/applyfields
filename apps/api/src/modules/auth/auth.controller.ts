@@ -25,6 +25,7 @@ import {
   LoginVerifyDto,
   SocialLoginDto,
   PasskeyVerifyDto,
+  HandoffExchangeDto,
 } from './dto/login.dto.js';
 import { ResetPasswordDto, SendOtpDto, VerifyOtpDto } from './dto/otp.dto.js';
 
@@ -222,6 +223,31 @@ export class AuthController {
   @UseGuards(AuthGuard)
   removePasskey(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.passkeys.remove(req.user.userId, id);
+  }
+
+  /** Signed-in site → one-time code for another ApplyFields site (see AuthService.createHandoff). */
+  @Post('handoff')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  createHandoff(@Req() req: AuthenticatedRequest) {
+    return this.authService.createHandoff(req.user.userId);
+  }
+
+  /** The other site trades the code for its own session, like any login. */
+  @Throttle(AUTH_THROTTLE)
+  @Post('handoff/exchange')
+  @HttpCode(HttpStatus.OK)
+  async exchangeHandoff(
+    @Body() dto: HandoffExchangeDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const meta = { userAgent: req.headers['user-agent'], ipAddress: req.ip || req.socket.remoteAddress };
+    const result = await this.authService.redeemHandoff(dto.code, meta);
+    const opts = cookieOpts(true);
+    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
+    res.cookie(ACCESS_COOKIE_NAME, result.accessToken, opts.access);
+    return { user: result.user, accessToken: result.accessToken, ...forApp(req, result.refreshToken) };
   }
 
   @Post('refresh')

@@ -80,3 +80,11 @@ export class PasskeyVerifyDto {
   @IsBoolean()
   rememberMe?: boolean;
 }
+
+/** POST /auth/handoff/exchange: the one-time code another ApplyFields site got from POST /auth/handoff. */
+export class HandoffExchangeDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(2000)
+  code!: string;
+}

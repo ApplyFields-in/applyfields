@@ -23,7 +23,7 @@ import {
 import { apiGet, apiPost } from '@/lib/api';
 import type { MeResponse, UserSummary } from '@applyfields/types';
 import { useLanguage } from '@/lib/i18n/language-context';
-import { PARTNER_PORTAL_URL, SERVICE_PORTAL_URL } from '@/lib/urls';
+import { PARTNER_PORTAL_URL, SERVICE_PORTAL_URL, goToServicePortal } from '@/lib/urls';
 import { openCommandPalette } from '@/components/search/command-palette';
 import { flashAppToast } from '@/components/toast-notification-provider';
 
@@ -230,6 +230,7 @@ export function FloatingCapsuleNavbar() {
             </Link>
             <a
               href={SERVICE_PORTAL_URL}
+              onClick={(e) => void goToServicePortal(e)}
               data-tour="services"
               className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 lg:px-4 text-[14px] font-extrabold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
               title="Citizen Services: MeeSeva, CSC, PAN, Aadhaar & Xerox"

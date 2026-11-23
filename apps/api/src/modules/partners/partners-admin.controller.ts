@@ -1,3 +1,4 @@
+import { contentDisposition } from '../../common/content-disposition.js';
 import {
   Body,
   Controller,
@@ -59,7 +60,7 @@ export class PartnersAdminController {
   ) {
     const file = await this.partnersService.getPartnerDocumentFile(documentId);
     res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
+    res.setHeader('Content-Disposition', contentDisposition('inline', file.fileName));
     res.setHeader('Cache-Control', 'no-store');
     return res.send(file.buffer);
   }

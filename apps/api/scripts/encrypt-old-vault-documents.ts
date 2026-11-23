@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 import * as path from 'path';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { VaultService } from '../src/common/vault.service.js';
 import { StorageService } from '../src/common/storage.service.js';
@@ -73,28 +73,32 @@ async function run() {
       // Encrypt file bytes
       const { data: encryptedData, encryptedKey } = vaultService.encrypt(rawBytes);
 
-      // Re-upload or overwrite local file
-      if (existsSync(doc.storage_path)) {
-        writeFileSync(doc.storage_path, encryptedData);
+      // Write the encrypted copy to a NEW path, then point the row at it (key + path together), then
+      // delete the plain copy. Overwriting in place lost the file for good if the DB update then failed,
+      // and a re-run would encrypt the ciphertext again.
+      const encPath = `${doc.storage_path}.enc`;
+      const isLocal = existsSync(doc.storage_path);
+      if (isLocal) {
+        writeFileSync(encPath, encryptedData);
       } else {
         const uploaded = await storageService.upload(
           storageService.documentsBucket,
-          doc.storage_path,
+          encPath,
           encryptedData,
           doc.mime_type || 'application/octet-stream',
         );
         if (!uploaded) {
-          throw new Error(`Failed to re-upload encrypted file to storage: ${doc.storage_path}`);
+          throw new Error(`Failed to upload encrypted file to storage: ${encPath}`);
         }
       }
 
-      // Update DB record
       await prisma.user_documents.update({
         where: { id: doc.id },
-        data: {
-          encrypted_key: new Uint8Array(encryptedKey),
-        },
+        data: { encrypted_key: new Uint8Array(encryptedKey), storage_path: encPath },
       });
+
+      if (isLocal) unlinkSync(doc.storage_path);
+      else await storageService.remove(storageService.documentsBucket, [doc.storage_path]);
 
       successCount++;
       console.log(`  [OK] Encrypted and updated doc ${doc.id}`);
