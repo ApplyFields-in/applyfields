@@ -178,6 +178,7 @@ export function PartnersClient({
         setPartnerDetail({
           ...partner,
           institution_id: null,
+          verification_note: null,
           verified_at: null,
           created_at: partner.created_at,
           updated_at: partner.updated_at,

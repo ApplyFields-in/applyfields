@@ -18,7 +18,7 @@ export const CENTRE_KYC_DOCUMENTS: readonly KycDocumentSpec[] = [
 export const COLLEGE_KYC_DOCUMENTS: readonly KycDocumentSpec[] = [
   { kind: 'aicte_approval_letter', label: 'AICTE / UGC approval', hint: 'Latest approval letter' },
   { kind: 'naac_accreditation_certificate', label: 'NAAC certificate', hint: 'Only if accredited', optional: true },
-  { kind: 'principal_authorization_letter', label: 'Principal authorisation', hint: 'On letterhead, signed and sealed' },
+  { kind: 'principal_authorization_letter', label: 'Principal authorisation', hint: 'Our letter, signed and stamped by the Principal' },
 ];
 
 export const PARTNER_DOCUMENT_KINDS = [

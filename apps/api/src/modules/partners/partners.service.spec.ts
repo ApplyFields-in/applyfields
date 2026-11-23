@@ -589,6 +589,7 @@ describe('PartnersService.uploadDocument (KYC files)', () => {
     const prisma = {
       partner_members: { findFirst: vi.fn().mockResolvedValue({ partner_id: 'p-1', role: 'owner' }) },
       partner_documents: { create },
+      partners: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     } as any;
     const storage = { documentsBucket: 'documents', upload: vi.fn().mockResolvedValue(uploadResult) } as any;
     return { service: new PartnersService(prisma, storage), create, storage };
@@ -613,5 +614,68 @@ describe('PartnersService.uploadDocument (KYC files)', () => {
   it('accepts only known kinds and file types', () => {
     expect(partnerDocumentUploadSchema.safeParse({ ...input, document_kind: 'selfie' }).success).toBe(false);
     expect(partnerDocumentUploadSchema.safeParse({ ...input, mime_type: 'text/html' }).success).toBe(false);
+  });
+});
+
+describe('Partner approval rules', () => {
+  const partnerWith = (type: string, docs: Array<{ document_kind: string; status: string }>) => {
+    const update = vi.fn().mockImplementation(({ data }) => ({ id: 'p1', type, created_at: new Date(), updated_at: new Date(), ...data }));
+    const prisma: any = {
+      partners: { findUnique: vi.fn().mockResolvedValue({ id: 'p1', type, partner_documents: docs }), update },
+    };
+    return { service: new PartnersService(prisma), update };
+  };
+  const approve = { verification_status: 'verified', is_listed: true } as const;
+
+  it('refuses to approve a shop until its required documents are approved', async () => {
+    const { service } = partnerWith('xerox_printing', [
+      { document_kind: 'trade_license', status: 'verified' },
+      { document_kind: 'kiosk_photo', status: 'pending' },
+    ]);
+    await expect(service.adminVerifyPartner('p1', 'staff', approve)).rejects.toThrow(
+      'Approve these documents first: kiosk photo, owner id.',
+    );
+  });
+
+  it('asks colleges for the college documents, not the shop ones', async () => {
+    const { service, update } = partnerWith('college', [
+      { document_kind: 'aicte_approval_letter', status: 'verified' },
+      { document_kind: 'principal_authorization_letter', status: 'verified' },
+    ]);
+    await service.adminVerifyPartner('p1', 'staff', approve);
+    expect(update).toHaveBeenCalled();
+  });
+
+  it('rejects without documents and keeps the reason for the partner', async () => {
+    const { service, update } = partnerWith('meeseva', []);
+    const res = await service.adminVerifyPartner('p1', 'staff', {
+      verification_status: 'rejected',
+      is_listed: false,
+      reviewer_note: 'Trade licence is blurry',
+    });
+    expect(update.mock.calls[0][0].data.verification_note).toBe('Trade licence is blurry');
+    expect(res.verification_note).toBe('Trade licence is blurry');
+  });
+
+  it('will not let a second desk claim a college that already has an approved one', async () => {
+    const prisma: any = {
+      partners: { findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue({ id: 'other' }) },
+      institutions: { findUnique: vi.fn().mockResolvedValue({ id: '00000000-0000-4000-8000-000000000001' }) },
+    };
+    const service = new PartnersService(prisma);
+    await expect(
+      service.register('u1', {
+        business_name: 'JNTU Kakinada',
+        type: 'college',
+        owner_name: 'Dean',
+        phone: '+919848012345',
+        address: 'Campus',
+        state_code: 'AP',
+        district: 'Kakinada',
+        city: 'Kakinada',
+        pincode: '533003',
+        institution_id: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).rejects.toThrow('already has an approved desk');
   });
 });

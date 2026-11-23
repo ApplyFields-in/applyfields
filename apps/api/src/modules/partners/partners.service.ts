@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -34,9 +35,16 @@ import type {
 } from '@applyfields/types';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { buildAuthorizationLetter } from './authorization-letter.js';
 import { StorageService } from '../../common/storage.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { PARTNER_DOCUMENT_KINDS, PARTNER_DOCUMENT_MIME_TYPES } from './partner-documents.js';
+import {
+  COLLEGE_PARTNER_TYPES,
+  PARTNER_DOCUMENT_KINDS,
+  PARTNER_DOCUMENT_MIME_TYPES,
+  REQUIRED_CENTRE_DOCUMENTS,
+  REQUIRED_COLLEGE_DOCUMENTS,
+} from './partner-documents.js';
 
 import type {
   partner_type,
@@ -107,6 +115,19 @@ export const partnerRegisterSchema = z.object({
     .optional()
     .default({}),
   description: z.string().trim().max(1000).optional(),
+  /** Colleges: the college page they picked at sign-up. Their desk edits only this college, once approved. */
+  institution_id: z.string().uuid().optional(),
+  /** Shops: the services ticked at sign-up (catalog ones carry service_id). Price is optional, set later too. */
+  services: z
+    .array(
+      z.object({
+        name: z.string().trim().min(2).max(120),
+        service_id: z.string().uuid().optional(),
+        charge_paise: z.number().int().min(0).max(10_000_000).optional(),
+      }),
+    )
+    .max(40)
+    .optional(),
 });
 
 export const partnerUpdateSchema = z.object({
@@ -519,10 +540,34 @@ export class PartnersService {
       counter++;
     }
 
+    const isCollege = (COLLEGE_PARTNER_TYPES as readonly string[]).includes(input.type);
+    const institutionId = isCollege ? input.institution_id ?? null : null;
+    if (institutionId) {
+      const [inst, owner] = await Promise.all([
+        this.prisma.institutions.findUnique({ where: { id: institutionId }, select: { id: true } }),
+        this.prisma.partners.findFirst({
+          where: { institution_id: institutionId, verification_status: 'verified' },
+          select: { id: true },
+        }),
+      ]);
+      if (!inst) throw new BadRequestException('That college was not found. Pick it again from the list.');
+      if (owner) {
+        throw new ConflictException('This college already has an approved desk on ApplyFields. Contact support if that is wrong.');
+      }
+    }
+
+    const services = isCollege ? [] : input.services ?? [];
+    const catalogIds = [...new Set(services.flatMap((s) => (s.service_id ? [s.service_id] : [])))];
+    if (catalogIds.length) {
+      const found = await this.prisma.gov_services.count({ where: { id: { in: catalogIds } } });
+      if (found !== catalogIds.length) throw new BadRequestException('One of the selected services no longer exists. Reload and try again.');
+    }
+
     const partner = await this.prisma.$transaction(async (tx) => {
       const created = await tx.partners.create({
         data: {
           slug,
+          institution_id: institutionId,
           type: input.type as partner_type,
           business_name: input.business_name,
           owner_name: input.owner_name,
@@ -550,6 +595,17 @@ export class PartnersService {
           is_available: true,
         },
       });
+
+      if (services.length) {
+        await tx.partner_services.createMany({
+          data: services.map((s) => ({
+            partner_id: created.id,
+            service_id: s.service_id ?? null,
+            name: s.name,
+            charge_paise: s.charge_paise ?? null,
+          })),
+        });
+      }
 
       if (userId) {
         await tx.partner_members.create({
@@ -857,6 +913,12 @@ export class PartnersService {
     if (!uploaded) {
       throw new ServiceUnavailableException('Could not store the file right now. Please try again.');
     }
+
+    // A rejected partner fixing their documents goes back in the review queue.
+    await this.prisma.partners.updateMany({
+      where: { id: membership.partner_id, verification_status: 'rejected' },
+      data: { verification_status: 'pending' },
+    });
 
     const created = await this.prisma.partner_documents.create({
       data: {
@@ -1431,15 +1493,33 @@ export class PartnersService {
   ): Promise<PartnerDetail> {
     const existing = await this.prisma.partners.findUnique({
       where: { id: partnerId },
+      include: { partner_documents: { select: { document_kind: true, status: true } } },
     });
     if (!existing) {
       throw new NotFoundException(`Partner with ID "${partnerId}" not found`);
+    }
+
+    if (input.verification_status === 'verified') {
+      const required: readonly string[] = (COLLEGE_PARTNER_TYPES as readonly string[]).includes(existing.type)
+        ? REQUIRED_COLLEGE_DOCUMENTS
+        : REQUIRED_CENTRE_DOCUMENTS;
+      const approved = new Set(
+        existing.partner_documents.filter((d) => d.status === 'verified').map((d) => d.document_kind),
+      );
+      const missing = required.filter((k) => !approved.has(k));
+      if (missing.length) {
+        throw new BadRequestException(
+          `Approve these documents first: ${missing.map((k) => k.replace(/_/g, ' ')).join(', ')}.`,
+        );
+      }
     }
 
     const updated = await this.prisma.partners.update({
       where: { id: partnerId },
       data: {
         verification_status: input.verification_status as verification_status,
+        // Shown to the partner on their under-review page (why it was rejected / what to fix).
+        verification_note: input.reviewer_note ?? null,
         is_listed: input.is_listed,
         verified_by: reviewerId,
         verified_at: new Date(),
@@ -1497,6 +1577,24 @@ export class PartnersService {
       fileName: `${doc.document_kind}.${ext}`,
       mimeType,
     };
+  }
+
+  /** Colleges: the authorisation letter (PDF) their principal signs, stamps and uploads back. Owner only. */
+  async authorizationLetter(userId: string): Promise<{ pdf: Uint8Array; slug: string }> {
+    const { partner_id } = await this.requirePartnerOwner(userId);
+    const p = await this.prisma.partners.findUnique({ where: { id: partner_id } });
+    if (!p || !(COLLEGE_PARTNER_TYPES as readonly string[]).includes(p.type)) {
+      throw new BadRequestException('The authorisation letter is only for colleges.');
+    }
+    const pdf = await buildAuthorizationLetter({
+      partnerId: p.id,
+      collegeName: p.business_name,
+      address: [p.address, p.city, p.pincode].filter(Boolean).join(', '),
+      representative: p.owner_name ?? '-',
+      email: p.email,
+      phone: p.phone ?? '-',
+    });
+    return { pdf, slug: p.slug };
   }
 
   async adminVerifyDocument(
@@ -1597,6 +1695,7 @@ export class PartnersService {
     return {
       ...summary,
       institution_id: p.institution_id || null,
+      verification_note: p.verification_note ?? null,
       verified_at: p.verified_at ? p.verified_at.toISOString() : null,
       created_at: p.created_at
         ? p.created_at.toISOString()

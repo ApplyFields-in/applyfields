@@ -1378,6 +1378,8 @@ export interface PartnerEarningsSummary {
 
 export interface PartnerDetail extends PartnerSummary {
   institution_id: string | null;
+  /** Staff's note on the last approve/reject (shown to the partner when rejected). */
+  verification_note: string | null;
   verified_at: string | null;
   created_at: string;
   updated_at: string;
@@ -1421,6 +1423,10 @@ export interface PartnerRegistrationInput {
   service_areas?: string[];
   working_hours?: Record<string, string[]>;
   description?: string;
+  /** Colleges: the college page picked at sign-up. */
+  institution_id?: string;
+  /** Shops: services ticked at sign-up (service_id for catalog services); price in paise, optional. */
+  services?: Array<{ name: string; service_id?: string; charge_paise?: number }>;
 }
 
 export interface PartnerUpdateInput {
