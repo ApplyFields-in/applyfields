@@ -370,7 +370,7 @@ function LoginFormContent() {
           <p className="mt-6 text-center text-sm text-[#435775]">
             {isInst ? 'Your college isn’t on ApplyFields yet? ' : 'New to ApplyFields? '}
             <Link
-              href={isInst ? '/institution/onboard' : '/onboard'}
+              href={isInst ? '/signup?type=college' : '/signup?type=centre'}
               className="font-bold text-[#0e7bf4] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline"
             >
               {isInst ? 'Register your college' : 'Register your centre'}
