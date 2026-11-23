@@ -169,6 +169,22 @@ describe('AuthService', () => {
     });
   });
 
+  describe('cross-site handoff', () => {
+    it('trades a code for a session once, and the code is not an access token', async () => {
+      const { user } = await authService.register({ email: 'handoff@example.com', password: 'Password123!' });
+      const { code } = await authService.createHandoff(user.id);
+
+      const jwt = (authService as any).jwtService;
+      await expect(jwt.verifyAsync(code, { secret: 'applyfields_dev_jwt_access_secret_32bytes_min_key' })).rejects.toThrow();
+
+      const result = await authService.redeemHandoff(code, {});
+      expect(result.user.id).toBe(user.id);
+      expect(result.accessToken).toBeDefined();
+      await expect(authService.redeemHandoff(code, {})).rejects.toThrow('already used');
+      await expect(authService.redeemHandoff('garbage', {})).rejects.toThrow('expired');
+    });
+  });
+
   describe('OTP flow', () => {
     it('should reject invalid OTP codes up to 5 attempts', async () => {
       await authService.sendOtp({

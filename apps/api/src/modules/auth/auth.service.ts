@@ -557,6 +557,40 @@ export class AuthService {
     };
   }
 
+  /** Handoff codes already redeemed, until they expire. ponytail: per API instance; move to DB if the API scales out. */
+  private spentHandoffs = new Map<string, number>();
+
+  /** Own secret, so a handoff code can never pass AuthGuard as an access token. */
+  private handoffSecret = () => `${jwtAccessSecret()}:handoff`;
+
+  /**
+   * One-click sign-in across our sites (citizen web → services portal). They live on different
+   * domains, so cookies can't be shared: the signed-in site gets a 60-second, single-use code and
+   * the other site trades it for its own session. Never carries `mfa`, so it can't open staff tools.
+   */
+  async createHandoff(userId: string): Promise<{ code: string }> {
+    const code = await this.jwtService.signAsync(
+      { typ: 'handoff', sub: userId, jti: randomBytes(16).toString('hex') },
+      { secret: this.handoffSecret(), expiresIn: 60 },
+    );
+    return { code };
+  }
+
+  async redeemHandoff(code: string, meta: { userAgent?: string; ipAddress?: string }): Promise<LoginResult> {
+    let p: { typ?: string; sub?: string; jti?: string; exp?: number };
+    try {
+      p = await this.jwtService.verifyAsync(code, { secret: this.handoffSecret() });
+    } catch {
+      throw new UnauthorizedException('This sign-in link expired. Please sign in.');
+    }
+    if (p.typ !== 'handoff' || !p.sub || !p.jti) throw new UnauthorizedException('Invalid sign-in link.');
+    const now = Date.now();
+    for (const [id, exp] of this.spentHandoffs) if (exp < now) this.spentHandoffs.delete(id);
+    if (this.spentHandoffs.has(p.jti)) throw new UnauthorizedException('This sign-in link was already used.');
+    this.spentHandoffs.set(p.jti, (p.exp ?? 0) * 1000);
+    return this.sessionFor(p.sub, meta, false);
+  }
+
   /** Session for a user another sign-in method has already proven (passkeys). Refuses inactive accounts. */
   async sessionFor(
     userId: string,

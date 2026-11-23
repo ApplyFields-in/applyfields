@@ -1,3 +1,4 @@
+import { contentDisposition } from '../../common/content-disposition.js';
 import {
   Body,
   Controller,
@@ -128,7 +129,7 @@ export class BookingsController {
   ) {
     const slip = await this.bookingsService.getSlipFile(req.user.userId, bookingId);
     res.setHeader('Content-Type', slip.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${slip.fileName}"`);
+    res.setHeader('Content-Disposition', contentDisposition('inline', slip.fileName));
     res.setHeader('Cache-Control', 'no-store');
     return res.send(slip.buffer);
   }
@@ -170,7 +171,7 @@ export class BookingsController {
       shareId,
     );
     res.setHeader('Content-Type', doc.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${doc.fileName}"`);
+    res.setHeader('Content-Disposition', contentDisposition('inline', doc.fileName));
     res.setHeader('Cache-Control', 'no-store');
     return res.send(doc.buffer);
   }

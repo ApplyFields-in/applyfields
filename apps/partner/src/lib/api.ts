@@ -24,9 +24,16 @@ import { PARTNER_DOCUMENT_MIME_TYPES } from '@applyfields/types/src/partner-docu
 
 
 
-export const API_URL =
+const BACKEND_API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ||
   'http://localhost:4000/api/v1';
+
+/**
+ * Browser → same-site '/api/v1' (next.config rewrite proxies it to the API), so login cookies are
+ * stored for THIS site. Calling onrender.com directly made them third-party cookies, which Safari,
+ * Brave and incognito Chrome drop — sign-in "worked" and then bounced back to /login.
+ */
+export const API_URL = typeof window === 'undefined' ? BACKEND_API_URL : '/api/v1';
 
 export interface ApiResponse<T> {
   data: T | null;

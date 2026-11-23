@@ -1,3 +1,4 @@
+import { contentDisposition } from '../../common/content-disposition.js';
 import { existsSync } from 'node:fs';
 import {
   Body,
@@ -116,10 +117,7 @@ export class UsersController {
       ? fileInfo.mime_type!
       : 'application/octet-stream';
     res.setHeader('Content-Type', safeType);
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${fileInfo.file_name || 'resume.pdf'}"`,
-    );
+    res.setHeader('Content-Disposition', contentDisposition('attachment', fileInfo.file_name || 'resume.pdf'));
     return res.sendFile(fileInfo.storage_path);
   }
 
