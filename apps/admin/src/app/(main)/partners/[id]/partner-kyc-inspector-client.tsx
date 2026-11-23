@@ -396,16 +396,6 @@ export function PartnerKycInspectorClient({ partner: initialPartner }: PartnerKy
             <div className="pt-2 border-t border-teal/10 flex flex-col gap-2">
               <button
                 type="button"
-                disabled={isPending || partner.verification_status === 'verified'}
-                onClick={handleApprovePartner}
-                className={cn(buttonClass({ variant: 'primary', size: 'md' }), 'w-full gap-2 justify-center')}
-              >
-                <BadgeCheck className="size-4" />
-                <span>Issue Verified Kiosk Seal</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setRejectionModalOpen(true)}
                 className={cn(buttonClass({ variant: 'secondary', size: 'sm' }), 'w-full text-rose-700 hover:text-rose-800')}
               >

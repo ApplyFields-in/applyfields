@@ -1,3 +1,5 @@
+import type { Response } from 'express';
+import { contentDisposition } from '../../common/content-disposition.js';
 import {
   Body,
   Controller,
@@ -9,6 +11,7 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import type {
@@ -143,6 +146,17 @@ export class PartnersController {
     @Param('id') serviceId: string,
   ): Promise<{ success: boolean }> {
     return this.partnersService.deleteService(req.user.userId, serviceId);
+  }
+
+  /** Colleges: download the authorisation letter to sign, stamp and upload as principal_authorization_letter. */
+  @Get('me/authorization-letter')
+  @UseGuards(AuthGuard)
+  async authorizationLetter(@Req() req: AuthenticatedRequest, @Res() res: Response) {
+    const { pdf, slug } = await this.partnersService.authorizationLetter(req.user.userId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', contentDisposition('attachment', `ApplyFields-authorisation-letter-${slug}.pdf`));
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(Buffer.from(pdf));
   }
 
   @Post('me/documents')

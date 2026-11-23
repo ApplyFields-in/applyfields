@@ -9,7 +9,6 @@ import {
   Award,
   Building2,
   CheckCircle2,
-  FileCheck2,
   GraduationCap,
   Loader2,
   Lock,
@@ -18,13 +17,11 @@ import {
   Phone,
   Search,
   ShieldCheck,
-  UploadCloud,
   User,
 } from 'lucide-react';
 import {
   registerPartner,
   searchCollegesDirectory,
-  uploadPartnerFile,
 } from '@/lib/api';
 import type { InstitutionSummary } from '@applyfields/types';
 import { flashToast } from '@applyfields/ui';
@@ -56,8 +53,6 @@ export default function InstitutionOnboardPage() {
   const [campusAddress, setCampusAddress] = useState('');
 
   // Step 3: Verification Docs
-  const [authDoc, setAuthDoc] = useState<File | null>(null);
-  const authDocName = authDoc?.name ?? '';
   const [accreditationType, setAccreditationType] = useState('naac');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(true);
@@ -119,6 +114,8 @@ export default function InstitutionOnboardPage() {
       const regRes = await registerPartner({
         business_name: collegeName,
         type: 'college',
+        // Links the desk to this college's page (only from the list; a typed-in name has no page yet).
+        institution_id: isCustomCollege ? undefined : selectedCollege?.id,
         owner_name: `${repName.trim()} (${designation.trim()})`,
         phone: mobilePhone.trim().startsWith('+91') ? mobilePhone.trim() : `+91${mobilePhone.trim()}`,
         email: officialEmail.trim(),
@@ -136,9 +133,6 @@ export default function InstitutionOnboardPage() {
         setSubmitting(false);
         return;
       }
-
-      // Upload authorization verification stub if provided
-      if (authDoc) await uploadPartnerFile('principal_authorization_letter', authDoc);
 
       flashToast('Institution registered successfully. We will review it soon.');
       router.push('/institution/under-review');
@@ -502,7 +496,7 @@ export default function InstitutionOnboardPage() {
               <div>
                 <h2 className="text-lg font-bold text-[#082046]">Institutional Authorization &amp; Documents</h2>
                 <p className="text-xs text-[#536780] mt-1">
-                  Upload official documentation proving your representation authority for the college.
+                  Choose your accreditation. Documents are uploaded after you submit.
                 </p>
               </div>
 
@@ -521,40 +515,10 @@ export default function InstitutionOnboardPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-[#243b5b]">
-                  Official Authorization Letter / Principal ID
-                </label>
-                <div className="mt-1 flex justify-center rounded-2xl border-2 border-dashed border-[#c9d6e6] bg-[#F7F9FC] px-6 py-8">
-                  <div className="text-center">
-                    <UploadCloud className="mx-auto h-10 w-10 text-[#0e7bf4]" />
-                    <div className="mt-2 text-xs text-[#243b5b]">
-                      <label
-                        htmlFor="file-upload"
-                        className="cursor-pointer font-bold text-[#0e7bf4] hover:text-[#0c6fdc] underline"
-                      >
-                        Upload authorization document (PDF / JPG)
-                      </label>
-                      <input
-                        id="file-upload"
-                        type="file"
-                        className="sr-only"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) setAuthDoc(file);
-                        }}
-                      />
-                    </div>
-                    <p className="text-[11px] text-[#8a9bb3] mt-1">
-                      Letterhead authorization signed by Principal, Registrar or Secretary. Max 10MB.
-                    </p>
-                    {authDocName && (
-                      <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#00a884]/15 px-3 py-1 text-xs font-bold text-[#00876a]">
-                        <FileCheck2 className="h-4 w-4" /> {authDocName}
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <div className="rounded-xl border border-[#0e7bf4]/30 bg-[#e0edfb]/60 p-4 text-xs text-[#243b5b]">
+                <span className="font-bold text-[#082046]">Next: your authorisation letter. </span>
+                After you submit, download your ApplyFields authorisation letter (PDF), have the Principal sign and
+                stamp it, and upload it along with your AICTE / UGC approval. We review your desk once both are in.
               </div>
 
               <div className="rounded-xl border border-[#d5deea] bg-[#F7F9FC] p-4 text-xs text-[#536780] flex items-start gap-3">

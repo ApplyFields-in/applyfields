@@ -562,6 +562,10 @@ export function CollegesDeskClient({
                       {selectedCollege.verification_status}
                     </span>
                   </div>
+                  {/* Same as the "Ref" printed on the college's authorisation letter (API: letterRef). */}
+                  <p className="text-xs font-mono font-bold text-teal mt-0.5">
+                    Letter ref: AF-INST-{selectedCollege.id.replace(/-/g, '').slice(0, 8).toUpperCase()}
+                  </p>
                   <p className="text-xs text-teal/70 mt-0.5">
                     Affiliation claim registered on{' '}
                     {new Date(selectedCollege.created_at).toLocaleDateString('en-IN', {

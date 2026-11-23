@@ -527,6 +527,7 @@ export class InstitutionsService {
       -- partners has no user_id column; owners/staff are linked through partner_members.
       join partner_members m on m.partner_id = p.id
       where m.user_id = ${userId}::uuid and p.type::text in ('college', 'university', 'training_institute')
+        and p.verification_status = 'verified'
       limit 1
     `;
 

@@ -4,7 +4,9 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { KycDocuments } from '@/components/kyc-documents';
+import { RejectedNotice } from '@/components/rejected-notice';
 import { usePartnerAuth } from '@/lib/auth-context';
+import { API_URL } from '@/lib/api';
 import {
   ArrowRight,
   Building2,
@@ -98,6 +100,7 @@ export default function InstitutionUnderReviewPage() {
       {/* Main Body */}
       <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-[#d5deea] bg-white p-6 sm:p-10 shadow-[0_1px_2px_rgba(8,32,70,0.04),0_12px_32px_-16px_rgba(8,32,70,0.18)] backdrop-blur-xl">
+          {partner && <RejectedNotice partner={partner} />}
           {/* Status Badge */}
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-800 mb-6">
             <Clock className="h-4 w-4 animate-pulse" />
@@ -156,6 +159,22 @@ export default function InstitutionUnderReviewPage() {
                 <span>3. Activation of Direct Student Inquiry CRM Desk &amp; Program Editor</span>
               </div>
             </div>
+          </div>
+
+          {/* The letter carries this account's reference; the signed + stamped copy goes in "Principal authorisation" below. */}
+          <div className="mt-8 rounded-2xl border border-[#0e7bf4]/30 bg-[#e0edfb]/60 p-5">
+            <h3 className="text-sm font-bold text-[#082046]">Authorisation letter</h3>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-[#243b5b]">
+              <li>Download your letter (PDF). It already has your college details and account reference.</li>
+              <li>Print it and have the Principal sign it and put the college seal in the box.</li>
+              <li>Upload a clear scan or photo under <strong>Principal authorisation</strong> below.</li>
+            </ol>
+            <a
+              href={`${API_URL}/partners/me/authorization-letter`}
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-[#0e7bf4] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#0c6fdc]"
+            >
+              Download authorisation letter (PDF)
+            </a>
           </div>
 
           {partner && <KycDocuments partner={partner} onUploaded={refreshSession} />}
