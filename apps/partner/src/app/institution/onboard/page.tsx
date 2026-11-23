@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,9 +25,16 @@ import {
 } from '@/lib/api';
 import type { InstitutionSummary } from '@applyfields/types';
 import { flashToast } from '@applyfields/ui';
+import { usePartnerAuth } from '@/lib/auth-context';
 
 export default function InstitutionOnboardPage() {
   const router = useRouter();
+  const { status } = usePartnerAuth();
+
+  // The desk belongs to an account: signed-out visitors create one first.
+  useEffect(() => {
+    if (status === 'unauthenticated') router.replace('/signup?type=college');
+  }, [status, router]);
 
   // Wizard Steps: 1: Find College -> 2: Rep Details -> 3: Verification Docs -> 4: Complete
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -49,7 +56,7 @@ export default function InstitutionOnboardPage() {
   const [stateCode, setStateCode] = useState('TS');
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
-  const [pincode, setPincode] = useState('500007');
+  const [pincode, setPincode] = useState('');
   const [campusAddress, setCampusAddress] = useState('');
 
   // Step 3: Verification Docs
@@ -107,6 +114,10 @@ export default function InstitutionOnboardPage() {
       setError('Please provide all admissions officer contact fields.');
       return;
     }
+    if (!city.trim() || !/^[1-9][0-9]{5}$/.test(pincode.trim())) {
+      setError('Please enter the college city and a valid 6-digit PIN code.');
+      return;
+    }
 
     setSubmitting(true);
 
@@ -122,9 +133,9 @@ export default function InstitutionOnboardPage() {
         whatsapp: whatsapp ? (whatsapp.startsWith('+91') ? whatsapp : `+91${whatsapp}`) : undefined,
         address: campusAddress.trim() || `${collegeName}, ${city}, ${stateCode}`,
         state_code: stateCode.toUpperCase(),
-        district: district.trim() || city.trim() || 'Headquarters',
-        city: city.trim() || 'City',
-        pincode: pincode.trim() || '500001',
+        district: district.trim() || city.trim(),
+        city: city.trim(),
+        pincode: pincode.trim(),
         description: `Official ApplyFields Institutional Admissions Desk for ${collegeName}. Accreditations: ${accreditationType.toUpperCase()}.`,
       });
 
