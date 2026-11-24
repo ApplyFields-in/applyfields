@@ -65,4 +65,12 @@ describe('notifyMany batching', () => {
       ['ExponentPushToken[u2]', 'Hi u2'],
     ]);
   });
+
+  it('in-app only (push: false) writes the inbox rows but sends no push', async () => {
+    const { svc, sse, items, fetchMock } = setup(3);
+    expect(await svc.notifyMany(items.map((i) => ({ ...i, n: { ...i.n, push: false } })))).toBe(3);
+    await svc.flushPush();
+    expect(sse.sendToUser).toHaveBeenCalledTimes(3);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

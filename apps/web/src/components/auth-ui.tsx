@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, type InputHTMLAttributes } from 'react';
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock, type LucideIcon } from 'lucide-react';
+import { SuccessCheck } from '@applyfields/ui';
+import { AlertCircle, Eye, EyeOff, Lock, type LucideIcon } from 'lucide-react';
 
 /* Shared look for the login and sign-up forms. */
 
@@ -156,7 +157,7 @@ export function Notice({ error, success }: { error: string | null; success: stri
       )}
       {success && (
         <p role="status" className="mt-5 flex items-start gap-2 rounded-xl border border-sea/20 bg-tea/50 px-4 py-3 text-sm font-medium text-teal">
-          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-sea" aria-hidden="true" />
+          <SuccessCheck key={success} className="mt-0.5 shrink-0 text-sea" />
           {success}
         </p>
       )}

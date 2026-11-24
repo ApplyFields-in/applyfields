@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import type { AskGuidanceResponse, GuidanceSource } from '@applyfields/types';
 import { buttonClass, Card, cn, PageHeader } from '@applyfields/ui';
-import { Bot, ExternalLink, GraduationCap, Lightbulb, Loader2, Send, Sparkles, User } from 'lucide-react';
+import { Bot, ExternalLink, GraduationCap, Lightbulb, Send, Sparkles, User } from 'lucide-react';
 import Link from 'next/link';
 import { apiPost } from '@/lib/api';
+import { Spinner } from '@applyfields/ui';
 
 const STARTER_PROMPTS = [
   'I completed 12th PCB with 70%, what biotechnology options without NEET?',
@@ -193,7 +194,7 @@ export default function CareerGuidancePage() {
                   <Bot className="size-4" />
                 </div>
                 <span className="flex items-center gap-1.5 font-semibold">
-                  <Loader2 className="size-3.5 animate-spin" /> Evaluating verified pathways and cutoffs...
+                  <Spinner size={14} /> Evaluating verified pathways and cutoffs...
                 </span>
               </div>
             )}
@@ -245,7 +246,7 @@ export default function CareerGuidancePage() {
                 })}
               >
                 {loading ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Spinner size={16} />
                 ) : (
                   <>
                     <span>Ask</span>

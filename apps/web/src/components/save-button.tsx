@@ -2,13 +2,14 @@
 
 import type { OpenReminderStatus, SavedItemType, SaveResult } from '@applyfields/types';
 import { cn } from '@applyfields/ui';
-import { Bell, BellOff, BellRing, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Bell, BellOff, BellRing } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { apiDelete, apiPut } from '@/lib/api';
 import { trackEvent } from '@/lib/analytics/tracker';
 import { showAppToast } from '@/components/toast-notification-provider';
 import { SaveBurst } from '@/components/save-burst';
+import { BookmarkIcon } from '@applyfields/ui';
 
 /** Bookmark toggle on every card. Logged out → login page. */
 export function SaveButton({
@@ -98,11 +99,7 @@ export function SaveButton({
           saved ? 'bg-teal text-cream' : 'bg-cream hover:bg-tea',
         )}
       >
-        {saved ? (
-          <BookmarkCheck key={pulse} className={cn('size-4', pulse > 0 && 'af-save-pop')} />
-        ) : (
-          <Bookmark key={pulse} className={cn('size-4', pulse > 0 && 'af-save-unpop')} />
-        )}
+        <BookmarkIcon saved={saved} />
       </button>
     </div>
   );

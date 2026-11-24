@@ -1,10 +1,10 @@
-import type { AdminNotificationOverview, DeliveryStatus } from '@applyfields/types';
+import type { AdminNotificationOverview, DeliveryStatus, ScheduledBroadcastItem } from '@applyfields/types';
 import { Badge, Card, cn, EmptyState, PageHeader } from '@applyfields/ui';
 import { Bell, Inbox } from 'lucide-react';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { ApiOffline } from '@/components/admin-shell';
-import { ManualAlertForm, RetryDeliveryButton } from '@/components/notifications-ui';
+import { ManualAlertForm, RetryDeliveryButton, ScheduledBroadcasts } from '@/components/notifications-ui';
 import { apiGet } from '@/lib/api';
 
 export const metadata = { title: 'Notifications' };
@@ -31,7 +31,10 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   await connection();
   const sp = await searchParams;
   const status = TABS.some((t) => t.key === sp.status) ? (sp.status as DeliveryStatus) : null;
-  const data = await apiGet<AdminNotificationOverview>(`/admin/notifications${status ? `?status=${status}` : ''}`);
+  const [data, scheduled] = await Promise.all([
+    apiGet<AdminNotificationOverview>(`/admin/notifications${status ? `?status=${status}` : ''}`),
+    apiGet<ScheduledBroadcastItem[]>('/admin/notifications/scheduled'),
+  ]);
 
   return (
     <>
@@ -119,7 +122,10 @@ export default async function NotificationsPage({ searchParams }: { searchParams
             )}
           </div>
 
-          <ManualAlertForm />
+          <div className="space-y-5">
+            <ManualAlertForm />
+            <ScheduledBroadcasts items={scheduled ?? []} />
+          </div>
         </div>
       )}
     </>

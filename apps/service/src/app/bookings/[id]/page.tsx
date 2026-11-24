@@ -5,7 +5,6 @@ import { PayOnline } from '@/components/pay-online';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  CheckCircle2,
   Calendar,
   Clock,
   MapPin,
@@ -28,6 +27,7 @@ import {
   markBookingMessagesRead,
   sendBookingMessage,
 } from '@/lib/api';
+import { SuccessCheck } from '@applyfields/ui';
 
 interface StoredBooking {
   id: string;
@@ -285,7 +285,7 @@ export default function BookingDetailsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#d5deea] pb-6">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200">
-              <CheckCircle2 className="h-6 w-6" />
+              <SuccessCheck size={24} />
             </div>
             <div>
               <span className={`cut-corner-badge rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase ${

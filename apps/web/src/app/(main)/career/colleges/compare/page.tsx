@@ -22,6 +22,7 @@ import { apiGet } from '@/lib/api';
 import { TOP_50_COLLEGES, getTop50CollegeBySlug } from '@/lib/top-50-colleges-data';
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { PrintExportButton } from '@/components/print-export-button';
+import { Spinner } from '@applyfields/ui';
 
 /** Shown when the college hasn't published a value. Never substitute a made-up one. */
 const NOT_PUBLISHED = <span className="text-xs italic text-[#536780]">Not published</span>;
@@ -204,7 +205,7 @@ export default function CollegeComparePage() {
 
           {loading ? (
             <div className="flex min-h-[300px] items-center justify-center">
-              <div className="size-8 animate-spin rounded-full border-2 border-[#76562d] border-t-transparent" />
+              <Spinner size={32} className="text-[#76562d]" />
             </div>
           ) : colleges.length === 0 ? (
             /* Empty State with Quick Preset Suggestions */

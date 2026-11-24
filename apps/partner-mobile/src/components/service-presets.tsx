@@ -8,6 +8,7 @@ import { api } from '../lib/api';
 import { SERVICE_PRESETS, type ServicePreset } from '../lib/presets';
 import { C, S, TAP } from '../theme';
 import { Card, Chips, ErrorNote, Muted, SectionTitle } from './ui';
+import { Spinner } from './animated-icons';
 
 const GROUPS = [...new Set(SERVICE_PRESETS.map((p) => p.group))];
 
@@ -68,7 +69,7 @@ export function ServicePresets({
                 style={({ pressed }) => [st.add, pressed && { opacity: 0.8 }]}
               >
                 {adding === p.name ? (
-                  <ActivityIndicator color={C.white} size="small" />
+                  <Spinner size={22} color={C.white} />
                 ) : (
                   <Ionicons name="add" size={20} color={C.white} />
                 )}

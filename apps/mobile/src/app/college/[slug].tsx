@@ -14,6 +14,7 @@ import { collegeUrl, shareLink } from '@/lib/share';
 import { useApi } from '@/lib/use-api';
 import { recordMascotEvent } from '@/services/mascot/IconManager';
 import { C, R, S, column } from '@/theme';
+import { BookmarkIcon } from '@/components/animated-icons';
 
 const cap = (v: string) => v.charAt(0).toUpperCase() + v.slice(1);
 
@@ -74,7 +75,7 @@ export default function CollegeScreen() {
       <View style={s.actions}>
         <Button
           label={saved ? 'Saved' : 'Save'}
-          icon={saved ? 'bookmark' : 'bookmark-outline'}
+          iconNode={(color) => <BookmarkIcon saved={!!saved} color={color} />}
           variant="secondary"
           disabled={savePending}
           style={{ flex: 1 }}

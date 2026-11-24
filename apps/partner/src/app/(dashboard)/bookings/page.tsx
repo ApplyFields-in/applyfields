@@ -23,6 +23,7 @@ import {
   Check,
 } from 'lucide-react';
 import { listPartnerBookings, sharedDocumentUrl, updatePartnerBookingStatus } from '@/lib/api';
+import { SuccessCheck } from '@applyfields/ui';
 
 export type BookingStatus = 'scheduled' | 'arrived' | 'completed' | 'cancelled';
 
@@ -231,7 +232,7 @@ export default function BookingsPage() {
       {/* Toast Notice */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border border-cyan-500/40 bg-slate-900/95 px-5 py-3 text-sm font-semibold text-cyan-400 shadow-2xl shadow-cyan-500/20 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 className="h-5 w-5 text-cyan-400 shrink-0" />
+          <SuccessCheck key={toastMessage} size={20} className="text-cyan-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}

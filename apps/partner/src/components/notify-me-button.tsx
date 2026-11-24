@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, BellRing } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import type { PushPublicKeyResponse, PushSubscriptionInput } from '@applyfields/types';
 import { apiGet, apiPost } from '@/lib/api';
+import { BellIcon } from '@applyfields/ui';
 
 /** Same steps as the citizen site's useWebPush (apps/web/src/lib/push), trimmed to "turn on". */
 async function enablePush(): Promise<string | null> {
@@ -48,7 +49,7 @@ export function NotifyMeButton() {
   if (on) {
     return (
       <p className="mt-6 flex items-center gap-2 text-xs font-semibold text-[#00876a]">
-        <BellRing className="size-4" /> We will notify you on this device and by email when your application is reviewed.
+        <BellIcon ring size={16} /> We will notify you on this device and by email when your application is reviewed.
       </p>
     );
   }

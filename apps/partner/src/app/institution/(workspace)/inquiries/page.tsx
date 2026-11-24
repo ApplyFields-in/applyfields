@@ -11,7 +11,6 @@ import {
   GraduationCap,
   Kanban,
   List,
-  Loader2,
   Mail,
   MessageSquare,
   Phone,
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react';
 import { listPartnerEnquiries, respondToPartnerEnquiry } from '@/lib/api';
 import type { InstitutionEnquiry, InstitutionEnquiryStatus } from '@applyfields/types';
+import { Spinner } from '@applyfields/ui';
 
 
 export default function InstitutionInquiriesPage() {
@@ -197,7 +197,7 @@ export default function InstitutionInquiriesPage() {
       {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center py-24 text-slate-400 gap-2">
-          <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
+          <Spinner size={20} className="text-blue-400" />
           <span className="text-xs">Loading inquiries from ApplyFields database...</span>
         </div>
       )}
@@ -480,7 +480,7 @@ export default function InstitutionInquiriesPage() {
                   disabled={savingResponse}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white hover:bg-blue-500 transition disabled:opacity-50"
                 >
-                  {savingResponse ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save & Update'}
+                  {savingResponse ? <Spinner size={16} /> : 'Save & Update'}
                 </button>
               </div>
             </form>

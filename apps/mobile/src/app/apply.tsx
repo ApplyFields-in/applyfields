@@ -12,7 +12,6 @@ import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Keyboard,
   Platform,
   Linking,
@@ -34,6 +33,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
 import { useApi } from '@/lib/use-api';
 import { C, R, S, TAP, column } from '@/theme';
+import { Spinner } from '@/components/animated-icons';
 
 /**
  * react-native-webview declares `class WebView<P = undefined>` over
@@ -206,7 +206,7 @@ export default function ApplyBrowser() {
         />
         {loading ? (
           <View style={s.webLoading} pointerEvents="none">
-            <ActivityIndicator color={C.blue} />
+            <Spinner color={C.blue} />
           </View>
         ) : null}
       </View>

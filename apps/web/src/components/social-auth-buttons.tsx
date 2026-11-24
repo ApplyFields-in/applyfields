@@ -7,11 +7,11 @@
  */
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 import { GoogleButton } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
 import type { AuthResponse } from '@applyfields/types';
 import { flashAppToast } from '@/components/toast-notification-provider';
+import { Spinner } from '@applyfields/ui';
 
 interface SocialAuthButtonsProps {
   mode: 'login' | 'register';
@@ -41,7 +41,7 @@ export function SocialAuthButtons({ mode, redirectUrl, onError, onSuccess }: Soc
     setTimeout(() => router.push(targetPath), 700);
   }
 
-  if (busy) return <Loader2 className="mx-auto size-5 animate-spin text-sea" aria-label="Signing in with Google" />;
+  if (busy) return <Spinner size={20} className="mx-auto text-sea" label="Signing in with Google" />;
   return (
     <GoogleButton
       clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}
