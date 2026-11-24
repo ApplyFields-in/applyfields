@@ -57,6 +57,8 @@ interface StoredBooking {
   createdAt: string;
   officialAppNumber?: string | null;
   hasSlip?: boolean;
+  /** From the API only (never cached in the browser): shown until the centre starts the work. */
+  start_code?: string | null;
 }
 
 export default function BookingDetailsPage() {
@@ -68,7 +70,11 @@ export default function BookingDetailsPage() {
   const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
   const [slipError, setSlipError] = useState<string | null>(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  // ?chat=1 (a "new message" notification) opens the chat straight away. The page waits for the booking
+  // before rendering anything, so reading the URL here can't cause a hydration mismatch.
+  const [isChatOpen, setIsChatOpen] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('chat') === '1',
+  );
   const [newMsgText, setNewMsgText] = useState('');
   const [messages, setMessages] = useState<Array<{ id: string; sender: 'citizen' | 'partner'; text: string; time: string }>>([
     {
@@ -78,6 +84,9 @@ export default function BookingDetailsPage() {
       time: '11:00 AM',
     },
   ]);
+
+  const hasStartCode = Boolean(booking?.start_code);
+  const [codeSent, setCodeSent] = useState(false);
 
   // Live polling for booking messages when chat drawer is opened
   useEffect(() => {
@@ -97,6 +106,12 @@ export default function BookingDetailsPage() {
           setMessages(mapped);
           markBookingMessagesRead(booking!.id, 'citizen').catch(() => {});
         }
+        if (hasStartCode) {
+          const fresh = await getBookingById(booking!.id);
+          if (isMounted && fresh.data && !fresh.data.start_code) {
+            setBooking((prev) => (prev ? { ...prev, start_code: null, status: fresh.data!.status } : prev));
+          }
+        }
       } catch (err) {
         console.warn('Could not load live messages:', err);
       }
@@ -108,10 +123,10 @@ export default function BookingDetailsPage() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [isChatOpen, booking?.id]);
+  }, [isChatOpen, booking?.id, hasStartCode]);
 
-  async function handleSendCitizenMsg() {
-    const text = newMsgText.trim();
+  async function handleSendCitizenMsg(override?: string) {
+    const text = (override ?? newMsgText).trim();
     if (!text || !booking) return;
 
     const userMsg = {
@@ -122,7 +137,7 @@ export default function BookingDetailsPage() {
     };
 
     setMessages((prev) => [...prev, userMsg]);
-    setNewMsgText('');
+    if (override === undefined) setNewMsgText('');
 
     // Send to live Core API
     try {
@@ -182,6 +197,7 @@ export default function BookingDetailsPage() {
                   })
                 : cached?.slotTime || '',
               status: res.data.status,
+              start_code: res.data.start_code ?? null,
               partner: {
                 id: res.data.partner_id,
                 name: res.data.partner_business_name,
@@ -281,6 +297,21 @@ export default function BookingDetailsPage() {
 
       {/* Main Digital Appointment Token Slip */}
       <div className="cut-corner-card rounded-[32px] border border-white bg-white p-6 sm:p-8 space-y-6 shadow-clay-card">
+        {booking.start_code && (
+          <div className="rounded-2xl border-2 border-dashed border-[#0e7bf4]/40 bg-blue-50 p-4 text-center">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#536780]">Your start code</p>
+            <p
+              className="mt-1 font-mono text-4xl font-black tracking-[0.4em] text-[#082046]"
+              aria-label={`Start code ${booking.start_code.split('').join(' ')}`}
+            >
+              {booking.start_code}
+            </p>
+            <p className="mt-1 text-xs text-[#536780]">
+              When you reach the centre, tell them this code (or send it in the chat). They can only start your work with it.
+            </p>
+          </div>
+        )}
+
         {/* Banner */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#d5deea] pb-6">
           <div className="flex items-center gap-3">
@@ -563,6 +594,32 @@ export default function BookingDetailsPage() {
               </button>
             </div>
 
+            {booking.start_code && (
+              <div className="flex items-center gap-3 border-b border-[#d5deea] bg-blue-50 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#526987]">Your start code</p>
+                  <p
+                    className="font-mono text-2xl font-black tracking-[0.35em] text-[#082046]"
+                    aria-label={`Start code ${booking.start_code.split('').join(' ')}`}
+                  >
+                    {booking.start_code}
+                  </p>
+                  <p className="text-[11px] text-[#526987]">The centre needs it to start your work. Send it when you are there.</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={codeSent}
+                  onClick={() => {
+                    setCodeSent(true);
+                    void handleSendCitizenMsg(`My start code is ${booking.start_code}`);
+                  }}
+                  className="shrink-0 rounded-xl bg-[#0e7bf4] px-3 py-2 text-xs font-bold text-white hover:bg-[#0c6fdc] disabled:bg-emerald-600"
+                >
+                  {codeSent ? 'Sent ✓' : 'Send in chat'}
+                </button>
+              </div>
+            )}
+
             {/* Chat Messages Stream */}
             <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#F0F4F8]">
               {messages.map((msg) => {
@@ -606,7 +663,7 @@ export default function BookingDetailsPage() {
               />
               <button
                 type="button"
-                onClick={handleSendCitizenMsg}
+                onClick={() => void handleSendCitizenMsg()}
                 className="cut-corner-btn rounded-xl bg-[#0e7bf4] px-4 py-2 text-xs font-bold text-white hover:bg-[#0c6fdc] transition shadow-clay-btn-azure"
               >
                 Send

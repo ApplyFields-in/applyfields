@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PartnerHeader } from '@/components/partner-header';
-import { Button, Card, Empty, ErrorNote, Field, Loading, Page, SectionTitle } from '@/components/ui';
+import { Button, Card, Empty, ErrorNote, Field, Loading, Muted, Page, SectionTitle } from '@/components/ui';
 import { api } from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { PHONE_RE } from '@/lib/format';
 import { useApi } from '@/lib/use-api';
 import { S } from '@/theme';
@@ -14,6 +15,7 @@ const EMPTY = { name: '', short_name: '', website: '', contact_email: '', contac
 
 export default function Campus() {
   const { data, loading, error: loadError, setData } = useApi<InstitutionPartnerProfile>('/career/colleges/partner/desk');
+  const reviewing = useSession().partner?.verification_status !== 'verified';
   const [f, setF] = useState(EMPTY);
   const [filled, setFilled] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +84,12 @@ export default function Campus() {
             <Field label="About the campus" value={f.description} onChangeText={set('description')} multiline maxLength={2000} />
           </Card>
           <ErrorNote text={error} />
-          <Button label={busy ? 'Saving…' : saved ? 'Saved' : 'Save profile'} icon={saved ? 'checkmark' : undefined} disabled={busy} onPress={save} />
+          {/* Edits go straight to the public college page, so they wait for approval (API enforces it too). */}
+          {reviewing ? (
+            <Muted>Read-only while ApplyFields reviews your college desk. Editing opens after approval.</Muted>
+          ) : (
+            <Button label={busy ? 'Saving…' : saved ? 'Saved' : 'Save profile'} icon={saved ? 'checkmark' : undefined} disabled={busy} onPress={save} />
+          )}
         </Page>
       )}
     </View>

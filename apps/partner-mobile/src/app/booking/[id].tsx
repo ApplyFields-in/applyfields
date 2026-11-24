@@ -7,7 +7,6 @@ import type { BookingDetail, BookingListResponse, BookingRequestStatus } from '@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -16,6 +15,7 @@ import { api } from '@/lib/api';
 import { bookingToken, useCitizens, whatsappUrl } from '@/lib/citizens';
 import { useSession } from '@/lib/session';
 import { BOOKING_STATUS, NEXT_ACTIONS, dateTime, phone, rupees } from '@/lib/format';
+import { openSharedDocument } from '@/lib/shared-docs';
 import { useApi } from '@/lib/use-api';
 import { C, S } from '@/theme';
 
@@ -66,6 +66,7 @@ export default function Booking() {
   const { partner } = useSession();
   const [note, setNote] = useState('');
   const [ack, setAck] = useState('');
+  const [startCode, setStartCode] = useState('');
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState<BookingRequestStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +84,12 @@ export default function Booking() {
   async function move(to: BookingRequestStatus) {
     if (!booking) return;
     const closing = to === 'rejected' || to === 'cancelled';
+    // A citizen's booking starts only with the 4-digit code shown in their app (walk-ins have none).
+    const needsCode = to === 'in_progress' && booking.user_id !== null;
+    if (needsCode && !/^\d{4}$/.test(startCode)) {
+      setError('Enter the 4-digit start code from the citizen’s app.');
+      return;
+    }
     if (closing && !note.trim()) {
       setError('Add a short reason so the citizen knows why.');
       return;
@@ -96,6 +103,7 @@ export default function Booking() {
       .join(' — ');
     const res = await api.patch<BookingDetail>(`/bookings/partner/${booking.id}`, {
       status: to,
+      ...(needsCode && { start_code: startCode }),
       ...(partnerNote && { partner_note: partnerNote }),
       ...(closing && { cancelled_reason: note.trim() }),
       ...(amountField && paise !== undefined && { [amountField]: paise }),
@@ -110,6 +118,7 @@ export default function Booking() {
     setNote('');
     setAmount('');
     setAck('');
+    setStartCode('');
   }
 
   return (
@@ -169,10 +178,19 @@ export default function Booking() {
                 disabled={opening === d.share_id}
                 onPress={async () => {
                   setOpening(d.share_id);
-                  const res = await api.get<{ url: string }>(`/bookings/${booking.id}/documents/${d.share_id}`);
-                  setOpening(null);
-                  if (res.data) WebBrowser.openBrowserAsync(res.data.url).catch(() => undefined);
-                  else setError(res.error ?? 'Could not open the document.');
+                  setError(null);
+                  try {
+                    await openSharedDocument({
+                      bookingId: booking.id,
+                      shareId: d.share_id,
+                      title: d.title || d.file_name || 'Document',
+                      mimeType: d.mime_type,
+                    });
+                  } catch (err) {
+                    setError((err as Error).message);
+                  } finally {
+                    setOpening(null);
+                  }
                 }}
               />
             ))
@@ -198,6 +216,18 @@ export default function Booking() {
                 onChangeText={setAmount}
                 keyboardType="decimal-pad"
                 placeholder={booking.quoted_paise != null ? String(booking.quoted_paise / 100) : '0'}
+              />
+            ) : null}
+            {booking.status === 'accepted' && booking.user_id ? (
+              <Field
+                label="Start code"
+                value={startCode}
+                onChangeText={(v) => setStartCode(v.replace(/\D/g, '').slice(0, 4))}
+                keyboardType="number-pad"
+                maxLength={4}
+                textContentType="oneTimeCode"
+                placeholder="4 digits"
+                hint="Ask the citizen for the code in their ApplyFields booking (or check the chat). Work starts only with the right code."
               />
             ) : null}
             {booking.status === 'in_progress' ? (

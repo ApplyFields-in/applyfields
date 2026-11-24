@@ -30,7 +30,7 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import { ServiceDeskRequest, fromBooking } from '@/lib/service-desk-data';
-import { getBookingById, getBookingSlipUrl, getSharedDocumentUrl, markBookingFiled } from '@/lib/api';
+import { getBookingById, getBookingSlipUrl, getSharedDocumentUrl, markBookingFiled, startBookingWithCode } from '@/lib/api';
 
 interface WorkstationClientProps {
   initialRequest: ServiceDeskRequest;
@@ -86,6 +86,29 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
 
   // Stepper state
   const [currentStep, setCurrentStep] = useState<number>(4); // Default to photo/sign or OTP
+
+  // Start code: a citizen's booking is worked on only after the citizen's 4-digit code is entered.
+  const [startCodeInput, setStartCodeInput] = useState('');
+  const [startCodeError, setStartCodeError] = useState<string | null>(null);
+  const [startingWork, setStartingWork] = useState(false);
+
+  async function startWork(e: React.FormEvent) {
+    e.preventDefault();
+    if (!/^\d{4}$/.test(startCodeInput)) {
+      setStartCodeError('Enter the 4 digits from the citizen’s app.');
+      return;
+    }
+    setStartingWork(true);
+    setStartCodeError(null);
+    const res = await startBookingWithCode(request.id, startCodeInput);
+    setStartingWork(false);
+    if (!res.data) {
+      setStartCodeError(res.error ?? 'Could not start this booking.');
+      return;
+    }
+    setStartCodeInput('');
+    setRequest((prev) => ({ ...prev, needsStartCode: false }));
+  }
 
   const [openingDoc, setOpeningDoc] = useState<string | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
@@ -346,6 +369,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
               </>
               )}
 
+              {!request.needsStartCode && (
               <button
                 type="button"
                 onClick={() => setShowFinalizeModal(true)}
@@ -354,6 +378,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                 <CheckCircle2 className="size-4" />
                 <span>Mark Filed</span>
               </button>
+              )}
             </>
           )}
 
@@ -431,6 +456,48 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
           })}
         </div>
       </div>
+
+      {request.needsStartCode && (
+        <form
+          onSubmit={startWork}
+          className="flex flex-col gap-3 rounded-2xl border-2 border-dashed border-[#0e7bf4]/40 bg-blue-50 p-4 sm:flex-row sm:items-center"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-[#082046]">Enter the citizen’s start code</p>
+            <p className="text-xs text-slate-600">
+              Ask the citizen for the 4-digit code in their ApplyFields booking (they can also send it in the chat).
+              Filing unlocks once the code matches.
+            </p>
+            {startCodeError && (
+              <p role="alert" className="mt-1 text-xs font-bold text-rose-700">
+                {startCodeError}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={4}
+              value={startCodeInput}
+              onChange={(e) => {
+                setStartCodeInput(e.target.value.replace(/\D/g, '').slice(0, 4));
+                setStartCodeError(null);
+              }}
+              aria-label="Start code"
+              placeholder="••••"
+              className="w-28 rounded-xl border border-[#d5deea] bg-white py-2 text-center font-mono text-2xl font-black tracking-[0.4em] text-[#082046] outline-none focus:border-[#0e7bf4]"
+            />
+            <button
+              type="submit"
+              disabled={startingWork}
+              className="rounded-xl bg-[#0e7bf4] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#0c6fdc] disabled:opacity-60"
+            >
+              {startingWork ? 'Checking…' : 'Start work'}
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Live OTP Coordination Banner (When Active) */}
       {isOtpActive && (

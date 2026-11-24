@@ -518,7 +518,13 @@ export class InstitutionsService {
   // =========================================================================
 
   /** Helper: resolve partner's linked institution ID */
-  private async getLinkedInstitutionId(userId: string): Promise<string> {
+  /**
+   * The college this member's desk is linked to. Edits and student enquiries need a verified desk
+   * (edits go straight to the public college page). `readOnly` also lets a desk under review see
+   * its college's public profile and programs.
+   */
+  private async getLinkedInstitutionId(userId: string, readOnly = false): Promise<string> {
+    const statuses = readOnly ? ['verified', 'pending'] : ['verified'];
     const pRows = await this.prisma.$queryRaw<
       Array<{ partner_id: string; institution_id: string | null }>
     >`
@@ -527,13 +533,15 @@ export class InstitutionsService {
       -- partners has no user_id column; owners/staff are linked through partner_members.
       join partner_members m on m.partner_id = p.id
       where m.user_id = ${userId}::uuid and p.type::text in ('college', 'university', 'training_institute')
-        and p.verification_status = 'verified'
+        and p.verification_status::text = any(${statuses})
       limit 1
     `;
 
     if (!pRows || pRows.length === 0 || !pRows[0].institution_id) {
       throw new ForbiddenException(
-        'You are not registered as a verified college institution partner desk',
+        readOnly
+          ? 'You are not registered as a college institution partner desk'
+          : 'This unlocks once ApplyFields approves your college desk.',
       );
     }
     return pRows[0].institution_id;
@@ -544,7 +552,7 @@ export class InstitutionsService {
   // =========================================================================
 
   async listPartnerPrograms(userId: string): Promise<InstitutionProgram[]> {
-    const institutionId = await this.getLinkedInstitutionId(userId);
+    const institutionId = await this.getLinkedInstitutionId(userId, true);
     const rows = await this.prisma.institution_courses.findMany({
       where: { institution_id: institutionId },
       include: { courses: { select: { slug: true, name: true, short_name: true, level: true, stream: true } } },
@@ -813,7 +821,7 @@ export class InstitutionsService {
 
   /** Partner institution desk profile */
   async getPartnerInstitutionDesk(userId: string): Promise<InstitutionPartnerProfile> {
-    const institutionId = await this.getLinkedInstitutionId(userId);
+    const institutionId = await this.getLinkedInstitutionId(userId, true);
     return this.getInstitutionPartnerProfileById(institutionId);
   }
 

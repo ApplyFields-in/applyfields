@@ -34,13 +34,14 @@ export default function UnderReview() {
               color={rejected ? C.bad : C.blue}
             />
           </View>
-          <Text style={st.h1}>{rejected ? 'Application not approved' : 'Under review'}</Text>
+          <Text style={st.h1}>{rejected ? 'Application not approved' : 'Finish your verification'}</Text>
+          {/* Pending partners only land here until all KYC files are in; then the workspace opens. */}
           <Muted style={{ textAlign: 'center' }}>
             {rejected
-              ? 'The ApplyFields team could not verify this application. Contact partner support to fix the details and apply again.'
+              ? 'The ApplyFields team could not verify this application. Upload the corrected document below to send it back for review.'
               : isInstitution(partner)
-                ? 'Our team is verifying your admissions desk. Once approved, student enquiries reach you here.'
-                : 'Our team is verifying your centre. Once approved, you go live and citizens can book you.'}
+                ? 'Upload the documents below to open your admissions desk. Students see it once our team approves it.'
+                : 'Upload the documents below to open your desk. Citizens can find and book you once our team approves it.'}
           </Muted>
         </View>
 

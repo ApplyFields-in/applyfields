@@ -5,7 +5,8 @@
  */
 import type { NotificationItem, NotificationList } from '@applyfields/types';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
+import { notificationRoute } from '@/lib/deep-link';
 import { useEffect } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -60,11 +61,9 @@ export default function Alerts() {
       );
       void api.post(`/notifications/${item.id}/read`);
     }
-    // Links are website paths; map the ones that have a mobile screen.
-    const opp = item.link?.match(/^\/(?:jobs|exams|scholarships|admissions)\/([^/?#]+)/);
-    const service = item.link?.match(/^\/services?\/([^/?#]+)/);
-    if (opp) router.push(`/opportunity/${opp[1]}`);
-    else if (service) router.push(`/service/${service[1]}`);
+    // Links are website URLs/paths; open the matching screen when the app has one.
+    const route = notificationRoute(item.link);
+    if (route) router.push(route as Href);
   }
 
   async function markAll() {

@@ -1,7 +1,9 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import type {
   ChatMessageItem,
@@ -12,6 +14,16 @@ import type {
 } from '@applyfields/types';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
+
+/** At most one chat notification per booking, per person, in this window (a back-and-forth isn't 10 pushes). */
+export const CHAT_NOTIFY_WINDOW_MS = 10 * 60_000;
+
+/** Where a chat notification opens: the citizen's booking chat on the service site, or the partner inbox. */
+export const chatLinks = (bookingId: string) => ({
+  citizen: `${(process.env.SERVICE_URL ?? 'https://service.applyfields.com').replace(/\/$/, '')}/bookings/${bookingId}?chat=1`,
+  partner: `${(process.env.PARTNER_URL ?? 'https://applyfields.vercel.app').replace(/\/$/, '')}/messages?booking=${bookingId}`,
+});
 
 export const sendChatMessageSchema = z.object({
   message: z
@@ -40,7 +52,56 @@ export const markReadSchema = z.object({
 
 @Injectable()
 export class MessagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(MessagesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly notifications?: NotificationsService,
+  ) {}
+
+  /**
+   * Tell the other side of the booking chat: centre writes → the citizen; citizen writes → the
+   * centre's members; support writes → both. In-app + push via NotificationsService (muting and
+   * delivery rules apply there). Deduped per booking + person per CHAT_NOTIFY_WINDOW_MS.
+   */
+  async notifyNewMessage(
+    booking: { id: string; partner_id: string; user_id: string | null },
+    senderType: ChatSenderType,
+    senderUserId: string | null,
+    senderName: string,
+    message: string,
+    now = Date.now(),
+  ): Promise<number> {
+    if (!this.notifications) return 0;
+    const links = chatLinks(booking.id);
+    const window = Math.floor(now / CHAT_NOTIFY_WINDOW_MS);
+    const body = message.length > 140 ? `${message.slice(0, 137)}…` : message;
+    const title = `New message from ${senderName}`;
+    let sent = 0;
+
+    if (senderType !== 'citizen' && booking.user_id && booking.user_id !== senderUserId) {
+      sent += await this.notifications.notify(
+        [booking.user_id],
+        { type: 'request_update', title, body, link: links.citizen },
+        (uid) => `chat:${booking.id}:${uid}:${window}`,
+      );
+    }
+    if (senderType !== 'partner') {
+      const members = await this.prisma.partner_members.findMany({
+        where: { partner_id: booking.partner_id, is_active: true },
+        select: { user_id: true },
+      });
+      const ids = members.map((m) => m.user_id).filter((uid) => uid !== senderUserId);
+      if (ids.length) {
+        sent += await this.notifications.notify(
+          ids,
+          { type: 'request_update', title, body, link: links.partner },
+          (uid) => `chat:${booking.id}:${uid}:${window}`,
+        );
+      }
+    }
+    return sent;
+  }
 
   // =========================================================================
   // MESSAGE STREAM (CITIZEN & PARTNER)
@@ -160,6 +221,11 @@ export class MessagesService {
         is_read: false,
       },
     });
+
+    // The message is saved; a failed notification must not fail the send.
+    void this.notifyNewMessage(booking, senderType, senderUserId, senderName, input.message).catch((err: Error) =>
+      this.logger.warn(`Chat notification failed for ${bookingId}: ${err.message}`),
+    );
 
     return {
       id: created.id,

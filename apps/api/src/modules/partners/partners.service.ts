@@ -652,12 +652,8 @@ export class PartnersService {
       return created;
     });
 
-    this.alertSupport(
-      'New partner registered',
-      `${partner.business_name} (${partner.type.replace(/_/g, ' ')}) is waiting for KYC.`,
-      partner.id,
-      `staff_partner_new:${partner.id}`,
-    );
+    // Staff hear about the new partner once its KYC files are all in (uploadDocument), not at sign-up:
+    // the partner may skip KYC for now.
     return this.mapToDetail({ ...partner, partner_services: [] });
   }
 
@@ -666,6 +662,13 @@ export class PartnersService {
     const membership = await this.requirePartnerOwner(userId);
     if (membership.role !== 'owner') {
       throw new ForbiddenException('Earnings are visible to the centre owner only.');
+    }
+    const status = await this.prisma.partners.findUnique({
+      where: { id: membership.partner_id },
+      select: { verification_status: true },
+    });
+    if (status?.verification_status !== 'verified') {
+      throw new ForbiddenException('The cash drawer opens once ApplyFields approves your centre.');
     }
     const partnerId = membership.partner_id;
     const completed = { partner_id: partnerId, status: 'completed' as const };
@@ -962,15 +965,42 @@ export class PartnersService {
     });
 
     if (this.notifications) {
-      const centre = await this.prisma.partners
-        .findUnique({ where: { id: membership.partner_id }, select: { business_name: true } })
+      const p = await this.prisma.partners
+        .findUnique({
+          where: { id: membership.partner_id },
+          select: {
+            business_name: true,
+            type: true,
+            partner_documents: { where: { status: { not: 'rejected' } }, select: { id: true, document_kind: true } },
+          },
+        })
         .catch(() => null);
-      this.alertSupport(
-        'KYC document to check',
-        `${centre?.business_name ?? 'A partner'} uploaded ${doc.document_kind.replace(/_/g, ' ')}.`,
-        membership.partner_id,
-        `staff_kyc_doc:${created.id}`,
-      );
+      const name = p?.business_name ?? 'A partner';
+      const kinds = new Set(p?.partner_documents.map((d) => d.document_kind));
+      const college = !!p && (COLLEGE_PARTNER_TYPES as readonly string[]).includes(p.type);
+      const required: readonly string[] = college ? REQUIRED_COLLEGE_DOCUMENTS : REQUIRED_CENTRE_DOCUMENTS;
+      const complete = required.every((k) => kinds.has(k));
+      // This upload is the one that completed the set (first file of a required kind).
+      const justCompleted =
+        complete &&
+        required.includes(doc.document_kind) &&
+        !p!.partner_documents.some((d) => d.document_kind === doc.document_kind && d.id !== created.id);
+      if (justCompleted) {
+        this.alertSupport(
+          college ? 'New college ready for review' : 'New centre ready for review',
+          `${name} sent all KYC documents. Check them and approve or reject.`,
+          membership.partner_id,
+          `staff_partner_ready:${created.id}`,
+        );
+      } else if (complete) {
+        // A replacement file after the set was complete. Mid-onboarding uploads stay quiet.
+        this.alertSupport(
+          'KYC document to check',
+          `${name} uploaded ${doc.document_kind.replace(/_/g, ' ')}.`,
+          membership.partner_id,
+          `staff_kyc_doc:${created.id}`,
+        );
+      }
     }
 
     return {

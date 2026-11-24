@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Optional,
   Logger,
@@ -9,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { existsSync, readFileSync } from 'node:fs';
 import type {
+  ChatMessageItem,
   AdminBookingDispute,
   BookingDispute,
   BookingDisputeStatus,
@@ -30,7 +33,20 @@ import { StorageService } from '../../common/storage.service.js';
 import { VaultService } from '../../common/vault.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { PaymentsService } from '../payments/payments.service.js';
+import { MessagesService } from '../messages/messages.service.js';
 import type { request_status } from '../../generated/prisma/enums.js';
+import {
+  START_CODE_MAX_WRONG,
+  START_CODE_WINDOW_MS,
+  WRONG_START_CODE_NOTE,
+  startCode,
+  startCodeMatches,
+} from './start-code.js';
+
+/** The citizen's start code rides only on their own copy, and only until the work has started. */
+const NOT_STARTED = new Set(['new', 'accepted']);
+const withStartCode = <T extends { id: string; status: string }>(b: T) =>
+  ({ ...b, start_code: NOT_STARTED.has(b.status) ? startCode(b.id) : null });
 
 export const createBookingSchema = z.object({
   partner_id: z.string().uuid(),
@@ -44,6 +60,7 @@ export const createBookingSchema = z.object({
 
 export const updateBookingStatusSchema = z.object({
   status: z.enum(['new', 'accepted', 'rejected', 'in_progress', 'completed', 'cancelled']),
+  start_code: z.string().trim().regex(/^\d{4}$/, 'The start code is 4 digits').optional(),
   partner_note: z.string().trim().max(500).optional(),
   cancelled_reason: z.string().trim().max(500).optional(),
   quoted_paise: z.number().int().min(0).optional(),
@@ -172,6 +189,8 @@ export const walkInSchema = z.object({
 });
 export type WalkInInput = z.infer<typeof walkInSchema>;
 
+export const attachToChatSchema = z.object({ document_id: z.string().uuid() });
+
 export const shareDocumentsSchema = z.object({
   document_ids: z.array(z.string().uuid()).max(15),
 });
@@ -189,6 +208,7 @@ export class BookingsService {
     private readonly notifications?: NotificationsService,
     @Optional() private readonly payments?: PaymentsService,
     @Optional() private readonly vault?: VaultService,
+    @Optional() private readonly messages?: MessagesService,
   ) {}
 
   // =========================================================================
@@ -200,7 +220,8 @@ export class BookingsService {
       where: { id: input.partner_id },
     });
 
-    if (!partner) {
+    // Only centres staff approved and listed take bookings (same rule as the public directory).
+    if (!partner || partner.verification_status !== 'verified' || !partner.is_listed) {
       throw new NotFoundException(`Partner center with ID "${input.partner_id}" not found`);
     }
 
@@ -268,7 +289,7 @@ export class BookingsService {
 
     return {
       total: rows.length,
-      items: rows.map((r) => ({ ...this.mapToDetail(r), disputes: disputesByBooking.get(r.id) ?? [] })),
+      items: rows.map((r) => ({ ...withStartCode(this.mapToDetail(r)), disputes: disputesByBooking.get(r.id) ?? [] })),
     };
   }
 
@@ -437,7 +458,8 @@ export class BookingsService {
       throw new ForbiddenException(`You are not authorized to view this booking`);
     }
 
-    return this.mapToDetail(req);
+    const detail = this.mapToDetail(req);
+    return req.user_id && req.user_id === userId ? withStartCode(detail) : detail;
   }
 
   async cancelUserBooking(
@@ -588,8 +610,14 @@ export class BookingsService {
    * in Earnings. No citizen account is linked (user_id null), so no citizen notifications.
    */
   async createWalkIn(userId: string, input: WalkInInput): Promise<BookingDetail> {
-    const membership = await this.prisma.partner_members.findFirst({ where: { user_id: userId } });
+    const membership = await this.prisma.partner_members.findFirst({
+      where: { user_id: userId },
+      include: { partners: { select: { verification_status: true } } },
+    });
     if (!membership) throw new ForbiddenException('No partner center account linked to this user.');
+    if (membership.partners.verification_status !== 'verified') {
+      throw new ForbiddenException('The counter opens once ApplyFields approves your centre.');
+    }
 
     let serviceName = input.service_name;
     if (input.partner_service_id) {
@@ -660,6 +688,21 @@ export class BookingsService {
       throw new NotFoundException(`Booking "${bookingId}" not found or unauthorized`);
     }
 
+    // Citizen bookings (walk-ins have no citizen account) start only with the citizen's code,
+    // and can only be completed after they started.
+    if (existing.user_id && existing.status !== input.status) {
+      if (input.status === 'in_progress') {
+        if (!NOT_STARTED.has(existing.status)) {
+          throw new BadRequestException(`This booking is already ${existing.status}.`);
+        }
+        await this.checkStartCode(existing.id, existing.status as request_status, input.start_code, userId);
+      } else if (input.status === 'completed' && existing.status !== 'in_progress') {
+        throw new BadRequestException(
+          'Start the booking first: ask the citizen for the 4-digit start code shown in their app.',
+        );
+      }
+    }
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.service_requests.update({
         where: { id: bookingId },
@@ -694,6 +737,35 @@ export class BookingsService {
   }
 
   /**
+   * Start code check: 429 after START_CODE_MAX_WRONG wrong codes in the window (stops guessing all
+   * 10,000), 400 on a wrong or missing code. Wrong tries are logged as booking events.
+   */
+  private async checkStartCode(bookingId: string, status: request_status, code: string | undefined, userId: string) {
+    const wrong = await this.prisma.service_request_events.count({
+      where: {
+        request_id: bookingId,
+        note: WRONG_START_CODE_NOTE,
+        created_at: { gte: new Date(Date.now() - START_CODE_WINDOW_MS) },
+      },
+    });
+    if (wrong >= START_CODE_MAX_WRONG) {
+      throw new HttpException(
+        'Too many wrong start codes. Wait 15 minutes, or ask the citizen to open the booking in their app and read the code again.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (!code) {
+      throw new BadRequestException('Enter the 4-digit start code from the citizen’s app to start this booking.');
+    }
+    if (!startCodeMatches(bookingId, code)) {
+      await this.prisma.service_request_events.create({
+        data: { request_id: bookingId, from_status: status, to_status: status, note: WRONG_START_CODE_NOTE, actor_user_id: userId },
+      });
+      throw new BadRequestException('That start code is not right. Ask the citizen to read it from their booking.');
+    }
+  }
+
+  /**
    * Operator filed the application on the official portal: store the official application number and
    * the acknowledgment slip (private Supabase Storage), complete the request, notify the citizen.
    */
@@ -704,6 +776,11 @@ export class BookingsService {
     }
     if (['completed', 'cancelled', 'rejected'].includes(existing.status)) {
       throw new BadRequestException(`This request is already ${existing.status}.`);
+    }
+    if (existing.user_id && existing.status !== 'in_progress') {
+      throw new BadRequestException(
+        'Start the booking first: in Bookings, enter the citizen’s 4-digit start code, then file it here.',
+      );
     }
 
     const slip = decodeSlip(input.slip_base64, input.slip_mime_type);
@@ -862,6 +939,49 @@ export class BookingsService {
       }
     });
     return this.getUserBooking(userId, bookingId);
+  }
+
+  /**
+   * Citizen attaches a locker document in the booking chat: it is added to this booking's shares
+   * (same rules, logging and expiry as shareDocuments) and a chat message points at the share.
+   * Files never travel as raw links; the centre opens them through the share.
+   */
+  async attachToChat(userId: string, bookingId: string, documentId: string): Promise<ChatMessageItem> {
+    if (!this.messages) throw new ServiceUnavailableException('Chat is not available right now.');
+    const now = new Date();
+    const active = await this.prisma.document_shares.findMany({
+      where: { service_request_id: bookingId, revoked_at: null, expires_at: { gt: now } },
+      select: { document_id: true },
+    });
+    // Ownership, booking state and the locker check all happen in shareDocuments.
+    await this.shareDocuments(userId, bookingId, [...active.map((s) => s.document_id), documentId]);
+
+    const share = await this.prisma.document_shares.findFirst({
+      where: { service_request_id: bookingId, document_id: documentId, revoked_at: null, expires_at: { gt: now } },
+      select: {
+        id: true,
+        user_documents: { select: { title: true, file_name: true, mime_type: true, size_bytes: true, document_type_code: true } },
+      },
+    });
+    if (!share) throw new ServiceUnavailableException('Could not share the document. Please try again.');
+    const doc = share.user_documents;
+    const name = doc.title || doc.file_name || doc.document_type_code.replace(/_/g, ' ');
+    const profile = await this.prisma.user_profiles.findUnique({ where: { user_id: userId }, select: { full_name: true } });
+
+    return this.messages.sendMessage(bookingId, userId, {
+      message: `Shared a document: ${name}`,
+      sender_type: 'citizen',
+      sender_name: profile?.full_name?.trim() || 'Citizen',
+      attachments: [
+        {
+          name,
+          share_id: share.id,
+          file_type: doc.mime_type ?? undefined,
+          file_size: doc.size_bytes ? `${Math.max(1, Math.round(doc.size_bytes / 1024))} KB` : undefined,
+          kind: doc.mime_type === 'application/pdf' ? 'pdf' : doc.mime_type?.startsWith('image/') ? 'image' : 'doc',
+        },
+      ],
+    });
   }
 
   /** Stream decrypted shared document: citizen owner or authorized centre partner. */

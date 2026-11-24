@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiGet, getMyPartner, registerPartner, uploadPartnerFile } from '@/lib/api';
-import { usePartnerAuth } from '@/lib/auth-context';
+import { canUseDashboard, partnerHome, usePartnerAuth } from '@/lib/auth-context';
 import type { GovServiceList, PartnerRegistrationInput, PartnerType } from '@applyfields/types';
 import {
   AlertCircle,
@@ -348,7 +348,7 @@ export default function OnboardWizardPage() {
         latitude: latitude ?? undefined,
         longitude: longitude ?? undefined,
         service_areas: [city.trim(), district.trim(), pincode.trim()],
-        description: `Registration / licence no: ${regCode.trim()}`,
+        description: regCode.trim() ? `Registration / licence no: ${regCode.trim()}` : undefined,
         services: selectedServices.map((p) => ({
           name: p.name,
           service_id: p.service_id,
@@ -374,10 +374,15 @@ export default function OnboardWizardPage() {
         flashToast('Some documents did not upload. Please upload them again on the next page.');
       }
 
-      // 4. Refresh session and route to holding screen
+      // 4. Refresh session. All KYC in → dashboard (under review); skipped → under-review to finish it.
       await refreshSession();
-      flashToast('Application submitted successfully. We will review it soon.');
-      router.push('/under-review');
+      const me = await getMyPartner();
+      flashToast(
+        me.data && canUseDashboard(me.data)
+          ? 'Application submitted. Set up your centre while we review it.'
+          : 'Centre saved. Upload your documents to finish verification.',
+      );
+      router.push(me.data ? partnerHome(me.data) : '/under-review');
     } catch (err: any) {
       setError(err?.message || 'An unexpected error occurred during submission.');
       setLoading(false);
@@ -1020,7 +1025,7 @@ export default function OnboardWizardPage() {
 
                 <div>
                   <span className="text-[#536780]">KYC License Code:</span>
-                  <div className="font-mono text-[#082046] font-bold mt-0.5">{regCode}</div>
+                  <div className="font-mono text-[#082046] font-bold mt-0.5">{regCode || 'Add later'}</div>
                 </div>
               </div>
 
@@ -1055,13 +1060,29 @@ export default function OnboardWizardPage() {
             )}
 
             {step < 5 ? (
-              <button
-                type="button"
-                onClick={nextStep}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#00a884] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#009172] transition"
-              >
-                Continue <ArrowRight className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-3">
+                {/* KYC can wait: the dashboard opens once all documents are in (under-review page). */}
+                {step === 4 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setStep(5);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="text-xs font-semibold text-[#536780] underline hover:text-[#082046]"
+                  >
+                    Skip for now
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#00a884] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#009172] transition"
+                >
+                  Continue <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             ) : (
               <button
                 type="button"

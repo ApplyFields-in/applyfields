@@ -29,3 +29,19 @@ export function redirectSystemPath({ path }: { path: string; initial: boolean })
     return '/';
   }
 }
+
+/**
+ * Where a notification opens in the app (push tap and the Alerts list). Links are the website
+ * URLs/paths the notification engine stores. null = no matching screen (stay on / open Alerts).
+ */
+export function notificationRoute(link: string | null | undefined): string | null {
+  if (!link) return null;
+  const chat = link.match(/\/bookings\/([0-9a-f-]{36})\?(?:.*&)?chat=1/i); // centre wrote in the booking chat
+  if (chat) return `/chat/${chat[1]}`;
+  const opp = link.match(/^\/(?:jobs|exams|scholarships|admissions)\/([^/?#]+)/);
+  if (opp) return `/opportunity/${opp[1]}`;
+  const service = link.match(/^\/services?\/([^/?#]+)/);
+  if (service) return `/service/${service[1]}`;
+  if (/\/(my-)?bookings\b/.test(link)) return '/bookings'; // booking updates on the service site
+  return null;
+}

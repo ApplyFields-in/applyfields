@@ -36,10 +36,17 @@ export function PartnerHeader() {
             {status === 'centre' ? (
               <View style={[s.dot, { backgroundColor: online ? C.good : C.bad }]} />
             ) : null}
-            <Text style={s.meta} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
-              {status === 'centre' ? (online ? 'Online · ' : 'Offline · ') : ''}
-              {partner ? typeLabel(partner.type) : ''}
-            </Text>
+            {partner && partner.verification_status !== 'verified' ? (
+              // KYC sent, staff still reviewing: nothing is public yet.
+              <Text style={[s.meta, { color: C.warn, fontWeight: '700' }]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
+                Under review · not public yet
+              </Text>
+            ) : (
+              <Text style={s.meta} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
+                {status === 'centre' ? (online ? 'Online · ' : 'Offline · ') : ''}
+                {partner ? typeLabel(partner.type) : ''}
+              </Text>
+            )}
           </View>
         </View>
 

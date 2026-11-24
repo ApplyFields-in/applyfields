@@ -21,6 +21,21 @@ export const COLLEGE_KYC_DOCUMENTS: readonly KycDocumentSpec[] = [
   { kind: 'principal_authorization_letter', label: 'Principal authorisation', hint: 'Our letter, signed and stamped by the Principal' },
 ];
 
+export const COLLEGE_PARTNER_TYPES: readonly string[] = ['college', 'university', 'training_institute'];
+
+/**
+ * True once every required KYC file for this partner type is uploaded (and not rejected).
+ * Partner apps: submitted → dashboard while staff review; not yet → "finish verification" page.
+ */
+export function kycSubmitted(partner: {
+  type: string;
+  documents?: readonly { document_kind: string; status: string }[];
+}): boolean {
+  const list = COLLEGE_PARTNER_TYPES.includes(partner.type) ? COLLEGE_KYC_DOCUMENTS : CENTRE_KYC_DOCUMENTS;
+  const have = new Set((partner.documents ?? []).filter((d) => d.status !== 'rejected').map((d) => d.document_kind));
+  return list.every((d) => d.optional || have.has(d.kind));
+}
+
 export const PARTNER_DOCUMENT_KINDS = [
   'trade_license',
   'kiosk_photo',

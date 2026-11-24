@@ -1,8 +1,9 @@
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as Notifications from 'expo-notifications';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
+import { notificationRoute } from '@/lib/deep-link';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -16,20 +17,19 @@ import { C } from '@/theme';
  */
 function usePushDeepLinks() {
   const router = useRouter();
+  // Also covers the tap that launched a closed app; each tap is handled once.
+  const last = Notifications.useLastNotificationResponse();
+  const handled = useRef<string | null>(null);
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as { link?: string } | undefined;
-      const link = typeof data?.link === 'string' ? data.link : null;
-      // /jobs/<slug>, /exams/<slug>, /scholarships/<slug>, /admissions/<slug>
-      const opp = link?.match(/^\/(?:jobs|exams|scholarships|admissions)\/([^/?#]+)/);
-      // /services/<slug> — a push about a service now lands on its detail screen.
-      const service = link?.match(/^\/services?\/([^/?#]+)/);
-      if (opp) router.push(`/opportunity/${opp[1]}`);
-      else if (service) router.push(`/service/${service[1]}`);
-      else router.push('/alerts');
-    });
-    return () => sub.remove();
-  }, [router]);
+    if (!last) return;
+    const id = last.notification.request.identifier;
+    if (handled.current === id) return;
+    handled.current = id;
+    const data = last.notification.request.content.data as { link?: string } | undefined;
+    const link = typeof data?.link === 'string' ? data.link : null;
+    // Opportunity, service, booking or booking-chat screen; anything else opens Alerts.
+    router.push((notificationRoute(link) ?? '/alerts') as Href);
+  }, [last, router]);
 }
 
 // Canvas behind every navigator, so the gaps around the floating tab bar match the page.
@@ -58,6 +58,8 @@ export default function RootLayout() {
                 <Stack.Screen name="opportunity/[slug]" options={{ title: '' }} />
                 <Stack.Screen name="service/[slug]" options={{ title: '' }} />
                 <Stack.Screen name="centres" options={{ title: 'Centres near you' }} />
+                <Stack.Screen name="bookings" options={{ title: 'My bookings' }} />
+                <Stack.Screen name="chat/[id]" options={{ title: 'Chat' }} />
                 <Stack.Screen name="career/[slug]" options={{ title: '' }} />
                 <Stack.Screen name="college/[slug]" options={{ title: '' }} />
                 <Stack.Screen name="apply" options={{ title: 'Official application' }} />

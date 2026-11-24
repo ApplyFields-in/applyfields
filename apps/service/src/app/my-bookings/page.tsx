@@ -104,7 +104,7 @@ function toDisputeView(d: NonNullable<BookingDetail['disputes']>[number]): Citiz
   };
 }
 
-/** A real booking from GET /bookings/my in this page's shape. PIN/queue are not tracked by the API, so they stay empty and hidden. */
+/** A real booking from GET /bookings/my in this page's shape. The PIN is the start code (until work starts); queue isn't tracked. */
 function fromApi(b: BookingDetail): CitizenBookingItem {
   const at = b.appointment_at ? new Date(b.appointment_at) : null;
   const total = (b.final_paise ?? b.quoted_paise ?? 0) / 100;
@@ -124,7 +124,7 @@ function fromApi(b: BookingDetail): CitizenBookingItem {
     slotDate: at ? at.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not scheduled',
     slotTime: at ? at.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) : '',
     status: stage,
-    securityPin: '',
+    securityPin: b.start_code ?? '',
     queuePosition: -1,
     estimatedWaitMinutes: 0,
     counterName: '',
@@ -504,7 +504,7 @@ export default function MyBookingsPage() {
                     </div>
                     <div className="h-8 w-px bg-slate-300" />
                     <div className="text-[10px] text-slate-500 font-medium max-w-[110px] leading-tight">
-                      Show at counter to verify presence
+                      Tell the centre this code to start your work
                     </div>
                   </div>
                   )}

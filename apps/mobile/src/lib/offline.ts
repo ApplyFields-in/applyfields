@@ -7,7 +7,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { useSyncExternalStore } from 'react';
 
-import { getToken } from './api';
+import { API_URL, getToken } from './api';
 
 export interface OfflineFile {
   /** 'doc:<id>' for the user's own documents, 'pdf:<slug>' for public notifications */
@@ -121,6 +121,50 @@ export function removeOffline(key: string): void {
 /** Personal documents go on sign-out, so a shared phone doesn't keep someone's certificates. */
 export function clearPersonalOffline(): void {
   for (const f of files.filter((f) => f.key.startsWith('doc:'))) removeOffline(f.key);
+  clearSharedCache();
+}
+
+// Documents opened from a booking chat: one temporary copy at a time, never kept for offline.
+const sharedDir = new Directory(Paths.cache, 'shared');
+
+function clearSharedCache(): void {
+  try {
+    if (sharedDir.exists) sharedDir.delete();
+  } catch {
+    // nothing to clear
+  }
+}
+
+/**
+ * Open a document shared on a booking (chat attachment): GET /bookings/:id/documents/:share/file
+ * with the session token in the header (never in the URL), then the phone's viewer. The previous
+ * temporary copy is removed first, and everything goes on sign-out.
+ */
+export async function openSharedDocument(input: {
+  bookingId: string;
+  shareId: string;
+  title: string;
+  mimeType?: string | null;
+}): Promise<void> {
+  clearSharedCache();
+  sharedDir.create({ intermediates: true });
+  const mimeType = input.mimeType || 'application/pdf';
+  const target = new File(sharedDir, `${input.shareId.replace(/[^a-z0-9-]/gi, '_')}.${EXT[mimeType] ?? 'pdf'}`);
+  const token = await getToken();
+  let file: File;
+  try {
+    file = await File.downloadFileAsync(
+      `${API_URL}/bookings/${encodeURIComponent(input.bookingId)}/documents/${encodeURIComponent(input.shareId)}/file`,
+      target,
+      token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+    );
+  } catch (err) {
+    const status = /status:?\s*(\d{3})|HTTP (\d{3})/.exec((err as Error).message);
+    const code = status?.[1] ?? status?.[2];
+    if (code === '404') throw new Error('This document is no longer shared. Ask for it to be shared again.');
+    throw new Error(downloadError((err as Error).message));
+  }
+  await file.preview({ title: input.title, mimeType });
 }
 
 /** Native viewer: Quick Look on iOS, the system PDF/image viewer on Android. Works offline. */

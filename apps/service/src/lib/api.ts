@@ -167,6 +167,7 @@ import type {
   CreateBookingInput,
   MarkFiledInput,
   PartnerDirectoryResponse,
+  UpdateBookingStatusInput,
   PartnerDetail,
   SendChatMessageInput,
   UserDocumentListResponse,
@@ -222,6 +223,15 @@ export async function getBookingSlipUrl(id: string): Promise<ApiResponse<{ url: 
 /** Operator desk: requests for the signed-in partner centre. */
 export async function getPartnerInbox(): Promise<ApiResponse<BookingListResponse>> {
   return apiGet<BookingListResponse>('/bookings/partner/inbox');
+}
+
+/** Operator desk: start a citizen's booking with the 4-digit start code from their app. */
+export async function startBookingWithCode(id: string, startCode: string): Promise<ApiResponse<BookingDetail>> {
+  return apiPatch<BookingDetail, UpdateBookingStatusInput>(`/bookings/partner/${encodeURIComponent(id)}`, {
+    status: 'in_progress',
+    start_code: startCode,
+    partner_note: 'Citizen arrived at the desk (start code checked)',
+  });
 }
 
 /** Operator desk: save the official application number + slip, complete the request, notify the citizen. */
