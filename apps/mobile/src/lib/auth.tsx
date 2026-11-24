@@ -8,6 +8,7 @@ import { refreshDeadlinesWidget } from '@/widgets/refresh';
 import { api, onSessionExpired, saveSession, setToken } from './api';
 import { clearPersonalOffline } from './offline';
 import { registerForPush, unregisterPush } from './push';
+import { clearApiCache } from './use-api';
 
 /** LoginDto takes one `identifier` (email or phone), same as the website. Emails are lower-cased. */
 function loginId(identifier: string): string {
@@ -165,6 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await api.post('/auth/logout');
     await setToken(null);
     clearPersonalOffline();
+    clearApiCache();
     setMe(null);
   }, []);
 

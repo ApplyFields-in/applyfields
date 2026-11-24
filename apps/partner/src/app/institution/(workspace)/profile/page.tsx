@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ExternalLink,
   GraduationCap,
-  Loader2,
   Mail,
   MapPin,
   Phone,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { getPartnerInstitutionDesk, updatePartnerInstitutionDesk } from '@/lib/api';
 import type { InstitutionPartnerProfile } from '@applyfields/types';
+import { Spinner } from '@applyfields/ui';
 
 export default function InstitutionProfilePage() {
   const [profile, setProfile] = useState<InstitutionPartnerProfile | null>(null);
@@ -203,7 +203,7 @@ export default function InstitutionProfilePage() {
           >
             {saving ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Saving Changes...
+                <Spinner size={16} /> Saving Changes...
               </>
             ) : (
               <>

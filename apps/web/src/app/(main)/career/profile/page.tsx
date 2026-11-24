@@ -11,7 +11,6 @@ import {
   GraduationCap,
   Layers,
   Lightbulb,
-  Loader2,
   Save,
   Sparkles,
   Target,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { apiGet, apiPost } from '@/lib/api';
+import { Spinner } from '@applyfields/ui';
 
 const EDUCATION_STAGES = [
   '10th Grade / Secondary School',
@@ -345,7 +345,7 @@ export default function CareerProfilePage() {
               >
                 {saving ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" /> Saving...
+                    <Spinner size={16} /> Saving...
                   </>
                 ) : (
                   <>
@@ -376,7 +376,7 @@ export default function CareerProfilePage() {
 
             {loading ? (
               <div className="mt-8 flex justify-center py-6">
-                <Loader2 className="size-6 animate-spin text-teal/60" />
+                <Spinner size={24} className="text-teal/60" />
               </div>
             ) : recommendations.length === 0 ? (
               <p className="mt-6 text-center text-xs text-teal/60 py-6">

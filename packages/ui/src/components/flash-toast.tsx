@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Info, TriangleAlert, X } from 'lucide-react';
+import { SuccessCheck } from './animated-icons';
 
 const EVENT = 'applyfields-flash-toast';
 const KEY = 'applyfields-flash-toast';
@@ -77,10 +78,11 @@ export function FlashToast({ catchErrors = false }: { catchErrors?: boolean }) {
       aria-live={isError ? 'assertive' : 'polite'}
       className={`print:hidden fixed bottom-6 left-1/2 z-[100] flex w-[92vw] max-w-sm -translate-x-1/2 items-center gap-3 rounded-xl border p-3.5 shadow-xl ${isError ? 'border-[#fca5a5] bg-[#fef2f2]' : 'border-[#d6e2f0] bg-white'}`}
     >
-      <Icon
-        className={`size-5 shrink-0 ${isError ? 'text-[#b91c1c]' : toast.type === 'info' ? 'text-[#0e7bf4]' : 'text-[#15803d]'}`}
-        aria-hidden="true"
-      />
+      {Icon === CheckCircle2 ? (
+        <SuccessCheck key={toast.message} size={20} className="shrink-0 text-[#15803d]" />
+      ) : (
+        <Icon className={`size-5 shrink-0 ${isError ? 'text-[#b91c1c]' : 'text-[#0e7bf4]'}`} aria-hidden="true" />
+      )}
       <p className="min-w-0 flex-1 text-sm font-semibold text-[#082046]">{toast.message}</p>
       <button
         type="button"

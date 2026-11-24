@@ -1,4 +1,4 @@
-// Shared ApplyFields design system — used by apps/web and apps/admin.
+// Shared ApplyFields design system — used by apps/web, admin, partner and service.
 // Palette & tokens live in ./theme.css (import it from each app's globals.css).
 export { buttonClass, cn } from './cn';
 export { Avatar, Badge, Card, EmptyState, IconTile, PageHeader, ProgressBar, SectionTitle, Skeleton } from './components/primitives';
@@ -13,6 +13,7 @@ export { ComingSoon, NotBuiltYet } from './components/coming-soon';
 export { ScrollToTop, ScrollToTopButton, scrollToPageTop } from './components/scroll-to-top';
 export { GoogleButton } from './components/google-button';
 export { FlashToast, flashToast } from './components/flash-toast';
+export { BellIcon, BookmarkIcon, Spinner, SuccessCheck } from './components/animated-icons';
 export { FieldyMascot, prefetchFieldy } from './components/fieldy-mascot';
 export type { FieldyMood } from './components/fieldy-mascot';
 export { openRazorpayCheckout, type RazorpayOptions, type RazorpayResult } from './razorpay';

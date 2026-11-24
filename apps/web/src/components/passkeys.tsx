@@ -14,10 +14,11 @@ import {
   type PublicKeyCredentialCreationOptionsJSON,
   type PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser';
-import { Fingerprint, KeyRound, Loader2, Trash2 } from 'lucide-react';
+import { Fingerprint, KeyRound, Trash2 } from 'lucide-react';
 import type { AuthResponse } from '@applyfields/types';
 import { apiDelete, apiGet, apiPost } from '@/lib/api';
 import { flashAppToast } from '@/components/toast-notification-provider';
+import { Spinner } from '@applyfields/ui';
 
 type Passkey = {
   id: string;
@@ -92,7 +93,7 @@ export function PasskeySignInButton({
       disabled={busy}
       className="mx-auto flex h-10 w-full max-w-[400px] items-center justify-center gap-2.5 rounded-full border border-[#dadce0] bg-white text-sm font-medium text-[#3c4043] transition hover:border-[#d2e3fc] hover:bg-[#f8faff] disabled:opacity-60"
     >
-      {busy ? <Loader2 className="size-4 animate-spin" /> : <Fingerprint className="size-4 text-sea" />}
+      {busy ? <Spinner size={16} /> : <Fingerprint className="size-4 text-sea" />}
       Sign in with a passkey
     </button>
   );
@@ -193,7 +194,7 @@ export function PasskeysCard() {
           disabled={busy}
           className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#082046] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#061835] disabled:opacity-60"
         >
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <Fingerprint className="size-4" />}
+          {busy ? <Spinner size={16} /> : <Fingerprint className="size-4" />}
           {list && list.length > 0 ? 'Add another passkey' : 'Add a passkey'}
         </button>
       ) : (

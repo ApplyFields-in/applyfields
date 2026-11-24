@@ -10,7 +10,6 @@ import {
   Building2,
   CheckCircle2,
   GraduationCap,
-  Loader2,
   Lock,
   Mail,
   MapPin,
@@ -26,6 +25,8 @@ import {
 import type { InstitutionSummary } from '@applyfields/types';
 import { flashToast } from '@applyfields/ui';
 import { usePartnerAuth } from '@/lib/auth-context';
+import { Spinner } from '@applyfields/ui';
+import { SuccessCheck } from '@applyfields/ui';
 
 export default function InstitutionOnboardPage() {
   const router = useRouter();
@@ -264,7 +265,7 @@ export default function InstitutionOnboardPage() {
                       disabled={isSearching}
                       className="rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#0c6fdc] transition"
                     >
-                      {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+                      {isSearching ? <Spinner size={16} /> : 'Search'}
                     </button>
                   </form>
 
@@ -320,7 +321,7 @@ export default function InstitutionOnboardPage() {
                           {selectedCollege.city || selectedCollege.district}, {selectedCollege.state_code}
                         </div>
                       </div>
-                      <CheckCircle2 className="h-6 w-6 text-[#00876a]" />
+                      <SuccessCheck size={24} className="text-[#00876a]" />
                     </div>
                   )}
 
@@ -556,7 +557,7 @@ export default function InstitutionOnboardPage() {
                 >
                   {submitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Spinner size={16} />
                       Submitting Registration...
                     </>
                   ) : (

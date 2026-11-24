@@ -6,9 +6,10 @@
  * New programs are picked from the published course catalogue (GET /career/courses?q=).
  */
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Edit3, Loader2, Plus, Save, Search, Trash2, X } from 'lucide-react';
+import { BookOpen, Edit3, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import type { CourseSummary, InstitutionProgram, UpsertInstitutionProgramInput } from '@applyfields/types';
 import { apiDelete, apiGet, apiPut } from '@/lib/api';
+import { Spinner } from '@applyfields/ui';
 
 const PATH = '/career/colleges/partner/programs';
 const MODES = ['regular', 'distance', 'online', 'part_time'] as const;
@@ -235,7 +236,7 @@ export default function ProgramsPage() {
                 onClick={() => void save(picked.id, draft)}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-500 disabled:opacity-60"
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {busy ? <Spinner size={16} /> : <Save className="h-4 w-4" />}
                 Add to my college
               </button>
             </>
@@ -300,7 +301,7 @@ export default function ProgramsPage() {
                         onClick={() => void save(p.course_id, draft)}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-500 disabled:opacity-60"
                       >
-                        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {busy ? <Spinner size={14} /> : <Save className="h-3.5 w-3.5" />}
                         Save
                       </button>
                       <button

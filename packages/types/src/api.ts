@@ -831,6 +831,8 @@ export interface DeviceTokenResult {
 export type BroadcastAudience =
   | { kind: 'all' }
   | { kind: 'subscribers' }
+  | { kind: 'partners' }
+  | { kind: 'staff' }
   | { kind: 'savers'; opportunity_slug: string }
   | { kind: 'user'; email: string };
 
@@ -839,13 +841,32 @@ export interface AdminBroadcastInput {
   body: string | null;
   link: string | null;
   audience: BroadcastAudience;
-  channels?: ('in_app' | 'push' | 'email')[];
+  /** Omitted = in-app + push. ['in_app'] = in-app only (no phone/browser push). */
+  channels?: ('in_app' | 'push')[];
+  /** ISO time to send later (festival greetings). Omitted/null = send now. */
+  send_at?: string | null;
 }
 
 export interface AdminBroadcastResult {
   notified: number;
+  /** Phones + browsers registered for the people notified (0 when push was off). */
   push_sent: number;
-  email_queued: number;
+  /** Set when the broadcast was scheduled instead of sent (notified/push_sent are then 0). */
+  scheduled_for: string | null;
+}
+
+export type ScheduledBroadcastStatus = 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled';
+
+/** GET /admin/notifications/scheduled */
+export interface ScheduledBroadcastItem {
+  id: string;
+  title: string;
+  audience: BroadcastAudience['kind'];
+  in_app_only: boolean;
+  send_at: string;
+  status: ScheduledBroadcastStatus;
+  notified: number | null;
+  last_error: string | null;
 }
 
 // ---------- Internal Portal → Notifications ----------

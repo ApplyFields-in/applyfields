@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import {
   Layers,
   Plus,
-  CheckCircle2,
   Trash2,
   Edit2,
   Power,
@@ -29,6 +28,7 @@ import {
   updatePartnerService,
   deletePartnerService,
 } from '@/lib/api';
+import { SuccessCheck } from '@applyfields/ui';
 
 export interface ServiceItem {
   id: string;
@@ -440,7 +440,7 @@ export default function ServicesPage() {
       {/* Toast Notice */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border border-teal-500/40 bg-slate-900/95 px-5 py-3 text-sm font-semibold text-teal-400 shadow-2xl shadow-teal-500/20 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 className="h-5 w-5 text-teal-400 shrink-0" />
+          <SuccessCheck key={toastMsg} size={20} className="text-teal-400 shrink-0" />
           <span>{toastMsg}</span>
         </div>
       )}

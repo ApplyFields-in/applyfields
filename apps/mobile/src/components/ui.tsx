@@ -1,7 +1,6 @@
 /** The handful of shared pieces every screen is built from. */
 import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 
 import { C, CHROME_FONT_SCALE, R, S, TAP, card, column } from '../theme';
+import { Spinner } from './animated-icons';
 
 /**
  * True when the screen is effectively narrow: a 320pt phone, or a normal phone
@@ -114,6 +114,7 @@ export function Button({
   onPress,
   variant = 'primary',
   icon,
+  iconNode,
   disabled,
   style,
 }: {
@@ -121,6 +122,8 @@ export function Button({
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'danger';
   icon?: keyof typeof Ionicons.glyphMap;
+  /** An animated icon instead of `icon`; gets the button's text colour. */
+  iconNode?: (color: string) => React.ReactNode;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -143,7 +146,7 @@ export function Button({
         style,
       ]}
     >
-      {icon ? <Ionicons name={icon} size={16} color={tone.fg} /> : null}
+      {iconNode ? iconNode(tone.fg) : icon ? <Ionicons name={icon} size={16} color={tone.fg} /> : null}
       {/* Wraps onto a second line instead of clipping when space or text size runs out. */}
       <Text
         style={[s.buttonText, { color: tone.fg }]}
@@ -159,7 +162,7 @@ export function Button({
 export function Loading({ label = 'Loading…' }: { label?: string }) {
   return (
     <View style={s.centre}>
-      <ActivityIndicator color={C.blue} />
+      <Spinner size={32} color={C.blue} />
       <Muted style={{ marginTop: S.md }}>{label}</Muted>
     </View>
   );

@@ -13,12 +13,12 @@ import {
   Copy,
   Check,
   ShieldCheck,
-  Loader2,
-} from 'lucide-react';
+  } from 'lucide-react';
 import type { UserProfile } from '@applyfields/types';
 import { apiPut } from '@/lib/api';
 import { showAppToast } from '@/components/toast-notification-provider';
 import { INDIAN_STATES } from '@/app/(main)/profile/page';
+import { Spinner } from '@applyfields/ui';
 
 const PREFERRED_LANGUAGES = [
   'English',
@@ -416,7 +416,7 @@ export function PreferencesSection({
               disabled={saving}
               className="inline-flex items-center min-h-[44px] gap-2 px-6 py-2.5 rounded-xl bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none disabled:opacity-50 transition-colors shadow-xs"
             >
-              {saving && <Loader2 className="size-4 animate-spin" />}
+              {saving && <Spinner size={16} />}
               <span>{saving ? 'Saving...' : 'Save Preferences'}</span>
             </button>
           </div>

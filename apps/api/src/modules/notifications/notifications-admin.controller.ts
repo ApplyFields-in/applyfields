@@ -17,6 +17,7 @@ import type {
   DeliveryStatus,
   ManualAlertInput,
   ManualAlertResult,
+  ScheduledBroadcastItem,
 } from '@applyfields/types';
 import { ActorId } from '../../common/actor.js';
 import { Roles } from '../../common/roles.decorator.js';
@@ -43,7 +44,25 @@ export class NotificationsAdminController {
     return this.notifications.overview((status as DeliveryStatus) || undefined);
   }
 
-  /** POST /admin/notifications/broadcast — multi-channel broadcast to All, Subscribers, or Savers */
+  /** GET /admin/notifications/scheduled — upcoming and recent scheduled broadcasts */
+  @Get('notifications/scheduled')
+  scheduled(): Promise<ScheduledBroadcastItem[]> {
+    return this.notifications.listScheduled();
+  }
+
+  /** POST /admin/notifications/scheduled/:id/cancel */
+  @Post('notifications/scheduled/:id/cancel')
+  @Roles('admin')
+  @HttpCode(200)
+  async cancelScheduled(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ActorId() actor: string | null,
+  ): Promise<{ cancelled: true }> {
+    await this.notifications.cancelScheduled(id, actor);
+    return { cancelled: true };
+  }
+
+  /** POST /admin/notifications/broadcast — send now, or later when send_at is set */
   @Post('notifications/broadcast')
   @Roles('admin')
   @HttpCode(200)

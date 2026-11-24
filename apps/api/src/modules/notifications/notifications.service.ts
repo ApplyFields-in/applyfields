@@ -17,6 +17,8 @@ import type {
   NotificationType,
   PushPublicKeyResponse,
   PushSubscriptionInput,
+  ScheduledBroadcastItem,
+  ScheduledBroadcastStatus,
 } from '@applyfields/types';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { staff_role } from '../../generated/prisma/enums.js';
@@ -77,6 +79,8 @@ export interface NewNotification {
   link: string | null;
   item_type?: 'opportunity' | 'service' | null;
   item_id?: string | null;
+  /** false = in-app only (admin "in-app only" broadcasts). Default: push too. */
+  push?: boolean;
 }
 
 /** One notification for one user (each user may get a different payload). */
@@ -204,7 +208,10 @@ export class NotificationsService {
     }
 
     // 2. Push in the background, one chunk after another so concurrency stays bounded.
-    const pushRows = created.filter((c) => prefBy.get(c.user_id)?.push_enabled ?? true);
+    const inAppOnly = new Set(targets.filter((t) => t.n.push === false).map((t) => t.userId));
+    const pushRows = created.filter(
+      (c) => !inAppOnly.has(c.user_id) && (prefBy.get(c.user_id)?.push_enabled ?? true),
+    );
     if (pushRows.length) {
       this.pushQueue = this.pushQueue.then(() => this.dispatchPush(pushRows));
     }
@@ -1101,7 +1108,28 @@ export class NotificationsService {
    * Supports audience 'all', 'subscribers', 'savers', or specific 'user' by email.
    * Delivers in-app notification, Web Push, and optionally queues email.
    */
-  async broadcast(input: AdminBroadcastInput, actor: string | null): Promise<AdminBroadcastResult> {
+  async broadcast(
+    { send_at, ...input }: AdminBroadcastInput,
+    actor: string | null,
+    broadcastId: string = randomUUID(),
+  ): Promise<AdminBroadcastResult> {
+    if (send_at) {
+      const row = await this.prisma.scheduled_broadcasts.create({
+        data: { input: input as unknown as Prisma.InputJsonValue, send_at: new Date(send_at), created_by: actor },
+        select: { id: true, send_at: true },
+      });
+      await this.prisma.audit_logs.create({
+        data: {
+          actor_id: actor,
+          action: 'notification.broadcast_scheduled',
+          target_type: 'notification',
+          target_id: row.id,
+          details: JSON.parse(JSON.stringify({ ...input, send_at })) as Prisma.InputJsonValue,
+        },
+      });
+      return { notified: 0, push_sent: 0, scheduled_for: row.send_at.toISOString() };
+    }
+
     let userIds: string[];
     let item: Pick<NewNotification, 'item_type' | 'item_id'> = {};
 
@@ -1119,6 +1147,12 @@ export class NotificationsService {
         select: { user_id: true },
       });
       userIds = subs.map((s) => s.user_id).filter((id): id is string => Boolean(id));
+    } else if (input.audience.kind === 'partners') {
+      const members = await this.prisma.partner_members.findMany({ select: { user_id: true } });
+      userIds = members.map((m) => m.user_id);
+    } else if (input.audience.kind === 'staff') {
+      const roles = await this.prisma.user_roles.findMany({ select: { user_id: true } });
+      userIds = roles.map((r) => r.user_id);
     } else if (input.audience.kind === 'savers') {
       const o = await this.prisma.opportunities.findUnique({
         where: { slug: input.audience.opportunity_slug },
@@ -1140,7 +1174,7 @@ export class NotificationsService {
       userIds = [u.id];
     }
 
-    const broadcastId = randomUUID();
+    const push = !input.channels || input.channels.includes('push');
     const notified = await this.notify(
       userIds,
       {
@@ -1148,14 +1182,15 @@ export class NotificationsService {
         title: input.title,
         body: input.body,
         link: input.link,
+        push,
         ...item,
       },
       (userId) => `broadcast:${broadcastId}:${userId}`,
     );
 
-    const pushCount = await this.prisma.push_subscriptions.count({
-      where: { user_id: { in: userIds } },
-    });
+    const pushCount = push
+      ? await this.prisma.push_subscriptions.count({ where: { user_id: { in: userIds } } })
+      : 0;
 
     await this.prisma.audit_logs.create({
       data: {
@@ -1167,11 +1202,79 @@ export class NotificationsService {
       },
     });
 
-    return {
-      notified,
-      push_sent: pushCount,
-      email_queued: notified,
-    };
+    return { notified, push_sent: pushCount, scheduled_for: null };
+  }
+
+  /**
+   * Scheduled broadcasts whose time has come (called every minute by the scheduler). Each row is
+   * claimed with a conditional update first, so a row is never sent twice; the row id is the
+   * broadcast id, so the per-user dedupe keys also stop any repeat.
+   * ponytail: a crash mid-send leaves the row 'sending'; reset it to 'scheduled' by hand to finish
+   * it (already-notified users are skipped by the dedupe key).
+   */
+  async runScheduledBroadcasts(now = new Date()): Promise<number> {
+    const due = await this.prisma.scheduled_broadcasts.findMany({
+      where: { status: 'scheduled', send_at: { lte: now } },
+      orderBy: { send_at: 'asc' },
+      take: 10,
+      select: { id: true, input: true, created_by: true },
+    });
+    let sent = 0;
+    for (const row of due) {
+      const claim = await this.prisma.scheduled_broadcasts.updateMany({
+        where: { id: row.id, status: 'scheduled' },
+        data: { status: 'sending' },
+      });
+      if (claim.count === 0) continue;
+      try {
+        const res = await this.broadcast(row.input as unknown as AdminBroadcastInput, row.created_by, row.id);
+        await this.prisma.scheduled_broadcasts.update({
+          where: { id: row.id },
+          data: { status: 'sent', notified: res.notified, sent_at: new Date() },
+        });
+        sent++;
+      } catch (err) {
+        await this.prisma.scheduled_broadcasts.update({
+          where: { id: row.id },
+          data: { status: 'failed', last_error: (err as Error).message.slice(0, 500) },
+        });
+      }
+    }
+    return sent;
+  }
+
+  /** Upcoming, in-flight and recent scheduled broadcasts for the Internal Portal. */
+  async listScheduled(): Promise<ScheduledBroadcastItem[]> {
+    const rows = await this.prisma.scheduled_broadcasts.findMany({
+      where: { OR: [{ status: { in: ['scheduled', 'sending'] } }, { send_at: { gte: addDays(new Date(), -30) } }] },
+      orderBy: { send_at: 'desc' },
+      take: 50,
+    });
+    return rows.map((r) => {
+      const input = r.input as unknown as AdminBroadcastInput;
+      return {
+        id: r.id,
+        title: input.title,
+        audience: input.audience.kind,
+        in_app_only: Boolean(input.channels && !input.channels.includes('push')),
+        send_at: r.send_at.toISOString(),
+        status: r.status as ScheduledBroadcastStatus,
+        notified: r.notified,
+        last_error: r.last_error,
+      };
+    });
+  }
+
+  /** Only a broadcast that hasn't started sending can be cancelled. */
+  async cancelScheduled(id: string, actor: string | null): Promise<void> {
+    const res = await this.prisma.scheduled_broadcasts.updateMany({
+      where: { id, status: 'scheduled' },
+      data: { status: 'cancelled' },
+    });
+    if (res.count === 0) throw new NotFoundException('No scheduled broadcast with this id (already sent or cancelled?)');
+    await this.prisma.audit_logs.create({
+      data: { actor_id: actor, action: 'notification.broadcast_cancelled', target_type: 'notification', target_id: id },
+    });
   }
 
   /** Failed email → back in the queue with fresh attempts. */

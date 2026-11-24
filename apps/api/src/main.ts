@@ -106,6 +106,9 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Cookie'],
   });
 
+  // Render sends SIGTERM on every deploy: stop timers, finish queued pushes, close the DB pool.
+  app.enableShutdownHooks();
+
   const port = process.env.PORT ?? 4000;
   await app.listen(port);
   console.log(`\n🚀 [ApplyFields API] Ready & listening on http://localhost:${port}/api/v1\n`);

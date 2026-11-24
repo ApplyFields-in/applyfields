@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { SuccessCheck } from '@applyfields/ui';
 import Link from 'next/link';
 import { BookmarkCheck, CheckCircle2, ChevronRight, X } from 'lucide-react';
 
@@ -67,7 +68,7 @@ export function ToastNotificationProvider() {
             {toast.type === 'remove' ? (
               <CheckCircle2 className="size-4 text-[#536780]" />
             ) : toast.type === 'success' ? (
-              <CheckCircle2 className="size-4 text-[#15803d]" />
+              <SuccessCheck key={toast.message} className="text-[#15803d]" />
             ) : (
               <BookmarkCheck className="size-4 text-[#082046]" />
             )}

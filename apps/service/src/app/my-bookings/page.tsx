@@ -21,7 +21,6 @@ import {
   Copy,
   Check,
   Upload,
-  RefreshCw,
   QrCode,
   FileText,
   Search,
@@ -34,6 +33,7 @@ import type { BookingDetail, BookingDisputeStatus } from '@applyfields/types';
 import { useAuth } from '@/lib/auth-context';
 import { cancelBooking, fileBookingDispute, getMyBookings, sendBookingMessage } from '@/lib/api';
 import { useLanguage } from '@/lib/i18n';
+import { Spinner, SuccessCheck } from '@applyfields/ui';
 
 export type BookingStage = 'booked' | 'verified_present' | 'in_filing' | 'defective' | 'completed' | 'cancelled';
 
@@ -475,7 +475,7 @@ export default function MyBookingsPage() {
                         </span>
                       ) : b.correctionUploaded ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-800 uppercase">
-                          <RefreshCw className="h-3 w-3 animate-spin" />
+                          <Spinner size={12} />
                           <span>Correction Uploaded</span>
                         </span>
                       ) : (
@@ -981,7 +981,7 @@ export default function MyBookingsPage() {
 
             {uploadSuccessMessage ? (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center text-xs font-bold text-emerald-800 space-y-2">
-                <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />
+                <SuccessCheck size={32} className="text-emerald-600 mx-auto" />
                 <p className="text-sm">Sent to {correctingBooking.partner.name}</p>
                 <p className="text-emerald-700 font-normal">
                   The operator sees it in your booking chat. Open the booking to follow up or attach a document.
@@ -1143,7 +1143,7 @@ export default function MyBookingsPage() {
       {/* Grievance Filed Success Toast */}
       {disputeSuccessToast && (
         <div className="fixed bottom-6 right-6 z-50 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-xl text-xs font-bold text-emerald-900 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <SuccessCheck key={disputeSuccessToast} className="text-emerald-600" />
           <span>{disputeSuccessToast}</span>
         </div>
       )}

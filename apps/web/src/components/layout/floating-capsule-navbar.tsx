@@ -10,7 +10,6 @@ import {
   LogOut,
   Send,
   Search,
-  Bell,
   Bookmark,
   FolderOpen,
   User,
@@ -26,6 +25,7 @@ import { useLanguage } from '@/lib/i18n/language-context';
 import { PARTNER_PORTAL_URL, SERVICE_PORTAL_URL, goToServicePortal } from '@/lib/urls';
 import { openCommandPalette } from '@/components/search/command-palette';
 import { flashAppToast } from '@/components/toast-notification-provider';
+import { BellIcon } from '@applyfields/ui';
 
 export function FloatingCapsuleNavbar() {
   const pathname = usePathname();
@@ -272,7 +272,7 @@ export function FloatingCapsuleNavbar() {
             title={t('nav_notifications', 'Notifications')}
             aria-label="Notifications"
           >
-            <Bell className="size-4.5 sm:size-5" />
+            <BellIcon />
             <span className="absolute top-2.5 right-2.5 size-2 bg-[#0e7bf4] rounded-full" />
           </Link>
 

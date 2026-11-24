@@ -4,8 +4,9 @@
 import { useState } from 'react';
 import { CENTRE_KYC_DOCUMENTS, COLLEGE_KYC_DOCUMENTS } from '@applyfields/types/src/partner-documents';
 import type { PartnerDetail } from '@applyfields/types';
-import { FileCheck2, Loader2, Upload } from 'lucide-react';
+import { FileCheck2, Upload } from 'lucide-react';
 import { uploadPartnerFile } from '@/lib/api';
+import { Spinner } from '@applyfields/ui';
 
 const INSTITUTION_TYPES = new Set<string>(['college', 'university', 'training_institute']);
 
@@ -69,7 +70,7 @@ export function KycDocuments({ partner, onUploaded }: { partner: PartnerDetail; 
                 htmlFor={inputId}
                 className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[#c9d6e6] bg-[#eef3f9] px-3 py-2 text-xs font-semibold text-[#082046] hover:bg-[#e3eaf3] ${busy ? 'pointer-events-none opacity-50' : ''}`}
               >
-                {busy === d.kind ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                {busy === d.kind ? <Spinner size={14} /> : <Upload className="h-3.5 w-3.5" />}
                 {busy === d.kind ? 'Uploading…' : doc ? 'Replace' : 'Upload'}
                 <input
                   id={inputId}

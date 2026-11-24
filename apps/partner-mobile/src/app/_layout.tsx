@@ -72,6 +72,7 @@ function Navigator() {
 
       <Stack.Protected guard={workspace}>
         <Stack.Screen name="account" options={{ title: 'Account' }} />
+        <Stack.Screen name="alerts" options={{ title: 'Alerts' }} />
       </Stack.Protected>
     </Stack>
   );

@@ -1,7 +1,7 @@
 /**
  * Urgent broadcast composer (admin only): POST /admin/notifications/broadcast.
- * The API sends an in-app notification to every recipient, plus push and email by each user's own
- * notification settings (it ignores `channels`, so we don't offer a channel picker). Sending asks for a
+ * The API sends an in-app notification to every recipient, plus phone/browser push (unless "In-app only"
+ * is picked) by each user's own notification settings. Sending asks for a
  * confirm AND the phone's Face ID / fingerprint: a broadcast to everyone can't be recalled.
  */
 import type { AdminBroadcastInput, AdminBroadcastResult, BroadcastAudience } from '@applyfields/types';
@@ -13,19 +13,27 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Button, Card, Chips, ErrorNote, Field, Muted, Page, SectionTitle } from '@/components/ui';
 import { api } from '@/lib/api';
 import { C, S } from '@/theme';
+import { SuccessCheck } from '@/components/animated-icons';
 
 type Kind = BroadcastAudience['kind'];
 const AUDIENCES: { value: Kind; label: string }[] = [
   { value: 'all', label: 'Everyone' },
   { value: 'subscribers', label: 'Subscribers' },
+  { value: 'partners', label: 'Partners' },
+  { value: 'staff', label: 'Staff' },
   { value: 'savers', label: 'Saved a job' },
   { value: 'user', label: 'One user' },
+];
+const DELIVERY: { value: 'push' | 'in_app'; label: string }[] = [
+  { value: 'push', label: 'In-app + push' },
+  { value: 'in_app', label: 'In-app only' },
 ];
 // Same rule as the API's sitePath: a path on the website, never an outside link.
 const SITE_PATH = /^\/(?!\/)[^\s\\]*$/;
 
 export default function Broadcast() {
   const [kind, setKind] = useState<Kind>('all');
+  const [delivery, setDelivery] = useState<'push' | 'in_app'>('push');
   const [slug, setSlug] = useState('');
   const [email, setEmail] = useState('');
   const [title, setTitle] = useState('');
@@ -40,7 +48,11 @@ export default function Broadcast() {
       ? 'every active ApplyFields account'
       : kind === 'subscribers'
         ? 'every active subscriber'
-        : kind === 'savers'
+        : kind === 'partners'
+          ? 'every partner centre and college account'
+          : kind === 'staff'
+            ? 'every staff member'
+            : kind === 'savers'
           ? `everyone who saved "${slug.trim()}"`
           : email.trim();
 
@@ -58,7 +70,7 @@ export default function Broadcast() {
     setError(null);
     Alert.alert(
       kind === 'all' ? 'Send to everyone?' : 'Send this broadcast?',
-      `"${title.trim()}" goes to ${who}: in the app, and by push and email where they allow it. It can’t be recalled.`,
+      `"${title.trim()}" goes to ${who}: ${delivery === 'push' ? 'in the app, and by push where they allow it' : 'in the app only'}. It can’t be recalled.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Send', style: 'destructive', onPress: () => void send() },
@@ -81,6 +93,7 @@ export default function Broadcast() {
       body: body.trim() || null,
       link: link.trim() || null,
       audience,
+      ...(delivery === 'in_app' && { channels: ['in_app'] }),
     };
     setBusy(true);
     const res = await api.post<AdminBroadcastResult>('/admin/notifications/broadcast', input);
@@ -97,12 +110,11 @@ export default function Broadcast() {
       {result ? (
         <Card style={s.result}>
           <View style={s.resultHead}>
-            <Ionicons name="checkmark-circle" size={20} color={C.good} />
+            <SuccessCheck key={result.title} color={C.good} />
             <Text style={s.resultTitle}>Sent: {result.title}</Text>
           </View>
           <Muted>
-            {result.notified.toLocaleString('en-IN')} in-app · {result.push_sent.toLocaleString('en-IN')} push devices ·{' '}
-            {result.email_queued.toLocaleString('en-IN')} emails queued
+            {result.notified.toLocaleString('en-IN')} in-app · {result.push_sent.toLocaleString('en-IN')} push devices
           </Muted>
         </Card>
       ) : null}
@@ -123,6 +135,9 @@ export default function Broadcast() {
           keyboardType="email-address"
         />
       ) : null}
+
+      <SectionTitle>How</SectionTitle>
+      <Chips options={DELIVERY} value={delivery} onChange={setDelivery} />
 
       <SectionTitle>Message</SectionTitle>
       <Field label={`Title (${title.length}/150)`} value={title} onChangeText={setTitle} maxLength={150} placeholder="Admit cards are out" />
