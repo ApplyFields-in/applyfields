@@ -174,3 +174,33 @@ def test_unicode_hyphen_dates_are_recognised() -> None:
     raw = {**RAW, "dates": [{"kind": "application_end", "date": "2026-12-08"}]}
     out = normalize(raw, TEXT + " last date 08‑12‑2026", truncated=False)
     assert out["field_confidence"]["dates"] == 1.0
+
+
+def test_clean_title_kept_only_when_every_word_is_in_the_notice() -> None:
+    site = "01/G/RB/2026 - GENERAL RECRUITMENT FOR THE POST OF ASSISTANT EXECUTIVE ENGINEER (CIVIL)"
+    text = "Assistant Executive Engineer (Civil) in Transport Roads and Buildings Department"
+    good = "Assistant Executive Engineer (Civil), Transport Roads and Buildings Department"
+    out = normalize({**RAW, "title": good}, text, truncated=False, website_title=site)
+    assert out["fields"]["title"] == good
+    # A word the notice never uses ("Senior") = invented -> dropped, the website title stays.
+    invented = normalize({**RAW, "title": "Senior Assistant Executive Engineer"}, text,
+                         truncated=False, website_title=site)
+    assert invented["fields"]["title"] is None
+    shouting = normalize({**RAW, "title": "ASSISTANT EXECUTIVE ENGINEER"}, text,
+                         truncated=False, website_title=site)
+    assert shouting["fields"]["title"] is None
+    assert normalize({**RAW, "title": "x " * 80}, text, truncated=False)["fields"]["title"] is None
+
+
+def test_reworded_title_is_not_reported_as_a_change() -> None:
+    old = to_plain(normalize({**RAW, "title": "Combined Graduate Level Examination"}, TEXT,
+                             truncated=False)["fields"])
+    new = to_plain(normalize({**RAW, "title": "Combined Graduate Level Examination, 2026"}, TEXT,
+                             truncated=False)["fields"])
+    assert diff_fields(old, new) == ([], "")
+
+
+def test_clean_title_uses_plain_hyphens() -> None:
+    text = "Deputy Educational Officers / Gazetted Head Master Grade-I"
+    out = normalize({**RAW, "title": "Gazetted Head Master Grade‑I"}, text, truncated=False)
+    assert out["fields"]["title"] == "Gazetted Head Master Grade-I"

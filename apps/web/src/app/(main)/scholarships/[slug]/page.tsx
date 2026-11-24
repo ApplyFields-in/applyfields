@@ -36,6 +36,10 @@ export async function generateMetadata({
       description,
       url: `https://applyfields.com/scholarships/${slug}`,
       type: 'article',
+      siteName: 'ApplyFields',
+      locale: 'en_IN',
+      // A page-level openGraph replaces the root one, so the shared card must be named here.
+      images: '/opengraph-image',
     },
     twitter: {
       card: 'summary_large_image',

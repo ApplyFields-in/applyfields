@@ -304,7 +304,7 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
       </div>
 
       {/* Main Content Layout */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left 2 Cols: Main In-Depth Information */}
         <div className="space-y-6 lg:col-span-2">
           {/* Section: Overview & Translated Summary (Source of Truth Disclaimer) */}
