@@ -6,8 +6,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATABASE_URL = process.env.DATABASE_URL ||
-  'postgresql://postgres.obvcvcgwzjzsujdczxyj:Applyfields%402026@aws-0-ap-south-1.pooler.supabase.com:5432/postgres';
+// Never hard-code the connection string: it holds the database password.
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error('Set DATABASE_URL first (same value as apps/api/.env).');
+  process.exit(1);
+}
 
 const payloadPath = 'C:\\Users\\Likhith Kumar\\.gemini\\antigravity-ide\\brain\\44aebbc2-17c6-4833-91b0-1fb679995b62\\scratch\\colleges_payload.json';
 

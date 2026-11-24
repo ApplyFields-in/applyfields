@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import json
 import uuid
 import openpyxl
@@ -229,7 +230,8 @@ def seed_database_and_export():
     print(f"Exported JSON to {web_json_path}")
 
     # 2. Database upsert
-    db_url = os.environ.get('DATABASE_URL') or 'postgresql://postgres.obvcvcgwzjzsujdczxyj:Applyfields%402026@aws-0-ap-south-1.pooler.supabase.com:5432/postgres'
+    # Never hard-code the connection string: it holds the database password.
+    db_url = os.environ.get('DATABASE_URL') or sys.exit('Set DATABASE_URL first (same value as apps/api/.env).')
     conn = psycopg2.connect(db_url)
     cur = conn.cursor()
 

@@ -1,10 +1,13 @@
 import openpyxl
 import json
+import os
 import re
+import sys
 import psycopg2
 
 EXCEL_PATH = r'c:\Users\Likhith Kumar\Music\APPLYGIELDS\India_Top_50_Engineering_Colleges.xlsx'
-DB_URL = 'postgresql://postgres.obvcvcgwzjzsujdczxyj:Applyfields%402026@aws-0-ap-south-1.pooler.supabase.com:5432/postgres'
+# Never hard-code the connection string: it holds the database password.
+DB_URL = os.environ.get('DATABASE_URL') or sys.exit('Set DATABASE_URL first (same value as apps/api/.env).')
 
 wb = openpyxl.load_workbook(EXCEL_PATH, data_only=True)
 ws_report = wb['College Report']
