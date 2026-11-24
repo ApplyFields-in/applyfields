@@ -559,6 +559,7 @@ describe('PartnersService.getEarnings (founder §20.6 ledger)', () => {
     partner_members: { findFirst: vi.fn().mockResolvedValue({ partner_id: 'partner-1', role: 'owner' }) },
     service_requests: { aggregate, count: vi.fn().mockResolvedValue(1), findMany: vi.fn().mockResolvedValue([]) },
     partner_payouts: { findMany: vi.fn().mockResolvedValue(payouts) },
+    partners: { findUnique: vi.fn().mockResolvedValue({ verification_status: 'verified' }) },
   } as any;
 
   it('sums real bookings and payouts, and counts only bookings after the last period as unsettled', async () => {
@@ -577,6 +578,11 @@ describe('PartnersService.getEarnings (founder §20.6 ledger)', () => {
   it('hides earnings from counter staff', async () => {
     mockPrisma.partner_members.findFirst.mockResolvedValueOnce({ partner_id: 'partner-1', role: 'staff' });
     await expect(new PartnersService(mockPrisma).getEarnings('staff-user')).rejects.toThrow('owner only');
+  });
+
+  it('stays locked until staff approve the centre', async () => {
+    mockPrisma.partners.findUnique.mockResolvedValueOnce({ verification_status: 'pending' });
+    await expect(new PartnersService(mockPrisma).getEarnings('owner-user')).rejects.toThrow('approves your centre');
   });
 });
 
@@ -609,6 +615,28 @@ describe('PartnersService.uploadDocument (KYC files)', () => {
     const { service, create } = make(null);
     await expect(service.uploadDocument('u-1', input)).rejects.toThrow('Could not store the file');
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('alerts staff once, when the last required KYC file arrives', async () => {
+    const send = async (have: string[]) => {
+      const notifyStaff = vi.fn().mockResolvedValue(1);
+      const prisma = {
+        partner_members: { findFirst: vi.fn().mockResolvedValue({ partner_id: 'p-1', role: 'owner' }) },
+        partner_documents: { create: vi.fn().mockResolvedValue({ id: 'doc-new', partner_id: 'p-1', document_kind: 'trade_license', storage_path: 'x', status: 'pending', reviewer_note: null, reviewed_at: null, created_at: new Date() }) },
+        partners: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          findUnique: vi.fn().mockResolvedValue({
+            business_name: 'Sri Sai', type: 'meeseva',
+            partner_documents: have.map((k, i) => ({ id: k === 'trade_license' ? 'doc-new' : `d${i}`, document_kind: k })),
+          }),
+        },
+      } as any;
+      const storage = { documentsBucket: 'documents', upload: vi.fn().mockResolvedValue('ok') } as any;
+      await new PartnersService(prisma, storage, { notifyStaff } as any).uploadDocument('u-1', input);
+      return notifyStaff.mock.calls.map((c) => c[1].title);
+    };
+    expect(await send(['trade_license'])).toEqual([]); // still onboarding
+    expect(await send(['kiosk_photo', 'owner_id', 'trade_license'])).toEqual(['New centre ready for review']);
   });
 
   it('accepts only known kinds and file types', () => {

@@ -203,6 +203,33 @@ describe('AuthService', () => {
     });
   });
 
+  describe('public code requests (SMS only when it can be used)', () => {
+    it('resends a sign-up code only while that email/phone is unverified', async () => {
+      await authService.register({ phone: '9876500001', password: 'Password123!' } as any);
+      const first = await authService.requestOtp({ target: '9876500001', purpose: 'verify_phone' });
+      expect(first.devOtp).toMatch(/^\d{6}$/);
+
+      const u = await store.findUserByIdentifier('9876500001');
+      await store.updateUser(u!.id, { phone_verified_at: new Date().toISOString() });
+      const again = await authService.requestOtp({ target: '9876500001', purpose: 'verify_phone' });
+      expect(again.success).toBe(true);
+      expect(again.devOtp).toBeUndefined(); // already verified: nothing sent
+    });
+
+    it('sends nothing to numbers without an account, with the same reply', async () => {
+      for (const purpose of ['verify_phone', 'reset_password'] as const) {
+        const res = await authService.requestOtp({ target: '9000000099', purpose });
+        expect(res).toEqual({ success: true, message: 'One-time verification code sent.', target: '9000000099' });
+      }
+    });
+
+    it('sends a reset code to an existing account', async () => {
+      await authService.register({ phone: '9876500002', password: 'Password123!' } as any);
+      const res = await authService.requestOtp({ target: '9876500002', purpose: 'reset_password' });
+      expect(res.devOtp).toMatch(/^\d{6}$/);
+    });
+  });
+
   describe('OTP flow', () => {
     it('should reject invalid OTP codes up to 5 attempts', async () => {
       await authService.sendOtp({

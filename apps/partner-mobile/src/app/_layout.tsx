@@ -1,4 +1,6 @@
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { DefaultTheme, Stack, ThemeProvider, useRouter } from 'expo-router';
+import { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -6,10 +8,32 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Button, Empty, Loading } from '@/components/ui';
 import { SplitIntro } from '@/components/split-intro';
-import { SessionProvider, useSession } from '@/lib/session';
+import { notificationRoute } from '@/lib/notification-route';
+import { SessionProvider, useSession, type SessionStatus } from '@/lib/session';
 import { C, S } from '@/theme';
 
 const THEME = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: C.canvas } };
+
+/**
+ * Tapping a push opens its screen: chat, booking, or Alerts. useLastNotificationResponse also
+ * covers the tap that launched a closed app. Waits until the desk is open (signed in, verified),
+ * then handles each tap once.
+ */
+function usePushTaps(status: SessionStatus) {
+  const router = useRouter();
+  const last = Notifications.useLastNotificationResponse();
+  const handled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!last || (status !== 'centre' && status !== 'institution')) return;
+    const id = last.notification.request.identifier;
+    if (handled.current === id) return;
+    handled.current = id;
+    const link = (last.notification.request.content.data as { link?: unknown } | undefined)?.link;
+    // Chat and booking screens exist for centres only; colleges land on Alerts.
+    const route = status === 'centre' ? notificationRoute(typeof link === 'string' ? link : null) : null;
+    router.push(route ?? '/alerts');
+  }, [last, status, router]);
+}
 
 /**
  * Each group of screens only exists while the session allows it. When the
@@ -18,6 +42,7 @@ const THEME = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: C
  */
 function Navigator() {
   const { status, error, reload } = useSession();
+  usePushTaps(status);
 
   if (status === 'loading') return <Loading label="Opening your desk…" />;
   if (status === 'offline') {

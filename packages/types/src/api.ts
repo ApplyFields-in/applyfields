@@ -1557,6 +1557,11 @@ export interface BookingDetail {
   disputes?: BookingDispute[];
   /** Locker documents the citizen shared with the centre for this booking (active shares only). */
   shared_documents?: BookingSharedDocument[];
+  /**
+   * 4-digit start code, only on the citizen's own copy and only until the work starts. The citizen
+   * gives it to the centre, which enters it to start (PATCH status in_progress with start_code).
+   */
+  start_code?: string | null;
 }
 
 /** A citizen's locker document shared with a centre. Open it with GET /bookings/:id/documents/:share_id. */
@@ -1633,6 +1638,8 @@ export interface MarkFiledInput {
 
 export interface UpdateBookingStatusInput {
   status: BookingRequestStatus;
+  /** Required to start (in_progress) a citizen's booking: the 4 digits shown in the citizen's app. */
+  start_code?: string;
   partner_note?: string;
   cancelled_reason?: string;
   quoted_paise?: number;
@@ -2218,6 +2225,11 @@ export type ChatSenderType = 'citizen' | 'partner' | 'system';
 
 export interface ChatAttachment {
   name: string;
+  /**
+   * A document from the citizen's locker shared with this booking (document_shares). Set only by the
+   * server (POST /bookings/:id/chat/attachments); open it with GET /bookings/:id/documents/:share_id.
+   */
+  share_id?: string;
   url?: string;
   file_type?: string;
   file_size?: string;

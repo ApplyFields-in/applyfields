@@ -11,7 +11,7 @@ test('public lists and detail pages are kept for offline opens', () => {
 });
 
 test('personal data, searches and "eligible for me" never touch the disk', () => {
-  for (const p of ['/opportunities/ssc-cgl-2026/eligibility', '/opportunities?eligible=true', '/opportunities?q=police', '/services?q=pan', '/notifications', '/saved', '/me/education', '/documents', '/saved/opportunity/x/open-reminder']) {
+  for (const p of ['/opportunities/ssc-cgl-2026/eligibility', '/opportunities?eligible=true', '/opportunities?q=police', '/services?q=pan', '/notifications', '/saved', '/me/education', '/documents', '/saved/opportunity/x/open-reminder', '/bookings/my', '/bookings/abc/messages', '/bookings/abc']) {
     assert.ok(!cacheable(p), p);
   }
 });

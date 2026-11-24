@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import { KycDocuments } from '@/components/kyc-documents';
 import { RejectedNotice } from '@/components/rejected-notice';
 import { NotifyMeButton } from '@/components/notify-me-button';
-import { usePartnerAuth } from '@/lib/auth-context';
+import { canUseDashboard, partnerHome, usePartnerAuth } from '@/lib/auth-context';
+import { kycSubmitted } from '@applyfields/types/src/partner-documents';
 import { API_URL } from '@/lib/api';
 import {
-  ArrowRight,
   Building2,
   CheckCircle2,
   Clock,
@@ -26,30 +26,20 @@ import {
 
 export default function InstitutionUnderReviewPage() {
   const router = useRouter();
-  const { user, partner, status, refreshSession, logout, setPartnerOptimistic } = usePartnerAuth();
+  const { user, partner, refreshSession, logout } = usePartnerAuth();
   const [refreshing, setRefreshing] = useState(false);
+  // Skipped KYC at sign-up: this page is where they finish it.
+  const docsNeeded = !!partner && partner.verification_status === 'pending' && !kycSubmitted(partner);
 
+  // KYC sent (or approved) → the desk. Uploading the last file here moves them on.
   useEffect(() => {
-    if (status === 'verified') {
-      router.push('/institution/dashboard');
-    }
-  }, [status, router]);
+    if (partner && canUseDashboard(partner)) router.push(partnerHome(partner));
+  }, [partner, router]);
 
   async function handleRefresh() {
     setRefreshing(true);
     await refreshSession();
     setTimeout(() => setRefreshing(false), 500);
-  }
-
-  function handleBypassForTesting() {
-    if (partner) {
-      setPartnerOptimistic(() => ({
-        ...partner,
-        verification_status: 'verified',
-        is_listed: true,
-      }));
-    }
-    router.push('/institution/dashboard');
   }
 
   const collegeName = partner?.business_name || 'Selected University / College';
@@ -106,11 +96,15 @@ export default function InstitutionUnderReviewPage() {
           {/* Status Badge */}
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-800 mb-6">
             <Clock className="h-4 w-4 animate-pulse" />
-            <span>Institutional Verification Under Review (Expected: 1–2 Business Days)</span>
+            <span>
+              {docsNeeded
+                ? 'Documents needed: upload them below to open your desk'
+                : 'Institutional Verification Under Review (Expected: 1–2 Business Days)'}
+            </span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#082046] tracking-tight">
-            Verifying Admissions Desk Credentials for {collegeName}
+            {docsNeeded ? `Finish verification for ${collegeName}` : `Verifying Admissions Desk Credentials for ${collegeName}`}
           </h1>
 
           <p className="mt-3 text-sm text-[#243b5b] leading-relaxed max-w-2xl">
@@ -181,7 +175,6 @@ export default function InstitutionUnderReviewPage() {
 
           {partner && <KycDocuments partner={partner} onUploaded={refreshSession} />}
 
-          {/* Actions & Developer Testing Bypass */}
           <div className="mt-10 pt-6 border-t border-[#d5deea] flex flex-col sm:flex-row items-center justify-between gap-4">
             <a
               href="mailto:support@applyfields.com?subject=Institutional%20Verification%20Expedite"
@@ -189,18 +182,6 @@ export default function InstitutionUnderReviewPage() {
             >
               Need expedited activation? Contact institutional support →
             </a>
-
-            {/* Developer testing shortcut: development builds only */}
-            {process.env.NODE_ENV !== 'production' && (
-            <button
-              type="button"
-              onClick={handleBypassForTesting}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#0c6fdc] shadow-md shadow-[#0e7bf4]/20 transition"
-            >
-              <span>Preview Admissions Desk (Dev Mode)</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-            )}
           </div>
         </div>
       </main>

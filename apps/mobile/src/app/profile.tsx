@@ -395,6 +395,7 @@ export default function Profile() {
 
       <MascotIconCard />
 
+      <Button label="My bookings" icon="calendar-outline" variant="secondary" onPress={() => router.push('/bookings')} />
       <Button
         label="View full web profile"
         icon="open-outline"

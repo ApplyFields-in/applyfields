@@ -3,15 +3,17 @@
  * partner portal makes after login (apps/partner/src/app/(auth)/login/page.tsx):
  *   no account            → login
  *   account, no partner   → onboard
- *   partner not verified  → under review (or rejected)
- *   verified centre       → centre workspace (bookings, chat, services, schedule)
- *   verified college      → institution workspace (enquiries, desk profile)
+ *   KYC not sent / rejected → under review screen (upload documents)
+ *   centre, KYC sent or verified  → centre workspace (earnings stay locked until verified)
+ *   college, KYC sent or verified → institution workspace (read-only, no enquiries until verified)
  */
 import type { AuthResponse, MeResponse, PartnerDetail } from '@applyfields/types';
+import { kycSubmitted } from '@applyfields/types/src/partner-documents';
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api, hasStoredSession, saveSession, setToken } from './api';
 import { registerForPush, unregisterPush } from './push';
+import { clearSharedDocuments } from './shared-docs';
 
 /** LoginDto takes one `identifier` (email or phone), same as the website. Emails are lower-cased. */
 function loginId(identifier: string): string {
@@ -38,7 +40,7 @@ export function isInstitution(partner: Pick<PartnerDetail, 'type'> | null): bool
 export function statusFor(partner: PartnerDetail | null): SessionStatus {
   if (!partner) return 'no_partner';
   if (partner.verification_status === 'rejected') return 'rejected';
-  if (partner.verification_status !== 'verified') return 'pending';
+  if (partner.verification_status !== 'verified' && !kycSubmitted(partner)) return 'pending';
   return isInstitution(partner) ? 'institution' : 'centre';
 }
 
@@ -145,6 +147,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    clearSharedDocuments();
     await unregisterPush();
     await api.post('/auth/logout');
     await setToken(null);

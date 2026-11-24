@@ -16,6 +16,7 @@ import {
 import type { Response } from 'express';
 import { z } from 'zod';
 import type {
+  ChatMessageItem,
   BookingDispute,
   CreateBookingDisputeInput,
   BookingDetail,
@@ -40,6 +41,7 @@ import {
   createDisputeSchema,
 
   markFiledSchema,
+  attachToChatSchema,
   shareDocumentsSchema,
   updateBookingStatusSchema,
   walkInSchema,
@@ -143,6 +145,17 @@ export class BookingsController {
     @Body(new ZodPipe(shareDocumentsSchema)) body: z.infer<typeof shareDocumentsSchema>,
   ): Promise<BookingDetail> {
     return this.bookingsService.shareDocuments(req.user.userId, bookingId, body.document_ids);
+  }
+
+  /** Citizen: attach a locker document in the booking chat (shares it with the centre, posts a message). */
+  @Post(':id/chat/attachments')
+  @UseGuards(AuthGuard)
+  async attachToChat(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) bookingId: string,
+    @Body(new ZodPipe(attachToChatSchema)) body: z.infer<typeof attachToChatSchema>,
+  ): Promise<ChatMessageItem> {
+    return this.bookingsService.attachToChat(req.user.userId, bookingId, body.document_id);
   }
 
   /** Centre (or the citizen): link to stream one shared document. */

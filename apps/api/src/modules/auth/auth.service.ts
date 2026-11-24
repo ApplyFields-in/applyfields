@@ -135,6 +135,29 @@ export class AuthService {
     };
   }
 
+  /**
+   * POST /auth/otp/send (public): "resend my sign-up code" and "forgot password". A code (and so an
+   * SMS, which costs money) goes out only when it can be used: sign-up codes to an account that
+   * hasn't verified that email/phone yet, reset codes to an existing active account. Anything else
+   * gets the same reply with nothing sent, so the endpoint can't be used to pump SMS to random
+   * numbers or to find out which numbers have accounts.
+   */
+  async requestOtp(dto: SendOtpDto): Promise<{ success: boolean; message: string; target: string; devOtp?: string }> {
+    const user = await this.store.findUserByIdentifier(dto.target);
+    const isEmail = dto.target.includes('@');
+    const useful =
+      !!user &&
+      user.status === 'active' &&
+      (dto.purpose === 'reset_password' ||
+        (dto.purpose === 'verify_email' && isEmail && !user.email_verified_at) ||
+        (dto.purpose === 'verify_phone' && !isEmail && !user.phone_verified_at));
+    if (!useful) {
+      if (!isEmail && phoneCodesUnavailable()) throw new ServiceUnavailableException(NO_SMS);
+      return { success: true, message: 'One-time verification code sent.', target: dto.target };
+    }
+    return this.sendOtp(dto, user.id);
+  }
+
   async sendOtp(
     dto: SendOtpDto,
     userId?: string | null,

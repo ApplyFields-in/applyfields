@@ -9,8 +9,26 @@ import {
   type ReactNode,
 } from 'react';
 import type { PartnerDetail, UserSummary } from '@applyfields/types';
+import { COLLEGE_PARTNER_TYPES, kycSubmitted } from '@applyfields/types/src/partner-documents';
 import { apiGet, apiPost, getMyPartner } from './api';
 import { flashToast } from '@applyfields/ui';
+
+export const isInstitutionPartner = (p: Pick<PartnerDetail, 'type'>) => COLLEGE_PARTNER_TYPES.includes(p.type);
+
+/**
+ * Dashboard access: approved, or KYC sent and waiting for staff (setup only; nothing public until approved).
+ * Skipped KYC or rejected → the under-review page to upload documents.
+ */
+export function canUseDashboard(p: PartnerDetail): boolean {
+  return p.verification_status === 'verified' || (p.verification_status === 'pending' && kycSubmitted(p));
+}
+
+/** Where a signed-in partner belongs. */
+export function partnerHome(p: PartnerDetail): string {
+  const inst = isInstitutionPartner(p);
+  if (canUseDashboard(p)) return inst ? '/institution/dashboard' : '/dashboard';
+  return inst ? '/institution/under-review' : '/under-review';
+}
 
 export type PartnerAuthStatus =
   | 'loading'

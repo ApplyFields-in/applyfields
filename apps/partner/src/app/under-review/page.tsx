@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import { KycDocuments } from '@/components/kyc-documents';
 import { RejectedNotice } from '@/components/rejected-notice';
 import { NotifyMeButton } from '@/components/notify-me-button';
-import { usePartnerAuth } from '@/lib/auth-context';
+import { canUseDashboard, partnerHome, usePartnerAuth } from '@/lib/auth-context';
+import { kycSubmitted } from '@applyfields/types/src/partner-documents';
 import {
   AlertCircle,
-  ArrowRight,
   Building2,
   Calendar,
   CheckCircle2,
@@ -23,39 +23,25 @@ import {
   Phone,
   RefreshCw,
   ShieldAlert,
-  ShieldCheck,
   Zap,
 } from 'lucide-react';
 
 export default function UnderReviewPage() {
   const router = useRouter();
-  const { user, partner, status, refreshSession, logout, setPartnerOptimistic } = usePartnerAuth();
+  const { user, partner, refreshSession, logout } = usePartnerAuth();
   const [refreshing, setRefreshing] = useState(false);
+  // Skipped KYC at sign-up: this page is where they finish it.
+  const docsNeeded = !!partner && partner.verification_status === 'pending' && !kycSubmitted(partner);
 
+  // KYC sent (or approved) → the dashboard. Uploading the last file here moves them on.
   useEffect(() => {
-    if (status === 'verified') {
-      router.push('/dashboard');
-    }
-  }, [status, router]);
+    if (partner && canUseDashboard(partner)) router.push(partnerHome(partner));
+  }, [partner, router]);
 
   async function handleRefresh() {
     setRefreshing(true);
     await refreshSession();
     setTimeout(() => setRefreshing(false), 500);
-  }
-
-  // Developer / testing shortcut to instantly preview dashboard as verified
-  function handleBypassForTesting() {
-    if (partner) {
-      setPartnerOptimistic(() => ({
-        ...partner,
-        verification_status: 'verified',
-        is_listed: true,
-      }));
-      router.push('/dashboard');
-    } else {
-      router.push('/dashboard');
-    }
   }
 
   return (
@@ -108,14 +94,16 @@ export default function UnderReviewPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold text-[#082046]">
-                  Application Under Review
+                  {docsNeeded ? 'Finish your verification' : 'Application Under Review'}
                 </h1>
                 <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
-                  Verification Pending
+                  {docsNeeded ? 'Documents needed' : 'Verification Pending'}
                 </span>
               </div>
               <p className="text-xs text-[#536780] mt-0.5">
-                ApplyFields staff verification officers are inspecting your registration credentials.
+                {docsNeeded
+                  ? 'Upload the documents below. Your dashboard opens as soon as they are in; citizens see your centre after staff approve it.'
+                  : 'ApplyFields staff verification officers are inspecting your registration credentials.'}
               </p>
             </div>
           </div>
@@ -241,22 +229,6 @@ export default function UnderReviewPage() {
             </a>
           </div>
 
-          {/* Test sandbox preview bypass: development builds only */}
-          {process.env.NODE_ENV !== 'production' && (
-          <div className="mt-8 border-t border-[#d5deea] pt-6 text-center">
-            <p className="text-[11px] text-[#8a9bb3] mb-3">
-              Developer & Operator Preview Mode: Want to explore the verified operator workspace immediately?
-            </p>
-            <button
-              type="button"
-              onClick={handleBypassForTesting}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#eef3f9] px-5 py-2.5 text-xs font-semibold text-[#00876a] hover:bg-[#e3eaf3] hover:text-[#006b54] transition border border-[#00a884]/25"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" /> Preview Operator Dashboard Workspace
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          )}
         </div>
       </main>
     </div>

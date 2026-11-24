@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FieldyMascot, GoogleButton, type FieldyMood } from '@applyfields/ui';
 import { apiPost, getMyPartner } from '@/lib/api';
-import { usePartnerAuth } from '@/lib/auth-context';
+import { partnerHome, usePartnerAuth } from '@/lib/auth-context';
 import { Building2, Eye, EyeOff, Store } from 'lucide-react';
 import { flashToast } from '@applyfields/ui';
 
@@ -48,12 +48,7 @@ function LoginFormContent() {
     await refreshSession();
     const partnerRes = await getMyPartner();
     if (partnerRes.data) {
-      const isInst = ['college', 'university', 'training_institute'].includes(partnerRes.data.type);
-      if (partnerRes.data.verification_status === 'verified') {
-        router.push(isInst ? '/institution/dashboard' : '/dashboard');
-      } else {
-        router.push(isInst ? '/institution/under-review' : '/under-review');
-      }
+      router.push(partnerHome(partnerRes.data));
     } else {
       router.push(persona === 'institution' ? '/institution/onboard' : '/onboard');
     }

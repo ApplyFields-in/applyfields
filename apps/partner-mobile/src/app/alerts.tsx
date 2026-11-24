@@ -10,6 +10,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'rea
 
 import { Empty, Loading, Muted } from '@/components/ui';
 import { api } from '@/lib/api';
+import { notificationRoute } from '@/lib/notification-route';
 import { ago } from '@/lib/format';
 import { useApi } from '@/lib/use-api';
 import { C, S, card, column } from '@/theme';
@@ -25,8 +26,8 @@ export default function Alerts() {
       );
       void api.post(`/notifications/${item.id}/read`);
     }
-    const booking = item.link?.match(/\/bookings\/([^/?#]+)/);
-    if (booking) router.push(`/booking/${booking[1]}`);
+    const route = notificationRoute(item.link);
+    if (route) router.push(route);
   }
 
   function markAll() {

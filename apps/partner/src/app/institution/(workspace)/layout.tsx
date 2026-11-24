@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePartnerAuth } from '@/lib/auth-context';
 import { getPartnerInstitutionDesk, updatePartnerInstitutionDesk } from '@/lib/api';
+import { ReviewGate } from '@/components/review-gate';
 import {
   Award,
   Building2,
@@ -129,9 +130,15 @@ export default function InstitutionWorkspaceLayout({
             <span className="rounded bg-slate-800 px-2 py-0.5 font-mono uppercase text-blue-300">
               {ownership}
             </span>
-            <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-              <CheckCircle2 className="h-3 w-3" /> Verified Desk
-            </span>
+            {partner?.verification_status === 'verified' ? (
+              <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                <CheckCircle2 className="h-3 w-3" /> Verified Desk
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                <Clock className="h-3 w-3" /> Under Review
+              </span>
+            )}
           </div>
         </div>
 
@@ -315,7 +322,16 @@ export default function InstitutionWorkspaceLayout({
 
         {/* Main Body */}
         <main className="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
-          <div className="flex-1">{children}</div>
+          <div className="flex-1">
+            <ReviewGate
+              banner="Your desk is read-only and students don't see anything from it yet. Editing and student enquiries open as soon as staff approve your college."
+              locked={['/institution/inquiries']}
+              lockedText="Student enquiries open once ApplyFields approves your college desk."
+              readOnly
+            >
+              {children}
+            </ReviewGate>
+          </div>
           <footer className="mt-12 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
             <span>ApplyFields Institutional Admissions Desk (Founder Doc §21) · Direct College Channel</span>
           </footer>

@@ -7,9 +7,10 @@ import { StorageService } from '../../common/storage.service.js';
 import { VaultService } from '../../common/vault.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { PaymentsModule } from '../payments/payments.module.js';
+import { MessagesModule } from '../messages/messages.module.js';
 
 @Module({
-  imports: [NotificationsModule, PaymentsModule],
+  imports: [NotificationsModule, PaymentsModule, MessagesModule],
   controllers: [BookingsController, BookingsAdminController],
   providers: [BookingsService, StaffGuard, StorageService, VaultService],
   exports: [BookingsService],
