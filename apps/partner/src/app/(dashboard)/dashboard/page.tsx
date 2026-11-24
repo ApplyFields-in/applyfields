@@ -43,8 +43,10 @@ export default function PartnerDashboardPage() {
           );
           setTodayCount(todays.length);
 
+          // This month's completed work only (accepted/in-progress jobs aren't earned yet).
+          const monthIso = todayIso.slice(0, 7);
           const rev = items.reduce((acc, b) => {
-            if (b.status === 'completed' || b.status === 'in_progress' || b.status === 'accepted') {
+            if (b.status === 'completed' && b.completed_at?.slice(0, 7) === monthIso) {
               return acc + (b.final_paise ?? b.quoted_paise ?? 0) / 100;
             }
             return acc;
@@ -132,7 +134,7 @@ export default function PartnerDashboardPage() {
         {/* KPI 2 */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 backdrop-blur-sm">
           <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>Monthly Center Revenue</span>
+            <span>Earned This Month</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400">
               <TrendingUp className="h-4 w-4" />
             </div>
@@ -140,7 +142,7 @@ export default function PartnerDashboardPage() {
           <div className="mt-3 text-3xl font-black text-white">
             ₹{totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="mt-1 text-[11px] text-slate-400">Direct citizen convenience fees</div>
+          <div className="mt-1 text-[11px] text-slate-400">Completed bookings this month</div>
         </div>
 
         {/* KPI 3 */}
@@ -175,9 +177,11 @@ export default function PartnerDashboardPage() {
             </div>
           </div>
           <div className="mt-3 text-3xl font-black text-amber-300">
-            {(partner?.rating_avg && partner.rating_avg > 0 ? partner.rating_avg : 5.0).toFixed(1)} / 5.0
+            {partner?.rating_avg && partner.rating_avg > 0 ? `${partner.rating_avg.toFixed(1)} / 5.0` : 'No ratings yet'}
           </div>
-          <div className="mt-1 text-[11px] text-slate-400">Verified Partner Badge active</div>
+          <div className="mt-1 text-[11px] text-slate-400">
+            {partner?.verification_status === 'verified' ? 'Verified Partner Badge active' : 'Badge shows once verified'}
+          </div>
         </div>
       </div>
 
@@ -239,125 +243,6 @@ export default function PartnerDashboardPage() {
             </div>
           </div>
 
-          {/* Partner Roadmap & Modules Preview */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6">
-            <div className="border-b border-slate-800 pb-4">
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Layers className="h-4 w-4 text-emerald-400" />
-                Partner Ecosystem Feature Roadmap
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Here is what is launching across the 5 sessions in our Swiggy-style partner expansion:
-              </p>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {/* Session 17 */}
-              <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-slate-950 font-bold text-[10px]">
-                    17
-                  </span>
-                  <div>
-                    <div className="font-bold text-white">Dedicated Partner Portal & Onboarding</div>
-                    <div className="text-[11px] text-emerald-300">
-                      Standalone app on partners.applyfields.com, KYC flow & GPS capture.
-                    </div>
-                  </div>
-                </div>
-                <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                  CURRENT
-                </span>
-              </div>
-
-              {/* Session 18 */}
-              <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs opacity-90">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-slate-300 font-bold text-[10px]">
-                    18
-                  </span>
-                  <div>
-                    <div className="font-bold text-slate-200">
-                      Operating Hours & Slot Scheduling Engine
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      Set working shifts, 30-min booking slots, custom rate card & service pricing.
-                    </div>
-                  </div>
-                </div>
-                <Link
-                  href="/schedule"
-                  className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300 hover:text-white"
-                >
-                  Preview →
-                </Link>
-              </div>
-
-              {/* Session 19 */}
-              <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs opacity-90">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-slate-300 font-bold text-[10px]">
-                    19
-                  </span>
-                  <div>
-                    <div className="font-bold text-slate-200">
-                      Dedicated Citizen Services Portal (`service.applyfields.com`)
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      Unified citizen SSO, interactive service cart & main portal navigation links.
-                    </div>
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono text-slate-500">Upcoming</span>
-              </div>
-
-              {/* Session 20 */}
-              <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs opacity-90">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-slate-300 font-bold text-[10px]">
-                    20
-                  </span>
-                  <div>
-                    <div className="font-bold text-slate-200">
-                      Dynamic Requirement Intake Forms & Slot Booking
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      PAN, Aadhaar, MeeSeva, Xerox upload forms with mandatory citizen documents.
-                    </div>
-                  </div>
-                </div>
-                <Link
-                  href="/bookings"
-                  className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300 hover:text-white"
-                >
-                  Preview →
-                </Link>
-              </div>
-
-              {/* Session 21 */}
-              <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs opacity-90">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-slate-300 font-bold text-[10px]">
-                    21
-                  </span>
-                  <div>
-                    <div className="font-bold text-slate-200">
-                      Two-Way Citizen Chat & Admin Geographic Map Desk
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      Real-time chat desk with citizens, photo exchanges & staff geographic monitoring.
-                    </div>
-                  </div>
-                </div>
-                <Link
-                  href="/messages"
-                  className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300 hover:text-white"
-                >
-                  Preview →
-                </Link>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Right Column (1 Col): Verification & Contact Card */}
@@ -371,7 +256,7 @@ export default function PartnerDashboardPage() {
 
             <div className="mt-4 space-y-3 text-xs">
               <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-3">
-                <span className="text-slate-400">Verification Pill:</span>
+                <span className="text-slate-400">Verification:</span>
                 {isVerified ? (
                   <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 font-bold text-emerald-400 text-[11px]">
                     Verified Center

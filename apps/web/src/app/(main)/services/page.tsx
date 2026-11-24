@@ -205,7 +205,7 @@ export default async function ServicesPage({
             {(!data || data.total === 0) && <Badge tone="celadon">Demo / Mock Data</Badge>}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {displayData.items.map((srv) => (
               <Card key={srv.slug} interactive className="flex flex-col p-4">
                 <div className="flex items-start gap-3">
@@ -253,14 +253,14 @@ export default async function ServicesPage({
                   )}
 
                   {srv.fee_text && (
-                    <Badge tone="celadon" className="text-[11px]">
+                    <Badge tone="celadon" className="text-[11px] whitespace-normal! rounded-xl">
                       <IndianRupee className="size-3" aria-hidden="true" />
                       {srv.fee_text}
                     </Badge>
                   )}
 
                   {srv.processing_time_text && (
-                    <Badge tone="tea" className="text-[11px]">
+                    <Badge tone="tea" className="text-[11px] whitespace-normal! rounded-xl">
                       <Clock className="size-3" aria-hidden="true" />
                       {srv.processing_time_text}
                     </Badge>

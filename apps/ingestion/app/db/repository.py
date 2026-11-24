@@ -637,7 +637,9 @@ def save_extraction(
             )
 
     if status_value == "draft":
-        _fill_draft(connection, opportunity_id, result)
+        # A later notice (corrigendum, extension) fills facts but must not rename the draft
+        # to "Corrigendum: ...": the title comes from the opportunity's first notice.
+        _fill_draft(connection, opportunity_id, result, set_title=previous is None)
 
 
 def to_plain(value: Any) -> Any:
@@ -649,7 +651,9 @@ def to_plain(value: Any) -> Any:
     return json.loads(to_json(value))
 
 
-def _fill_draft(connection: Connection, opportunity_id: str, result: dict[str, Any]) -> None:
+def _fill_draft(
+    connection: Connection, opportunity_id: str, result: dict[str, Any], *, set_title: bool = True
+) -> None:
     """Write extracted fields into a draft. Empty extracted values never overwrite existing ones."""
     import json
 
@@ -665,6 +669,7 @@ def _fill_draft(connection: Connection, opportunity_id: str, result: dict[str, A
         text(
             """
             UPDATE opportunities SET
+              title = COALESCE(:title, title),
               notification_number = COALESCE(:notification_number, notification_number),
               summary = COALESCE(:summary, summary),
               vacancies_total = COALESCE(:vacancies_total, vacancies_total),
@@ -691,6 +696,7 @@ def _fill_draft(connection: Connection, opportunity_id: str, result: dict[str, A
         ),
         {
             "id": opportunity_id,
+            "title": f.get("title") if set_title else None,
             "notification_number": f["notification_number"],
             "summary": f["summary"],
             "vacancies_total": f["vacancies_total"],

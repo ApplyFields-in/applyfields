@@ -32,8 +32,6 @@ export default async function Page({
       title="Exams"
       description="Entrance, competitive and recruitment exams — dates, eligibility, admit cards, answer keys and results."
       icon={<GraduationCap />}
-      owner="Karthik (page) · Harsha (data)"
-      when="Week 4"
       basePath="/exams"
       categories={[
         'JEE',

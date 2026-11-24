@@ -38,26 +38,17 @@ export default function InstitutionProfilePage() {
         const res = await getPartnerInstitutionDesk();
         if (res.data) {
           setProfile(res.data);
+          // Empty fields stay empty. (They used to pre-fill CBIT's real website/phone/fees,
+          // which a Save would have written into this college's record.)
           setName(res.data.name);
-          setWebsite(res.data.website || 'https://www.cbit.ac.in');
-          setContactEmail(res.data.contact_email || 'admissions@cbit.ac.in');
-          setContactPhone(res.data.contact_phone || '+91 40 2419 3276');
-          setDescription(
-            res.data.description ||
-              'Chaitanya Bharathi Institute of Technology (CBIT) is an premier autonomous engineering institute in Hyderabad, accredited with NAAC Grade A++ and approved by AICTE. Ranked in top 150 NIRF engineering institutions.'
-          );
-          setFeesText(res.data.fees_text || '₹1,40,000 / year (Government Approved)');
+          setWebsite(res.data.website || '');
+          setContactEmail(res.data.contact_email || '');
+          setContactPhone(res.data.contact_phone || '');
+          setDescription(res.data.description || '');
+          setFeesText(res.data.fees_text || '');
         }
       } catch {
-        // Fallback demo values
-        setName('Chaitanya Bharathi Institute of Technology');
-        setWebsite('https://www.cbit.ac.in');
-        setContactEmail('admissions@cbit.ac.in');
-        setContactPhone('+91 40 2419 3276');
-        setDescription(
-          'Chaitanya Bharathi Institute of Technology (CBIT) is an premier autonomous engineering institute in Hyderabad, accredited with NAAC Grade A++ and approved by AICTE. Ranked in top 150 NIRF engineering institutions.'
-        );
-        setFeesText('₹1,40,000 / year (Government Approved)');
+        // Load failed: leave the form empty rather than showing another college's details.
       } finally {
         setLoading(false);
       }
@@ -166,32 +157,6 @@ export default function InstitutionProfilePage() {
               rows={4}
               className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800 p-4 text-xs text-white leading-relaxed focus:border-blue-500 focus:outline-none"
             />
-          </div>
-        </div>
-
-        {/* Accreditations & Badges */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-6 space-y-4">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <Award className="h-4 w-4 text-blue-400" />
-            Accreditations &amp; National Rankings
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 rounded-xl border border-slate-800 bg-slate-950">
-              <span className="text-slate-400 font-medium">NAAC Grade</span>
-              <span className="mt-1 block text-base font-extrabold text-emerald-400">Grade A++ (3.62 CGPA)</span>
-              <span className="text-[10px] text-slate-500 mt-1 block">Valid through 2028</span>
-            </div>
-            <div className="p-4 rounded-xl border border-slate-800 bg-slate-950">
-              <span className="text-slate-400 font-medium">NIRF Engineering Rank</span>
-              <span className="mt-1 block text-base font-extrabold text-blue-400">Rank Band 101–150</span>
-              <span className="text-[10px] text-slate-500 mt-1 block">Ministry of Education</span>
-            </div>
-            <div className="p-4 rounded-xl border border-slate-800 bg-slate-950">
-              <span className="text-slate-400 font-medium">AICTE &amp; Autonomous</span>
-              <span className="mt-1 block text-base font-extrabold text-white">Approved Institute</span>
-              <span className="text-[10px] text-slate-500 mt-1 block">Affiliated with Osmania Univ</span>
-            </div>
           </div>
         </div>
 

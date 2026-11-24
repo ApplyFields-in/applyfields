@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useWebPush } from '@/lib/push/use-web-push';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { showAppToast } from '@/components/toast-notification-provider';
+import { useCookieConsent } from '@/lib/cookies/use-cookie-consent';
 
 const DISMISS_KEY = 'applyfields_push_prompt_dismissed_until';
 const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -12,6 +13,8 @@ const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export function NotificationPermissionPrompt() {
   const { t } = useLanguage();
   const push = useWebPush();
+  // Wait for the cookie banner to be answered: both sit at the bottom and this one covered its buttons on phones.
+  const { hasConsented } = useCookieConsent();
   const [isOpen, setIsOpen] = useState(false);
   const [opportunityTitle, setOpportunityTitle] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState(false);
@@ -40,7 +43,7 @@ export function NotificationPermissionPrompt() {
 
     // If not previously dismissed, show gently after 8 seconds of engagement
     let timer: NodeJS.Timeout | null = null;
-    if (!isDismissed) {
+    if (!isDismissed && hasConsented) {
       timer = setTimeout(() => {
         if (push.permission === 'default' && !push.isSubscribed) {
           setIsOpen(true);
@@ -52,7 +55,7 @@ export function NotificationPermissionPrompt() {
       window.removeEventListener('show-push-permission-prompt', handleCustomTrigger);
       if (timer) clearTimeout(timer);
     };
-  }, [push.isSupported, push.permission, push.isSubscribed]);
+  }, [push.isSupported, push.permission, push.isSubscribed, hasConsented]);
 
   const handleDismiss = () => {
     setIsOpen(false);
@@ -88,7 +91,7 @@ export function NotificationPermissionPrompt() {
     }
   };
 
-  if (!isOpen || !push.isSupported || push.permission !== 'default') {
+  if (!isOpen || !hasConsented || !push.isSupported || push.permission !== 'default') {
     return null;
   }
 

@@ -32,8 +32,6 @@ export default async function Page({
       title="Scholarships"
       description="Central, state and NSP scholarships — with income and category conditions checked against your profile."
       icon={<Award />}
-      owner="Karthik (page) · Harsha (data)"
-      when="Week 5"
       basePath="/scholarships"
       categories={[
         'Central',

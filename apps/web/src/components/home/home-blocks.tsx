@@ -130,7 +130,8 @@ export function StatsRow({ stats }: { stats: HomeStat[] }) {
           <span>
             <span className="block text-sm font-semibold text-teal">{label}</span>
             <span className="mt-0.5 block text-xs text-[#536780]">
-              {stat ? <><strong className="font-semibold text-teal">{stat.value.toLocaleString('en-IN')}</strong> {stat.label.toLowerCase()}</> : hint}
+              {/* "Exams open now: 1" — reads right for any count ("1 exams open now" did not). */}
+              {stat ? <>{stat.label}: <strong className="font-semibold text-teal">{stat.value.toLocaleString('en-IN')}</strong></> : hint}
             </span>
           </span>
         </Link>

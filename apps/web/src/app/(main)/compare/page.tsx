@@ -286,7 +286,7 @@ function OpportunityCompareCard({
           {item.vacancies_total !== null ? item.vacancies_total.toLocaleString('en-IN') : 'Check notice'}
         </p>
         {item.posts.length > 1 && (
-          <p className="text-[11px] text-teal/60 mt-0.5">Across {item.posts.length} posts</p>
+          <p className="text-[11px] text-teal/60 mt-0.5">Across {item.posts.length} post{item.posts.length === 1 ? '' : 's'}</p>
         )}
       </div>
 

@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { PartnerDetail, UserSummary } from '@applyfields/types';
+import type { MeResponse, PartnerDetail, UserSummary } from '@applyfields/types';
 import { COLLEGE_PARTNER_TYPES, kycSubmitted } from '@applyfields/types/src/partner-documents';
 import { apiGet, apiPost, getMyPartner } from './api';
 import { flashToast } from '@applyfields/ui';
@@ -102,12 +102,15 @@ export function PartnerAuthProvider({ children }: { children: ReactNode }) {
       }
 
       // 2. Fetch fresh user info from API
-      const userRes = await apiGet<UserSummary>('/users/me');
-      if (userRes.data) {
-        currentUser = userRes.data;
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        }
+      // (Was '/users/me', which the API doesn't have: the stale cached user was all that kept people in.)
+      const userRes = await apiGet<MeResponse>('/me');
+      if (userRes.data?.user) {
+        currentUser = userRes.data.user;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      } else if (userRes.status === 401) {
+        // Session really ended (refresh failed too): don't keep showing the cached account.
+        currentUser = null;
+        localStorage.removeItem('currentUser');
       }
 
       setUser(currentUser);

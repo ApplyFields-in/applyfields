@@ -1,5 +1,5 @@
 import type { OpportunityCard, OpportunityList, OpportunityType } from '@applyfields/types';
-import { Badge, BuildStatus, buttonClass, Card, cn, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
+import { Badge, buttonClass, Card, cn, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
 import {
   CalendarDays,
   CircleCheck,
@@ -68,7 +68,7 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
         </Badge>
         {item.vacancies !== null && (
           <Badge tone="outline">
-            <Users aria-hidden="true" /> {item.vacancies.toLocaleString('en-IN')} posts
+            <Users aria-hidden="true" /> {item.vacancies.toLocaleString('en-IN')} post{item.vacancies === 1 ? '' : 's'}
           </Badge>
         )}
       </div>
@@ -309,8 +309,6 @@ export async function OpportunityListPage({
   title,
   description,
   icon,
-  owner,
-  when,
   basePath,
   categories,
   searchParams,
@@ -322,8 +320,6 @@ export async function OpportunityListPage({
   title: string;
   description: string;
   icon: ReactNode;
-  owner: string;
-  when: string;
   basePath: string;
   categories: string[];
   searchParams?: ListSearchParams;
@@ -366,7 +362,6 @@ export async function OpportunityListPage({
         title={title}
         description={description}
         icon={icon}
-        actions={<BuildStatus owner={owner} when={when} />}
       />
 
       <FilterBar
@@ -436,7 +431,7 @@ export async function OpportunityListPage({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {displayData.items.map((item) => (
               <OpportunityCardView key={item.slug} item={item} />
             ))}

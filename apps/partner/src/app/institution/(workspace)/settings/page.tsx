@@ -76,7 +76,7 @@ export default function InstitutionSettingsPage() {
                 <Mail className="h-4 w-4 text-blue-400" />
                 <div>
                   <span className="font-bold text-xs text-white block">Official Institutional Email Notification</span>
-                  <span className="text-[11px] text-slate-400">Digest and instant notifications to admissions@cbit.ac.in</span>
+                  <span className="text-[11px] text-slate-400">Digest and instant notifications to your admissions email</span>
                 </div>
               </div>
               <input
