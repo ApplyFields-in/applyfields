@@ -35,6 +35,7 @@ import type {
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../common/storage.service.js';
+import { VaultService } from '../../common/vault.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { PARTNER_DOCUMENT_KINDS, PARTNER_DOCUMENT_MIME_TYPES } from './partner-documents.js';
 
@@ -357,6 +358,7 @@ export class PartnersService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService = new StorageService(),
     @Optional() private readonly notifications?: NotificationsService,
+    @Optional() private readonly vault: VaultService = new VaultService(),
   ) {}
 
   /** Tell support staff (admin app push + in-app + email). Never blocks or fails the partner's action. */
@@ -847,10 +849,11 @@ export class PartnersService {
 
     const safeName = doc.file_name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const path = `partners/${membership.partner_id}/${doc.document_kind}/${Date.now()}_${safeName}`;
+    const { data: encryptedData, encryptedKey } = this.vault.encrypt(buffer);
     const uploaded = await this.storage.upload(
       this.storage.documentsBucket,
       path,
-      buffer,
+      encryptedData,
       doc.mime_type,
     );
     // No record without a file: admin would approve against nothing.
@@ -863,6 +866,7 @@ export class PartnersService {
         partner_id: membership.partner_id,
         document_kind: doc.document_kind,
         storage_path: path,
+        encrypted_key: new Uint8Array(encryptedKey),
         status: 'pending',
       },
     });
@@ -1481,15 +1485,17 @@ export class PartnersService {
       throw new NotFoundException(`Partner document with ID "${documentId}" not found`);
     }
 
-    let buffer: Buffer | null = null;
+    let rawBytes: Buffer | null = null;
     if (existsSync(doc.storage_path)) {
-      buffer = readFileSync(doc.storage_path);
+      rawBytes = readFileSync(doc.storage_path);
     } else if (this.storage) {
-      buffer = await this.storage.download(this.storage.documentsBucket, doc.storage_path);
+      rawBytes = await this.storage.download(this.storage.documentsBucket, doc.storage_path);
     }
-    if (!buffer) {
+    if (!rawBytes) {
       throw new NotFoundException('Document file not found in storage.');
     }
+    const encryptedKey = doc.encrypted_key ? Buffer.from(doc.encrypted_key) : null;
+    const buffer = this.vault.decrypt(rawBytes, encryptedKey);
     const ext = doc.storage_path.split('.').pop() || 'pdf';
     const mimeType = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'application/pdf';
     return {

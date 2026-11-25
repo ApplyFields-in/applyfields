@@ -784,6 +784,7 @@ model partner_documents {
   reviewed_by   String?             @db.Uuid
   reviewed_at   DateTime?           @db.Timestamptz(6)
   created_at    DateTime            @default(now()) @db.Timestamptz(6)
+  encrypted_key Bytes?
   partners      partners            @relation(fields: [partner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users         users?              @relation(fields: [reviewed_by], references: [id], onUpdate: NoAction)
 
@@ -936,6 +937,7 @@ model partners {
   rating_count           Int                      @default(0)
   created_at             DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  verification_note      String?
   document_access_logs   document_access_logs[]
   document_shares        document_shares[]
   partner_documents      partner_documents[]
@@ -1271,35 +1273,36 @@ model service_request_events {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model service_requests {
-  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                 String?                  @db.Uuid
-  partner_id              String                   @db.Uuid
-  partner_service_id      String?                  @db.Uuid
-  service_id              String?                  @db.Uuid
-  opportunity_id          String?                  @db.Uuid
-  status                  request_status           @default(new)
-  appointment_at          DateTime?                @db.Timestamptz(6)
-  user_note               String?
-  partner_note            String?
-  quoted_paise            Int?
-  final_paise             Int?
-  cancelled_reason        String?
-  completed_at            DateTime?                @db.Timestamptz(6)
-  created_at              DateTime                 @default(now()) @db.Timestamptz(6)
-  updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
-  official_app_number     String?
-  acknowledgment_slip_url String?
-  operator_notes          String?
-  applications            applications[]
-  document_shares         document_shares[]
-  partner_reviews         partner_reviews?
-  payments                payments[]
-  service_request_events  service_request_events[]
-  opportunities           opportunities?           @relation(fields: [opportunity_id], references: [id], onUpdate: NoAction)
-  partners                partners                 @relation(fields: [partner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  partner_services        partner_services?        @relation(fields: [partner_service_id], references: [id], onUpdate: NoAction)
-  gov_services            gov_services?            @relation(fields: [service_id], references: [id], onUpdate: NoAction)
-  users                   users?                   @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  id                                String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                           String?                  @db.Uuid
+  partner_id                        String                   @db.Uuid
+  partner_service_id                String?                  @db.Uuid
+  service_id                        String?                  @db.Uuid
+  opportunity_id                    String?                  @db.Uuid
+  status                            request_status           @default(new)
+  appointment_at                    DateTime?                @db.Timestamptz(6)
+  user_note                         String?
+  partner_note                      String?
+  quoted_paise                      Int?
+  final_paise                       Int?
+  cancelled_reason                  String?
+  completed_at                      DateTime?                @db.Timestamptz(6)
+  created_at                        DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at                        DateTime                 @default(now()) @db.Timestamptz(6)
+  official_app_number               String?
+  acknowledgment_slip_url           String?
+  operator_notes                    String?
+  acknowledgment_slip_encrypted_key Bytes?
+  applications                      applications[]
+  document_shares                   document_shares[]
+  partner_reviews                   partner_reviews?
+  payments                          payments[]
+  service_request_events            service_request_events[]
+  opportunities                     opportunities?           @relation(fields: [opportunity_id], references: [id], onUpdate: NoAction)
+  partners                          partners                 @relation(fields: [partner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  partner_services                  partner_services?        @relation(fields: [partner_service_id], references: [id], onUpdate: NoAction)
+  gov_services                      gov_services?            @relation(fields: [service_id], references: [id], onUpdate: NoAction)
+  users                             users?                   @relation(fields: [user_id], references: [id], onUpdate: NoAction)
 
   @@index([opportunity_id])
   @@index([partner_id, status])
@@ -1634,6 +1637,7 @@ model users {
   reports_reports_assigned_toTousers                           reports[]                      @relation("reports_assigned_toTousers")
   reports_reports_reporter_idTousers                           reports[]                      @relation("reports_reporter_idTousers")
   saved_items                                                  saved_items[]
+  scheduled_broadcasts                                         scheduled_broadcasts[]
   service_request_events                                       service_request_events[]
   service_requests                                             service_requests[]
   subscriptions                                                subscriptions[]
@@ -1644,6 +1648,7 @@ model users {
   user_documents                                               user_documents[]
   user_education                                               user_education[]
   user_passkeys                                                user_passkeys[]
+  user_preferences                                             user_preferences?
   user_profiles                                                user_profiles?
   user_roadmaps                                                user_roadmaps[]
   user_roles_user_roles_granted_byTousers                      user_roles[]                   @relation("user_roles_granted_byTousers")
@@ -1790,6 +1795,35 @@ model community_upvotes {
   @@unique([user_id, thread_id], map: "unique_user_thread_upvote")
   @@index([comment_id], map: "idx_community_upvotes_comment")
   @@index([thread_id], map: "idx_community_upvotes_thread")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model scheduled_broadcasts {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  input      Json
+  send_at    DateTime  @db.Timestamptz(6)
+  status     String    @default("scheduled")
+  notified   Int?
+  last_error String?
+  created_by String?   @db.Uuid
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  sent_at    DateTime? @db.Timestamptz(6)
+  users      users?    @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+
+  @@index([send_at], map: "idx_scheduled_broadcasts_due", where: raw("(status = 'scheduled'::text)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_preferences {
+  user_id        String    @id @db.Uuid
+  personas       String[]  @default([])
+  interests      String[]  @default([])
+  location_scope String?
+  skipped        Boolean   @default(false)
+  onboarded_at   DateTime? @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+  users          users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 enum application_mode {

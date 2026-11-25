@@ -188,7 +188,7 @@ export class BookingsService {
     private readonly storage?: StorageService,
     private readonly notifications?: NotificationsService,
     @Optional() private readonly payments?: PaymentsService,
-    @Optional() private readonly vault?: VaultService,
+    @Optional() private readonly vault: VaultService = new VaultService(),
   ) {}
 
   // =========================================================================
@@ -707,9 +707,10 @@ export class BookingsService {
     }
 
     const slip = decodeSlip(input.slip_base64, input.slip_mime_type);
+    const { data: encryptedSlip, encryptedKey } = this.vault.encrypt(slip);
     const path = `acknowledgments/${bookingId}/${Date.now()}.${SLIP_TYPES[input.slip_mime_type].ext}`;
     const stored = this.storage
-      ? await this.storage.upload(this.storage.documentsBucket, path, slip, input.slip_mime_type)
+      ? await this.storage.upload(this.storage.documentsBucket, path, encryptedSlip, input.slip_mime_type)
       : null;
     if (!stored) {
       throw new ServiceUnavailableException('Could not store the acknowledgment slip. Please try again.');
@@ -724,6 +725,7 @@ export class BookingsService {
           completed_at: new Date(),
           official_app_number: appNo,
           acknowledgment_slip_url: stored,
+          acknowledgment_slip_encrypted_key: new Uint8Array(encryptedKey),
           ...(input.partner_note !== undefined && { partner_note: input.partner_note }),
         },
         include: LEAN_BOOKING_INCLUDE,
@@ -764,7 +766,13 @@ export class BookingsService {
   async getSlipFile(userId: string, bookingId: string): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
     const req = await this.prisma.service_requests.findUnique({
       where: { id: bookingId },
-      select: { user_id: true, partner_id: true, acknowledgment_slip_url: true, official_app_number: true },
+      select: {
+        user_id: true,
+        partner_id: true,
+        acknowledgment_slip_url: true,
+        acknowledgment_slip_encrypted_key: true,
+        official_app_number: true,
+      },
     });
     if (!req || !req.acknowledgment_slip_url) {
       throw new NotFoundException('No acknowledgment slip for this booking.');
@@ -774,15 +782,19 @@ export class BookingsService {
       throw new ForbiddenException('Not authorized to access this slip.');
     }
     const path = req.acknowledgment_slip_url;
-    let buffer: Buffer | null = null;
+    let rawBytes: Buffer | null = null;
     if (existsSync(path)) {
-      buffer = readFileSync(path);
+      rawBytes = readFileSync(path);
     } else if (this.storage) {
-      buffer = await this.storage.download(this.storage.documentsBucket, path);
+      rawBytes = await this.storage.download(this.storage.documentsBucket, path);
     }
-    if (!buffer) {
+    if (!rawBytes) {
       throw new NotFoundException('Slip file not found.');
     }
+    const encryptedKey = req.acknowledgment_slip_encrypted_key
+      ? Buffer.from(req.acknowledgment_slip_encrypted_key)
+      : null;
+    const buffer = this.vault.decrypt(rawBytes, encryptedKey);
     const ext = path.split('.').pop() || 'pdf';
     const mimeType = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'application/pdf';
     return {
