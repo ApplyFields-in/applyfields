@@ -11,7 +11,7 @@ import {
   Sparkles,
   ExternalLink,
 } from 'lucide-react';
-import { SERVICE_PORTAL_URL, PARTNER_PORTAL_URL } from '@/lib/urls';
+import { SERVICE_PORTAL_URL, PARTNER_PORTAL_URL, goToServicePortal } from '@/lib/urls';
 import { useLanguage } from '@/lib/i18n/language-context';
 
 export function ServicesQuickBridge() {
@@ -50,8 +50,7 @@ export function ServicesQuickBridge() {
           <div className="pt-2">
             <a
               href={SERVICE_PORTAL_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+              onClick={(e) => void goToServicePortal(e)}
               className="inline-flex items-center gap-2 rounded-2xl bg-[#082046] px-5 py-3 text-xs font-bold !text-white shadow-md transition hover:bg-[#0e7bf4] hover:shadow-lg active:scale-95"
               style={{ color: '#ffffff' }}
             >

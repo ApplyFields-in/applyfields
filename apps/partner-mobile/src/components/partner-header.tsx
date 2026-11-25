@@ -8,8 +8,11 @@ import { useRouter } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { NotificationList } from '@applyfields/types';
+
 import { typeLabel } from '../lib/format';
 import { useSession } from '../lib/session';
+import { useApi } from '../lib/use-api';
 import { C, CHROME_FONT_SCALE, R, S, TAP, capsule, column } from '../theme';
 
 const LOGO = require('../../assets/images/logo-mark.png');
@@ -19,6 +22,7 @@ export function PartnerHeader() {
   const router = useRouter();
   const { partner, status } = useSession();
   const online = partner?.is_available ?? false;
+  const unread = useApi<NotificationList>('/notifications').data?.unread ?? 0;
 
   return (
     <View style={[s.bar, { paddingTop: insets.top + S.sm }]}>
@@ -32,12 +36,35 @@ export function PartnerHeader() {
             {status === 'centre' ? (
               <View style={[s.dot, { backgroundColor: online ? C.good : C.bad }]} />
             ) : null}
-            <Text style={s.meta} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
-              {status === 'centre' ? (online ? 'Online · ' : 'Offline · ') : ''}
-              {partner ? typeLabel(partner.type) : ''}
-            </Text>
+            {partner && partner.verification_status !== 'verified' ? (
+              // KYC sent, staff still reviewing: nothing is public yet.
+              <Text style={[s.meta, { color: C.warn, fontWeight: '700' }]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
+                Under review · not public yet
+              </Text>
+            ) : (
+              <Text style={s.meta} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
+                {status === 'centre' ? (online ? 'Online · ' : 'Offline · ') : ''}
+                {partner ? typeLabel(partner.type) : ''}
+              </Text>
+            )}
           </View>
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={unread ? `Alerts, ${unread} unread` : 'Alerts'}
+          onPress={() => router.push('/alerts')}
+          style={({ pressed }) => [s.bell, pressed && { opacity: 0.8 }]}
+        >
+          <Ionicons name="notifications-outline" size={22} color={C.navy} />
+          {unread ? (
+            <View style={s.badge}>
+              <Text style={s.badgeText} maxFontSizeMultiplier={CHROME_FONT_SCALE}>
+                {unread > 9 ? '9+' : unread}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
 
         <Pressable
           accessibilityRole="button"
@@ -73,6 +100,20 @@ const s = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
   dot: { width: 7, height: 7, borderRadius: R.pill },
   meta: { color: C.muted, fontSize: 11, flexShrink: 1 },
+  bell: { width: TAP, height: TAP, alignItems: 'center', justifyContent: 'center' },
+  badge: {
+    position: 'absolute',
+    top: 6,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    borderRadius: R.pill,
+    backgroundColor: C.bad,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { color: C.white, fontSize: 10, fontWeight: '800' },
   avatar: {
     width: TAP,
     height: TAP,

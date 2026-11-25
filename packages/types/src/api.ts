@@ -42,6 +42,10 @@ export interface OpportunityCard {
   match_score?: number;
   /** only when the request came from a logged-in user */
   saved?: boolean;
+  /** listing category (railways, banking, state_govt…); used for preference matching */
+  category?: string;
+  /** state codes the listing is for; ['ALL'] = all India / central */
+  state_codes?: string[];
 }
 
 // ---------- Eligibility (GET /opportunities/:slug/eligibility) ----------
@@ -131,7 +135,7 @@ export interface HomePersonal {
   profile_ready: boolean;
   /** Profile fields the eligibility check uses that are still empty (ready can be true while some are). */
   profile_missing: ProfileGapField[];
-  /** eligible or likely eligible, closing soonest first */
+  /** up to 6: eligible/likely eligible items, ranked by setup answers when present (else closing soonest first) */
   recommended: OpportunityCard[];
   saved: OpportunityCard[];
   recently_viewed: OpportunityCard[];
@@ -179,7 +183,12 @@ export interface ReviewListItem {
   needs_care: boolean;
   /** publish blockers (job-format §5) — empty = ready to publish */
   missing: string[];
+  /** application last date YYYY-MM-DD, when known */
+  last_date: string | null;
 }
+
+export type ReviewSort = 'newest' | 'oldest' | 'closing' | 'confidence';
+export type ReviewReadiness = 'ready' | 'missing';
 
 export interface ReviewList {
   total: number;
@@ -187,7 +196,16 @@ export interface ReviewList {
   /** downloaded notices the extractor hasn't turned into drafts yet */
   waiting_extraction: number;
   sources: string[];
+  /** this page of drafts (after source / careful / readiness filters and sort) */
   items: ReviewListItem[];
+  /** drafts matching every filter (all pages) */
+  matching: number;
+  /** in the current source / careful filter: nothing missing vs something missing */
+  ready: number;
+  missing_info: number;
+  page: number;
+  page_size: number;
+  pages: number;
 }
 
 export interface ReviewPost {
@@ -269,6 +287,15 @@ export interface ReviewDetail {
     ai_model: string | null;
     confidence: number | null;
   };
+  /** What the scraper read (PDF text) and what the AI returned. null = draft not from a scraper. */
+  raw: {
+    document_url: string;
+    /** null = scanned PDF (no text layer) or an old row from before text was kept */
+    extracted_text: string | null;
+    /** The checked job-format JSON the AI produced; null when extraction did not run */
+    extraction: unknown;
+    error: string | null;
+  } | null;
   posts: ReviewPost[];
   eligibility: ReviewEligibility[];
   dates: ReviewDate[];
@@ -804,6 +831,8 @@ export interface DeviceTokenResult {
 export type BroadcastAudience =
   | { kind: 'all' }
   | { kind: 'subscribers' }
+  | { kind: 'partners' }
+  | { kind: 'staff' }
   | { kind: 'savers'; opportunity_slug: string }
   | { kind: 'user'; email: string };
 
@@ -812,13 +841,32 @@ export interface AdminBroadcastInput {
   body: string | null;
   link: string | null;
   audience: BroadcastAudience;
-  channels?: ('in_app' | 'push' | 'email')[];
+  /** Omitted = in-app + push. ['in_app'] = in-app only (no phone/browser push). */
+  channels?: ('in_app' | 'push')[];
+  /** ISO time to send later (festival greetings). Omitted/null = send now. */
+  send_at?: string | null;
 }
 
 export interface AdminBroadcastResult {
   notified: number;
+  /** Phones + browsers registered for the people notified (0 when push was off). */
   push_sent: number;
-  email_queued: number;
+  /** Set when the broadcast was scheduled instead of sent (notified/push_sent are then 0). */
+  scheduled_for: string | null;
+}
+
+export type ScheduledBroadcastStatus = 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled';
+
+/** GET /admin/notifications/scheduled */
+export interface ScheduledBroadcastItem {
+  id: string;
+  title: string;
+  audience: BroadcastAudience['kind'];
+  in_app_only: boolean;
+  send_at: string;
+  status: ScheduledBroadcastStatus;
+  notified: number | null;
+  last_error: string | null;
 }
 
 // ---------- Internal Portal → Notifications ----------
@@ -1351,6 +1399,8 @@ export interface PartnerEarningsSummary {
 
 export interface PartnerDetail extends PartnerSummary {
   institution_id: string | null;
+  /** Staff's note on the last approve/reject (shown to the partner when rejected). */
+  verification_note: string | null;
   verified_at: string | null;
   created_at: string;
   updated_at: string;
@@ -1394,6 +1444,10 @@ export interface PartnerRegistrationInput {
   service_areas?: string[];
   working_hours?: Record<string, string[]>;
   description?: string;
+  /** Colleges: the college page picked at sign-up. */
+  institution_id?: string;
+  /** Shops: services ticked at sign-up (service_id for catalog services); price in paise, optional. */
+  services?: Array<{ name: string; service_id?: string; charge_paise?: number }>;
 }
 
 export interface PartnerUpdateInput {
@@ -1503,6 +1557,11 @@ export interface BookingDetail {
   disputes?: BookingDispute[];
   /** Locker documents the citizen shared with the centre for this booking (active shares only). */
   shared_documents?: BookingSharedDocument[];
+  /**
+   * 4-digit start code, only on the citizen's own copy and only until the work starts. The citizen
+   * gives it to the centre, which enters it to start (PATCH status in_progress with start_code).
+   */
+  start_code?: string | null;
 }
 
 /** A citizen's locker document shared with a centre. Open it with GET /bookings/:id/documents/:share_id. */
@@ -1579,6 +1638,8 @@ export interface MarkFiledInput {
 
 export interface UpdateBookingStatusInput {
   status: BookingRequestStatus;
+  /** Required to start (in_progress) a citizen's booking: the 4 digits shown in the citizen's app. */
+  start_code?: string;
   partner_note?: string;
   cancelled_reason?: string;
   quoted_paise?: number;
@@ -2018,6 +2079,18 @@ export interface ScrapeSourcesListResponse {
     failing: number;
     stale: number;
   };
+  /** Every scraped notice so far, across all sources. */
+  documents: {
+    total: number;
+    /** AI read the PDF and filled the draft. */
+    ai_filled: number;
+    /** Scanned PDF or AI error: staff fill the draft by hand. */
+    needs_manual: number;
+    /** Drafts still waiting in /review. */
+    drafts_waiting: number;
+    /** Published or closed (ended) on the site. */
+    published: number;
+  };
 }
 
 export interface ScrapeSourceRunsResponse {
@@ -2082,12 +2155,14 @@ export type AnalyticsEventName =
   | 'external_apply_click'
   | 'service_browse'
   | 'booking_slot_start'
-  | 'booking_slot_completed';
+  | 'booking_slot_completed'
+  /** Anonymous page view (path only, never the query string). */
+  | 'page_view';
 
 export interface AnalyticsEventInput {
   event_name: AnalyticsEventName;
   session_id?: string;
-  entity_type?: 'opportunity' | 'service' | 'partner' | 'career' | 'search';
+  entity_type?: 'opportunity' | 'service' | 'partner' | 'career' | 'search' | 'page';
   entity_id?: string;
   metadata?: Record<string, unknown>;
 }
@@ -2101,6 +2176,21 @@ export interface FunnelStepMetric {
   label: string;
   count: number;
   dropoff_percent: number;
+}
+
+/** Admin analytics headline numbers: people, visits, partners and bookings over the last N days. */
+export interface AnalyticsOverview {
+  period_days: number;
+  users: { total: number; new: number; active: number; signups_by_day: Array<{ day: string; count: number }> };
+  visits: {
+    page_views: number;
+    visitors: number;
+    views_by_day: Array<{ day: string; count: number }>;
+    top_pages: Array<{ site: string; path: string; views: number }>;
+  };
+  partners: Record<'centres' | 'colleges', { pending: number; verified: number; rejected: number }>;
+  bookings: { total: number; completed: number };
+  opportunities: { published: number; views: number; saves: number };
 }
 
 export interface AnalyticsFunnelSummary {
@@ -2135,6 +2225,11 @@ export type ChatSenderType = 'citizen' | 'partner' | 'system';
 
 export interface ChatAttachment {
   name: string;
+  /**
+   * A document from the citizen's locker shared with this booking (document_shares). Set only by the
+   * server (POST /bookings/:id/chat/attachments); open it with GET /bookings/:id/documents/:share_id.
+   */
+  share_id?: string;
   url?: string;
   file_type?: string;
   file_size?: string;

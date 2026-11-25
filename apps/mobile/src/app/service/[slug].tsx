@@ -18,6 +18,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDate, rupees } from '@/lib/format';
 import { useApi } from '@/lib/use-api';
 import { C, R, S, column } from '@/theme';
+import { BookmarkIcon } from '@/components/animated-icons';
 
 export default function ServiceScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -84,7 +85,7 @@ export default function ServiceScreen() {
         />
         <Button
           label={saved ? 'Saved' : 'Save'}
-          icon={saved ? 'bookmark' : 'bookmark-outline'}
+          iconNode={(color) => <BookmarkIcon saved={!!saved} color={color} />}
           variant="secondary"
           disabled={savePending}
           onPress={toggleSave}

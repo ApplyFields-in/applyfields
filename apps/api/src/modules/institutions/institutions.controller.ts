@@ -70,6 +70,12 @@ export class InstitutionsController {
     return this.institutionsService.listInstitutions(query);
   }
 
+  /** Every published college slug, for the web sitemap (one call instead of paging 100 at a time). */
+  @Get('colleges/slugs')
+  async listInstitutionSlugs(): Promise<string[]> {
+    return this.institutionsService.listPublishedSlugs();
+  }
+
   @Get('colleges/compare')
   async compareInstitutions(
     @Query('slugs') slugs?: string,

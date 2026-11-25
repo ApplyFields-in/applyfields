@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   Flag,
   HelpCircle,
-  Loader2,
   Lock,
   MessageCircle,
   MessageSquare,
@@ -31,6 +30,8 @@ import {
 import { apiGet, apiPost } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { useLanguage } from '@/lib/i18n/language-context';
+import { showAppToast } from '@/components/toast-notification-provider';
+import { Spinner } from '@applyfields/ui';
 
 interface CommunityDiscussionSectionProps {
   opportunityId?: string;
@@ -135,6 +136,7 @@ export function CommunityDiscussionSection({
       setNewTitle('');
       setNewContent('');
       setNewAuthor('');
+      showAppToast({ message: 'Discussion posted successfully.', type: 'success' });
     } else {
       setThreadError(res.error || 'Failed to submit discussion thread.');
     }
@@ -180,6 +182,9 @@ export function CommunityDiscussionSection({
         ),
       );
       setReplyText((prev) => ({ ...prev, [threadId]: '' }));
+      showAppToast({ message: 'Reply posted successfully.', type: 'success' });
+    } else {
+      showAppToast({ message: res.error || 'Could not post your reply. Please try again.', type: 'info' });
     }
   };
 
@@ -452,7 +457,7 @@ export function CommunityDiscussionSection({
                           })}
                         >
                           {submittingReply === tItem.id ? (
-                            <Loader2 className="size-3 animate-spin" />
+                            <Spinner size={12} />
                           ) : (
                             <Send className="size-3" />
                           )}
@@ -573,7 +578,7 @@ export function CommunityDiscussionSection({
                 >
                   {submittingThread ? (
                     <>
-                      <Loader2 className="size-3.5 animate-spin" /> {t('profile_btn_saving', 'Saving...')}
+                      <Spinner size={14} /> {t('profile_btn_saving', 'Saving...')}
                     </>
                   ) : (
                     <>

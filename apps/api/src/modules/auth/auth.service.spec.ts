@@ -169,6 +169,67 @@ describe('AuthService', () => {
     });
   });
 
+  describe('phone codes without SMS set up', () => {
+    it('in production, refuses phone-only sign-up and phone codes with a clear message', async () => {
+      const env = { ...process.env };
+      process.env.NODE_ENV = 'production';
+      delete process.env.MSG91_AUTH_KEY;
+      try {
+        await expect(authService.register({ phone: '+919848012345', password: 'Password123!' })).rejects.toThrow(
+          'Please use your email address instead',
+        );
+        await expect(authService.sendOtp({ target: '+919848012345', purpose: 'verify_phone' } as any)).rejects.toThrow(
+          'Text-message codes are not available yet',
+        );
+      } finally {
+        process.env = env;
+      }
+    });
+  });
+
+  describe('cross-site handoff', () => {
+    it('trades a code for a session once, and the code is not an access token', async () => {
+      const { user } = await authService.register({ email: 'handoff@example.com', password: 'Password123!' });
+      const { code } = await authService.createHandoff(user.id);
+
+      const jwt = (authService as any).jwtService;
+      await expect(jwt.verifyAsync(code, { secret: 'applyfields_dev_jwt_access_secret_32bytes_min_key' })).rejects.toThrow();
+
+      const result = await authService.redeemHandoff(code, {});
+      expect(result.user.id).toBe(user.id);
+      expect(result.accessToken).toBeDefined();
+      await expect(authService.redeemHandoff(code, {})).rejects.toThrow('already used');
+      await expect(authService.redeemHandoff('garbage', {})).rejects.toThrow('expired');
+    });
+  });
+
+  describe('public code requests (SMS only when it can be used)', () => {
+    it('resends a sign-up code only while that email/phone is unverified', async () => {
+      await authService.register({ phone: '9876500001', password: 'Password123!' } as any);
+      const first = await authService.requestOtp({ target: '9876500001', purpose: 'verify_phone' });
+      expect(first.devOtp).toMatch(/^\d{6}$/);
+
+      const u = await store.findUserByIdentifier('9876500001');
+      await store.updateUser(u!.id, { phone_verified_at: new Date().toISOString() });
+      const again = await authService.requestOtp({ target: '9876500001', purpose: 'verify_phone' });
+      expect(again.success).toBe(true);
+      expect(again.devOtp).toBeUndefined(); // already verified: nothing sent
+    });
+
+    it('sends nothing to numbers without an account, with the same reply', async () => {
+      for (const purpose of ['verify_phone', 'reset_password'] as const) {
+        const res = await authService.requestOtp({ target: '9000000099', purpose });
+        expect(res).toEqual({ success: true, message: 'One-time verification code sent.', target: '9000000099' });
+      }
+    });
+
+    it('sends a reset code to an existing account', async () => {
+      await authService.register({ phone: '9876500002', password: 'Password123!' } as any);
+      const res = await authService.requestOtp({ target: '9876500002', purpose: 'reset_password' });
+      expect(res.devOtp).toMatch(/^\d{6}$/);
+    });
+  });
+
   describe('OTP flow', () => {
     it('should reject invalid OTP codes up to 5 attempts', async () => {
       await authService.sendOtp({

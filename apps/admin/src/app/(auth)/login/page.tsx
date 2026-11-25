@@ -7,6 +7,7 @@ import { GoogleButton, Logo, cn } from '@applyfields/ui';
 import { ChevronLeft, Eye, EyeOff, Loader2, Mail, ShieldAlert, ShieldCheck, Smartphone } from 'lucide-react';
 import { API_URL } from '@/lib/api';
 import { DEPARTMENTS, canOpenPath, departmentsForRoles } from '@/lib/nav';
+import { flashToast } from '@applyfields/ui';
 
 type Method = 'google' | 'email' | 'phone';
 
@@ -102,6 +103,7 @@ function StaffLoginForm() {
     const home = DEPARTMENTS[departments[0] ?? 'super_admin'].homePath;
     // Only same-site paths the user may open (no open redirect via ?from=).
     const safeFrom = from && from.startsWith('/') && !from.startsWith('//') && canOpenPath(departments, from.split('?')[0]);
+    flashToast('Logged in successfully. Welcome back!');
     router.replace(safeFrom ? from : home);
     router.refresh();
   }

@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   GraduationCap,
   HelpCircle,
-  Loader2,
   Mail,
   MessageSquare,
   Phone,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { apiPost } from '@/lib/api';
+import { Spinner } from '@applyfields/ui';
 
 interface CourseOption {
   id: string;
@@ -339,7 +339,7 @@ export function EnquiryDialog({
                   >
                     {submitting ? (
                       <>
-                        <Loader2 className="size-3.5 animate-spin" /> Submitting...
+                        <Spinner size={14} /> Submitting...
                       </>
                     ) : (
                       <>

@@ -32,8 +32,6 @@ export default async function Page({
       title="Government jobs"
       description="Central, state, district, PSU, railways, banking, defence and police jobs — with eligibility explained simply."
       icon={<Briefcase />}
-      owner="Karthik (page) · Harsha (data)"
-      when="Week 3"
       basePath="/jobs"
       categories={[
         'Central',

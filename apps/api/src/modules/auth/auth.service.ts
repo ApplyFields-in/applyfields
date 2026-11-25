@@ -27,7 +27,9 @@ import type {
 } from './dto/otp.dto.js';
 import type { UserSummary } from '@applyfields/types';
 import { sendOtpEmail } from '../notifications/email.js';
-import { sendOtpSms } from '../notifications/sms.js';
+import { phoneCodesUnavailable, sendOtpSms } from '../notifications/sms.js';
+
+const NO_SMS = 'Text-message codes are not available yet. Please use your email address instead.';
 
 // Internal type — includes tokens so the controller can set cookies. Never sent to clients.
 type LoginResult = { user: UserSummary; accessToken: string; refreshToken: string };
@@ -74,6 +76,8 @@ export class AuthService {
     if (!dto.email && !dto.phone) {
       throw new BadRequestException('Either email or phone must be provided');
     }
+    // Phone-only sign-up needs an SMS code; without SMS the account could never be confirmed.
+    if (!dto.email && phoneCodesUnavailable()) throw new ServiceUnavailableException(NO_SMS);
 
     // Check existing email/phone and compute password hash concurrently
     const [existingEmail, existingPhone, password_hash] = await Promise.all([
@@ -131,6 +135,29 @@ export class AuthService {
     };
   }
 
+  /**
+   * POST /auth/otp/send (public): "resend my sign-up code" and "forgot password". A code (and so an
+   * SMS, which costs money) goes out only when it can be used: sign-up codes to an account that
+   * hasn't verified that email/phone yet, reset codes to an existing active account. Anything else
+   * gets the same reply with nothing sent, so the endpoint can't be used to pump SMS to random
+   * numbers or to find out which numbers have accounts.
+   */
+  async requestOtp(dto: SendOtpDto): Promise<{ success: boolean; message: string; target: string; devOtp?: string }> {
+    const user = await this.store.findUserByIdentifier(dto.target);
+    const isEmail = dto.target.includes('@');
+    const useful =
+      !!user &&
+      user.status === 'active' &&
+      (dto.purpose === 'reset_password' ||
+        (dto.purpose === 'verify_email' && isEmail && !user.email_verified_at) ||
+        (dto.purpose === 'verify_phone' && !isEmail && !user.phone_verified_at));
+    if (!useful) {
+      if (!isEmail && phoneCodesUnavailable()) throw new ServiceUnavailableException(NO_SMS);
+      return { success: true, message: 'One-time verification code sent.', target: dto.target };
+    }
+    return this.sendOtp(dto, user.id);
+  }
+
   async sendOtp(
     dto: SendOtpDto,
     userId?: string | null,
@@ -140,6 +167,7 @@ export class AuthService {
     target: string;
     devOtp?: string;
   }> {
+    if (!dto.target.includes('@') && phoneCodesUnavailable()) throw new ServiceUnavailableException(NO_SMS);
     // Each code allows 5 guesses; capping sends stops "request a fresh code" brute force and SMS pumping.
     // ponytail: per-target limit only; add per-IP + Turnstile when public SMS goes live.
     const recent = await this.store.countOtpsSince(dto.target, new Date(Date.now() - 15 * 60 * 1000));
@@ -555,6 +583,40 @@ export class AuthService {
       message:
         'Password has been successfully reset. Please log in with your new password.',
     };
+  }
+
+  /** Handoff codes already redeemed, until they expire. ponytail: per API instance; move to DB if the API scales out. */
+  private spentHandoffs = new Map<string, number>();
+
+  /** Own secret, so a handoff code can never pass AuthGuard as an access token. */
+  private handoffSecret = () => `${jwtAccessSecret()}:handoff`;
+
+  /**
+   * One-click sign-in across our sites (citizen web → services portal). They live on different
+   * domains, so cookies can't be shared: the signed-in site gets a 60-second, single-use code and
+   * the other site trades it for its own session. Never carries `mfa`, so it can't open staff tools.
+   */
+  async createHandoff(userId: string): Promise<{ code: string }> {
+    const code = await this.jwtService.signAsync(
+      { typ: 'handoff', sub: userId, jti: randomBytes(16).toString('hex') },
+      { secret: this.handoffSecret(), expiresIn: 60 },
+    );
+    return { code };
+  }
+
+  async redeemHandoff(code: string, meta: { userAgent?: string; ipAddress?: string }): Promise<LoginResult> {
+    let p: { typ?: string; sub?: string; jti?: string; exp?: number };
+    try {
+      p = await this.jwtService.verifyAsync(code, { secret: this.handoffSecret() });
+    } catch {
+      throw new UnauthorizedException('This sign-in link expired. Please sign in.');
+    }
+    if (p.typ !== 'handoff' || !p.sub || !p.jti) throw new UnauthorizedException('Invalid sign-in link.');
+    const now = Date.now();
+    for (const [id, exp] of this.spentHandoffs) if (exp < now) this.spentHandoffs.delete(id);
+    if (this.spentHandoffs.has(p.jti)) throw new UnauthorizedException('This sign-in link was already used.');
+    this.spentHandoffs.set(p.jti, (p.exp ?? 0) * 1000);
+    return this.sessionFor(p.sub, meta, false);
   }
 
   /** Session for a user another sign-in method has already proven (passkeys). Refuses inactive accounts. */

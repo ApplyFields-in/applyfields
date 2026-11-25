@@ -29,11 +29,23 @@ export class NotificationsScheduler implements OnApplicationBootstrap, OnApplica
     this.timers.push(
       setTimeout(() => void this.run(), 45_000).unref(),
       setInterval(() => void this.run(), TICK_MS).unref(),
+      // Scheduled broadcasts (festival greetings) go out within a minute of their time.
+      setInterval(() => void this.runBroadcasts(), 60_000).unref(),
     );
   }
 
-  onApplicationShutdown(): void {
+  onApplicationShutdown(): Promise<void> {
     this.timers.forEach(clearTimeout);
+    return this.notifications.flushPush(); // pushes already queued still go out
+  }
+
+  private async runBroadcasts(): Promise<void> {
+    try {
+      const sent = await this.notifications.runScheduledBroadcasts();
+      if (sent) this.logger.log(`Sent ${sent} scheduled broadcast${sent === 1 ? '' : 's'}`);
+    } catch (err) {
+      this.logger.warn(`Scheduled broadcasts failed: ${(err as Error).message}`);
+    }
   }
 
   private async run(): Promise<void> {

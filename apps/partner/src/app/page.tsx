@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { usePartnerAuth } from '@/lib/auth-context';
+import { partnerHome, usePartnerAuth } from '@/lib/auth-context';
 import {
   ArrowRight,
   Award,
@@ -25,7 +25,6 @@ export default function PartnerLandingPage() {
 
   // If user is already verified partner, offer quick redirect or banner
   const isVerified = status === 'verified';
-  const isPending = status === 'pending_verification';
 
   return (
     <div className="min-h-screen bg-[#F0F4F8] text-[#082046] selection:bg-[#38bdf8] selection:text-[#082046]">
@@ -50,18 +49,18 @@ export default function PartnerLandingPage() {
                 <span className="text-lg font-black tracking-tight text-[#082046]">
                   Apply<span className="text-[#0e7bf4]">Fields</span>
                 </span>
-                <span className="rounded-md bg-[#e0edfb] px-2 py-0.5 text-xs font-black uppercase tracking-wider text-[#0e7bf4] border border-[#38bdf8]/30">
+                <span className="hidden sm:inline rounded-md bg-[#e0edfb] px-2 py-0.5 text-xs font-black uppercase tracking-wider text-[#0e7bf4] border border-[#38bdf8]/30">
                   Partner Portal
                 </span>
               </div>
-              <p className="text-[11px] text-[#526987] font-semibold">Operator &amp; Merchant Network</p>
+              <p className="hidden sm:block text-[11px] text-[#526987] font-semibold">Operator &amp; Merchant Network</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {!loading && status !== 'unauthenticated' ? (
               <Link
-                href={isPending ? '/under-review' : '/dashboard'}
+                href={partner ? partnerHome(partner) : '/onboard'}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#0e7bf4] px-4 py-2 text-sm font-bold text-white transition-all hover:bg-[#0c6fdc] shadow-clay-btn-azure"
               >
                 Go to Workspace
@@ -71,9 +70,9 @@ export default function PartnerLandingPage() {
               <>
                 <Link
                   href="/login"
-                  className="rounded-xl border border-[#c4d2e3] bg-white px-4 py-2 text-sm font-bold text-[#082046] transition hover:bg-slate-50 shadow-sm"
+                  className="rounded-xl border border-[#c4d2e3] bg-white px-3 sm:px-4 py-2 text-sm font-bold text-[#082046] transition hover:bg-slate-50 shadow-sm"
                 >
-                  Partner Sign In
+                  Sign In
                 </Link>
                 <Link
                   href="/institution/onboard"
@@ -84,10 +83,10 @@ export default function PartnerLandingPage() {
                 </Link>
                 <Link
                   href="/onboard"
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#00a884] px-4 py-2 text-sm font-bold text-white transition-all hover:bg-[#009172] shadow-md shadow-[#00a884]/25"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#00a884] px-3 sm:px-4 py-2 text-sm font-bold text-white transition-all hover:bg-[#009172] shadow-md shadow-[#00a884]/25"
                 >
                   Register Center
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="hidden sm:block h-4 w-4" />
                 </Link>
               </>
             )}
@@ -125,7 +124,7 @@ export default function PartnerLandingPage() {
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#082046] to-[#0e7bf4] px-7 py-3.5 text-base font-bold text-white transition-all hover:opacity-95 shadow-lg shadow-[#082046]/20 active:scale-[0.99]"
             >
               <Building2 className="h-5 w-5" />
-              <span>College Admissions Desk (Founder Doc §21)</span>
+              <span>College Admissions Desk</span>
               <ArrowRight className="h-5 w-5" />
             </Link>
 

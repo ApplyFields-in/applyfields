@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 import * as path from 'node:path';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { VaultService } from '../src/common/vault.service.js';
 import { StorageService } from '../src/common/storage.service.js';
@@ -25,12 +25,12 @@ interface MigrationItem {
   label: string;
   storagePath: string | null;
   mimeType: string;
-  saveKey: (encryptedKey: Uint8Array<ArrayBuffer>) => Promise<void>;
+  saveResult: (encryptedKey: Uint8Array<ArrayBuffer>, encPath: string) => Promise<void>;
 }
 
 function inferMimeType(storagePath: string | null, explicit?: string | null): string {
   if (explicit) return explicit;
-  const ext = (storagePath ?? '').split('.').pop()?.toLowerCase();
+  const ext = (storagePath ?? '').replace(/\.enc$/i, '').split('.').pop()?.toLowerCase();
   if (ext === 'png') return 'image/png';
   if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
   if (ext === 'pdf') return 'application/pdf';
@@ -70,21 +70,31 @@ async function encryptBatch(
 
       const { data: encryptedData, encryptedKey } = vaultService.encrypt(rawBytes);
 
+      // Write the encrypted copy to a NEW path, then point the row at it (key + path together), then
+      // delete the plain copy. Overwriting in place loses the file if the DB update fails, and a
+      // re-run would encrypt ciphertext again.
+      const encPath = item.storagePath.endsWith('.enc') ? item.storagePath : `${item.storagePath}.enc`;
       if (isLocalFile) {
-        writeFileSync(item.storagePath, encryptedData);
+        writeFileSync(encPath, encryptedData);
       } else {
         const uploaded = await storageService.upload(
           storageService.documentsBucket,
-          item.storagePath,
+          encPath,
           encryptedData,
           item.mimeType,
         );
         if (!uploaded) {
-          throw new Error(`Failed to re-upload encrypted file to storage: ${item.storagePath}`);
+          throw new Error(`Failed to upload encrypted file to storage: ${encPath}`);
         }
       }
 
-      await item.saveKey(new Uint8Array(encryptedKey));
+      await item.saveResult(new Uint8Array(encryptedKey), encPath);
+
+      if (encPath !== item.storagePath) {
+        if (isLocalFile) unlinkSync(item.storagePath);
+        else await storageService.remove(storageService.documentsBucket, [item.storagePath]);
+      }
+
       counts.encrypted++;
       console.log(`    [OK] Encrypted and updated ${item.id}`);
     } catch (err) {
@@ -146,10 +156,10 @@ async function run() {
         label: doc.file_name || doc.storage_path,
         storagePath: doc.storage_path,
         mimeType: inferMimeType(doc.storage_path, doc.mime_type),
-        saveKey: async (key) => {
+        saveResult: async (key, encPath) => {
           await prisma.user_documents.update({
             where: { id: doc.id },
-            data: { encrypted_key: key },
+            data: { encrypted_key: key, storage_path: encPath },
           });
         },
       })),
@@ -164,10 +174,10 @@ async function run() {
         label: `${doc.document_kind} (${doc.storage_path})`,
         storagePath: doc.storage_path,
         mimeType: inferMimeType(doc.storage_path),
-        saveKey: async (key) => {
+        saveResult: async (key, encPath) => {
           await prisma.partner_documents.update({
             where: { id: doc.id },
-            data: { encrypted_key: key },
+            data: { encrypted_key: key, storage_path: encPath },
           });
         },
       })),
@@ -182,10 +192,10 @@ async function run() {
         label: req.official_app_number || req.acknowledgment_slip_url || req.id,
         storagePath: req.acknowledgment_slip_url,
         mimeType: inferMimeType(req.acknowledgment_slip_url),
-        saveKey: async (key) => {
+        saveResult: async (key, encPath) => {
           await prisma.service_requests.update({
             where: { id: req.id },
-            data: { acknowledgment_slip_encrypted_key: key },
+            data: { acknowledgment_slip_encrypted_key: key, acknowledgment_slip_url: encPath },
           });
         },
       })),

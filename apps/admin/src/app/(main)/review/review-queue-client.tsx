@@ -4,19 +4,14 @@ import React, { useState, useEffect, useCallback, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ReviewListItem } from '@applyfields/types';
-import { Badge, buttonClass, Card, cn } from '@applyfields/ui';
+import { Card, cn } from '@applyfields/ui';
 import {
   AlertTriangle,
   ArrowRight,
-  Check,
   CheckCircle2,
   CircleAlert,
   CircleCheck,
-  Command,
-  FileClock,
-  Inbox,
   Keyboard,
-  Layers,
   Loader2,
   Send,
   Trash2,
@@ -41,6 +36,17 @@ const QUICK_REJECTION_REASONS = [
   'Eligibility criteria missing from source text',
 ];
 
+/** Runs `task` for every id, 5 at a time (instead of one after another); returns the ids that succeeded. */
+async function inBatches(ids: string[], task: (id: string) => Promise<boolean>): Promise<string[]> {
+  const ok: string[] = [];
+  for (let i = 0; i < ids.length; i += 5) {
+    const chunk = ids.slice(i, i + 5);
+    const results = await Promise.all(chunk.map((id) => task(id).catch(() => false)));
+    chunk.forEach((id, k) => results[k] && ok.push(id));
+  }
+  return ok;
+}
+
 export function ReviewQueueClient({
   items,
   total,
@@ -63,9 +69,22 @@ export function ReviewQueueClient({
   const [rejectionReason, setRejectionReason] = useState<string>(QUICK_REJECTION_REASONS[0]);
   const [feedback, setFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // Rows published/rejected here disappear at once; the server refresh catches up in the background.
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  // Published here: kept on screen in a "Just published" strip so the click visibly did something.
+  const [justPublished, setJustPublished] = useState<ReviewListItem[]>([]);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const visible = items.filter((d) => !removed.has(d.id));
+  const hide = (ids: string[]) =>
+    setRemoved((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setFeedback({ text, type });
-    setTimeout(() => setFeedback(null), 4000);
+    setTimeout(() => setFeedback(null), type === 'error' ? 9000 : 5000);
   };
 
   // Toggle selection for an item
@@ -81,26 +100,18 @@ export function ReviewQueueClient({
 
   // Select all high-confidence drafts (>90%)
   const handleSelectHighConfidence = () => {
-    const highConf = items.filter((d) => (d.confidence ?? 0) >= 0.9 && d.missing.length === 0);
+    const highConf = visible.filter((d) => (d.confidence ?? 0) >= 0.9 && d.missing.length === 0);
     const ids = new Set(highConf.map((d) => d.id));
     setSelectedIds(ids);
-    showToast(`Selected ${ids.size} high-confidence (>90%) ready drafts.`);
-  };
-
-  // Select all expired/stale notifications
-  const handleSelectExpired = () => {
-    const stale = items.filter((d) => d.needs_care || d.missing.length > 2);
-    const ids = new Set(stale.map((d) => d.id));
-    setSelectedIds(ids);
-    showToast(`Selected ${ids.size} stale/incomplete drafts for cleanup.`);
+    showToast(`Selected ${ids.size} ready drafts with 90%+ confidence.`);
   };
 
   // Select all drafts
   const handleSelectAll = () => {
-    if (selectedIds.size === items.length) {
+    if (selectedIds.size === visible.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(items.map((d) => d.id)));
+      setSelectedIds(new Set(visible.map((d) => d.id)));
     }
   };
 
@@ -111,17 +122,22 @@ export function ReviewQueueClient({
         showToast(`Cannot publish "${item.title.slice(0, 30)}..." — ${item.missing.length} fields missing. Open details to edit.`, 'error');
         return;
       }
+      setPublishingId(item.id);
       startTransition(async () => {
         try {
           const res = await publishOpportunityAction(item.id);
           if (res.ok) {
+            hide([item.id]);
+            setJustPublished((prev) => [item, ...prev]);
             showToast(`Published: "${item.title.slice(0, 40)}..."`);
             router.refresh();
           } else {
-            showToast(res.error || 'Failed to publish draft', 'error');
+            showToast(`Not published: ${res.error || 'unknown error'}`, 'error');
           }
         } catch {
           showToast('Failed to publish draft', 'error');
+        } finally {
+          setPublishingId(null);
         }
       });
     },
@@ -135,6 +151,7 @@ export function ReviewQueueClient({
       try {
         const res = await setOpportunityStatusAction(rejectingItem.id, 'archived', rejectionReason);
         if (res.ok) {
+          hide([rejectingItem.id]);
           showToast(`Rejected: "${rejectingItem.title.slice(0, 30)}..."`);
           setRejectingItem(null);
           router.refresh();
@@ -152,22 +169,22 @@ export function ReviewQueueClient({
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
-    if (!confirm(`Approve and publish all ${ids.length} selected opportunities to the live platform?`)) {
+    if (!confirm(`Publish ${ids.length} selected draft${ids.length > 1 ? 's' : ''} to the live site? Drafts with missing information are skipped.`)) {
       return;
     }
 
     startTransition(async () => {
-      let published = 0;
-      for (const id of ids) {
-        try {
-          const res = await publishOpportunityAction(id);
-          if (res.ok) published++;
-        } catch {
-          // continue
-        }
-      }
+      const done = await inBatches(ids, async (id) => (await publishOpportunityAction(id)).ok);
+      const published = done.length;
+      hide(done);
+      setJustPublished((prev) => [...items.filter((d) => done.includes(d.id)), ...prev]);
       setSelectedIds(new Set());
-      showToast(`Batch published ${published} of ${ids.length} opportunities!`);
+      showToast(
+        published === ids.length
+          ? `Published ${published} draft${published > 1 ? 's' : ''}.`
+          : `Published ${published} of ${ids.length}. The rest need information first.`,
+        published === ids.length ? 'success' : 'error',
+      );
       router.refresh();
     });
   };
@@ -177,22 +194,18 @@ export function ReviewQueueClient({
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
 
-    if (!confirm(`Reject all ${ids.length} selected drafts?`)) {
+    if (!confirm(`Reject ${ids.length} selected draft${ids.length > 1 ? 's' : ''}? They will not go live.`)) {
       return;
     }
 
     startTransition(async () => {
-      let rejected = 0;
-      for (const id of ids) {
-        try {
-          const res = await setOpportunityStatusAction(id, 'archived', 'Batch rejected by staff review');
-          if (res.ok) rejected++;
-        } catch {
-          // continue
-        }
-      }
+      const done = await inBatches(ids, async (id) =>
+        (await setOpportunityStatusAction(id, 'archived', 'Batch rejected by staff review')).ok,
+      );
+      const rejected = done.length;
+      hide(done);
       setSelectedIds(new Set());
-      showToast(`Batch rejected ${rejected} opportunities.`);
+      showToast(`Rejected ${rejected} draft${rejected === 1 ? '' : 's'}.`);
       router.refresh();
     });
   };
@@ -204,14 +217,21 @@ export function ReviewQueueClient({
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
         return;
       }
+      // Ctrl/Cmd/Alt combos belong to the browser (Ctrl+A used to publish a draft, Ctrl+R to open Reject).
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // A dialog is open: its own keys only (A used to publish the row behind the Reject box).
+      if (rejectingItem || showHotkeysHelp) {
+        if (e.key === 'Escape') setShowHotkeysHelp(false);
+        return;
+      }
 
-      if (items.length === 0) return;
+      if (visible.length === 0) return;
 
-      const currentItem = items[focusedIndex];
+      const currentItem = visible[Math.min(focusedIndex, visible.length - 1)];
 
       if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault();
-        setFocusedIndex((prev) => (prev < items.length - 1 ? prev + 1 : prev));
+        setFocusedIndex((prev) => (prev < visible.length - 1 ? prev + 1 : prev));
       } else if (e.key === 'k' || e.key === 'ArrowUp') {
         e.preventDefault();
         setFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
@@ -233,7 +253,7 @@ export function ReviewQueueClient({
         if (currentItem) {
           if (currentItem.source_url) {
             window.open(currentItem.source_url, '_blank');
-            showToast(`Opened source document: "${currentItem.title.slice(0, 30)}..."`);
+
           } else {
             router.push(`/review/${currentItem.id}`);
           }
@@ -249,7 +269,7 @@ export function ReviewQueueClient({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [items, focusedIndex, router, handleApproveSingle]);
+  }, [visible, focusedIndex, router, handleApproveSingle, rejectingItem, showHotkeysHelp]);
 
   // Rejection modal numerical shortcuts (1-5) and Escape
   useEffect(() => {
@@ -288,85 +308,74 @@ export function ReviewQueueClient({
         </div>
       )}
 
-      {/* Hotkeys Bar & Batch Actions Tray */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white border border-teal/15 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <button
-            type="button"
-            onClick={handleSelectAll}
-            className="px-2.5 py-1 rounded-lg border border-teal/20 bg-canvas text-teal font-semibold hover:bg-teal/10 transition-colors"
-          >
-            {selectedIds.size === items.length && items.length > 0 ? 'Deselect All' : 'Select All'}
-          </button>
-
+      {/* Selection + shortcuts */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal/15 bg-white px-4 py-2.5 text-xs">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex cursor-pointer items-center gap-2 font-semibold text-teal">
+            <input
+              type="checkbox"
+              checked={selectedIds.size > 0 && selectedIds.size === visible.length}
+              onChange={handleSelectAll}
+              className="size-4 rounded border-teal/30 text-teal focus:ring-teal"
+            />
+            Select all on this page
+          </label>
           <button
             type="button"
             onClick={handleSelectHighConfidence}
-            className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold hover:bg-emerald-100 transition-colors"
+            className="font-semibold text-teal/70 underline-offset-2 hover:text-teal hover:underline"
           >
-            Select High Confidence (&gt;90%)
+            Select ready drafts (90%+ confidence)
           </button>
-
-          <button
-            type="button"
-            onClick={handleSelectExpired}
-            className="px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 font-semibold hover:bg-amber-100 transition-colors"
-          >
-            Select Stale / Incomplete
-          </button>
-
-          {selectedIds.size > 0 && (
-            <span className="font-bold text-teal bg-teal/10 px-2 py-0.5 rounded-md text-[11px]">
-              {selectedIds.size} Selected
-            </span>
-          )}
+          {selectedIds.size > 0 && <span className="font-bold text-teal">{selectedIds.size} selected</span>}
         </div>
-
-        {/* Hotkeys Quick Reference Pill */}
-        <div className="flex items-center gap-2">
-          <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-teal/70 font-mono">
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">J / K</span>
-            <span>Navigate</span>
-            <span className="text-teal/30">·</span>
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">A</span>
-            <span>Approve</span>
-            <span className="text-teal/30">·</span>
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">R</span>
-            <span>Reject</span>
-            <span className="text-teal/30">·</span>
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">V</span>
-            <span>PDF</span>
-            <span className="text-teal/30">·</span>
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 font-bold text-teal">X</span>
-            <span>Select</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowHotkeysHelp(true)}
-            className="p-1 rounded-lg text-teal/60 hover:text-teal hover:bg-teal/10 transition-colors"
-            title="Keyboard shortcuts help"
-          >
-            <Keyboard className="size-4" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowHotkeysHelp(true)}
+          className="inline-flex items-center gap-1.5 font-semibold text-teal/60 hover:text-teal"
+        >
+          <Keyboard className="size-4" aria-hidden="true" /> Keyboard shortcuts <kbd className="rounded bg-teal/10 px-1 font-mono">?</kbd>
+        </button>
       </div>
+
+      {justPublished.length > 0 && (
+        <Card className="overflow-hidden border-emerald-200 p-0">
+          <p className="flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-5 py-2.5 text-xs font-bold text-emerald-900">
+            <CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
+            Just published ({justPublished.length}), now live on the site
+          </p>
+          <ul className="divide-y divide-emerald-100">
+            {justPublished.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-3 px-5 py-2.5">
+                <span className="min-w-0 truncate text-sm font-semibold text-teal">{d.title}</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                    <CircleCheck className="size-3" aria-hidden="true" /> Published
+                  </span>
+                  <Link href={`/opportunities/${d.id}`} className="text-xs font-semibold text-teal/70 hover:text-teal">
+                    View <ArrowRight className="inline size-3" aria-hidden="true" />
+                  </Link>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/* Drafts List Card */}
       <Card className="overflow-hidden p-0">
         {/* Table Header */}
-        <div className="hidden grid-cols-[36px_minmax(0,1fr)_110px_120px_120px_130px_110px] gap-4 border-b border-teal/10 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-teal/70 lg:grid">
+        <div className="hidden gap-4 border-b border-teal/10 bg-paper/60 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-teal/60 lg:grid lg:grid-cols-[28px_minmax(0,1fr)_110px_120px_minmax(150px,190px)_auto]">
           <span />
-          <span>Draft Details</span>
-          <span>Source</span>
-          <span>Confidence</span>
+          <span>Draft</span>
           <span>Found</span>
+          <span>Confidence</span>
           <span>Readiness</span>
           <span className="text-right">Actions</span>
         </div>
 
         <ul className="divide-y divide-teal/10">
-          {items.map((d, index) => {
+          {visible.map((d, index) => {
             const isFocused = focusedIndex === index;
             const isSelected = selectedIds.has(d.id);
             const isReady = d.missing.length === 0;
@@ -379,103 +388,104 @@ export function ReviewQueueClient({
                   isFocused ? 'bg-amber-50/70 border-l-4 border-l-amber-500' : isSelected ? 'bg-teal/5' : 'hover:bg-cream/40'
                 }`}
               >
-                <div className="grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-3.5 lg:grid-cols-[36px_minmax(0,1fr)_110px_120px_120px_130px_110px]">
-                  {/* Select Checkbox */}
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleToggleSelect(d.id)}
-                      className="size-4 rounded border-teal/30 text-teal focus:ring-teal cursor-pointer"
-                    />
-                  </div>
+                <div className="grid grid-cols-[28px_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-3.5 lg:grid-cols-[28px_minmax(0,1fr)_110px_120px_minmax(150px,190px)_auto]">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleToggleSelect(d.id)}
+                    aria-label={`Select ${d.title}`}
+                    className="size-4 cursor-pointer rounded border-teal/30 text-teal focus:ring-teal"
+                  />
 
-                  {/* Title & Organization */}
+                  {/* Title, then organisation · type · source · care flag */}
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/review/${d.id}`}
-                        className="truncate font-bold text-teal hover:underline text-sm"
-                      >
-                        {d.title}
-                      </Link>
-                      {isFocused && (
-                        <span className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 text-[9px] font-mono font-bold uppercase">
-                          Active
+                    <Link href={`/review/${d.id}`} className="line-clamp-2 text-sm font-bold leading-snug text-teal hover:underline">
+                      {d.title}
+                    </Link>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-teal/70">
+                      <span>{d.organization}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{TYPE_LABEL[d.type as keyof typeof TYPE_LABEL] ?? d.type}</span>
+                      {d.source_key && (
+                        <span className="rounded bg-teal/8 px-1.5 py-px font-mono text-[10px] font-bold uppercase text-teal/80">
+                          {d.source_key}
                         </span>
                       )}
-                    </div>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-teal/80">
-                      <span>{d.organization}</span>
-                      <span>·</span>
-                      <span>{TYPE_LABEL[d.type as keyof typeof TYPE_LABEL] ?? d.type}</span>
                       {d.needs_care && (
-                        <Badge tone="celadon" className="text-[10px] py-0.2">
-                          <AlertTriangle className="size-2.5 mr-1 inline" /> Check carefully
-                        </Badge>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-px text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                          <AlertTriangle className="size-2.5" aria-hidden="true" /> Check carefully
+                        </span>
                       )}
                     </p>
                   </div>
 
-                  {/* Source Key */}
-                  <span className="text-xs font-semibold uppercase lg:text-sm">
-                    <span className="text-teal/70 lg:hidden">Source: </span>
-                    <span className="font-mono bg-teal/10 px-1.5 py-0.5 rounded text-[11px] text-teal">
-                      {d.source_key ?? '—'}
-                    </span>
-                  </span>
-
-                  {/* Confidence */}
-                  <div>
-                    <ConfidenceMeter value={d.confidence} />
-                  </div>
-
-                  {/* Found At */}
-                  <span className="text-xs text-teal/80 lg:text-sm">
+                  <span className="col-start-2 text-xs text-teal/70 lg:col-start-auto">
+                    <span className="lg:hidden">Found </span>
                     {formatFoundAt(d.found_at)}
                   </span>
 
-                  {/* Readiness Badge */}
-                  <div>
-                    {isReady ? (
-                      <Badge tone="teal" className="text-[11px]">
-                        <CircleCheck className="size-3 mr-1 inline text-emerald-600" /> Ready
-                      </Badge>
+                  <div className="col-start-2 lg:col-start-auto">
+                    {d.confidence === null ? (
+                      <span className="text-xs text-teal/50">Not scored</span>
                     ) : (
-                      <Badge tone="outline" className="bg-cream text-[11px]">
-                        <CircleAlert className="size-3 mr-1 inline text-amber-600" /> {d.missing.length} missing
-                      </Badge>
+                      <ConfidenceMeter value={d.confidence} />
                     )}
                   </div>
 
-                  {/* Quick Hotkey Action Buttons */}
-                  <div className="flex items-center justify-end gap-1.5">
+                  {/* Readiness: say WHAT is missing, not just how many */}
+                  <div className="col-start-2 min-w-0 lg:col-start-auto" title={isReady ? 'Ready to publish' : d.missing.join('\n')}>
+                    {isReady ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                        <CircleCheck className="size-3" aria-hidden="true" /> Ready to publish
+                      </span>
+                    ) : d.missing[0].startsWith('Last date passed') ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-800 ring-1 ring-rose-200">
+                        <CircleAlert className="size-3" aria-hidden="true" /> Expired · last date {d.last_date}
+                      </span>
+                    ) : (
+                      <span className="flex min-w-0 items-start gap-1 text-[11px] font-medium text-amber-900">
+                        <CircleAlert className="mt-px size-3 shrink-0 text-amber-600" aria-hidden="true" />
+                        <span className="min-w-0">
+                          Missing: {d.missing[0].replace(/ \(.*\)$/, '').toLowerCase()}
+                          {d.missing.length > 1 && <span className="text-teal/50"> +{d.missing.length - 1} more</span>}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="col-start-2 flex items-center gap-1.5 lg:col-start-auto lg:justify-end">
                     <button
                       type="button"
                       disabled={!isReady || isPending}
                       onClick={() => handleApproveSingle(d)}
-                      className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-40 transition-colors border border-emerald-200"
-                      title="Quick Publish (Hotkey: A)"
+                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-600/30"
+                      title={isReady ? 'Publish (A)' : `Can't publish yet. Missing: ${d.missing.join(', ')}`}
                     >
-                      <Send className="size-3.5" />
+                      {publishingId === d.id ? (
+                        <>
+                          <Loader2 className="size-3 animate-spin" aria-hidden="true" /> Publishing…
+                        </>
+                      ) : (
+                        <>
+                          <Send className="size-3" aria-hidden="true" /> Publish
+                        </>
+                      )}
                     </button>
-
                     <button
                       type="button"
                       disabled={isPending}
                       onClick={() => setRejectingItem(d)}
-                      className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:opacity-40 transition-colors border border-rose-200"
-                      title="Quick Reject (Hotkey: R)"
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-50 disabled:opacity-40"
+                      title="Reject (R)"
                     >
-                      <Trash2 className="size-3.5" />
+                      <Trash2 className="size-3" aria-hidden="true" /> Reject
                     </button>
-
                     <Link
                       href={`/review/${d.id}`}
-                      className="p-1.5 rounded-lg text-teal/60 hover:text-teal hover:bg-teal/10 transition-colors"
-                      title="Inspect Notice & PDF (Hotkey: Enter)"
+                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-teal/70 transition hover:bg-teal/10 hover:text-teal"
+                      title="Open draft and PDF (Enter)"
                     >
-                      <ArrowRight className="size-3.5" />
+                      Open <ArrowRight className="size-3" aria-hidden="true" />
                     </Link>
                   </div>
                 </div>
@@ -501,7 +511,7 @@ export function ReviewQueueClient({
             className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition-colors shadow-sm"
           >
             {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-            <span>Approve &amp; Publish Batch</span>
+            <span>Publish {selectedIds.size}</span>
           </button>
 
           <button
@@ -511,7 +521,7 @@ export function ReviewQueueClient({
             className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-rose-300 hover:bg-white/20 transition-colors"
           >
             <Trash2 className="size-3.5" />
-            <span>Reject Selected</span>
+            <span>Reject {selectedIds.size}</span>
           </button>
 
           <button
@@ -528,9 +538,9 @@ export function ReviewQueueClient({
       {/* Reject Modal */}
       {rejectingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-teal/20 bg-canvas p-6 shadow-2xl space-y-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="reject-title" className="w-full max-w-md rounded-3xl border border-teal/20 bg-canvas p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-teal/10">
-              <h3 className="text-sm font-bold text-teal">Reject Scraped Draft</h3>
+              <h3 id="reject-title" className="text-sm font-bold text-teal">Reject draft</h3>
               <button
                 type="button"
                 onClick={() => setRejectingItem(null)}
@@ -541,12 +551,12 @@ export function ReviewQueueClient({
             </div>
 
             <p className="text-xs text-teal/80">
-              Rejecting <strong className="text-teal">&ldquo;{rejectingItem.title}&rdquo;</strong> from publication queue.
+              <strong className="text-teal">&ldquo;{rejectingItem.title}&rdquo;</strong> will not go live.
             </p>
 
             <div className="space-y-2">
               <label className="block text-xs font-semibold text-teal">
-                Select Rejection Reason (Press 1–5 or Click)
+                Reason (press 1–5 or click)
               </label>
               <div className="space-y-1.5">
                 {QUICK_REJECTION_REASONS.map((reason, idx) => (
@@ -584,7 +594,7 @@ export function ReviewQueueClient({
                 onClick={handleConfirmReject}
                 className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-500 shadow-sm"
               >
-                {isPending ? 'Rejecting...' : 'Confirm Rejection'}
+                {isPending ? 'Rejecting…' : 'Reject'}
               </button>
             </div>
           </div>
@@ -594,11 +604,11 @@ export function ReviewQueueClient({
       {/* Hotkeys Cheat Sheet Modal */}
       {showHotkeysHelp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-teal/20 bg-canvas p-6 shadow-2xl space-y-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="keys-title" className="w-full max-w-md rounded-3xl border border-teal/20 bg-canvas p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-teal/10">
               <div className="flex items-center gap-2">
                 <Keyboard className="size-5 text-teal" />
-                <h3 className="text-base font-bold text-teal">Review Queue Hotkeys</h3>
+                <h3 id="keys-title" className="text-base font-bold text-teal">Keyboard shortcuts</h3>
               </div>
               <button
                 type="button"
@@ -623,11 +633,11 @@ export function ReviewQueueClient({
                 <span className="font-mono bg-teal/10 px-2 py-0.5 rounded font-bold">X</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-teal/5">
-                <span className="font-medium">Quick Approve &amp; Publish</span>
+                <span className="font-medium">Publish the highlighted draft</span>
                 <span className="font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">A</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-teal/5">
-                <span className="font-medium">Quick Reject (Modal)</span>
+                <span className="font-medium">Reject the highlighted draft</span>
                 <span className="font-mono bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">R</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-teal/5">
@@ -639,7 +649,7 @@ export function ReviewQueueClient({
                 <span className="font-mono bg-teal/10 px-2 py-0.5 rounded font-bold">V</span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="font-medium">Select All High Confidence (&gt;90%)</span>
+                <span className="font-medium">Select ready drafts (90%+)</span>
                 <span className="font-mono bg-teal/10 px-2 py-0.5 rounded font-bold">Shift + A</span>
               </div>
             </div>
@@ -650,7 +660,7 @@ export function ReviewQueueClient({
                 onClick={() => setShowHotkeysHelp(false)}
                 className="px-4 py-2 rounded-xl bg-teal text-white text-xs font-semibold"
               >
-                Got It
+                Close
               </button>
             </div>
           </div>

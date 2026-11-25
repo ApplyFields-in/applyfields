@@ -1,3 +1,4 @@
+import { contentDisposition } from '../../common/content-disposition.js';
 import {
   Body,
   Controller,
@@ -15,6 +16,7 @@ import {
 import type { Response } from 'express';
 import { z } from 'zod';
 import type {
+  ChatMessageItem,
   BookingDispute,
   CreateBookingDisputeInput,
   BookingDetail,
@@ -39,6 +41,7 @@ import {
   createDisputeSchema,
 
   markFiledSchema,
+  attachToChatSchema,
   shareDocumentsSchema,
   updateBookingStatusSchema,
   walkInSchema,
@@ -128,7 +131,7 @@ export class BookingsController {
   ) {
     const slip = await this.bookingsService.getSlipFile(req.user.userId, bookingId);
     res.setHeader('Content-Type', slip.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${slip.fileName}"`);
+    res.setHeader('Content-Disposition', contentDisposition('inline', slip.fileName));
     res.setHeader('Cache-Control', 'no-store');
     return res.send(slip.buffer);
   }
@@ -142,6 +145,17 @@ export class BookingsController {
     @Body(new ZodPipe(shareDocumentsSchema)) body: z.infer<typeof shareDocumentsSchema>,
   ): Promise<BookingDetail> {
     return this.bookingsService.shareDocuments(req.user.userId, bookingId, body.document_ids);
+  }
+
+  /** Citizen: attach a locker document in the booking chat (shares it with the centre, posts a message). */
+  @Post(':id/chat/attachments')
+  @UseGuards(AuthGuard)
+  async attachToChat(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) bookingId: string,
+    @Body(new ZodPipe(attachToChatSchema)) body: z.infer<typeof attachToChatSchema>,
+  ): Promise<ChatMessageItem> {
+    return this.bookingsService.attachToChat(req.user.userId, bookingId, body.document_id);
   }
 
   /** Centre (or the citizen): link to stream one shared document. */
@@ -170,7 +184,7 @@ export class BookingsController {
       shareId,
     );
     res.setHeader('Content-Type', doc.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${doc.fileName}"`);
+    res.setHeader('Content-Disposition', contentDisposition('inline', doc.fileName));
     res.setHeader('Cache-Control', 'no-store');
     return res.send(doc.buffer);
   }

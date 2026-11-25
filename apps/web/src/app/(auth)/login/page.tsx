@@ -23,13 +23,14 @@ import {
   validatePassword,
 } from '@/components/auth-ui';
 import type { AuthResponse } from '@applyfields/types';
+import { flashAppToast } from '@/components/toast-notification-provider';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const verifiedNotice = searchParams.get('verified') === 'true';
   const rawRedirect = searchParams.get('redirect') || searchParams.get('target') || searchParams.get('next');
-  const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/account';
+  const redirectTarget = rawRedirect && rawRedirect !== '/me' ? rawRedirect : '/';
 
   // Sign in = Google or email/phone + password. Codes only for sign-up and forgot password.
   const [mode, setMode] = useState<'password' | 'forgot'>('password');
@@ -114,6 +115,7 @@ function LoginForm() {
     }
 
     setSuccess('Logged in successfully! Redirecting...');
+    flashAppToast('Logged in successfully. Welcome back!');
     setTimeout(() => {
       router.push(redirectTarget);
     }, 1000);

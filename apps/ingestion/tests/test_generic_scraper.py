@@ -139,3 +139,61 @@ def test_skip_words_and_limit() -> None:
         "https://psc.example.gov.in/uploads/notif/group2.pdf",
         "https://psc.example.gov.in/uploads/other/syllabus.pdf",
     ]
+
+
+# --- documents without .pdf, and per-vacancy detail pages -----------------------------------------
+
+
+def test_doc_path_contains_accepts_pdfs_without_extension() -> None:
+    html = """
+    <a href="/preview/RElSRUNU==r95v">05/G/2026 GENERAL RECRUITMENT - Town Planning</a>
+    <a href="/preview/V0VCTk9URQ==r95v">Results web note</a>
+    <a href="/about">About the commission</a>
+    """
+    s = scraper(doc_path_contains="/preview/", title_words=["recruitment"])
+
+    assert [n.url for n in s.find_notices(html)] == [
+        "https://psc.example.gov.in/preview/RElSRUNU==r95v"
+    ]
+    assert s.is_document_url("https://psc.example.gov.in/preview/RElSRUNU==r95v")
+    assert not scraper().is_document_url("https://psc.example.gov.in/preview/RElSRUNU==r95v")
+
+
+def test_detail_pages_are_followed_and_named_by_their_heading() -> None:
+    list_html = """
+    <a href="/vacancies/">Vacancies</a>
+    <a href="http://psc.example.gov.in/vacancies/ra-posts">View More</a>
+    <a href="/vacancies/ra-posts">View More</a>
+    <a href="/vacancies/old-results">View More</a>
+    """
+    pages = {
+        "https://psc.example.gov.in/vacancies/ra-posts": """
+            <h1>Lab invites applications for RA posts</h1>
+            <a href="/files/vacancy/advt.pdf">View</a>
+            <a href="/files/brochure.pdf">Annual brochure of the lab</a>""",
+        "https://psc.example.gov.in/vacancies/old-results": """
+            <h1>Final results of interview</h1>
+            <a href="/files/vacancy/result.pdf">View</a>""",
+    }
+    s = GenericPdfListScraper(
+        "drdo",
+        "https://psc.example.gov.in/vacancies",
+        {
+            "detail_path_contains": "/vacancies/",
+            "path_contains": "/vacancy/",
+            "skip_words": ["result"],
+        },
+    )
+
+    with patch("app.scrapers.generic.fetch") as fetch_mock:
+        fetch_mock.side_effect = lambda url: type("R", (), {"text": pages[url]})()
+        notices = s.find_notices(list_html)
+
+    # http link upgraded to the list page's https, fetched once; results page skipped by its title.
+    assert [(n.title, n.url) for n in notices] == [
+        (
+            "Lab invites applications for RA posts",
+            "https://psc.example.gov.in/files/vacancy/advt.pdf",
+        )
+    ]
+    assert fetch_mock.call_count == 2

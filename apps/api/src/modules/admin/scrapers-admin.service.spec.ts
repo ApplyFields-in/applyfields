@@ -68,6 +68,9 @@ describe('ScrapersAdminService', () => {
           },
         ]),
       },
+      $queryRaw: vi.fn().mockResolvedValue([
+        { total: 29, ai_filled: 20, needs_manual: 9, drafts_waiting: 25, published: 4 },
+      ]),
     };
 
     const service = new ScrapersAdminService(mockPrisma as any);
@@ -84,6 +87,13 @@ describe('ScrapersAdminService', () => {
       healthy: 1,
       failing: 1,
       stale: 1,
+    });
+    expect(res.documents).toEqual({
+      total: 29,
+      ai_filled: 20,
+      needs_manual: 9,
+      drafts_waiting: 25,
+      published: 4,
     });
   });
 

@@ -16,6 +16,7 @@ import {
   Sliders,
   RotateCcw,
   Save,
+  ArrowRight,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/lib/i18n/translations';
@@ -622,6 +623,18 @@ export default function SettingsPage() {
       {/* ============================================================== */}
       {activeTab === 'preferences' && (
         <div className="space-y-6">
+          <Link
+            href="/welcome?next=/settings"
+            className="flex items-center justify-between gap-4 rounded-3xl border border-white bg-white p-6 sm:p-8 shadow-clay-card transition hover:border-[#b8d7ff]"
+          >
+            <div>
+              <h2 className="text-lg font-black text-[#082046]">Your preferences</h2>
+              <p className="mt-1 text-sm text-[#526987]">
+                What you&apos;re here for, your interests and where you want to work. We use these to pick your recommendations.
+              </p>
+            </div>
+            <ArrowRight className="size-5 shrink-0 text-[#0e7bf4]" aria-hidden="true" />
+          </Link>
           <div className="rounded-3xl border border-white bg-white p-6 sm:p-8 shadow-clay-card space-y-6">
             <div>
               <h2 className="text-lg font-black text-[#082046]">

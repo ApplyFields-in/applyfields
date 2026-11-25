@@ -136,9 +136,10 @@ export class OpportunitiesAdminController {
     return res;
   }
 
-  /** POST /admin/opportunities/:id/publish — runs the publish check, records a version */
+  /** POST /admin/opportunities/:id/publish — runs the publish check, records a version.
+   *  Reviewers publish what they reviewed (2026-11-21, Likhith); every publish is audited. */
   @Post('opportunities/:id/publish')
-  @Roles('admin')
+  @Roles('reviewer')
   @HttpCode(200)
   async publish(
     @Param('id', ParseUUIDPipe) id: string,

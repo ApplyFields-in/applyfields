@@ -9,6 +9,7 @@ import { RealtimeNotificationToast } from '@/components/realtime-notification-to
 import { NotificationPermissionPrompt } from '@/components/notification-permission-prompt';
 import { FloatingAiAssistant } from '@/components/chat/floating-ai-assistant';
 import { ScrollToTop } from '@applyfields/ui';
+import { PageViewTracker } from '@/components/page-view-tracker';
 
 export const metadata: Metadata = {
   title: {
@@ -17,6 +18,8 @@ export const metadata: Metadata = {
   },
   description:
     'Government jobs, exams, scholarships, admissions, government services and career guidance — in one place.',
+  openGraph: { siteName: 'ApplyFields', locale: 'en_IN', type: 'website' },
+  twitter: { card: 'summary_large_image' },
   icons: {
     icon: [
       { url: '/icon.png', sizes: '512x512', type: 'image/png' },
@@ -36,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>
           <PipApplyProvider>
             {children}
+            <PageViewTracker />
             <RealtimeNotificationToast />
             <NotificationPermissionPrompt />
             <PipApplyCompanion />

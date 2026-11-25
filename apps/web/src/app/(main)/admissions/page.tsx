@@ -32,8 +32,6 @@ export default async function Page({
       title="Admissions"
       description="College, university and course admissions — entrance-based and direct, with the official application route."
       icon={<School />}
-      owner="Karthik (page) · Harsha (data)"
-      when="Week 5"
       basePath="/admissions"
       categories={[
         'Engineering',

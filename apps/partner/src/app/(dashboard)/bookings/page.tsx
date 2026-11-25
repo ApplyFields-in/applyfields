@@ -23,6 +23,7 @@ import {
   Check,
 } from 'lucide-react';
 import { listPartnerBookings, sharedDocumentUrl, updatePartnerBookingStatus } from '@/lib/api';
+import { SuccessCheck } from '@applyfields/ui';
 
 export type BookingStatus = 'scheduled' | 'arrived' | 'completed' | 'cancelled';
 
@@ -81,6 +82,9 @@ export default function BookingsPage() {
 
   // Complete Receipt Modal
   const [completingBooking, setCompletingBooking] = useState<CitizenBooking | null>(null);
+  const [startingBooking, setStartingBooking] = useState<CitizenBooking | null>(null);
+  const [startCodeInput, setStartCodeInput] = useState('');
+  const [startCodeError, setStartCodeError] = useState<string | null>(null);
   const [completionAckNumber, setCompletionAckNumber] = useState('');
 
   // Split-Screen Form-Filling Assistant Modal
@@ -160,14 +164,29 @@ export default function BookingsPage() {
     setTimeout(() => setToastMessage(null), 3500);
   }
 
-  // 1-Click Action: Mark Arrived
-  function handleMarkArrived(id: string) {
-    void applyStatus(
-      id,
-      { status: 'in_progress', partner_note: 'Citizen arrived at counter' },
-      { status: 'arrived' },
-      'Citizen marked as arrived.',
-    );
+  // Mark Arrived = start the booking with the citizen's 4-digit start code (shown in their app).
+  async function handleStartWithCode() {
+    if (!startingBooking) return;
+    const code = startCodeInput.trim();
+    if (!/^\d{4}$/.test(code)) {
+      setStartCodeError('Enter the 4 digits from the citizen’s app.');
+      return;
+    }
+    const res = await updatePartnerBookingStatus(startingBooking.id, {
+      status: 'in_progress',
+      start_code: code,
+      partner_note: 'Citizen arrived at counter (start code checked)',
+    });
+    if (!res.data) {
+      setStartCodeError(res.error || 'Could not start the booking. Please try again.');
+      return;
+    }
+    const id = startingBooking.id;
+    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status: 'arrived' } : b)));
+    setStartingBooking(null);
+    setStartCodeInput('');
+    setStartCodeError(null);
+    showToast('Code matched. Work started.');
   }
 
   // 1-Click Action: Mark Completed
@@ -231,7 +250,7 @@ export default function BookingsPage() {
       {/* Toast Notice */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border border-cyan-500/40 bg-slate-900/95 px-5 py-3 text-sm font-semibold text-cyan-400 shadow-2xl shadow-cyan-500/20 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 className="h-5 w-5 text-cyan-400 shrink-0" />
+          <SuccessCheck key={toastMessage} size={20} className="text-cyan-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -488,7 +507,7 @@ export default function BookingsPage() {
                       {booking.status !== 'arrived' && (
                         <button
                           type="button"
-                          onClick={() => handleMarkArrived(booking.id)}
+                          onClick={() => setStartingBooking(booking)}
                           className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition text-center shadow-md shadow-emerald-500/20"
                         >
                           Mark Arrived
@@ -504,6 +523,7 @@ export default function BookingsPage() {
                         Form Assistant
                       </button>
 
+                      {booking.status === 'arrived' && (
                       <button
                         type="button"
                         onClick={() => setCompletingBooking(booking)}
@@ -511,6 +531,7 @@ export default function BookingsPage() {
                       >
                         Complete &amp; Receipt
                       </button>
+                      )}
 
                       <button
                         type="button"
@@ -531,6 +552,61 @@ export default function BookingsPage() {
 
 
       {/* Completion & Acknowledgment Slip Modal */}
+      {startingBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleStartWithCode();
+            }}
+            className="w-full max-w-sm rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4"
+          >
+            <div>
+              <h3 className="text-lg font-bold text-white">Citizen arrived?</h3>
+              <p className="mt-1 text-xs text-slate-400">
+                Ask <strong className="text-white">{startingBooking.citizenName}</strong> for the 4-digit start code shown in
+                their ApplyFields booking (they can also send it in the chat). The work starts only with the right code.
+              </p>
+            </div>
+            <input
+              autoFocus
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={4}
+              value={startCodeInput}
+              onChange={(e) => {
+                setStartCodeInput(e.target.value.replace(/\D/g, '').slice(0, 4));
+                setStartCodeError(null);
+              }}
+              aria-label="Start code"
+              placeholder="••••"
+              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3 text-center font-mono text-3xl font-black tracking-[0.5em] text-white outline-none focus:border-emerald-400"
+            />
+            {startCodeError && (
+              <p role="alert" className="text-xs font-semibold text-rose-400">
+                {startCodeError}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setStartingBooking(null);
+                  setStartCodeInput('');
+                  setStartCodeError(null);
+                }}
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-800 py-2.5 text-xs font-semibold text-slate-300"
+              >
+                Cancel
+              </button>
+              <button type="submit" className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400">
+                Start work
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {completingBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4">
@@ -607,6 +683,7 @@ export default function BookingsPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                {fillingBooking.status === 'arrived' && (
                 <button
                   type="button"
                   onClick={() => {
@@ -618,6 +695,7 @@ export default function BookingsPage() {
                 >
                   Proceed to Complete &amp; Receipt
                 </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setFillingBooking(null)}

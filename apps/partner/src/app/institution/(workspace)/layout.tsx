@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePartnerAuth } from '@/lib/auth-context';
 import { getPartnerInstitutionDesk, updatePartnerInstitutionDesk } from '@/lib/api';
+import { ReviewGate } from '@/components/review-gate';
 import {
   Award,
   Building2,
@@ -55,11 +56,12 @@ export default function InstitutionWorkspaceLayout({
     loadDesk();
   }, []);
 
-  const collegeName = instProfile?.name || partner?.business_name || 'Chaitanya Bharathi Institute of Technology';
-  const collegeSlug = instProfile?.slug || 'cbit-hyderabad';
-  const ownership = instProfile?.ownership || 'autonomous';
-  const inquiriesCount = instProfile?.enquiries_count ?? 18;
-  const officerName = partner?.owner_name || user?.email || 'Dr. K. Venkatesh Rao (Dean)';
+  // Only this college's own record — never another college's name, slug or numbers as a stand-in.
+  const collegeName = instProfile?.name || partner?.business_name || 'Your college';
+  const collegeSlug = instProfile?.slug;
+  const ownership = instProfile?.ownership;
+  const inquiriesCount = instProfile?.enquiries_count ?? 0;
+  const officerName = partner?.owner_name || user?.email || '';
 
 
   const navItems = [
@@ -78,10 +80,10 @@ export default function InstitutionWorkspaceLayout({
       name: 'Programs & Seat Matrix',
       href: '/institution/programs',
       icon: GraduationCap,
-      badge: `${instProfile?.courses_count || 12} Courses`,
+      badge: `${instProfile?.courses_count ?? 0} Courses`,
     },
     {
-      name: 'Campus Profile & NIRF/NAAC',
+      name: 'Campus Profile',
       href: '/institution/profile',
       icon: Building2,
     },
@@ -126,12 +128,20 @@ export default function InstitutionWorkspaceLayout({
           </div>
 
           <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
-            <span className="rounded bg-slate-800 px-2 py-0.5 font-mono uppercase text-blue-300">
-              {ownership}
-            </span>
-            <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-              <CheckCircle2 className="h-3 w-3" /> Verified Desk
-            </span>
+            {ownership ? (
+              <span className="rounded bg-slate-800 px-2 py-0.5 font-mono uppercase text-blue-300">
+                {ownership}
+              </span>
+            ) : <span />}
+            {partner?.verification_status === 'verified' ? (
+              <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                <CheckCircle2 className="h-3 w-3" /> Verified Desk
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                <Clock className="h-3 w-3" /> Under Review
+              </span>
+            )}
           </div>
         </div>
 
@@ -209,7 +219,7 @@ export default function InstitutionWorkspaceLayout({
             <div className="hidden sm:block">
               <h1 className="text-sm font-bold text-white tracking-tight">{collegeName}</h1>
               <p className="text-[11px] text-slate-400">
-                Official Admissions Desk (Founder Doc §21) ·{' '}
+                Official Admissions Desk ·{' '}
                 <span className="font-mono text-blue-400">NIRF Ranked Institution</span>
               </p>
             </div>
@@ -243,7 +253,7 @@ export default function InstitutionWorkspaceLayout({
               </button>
             </div>
 
-            <a
+            {collegeSlug && <a
               href={`${MAIN_WEB_URL}/career/colleges/${collegeSlug}`}
               target="_blank"
               rel="noreferrer"
@@ -252,7 +262,7 @@ export default function InstitutionWorkspaceLayout({
               <Compass className="h-3.5 w-3.5 text-blue-400" />
               <span>Public College Profile</span>
               <ExternalLink className="h-3 w-3 text-slate-500" />
-            </a>
+            </a>}
           </div>
         </header>
 
@@ -315,9 +325,18 @@ export default function InstitutionWorkspaceLayout({
 
         {/* Main Body */}
         <main className="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
-          <div className="flex-1">{children}</div>
+          <div className="flex-1">
+            <ReviewGate
+              banner="Your desk is read-only and students don't see anything from it yet. Editing and student enquiries open as soon as staff approve your college."
+              locked={['/institution/inquiries']}
+              lockedText="Student enquiries open once ApplyFields approves your college desk."
+              readOnly
+            >
+              {children}
+            </ReviewGate>
+          </div>
           <footer className="mt-12 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-            <span>ApplyFields Institutional Admissions Desk (Founder Doc §21) · Direct College Channel</span>
+            <span>ApplyFields Institutional Admissions Desk · Direct College Channel</span>
           </footer>
         </main>
       </div>

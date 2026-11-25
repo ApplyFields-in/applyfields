@@ -11,6 +11,7 @@ import type {
   UserSummary,
 } from '@applyfields/types';
 import { Prisma, PrismaService } from '../../prisma/prisma.service.js';
+import type { PreferencesEntity, SavePreferencesInput } from './preferences.options.js';
 
 const STORE_FILE_PATH = join(process.cwd(), '.data', 'users-store.json');
 
@@ -108,6 +109,7 @@ export class UsersStore implements OnModuleInit {
   private documents = new Map<string, UserDocumentEntity>();
   private examScores = new Map<string, UserCompetitiveExamScore>();
   private passkeys = new Map<string, PasskeyEntity>();
+  private preferences = new Map<string, PreferencesEntity>();
 
   constructor(@Optional() private readonly prisma?: PrismaService) {
     if (!this.prisma || this.isTestEnv()) {
@@ -926,6 +928,55 @@ export class UsersStore implements OnModuleInit {
     const pk = this.passkeys.get(id);
     if (!pk || pk.user_id !== userId) return false;
     return this.passkeys.delete(id);
+  }
+
+  /** First-sign-in setup answers; null until setup is finished or skipped. */
+  async getPreferences(userId: string): Promise<PreferencesEntity | null> {
+    if (this.prisma && !this.isTestEnv()) {
+      const row = await this.prisma.user_preferences.findUnique({ where: { user_id: userId } });
+      return row ? this.mapPreferences(row) : null;
+    }
+    return this.preferences.get(userId) ?? null;
+  }
+
+  /** Saves the answers and marks setup done (finish and skip both count). */
+  async savePreferences(userId: string, input: SavePreferencesInput): Promise<PreferencesEntity> {
+    const now = new Date();
+    const data = {
+      personas: [...new Set(input.personas)],
+      interests: [...new Set(input.interests)],
+      location_scope: input.location_scope ?? null,
+      skipped: input.skipped ?? false,
+      onboarded_at: now,
+      updated_at: now,
+    };
+    if (this.prisma && !this.isTestEnv()) {
+      const row = await this.prisma.user_preferences.upsert({
+        where: { user_id: userId },
+        create: { user_id: userId, ...data },
+        update: data,
+      });
+      return this.mapPreferences(row);
+    }
+    const entity = this.mapPreferences(data);
+    this.preferences.set(userId, entity);
+    return entity;
+  }
+
+  private mapPreferences(r: {
+    personas: string[];
+    interests: string[];
+    location_scope: string | null;
+    skipped: boolean;
+    onboarded_at: Date | null;
+  }): PreferencesEntity {
+    return {
+      personas: r.personas as PreferencesEntity['personas'],
+      interests: r.interests as PreferencesEntity['interests'],
+      location_scope: r.location_scope as PreferencesEntity['location_scope'],
+      skipped: r.skipped,
+      onboarded_at: r.onboarded_at ? r.onboarded_at.toISOString() : null,
+    };
   }
 
   /** How many OTPs were issued to this target since `since` (send rate limit). */

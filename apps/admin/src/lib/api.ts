@@ -2,12 +2,22 @@
  * The ONLY place the website talks to the backend (apps/api, NestJS).
  * Rule: the website never calls Supabase or the scraper directly — only this API.
  */
+import { describeHttpError } from './errors';
 
-export const API_URL = (
+/** The API's own address (server code; also what UI text shows, so server and browser render the same). */
+export const BACKEND_API_URL = (
   process.env.API_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
   'http://localhost:4000/api/v1'
 ).replace(/\/$/, '');
+
+/**
+ * Browser → same-site '/api/v1' (next.config rewrite proxies it to the API), so the login cookies
+ * are stored for THIS site and the server-side session check in (main)/layout.tsx can see them.
+ * Calling the API's own domain stored them for onrender.com instead, and every staff login bounced
+ * back to /login. Server code calls the API directly.
+ */
+export const API_URL = typeof window === 'undefined' ? BACKEND_API_URL : '/api/v1';
 
 // Links to the other portals (real domains in production, local ports in dev).
 const PROD = process.env.NODE_ENV === 'production';
@@ -67,14 +77,18 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 
     if (!res.ok) {
       console.warn(`[admin apiFetch] Status ${res.status} for ${path}`);
-      let errorText = `Request failed with status ${res.status}`;
+      let errorText = '';
       try {
         const body = await res.json();
         if (body?.message) {
           errorText = Array.isArray(body.message) ? body.message.join(', ') : body.message;
         }
+        // Publish 400s carry the reasons in `missing` (e.g. "Last date passed …"); show them.
+        if (Array.isArray(body?.missing) && body.missing.length) {
+          errorText += `: ${body.missing.join('; ')}`;
+        }
       } catch {}
-      return { data: null, status: res.status, ok: false, error: errorText };
+      return { data: null, status: res.status, ok: false, error: describeHttpError(res.status, errorText) };
     }
 
     const data = (await res.json()) as T;
@@ -82,7 +96,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.warn(`[admin apiFetch] Error fetching ${url}:`, msg);
-    return { data: null, status: 0, ok: false, error: msg };
+    return { data: null, status: 0, ok: false, error: describeHttpError(0, msg) };
   }
 }
 

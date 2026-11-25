@@ -7,7 +7,6 @@ import {
   Clock,
   Coffee,
   AlertTriangle,
-  CheckCircle2,
   Trash2,
   Plus,
   RotateCcw,
@@ -22,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { apiGet, apiPut, apiPost, getMyPartner, updatePartner } from '@/lib/api';
+import { SuccessCheck } from '@applyfields/ui';
 
 interface DaySchedule {
   dayOfWeek: number; // 0 = Sun, 1 = Mon ... 6 = Sat
@@ -241,7 +241,7 @@ export default function SchedulePage() {
       {/* Toast Banner */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border border-emerald-500/40 bg-slate-900/95 px-5 py-3 text-sm font-semibold text-emerald-400 shadow-2xl shadow-emerald-500/20 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+          <SuccessCheck key={toastMessage} size={20} className="text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}

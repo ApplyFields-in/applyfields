@@ -32,6 +32,9 @@ describe('PartnersService - Vault Encryption & Admin Access Control', () => {
       partner_members: {
         findFirst: vi.fn().mockResolvedValue({ partner_id: 'partner-1', role: 'owner' }),
       },
+      partners: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
       partner_documents: {
         create: vi.fn().mockImplementation(async ({ data }: any) => {
           const row = {

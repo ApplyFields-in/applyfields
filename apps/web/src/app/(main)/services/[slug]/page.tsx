@@ -59,6 +59,10 @@ export async function generateMetadata({
       description,
       url: `https://applyfields.com/services/${slug}`,
       type: 'article',
+      siteName: 'ApplyFields',
+      locale: 'en_IN',
+      // A page-level openGraph replaces the root one, so the shared card must be named here.
+      images: '/opengraph-image',
     },
     twitter: {
       card: 'summary_large_image',
@@ -225,7 +229,7 @@ export default async function ServiceDetailPage({
       </header>
 
       {/* Main Content Layout */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left 2 Cols: Comprehensive Details */}
         <div className="space-y-6 lg:col-span-2">
           {/* Section 1: What is this Service & Who Needs It? */}

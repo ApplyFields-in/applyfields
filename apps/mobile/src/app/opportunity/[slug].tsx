@@ -28,6 +28,7 @@ import { openOffline, saveOffline, useOfflineFiles } from '@/lib/offline';
 import { opportunityUrl, shareLink } from '@/lib/share';
 import { useApi } from '@/lib/use-api';
 import { C, R, S, column } from '@/theme';
+import { BookmarkIcon } from '@/components/animated-icons';
 
 const DATE_LABEL: Record<string, string> = {
   notification_date: 'Notification',
@@ -150,7 +151,7 @@ export default function OpportunityScreen() {
         />
         <Button
           label={saved ? 'Saved' : 'Save'}
-          icon={saved ? 'bookmark' : 'bookmark-outline'}
+          iconNode={(color) => <BookmarkIcon saved={!!saved} color={color} />}
           variant="secondary"
           disabled={savePending}
           onPress={toggleSave}

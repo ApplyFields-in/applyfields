@@ -10,7 +10,6 @@ import {
   LogOut,
   Send,
   Search,
-  Bell,
   Bookmark,
   FolderOpen,
   User,
@@ -23,8 +22,10 @@ import {
 import { apiGet, apiPost } from '@/lib/api';
 import type { MeResponse, UserSummary } from '@applyfields/types';
 import { useLanguage } from '@/lib/i18n/language-context';
-import { PARTNER_PORTAL_URL, SERVICE_PORTAL_URL } from '@/lib/urls';
+import { PARTNER_PORTAL_URL, SERVICE_PORTAL_URL, goToServicePortal } from '@/lib/urls';
 import { openCommandPalette } from '@/components/search/command-palette';
+import { flashAppToast } from '@/components/toast-notification-provider';
+import { BellIcon } from '@applyfields/ui';
 
 export function FloatingCapsuleNavbar() {
   const pathname = usePathname();
@@ -135,6 +136,7 @@ export function FloatingCapsuleNavbar() {
       window.dispatchEvent(new Event('auth-changed'));
     }
 
+    flashAppToast('Logged out successfully.');
     router.push('/account');
   }
 
@@ -204,6 +206,7 @@ export function FloatingCapsuleNavbar() {
           <div className="flex items-center gap-1 rounded-full bg-[#edf2f8] p-1 shadow-[inset_2px_2px_5px_#d8e0eb,inset_-2px_-2px_5px_#ffffff]">
             <Link
               href="/career"
+              data-tour="career"
               className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 lg:px-4 text-[14px] font-extrabold transition-all ${
                 isCareer
                   ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[2px_2px_6px_#d8e0eb,-2px_-2px_6px_#ffffff]'
@@ -215,6 +218,7 @@ export function FloatingCapsuleNavbar() {
             </Link>
             <Link
               href="/apply"
+              data-tour="apply"
               className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 lg:px-4 text-[14px] font-extrabold transition-all ${
                 isApply
                   ? 'bg-[#F0F4F8] text-[#0e7bf4] shadow-[2px_2px_6px_#d8e0eb,-2px_-2px_6px_#ffffff]'
@@ -226,6 +230,8 @@ export function FloatingCapsuleNavbar() {
             </Link>
             <a
               href={SERVICE_PORTAL_URL}
+              onClick={(e) => void goToServicePortal(e)}
+              data-tour="services"
               className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 lg:px-4 text-[14px] font-extrabold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
               title="Citizen Services: MeeSeva, CSC, PAN, Aadhaar & Xerox"
             >
@@ -244,6 +250,7 @@ export function FloatingCapsuleNavbar() {
           <button
             type="button"
             onClick={openCommandPalette}
+            data-tour="search"
             className="flex h-9 sm:h-10 min-h-[44px] w-auto max-w-[120px] sm:max-w-none sm:w-64 min-w-[44px] shrink items-center overflow-hidden rounded-full border border-[#cad7e7] bg-[#edf3f9] px-2.5 sm:px-[11px] shadow-[inset_2px_2px_4px_#d4dfec,inset_-2px_-2px_4px_#ffffff] transition-colors hover:bg-[#e2ecf7] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none cursor-pointer"
             title="Search everything (Ctrl + K)"
             aria-label="Search everything (Ctrl + K)"
@@ -260,11 +267,12 @@ export function FloatingCapsuleNavbar() {
           {/* Notifications */}
           <Link
             href="/notifications"
+            data-tour="notifications"
             className="relative min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none"
             title={t('nav_notifications', 'Notifications')}
             aria-label="Notifications"
           >
-            <Bell className="size-4.5 sm:size-5" />
+            <BellIcon />
             <span className="absolute top-2.5 right-2.5 size-2 bg-[#0e7bf4] rounded-full" />
           </Link>
 
@@ -294,6 +302,7 @@ export function FloatingCapsuleNavbar() {
               <button
                 type="button"
                 aria-label={`Account menu for ${displayName}`}
+                data-tour="profile"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center min-h-[44px] gap-1 sm:gap-2 rounded-full pl-1 sm:pl-1.5 pr-1.5 sm:pr-2.5 py-1 transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none"
               >

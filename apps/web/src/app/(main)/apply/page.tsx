@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Search } from 'lucide-react';
 import {
   HorizontalOpportunityCard,
@@ -170,6 +171,19 @@ export default function ApplyPage() {
           <div className="flex items-center gap-1 overflow-x-auto border-b border-[#c4d2e3] scrollbar-none">
             {categoryTabs.map((tab) => {
               const isActive = activeTab === tab.id;
+              // Government services are not opportunities (the API has no `service` type and
+              // answered 400): this tab opens the real services catalogue instead.
+              if (tab.id === 'service') {
+                return (
+                  <Link
+                    key={tab.id}
+                    href="/services"
+                    className="whitespace-nowrap rounded-t-lg px-4 py-2.5 text-sm font-medium text-[#435775] transition-colors hover:bg-white/60 hover:text-[#082046]"
+                  >
+                    {tab.label}
+                  </Link>
+                );
+              }
               return (
                 <button
                   key={tab.id}

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { API_URL } from '@/lib/api';
+// Direct to the API: a long-held stream shouldn't go through the site's proxy (it sends its token in the URL).
+import { BACKEND_API_URL as API_URL } from '@/lib/api';
 import type { NotificationItem } from '@applyfields/types';
 
 export function useNotificationStream() {

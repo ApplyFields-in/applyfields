@@ -17,7 +17,7 @@ import pdfplumber
 
 from app.config import settings
 
-EXTRACTOR_VERSION = "groq-v1"
+EXTRACTOR_VERSION = "groq-v2"  # v2: adds a clean display title
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 MIN_TEXT_CHARS = 200  # less than this = scanned image PDF (no text layer)
 MAX_PAGES = 60
@@ -56,9 +56,23 @@ Rules:
   counselling | other.
 - state_codes: 2-letter Indian state codes where posts are located; ["ALL"] for all-India.
 - official_text: copy the notification's own eligibility wording (max ~800 chars).
+- title: a short clear title for job seekers (max 90 chars), in normal Title Case (not
+  ALL CAPS). Say WHAT it is: the post/exam name, plus the place or unit when that tells
+  which one it is. Leave out notice numbers, dates, the organisation's own name, and
+  phrases like "Advertisement for", "Notification to the post of", "invites application",
+  "General Recruitment". Use only words written in the notification; fix an obvious
+  scanning typo only when the correct spelling also appears in the text.
+  For an exam, keep the exam's own name and year ("Junior Engineer Examination, 2026").
+  If the notice is NOT a new opening (answer key, result, interview schedule, date
+  extension, corrigendum, amendment), start with what it is, then the post:
+  "Answer Key Objections: Scientist/Engineer (SC)", "Last Date Extended: Medical Officer (SD)".
+  e.g. "01/G/RB/2026 - GENERAL RECRUITMENT FOR THE POST OF ASSISTANT EXECUTIVE ENGINEER
+  (CIVIL) IN TRANSPORT ROADS AND BUILDINGS DEPARTMENT" -> "Assistant Executive Engineer
+  (Civil), Transport Roads and Buildings Department".
 
 JSON shape:
 {
+  "title": str|null,
   "notification_number": str|null,
   "summary": str|null,            // 1-2 plain sentences: who is recruiting what
   "vacancies_total": int|null,
@@ -135,23 +149,25 @@ def pick_pages(text: str, budget: int) -> str:
     return "".join(pages[i] for i in sorted(chosen))[:budget]
 
 
-def call_groq(text: str, title: str) -> tuple[dict[str, Any], bool]:
+def call_groq(
+    text: str, title: str, *, system: str = PROMPT, budget: int | None = None
+) -> tuple[dict[str, Any], bool]:
     """Ask Groq for the JSON. Returns (raw_json, truncated)."""
     if not settings.groq_api_key:
         raise ExtractionError("GROQ_API_KEY is not set on the ingestion service")
     # Cost/limit guard: one capped request per document (Groq free tier: 8k tokens/minute).
-    truncated = len(text) > settings.extract_max_chars
+    budget = budget or settings.extract_max_chars
+    truncated = len(text) > budget
     body: dict[str, Any] = {
         "model": settings.groq_model,
         "temperature": 0,
         "max_completion_tokens": 3000,
         "response_format": {"type": "json_object"},
         "messages": [
-            {"role": "system", "content": PROMPT},
+            {"role": "system", "content": system},
             {
                 "role": "user",
-                "content": f"Title on the website: {title}\n\n"
-                f"{pick_pages(text, settings.extract_max_chars)}",
+                "content": f"Title on the website: {title}\n\n{pick_pages(text, budget)}",
             },
         ],
     }
@@ -239,7 +255,37 @@ def _in_text(norm_text: str, value: int | dt.date) -> bool:
     return re.search(rf"(?<![\d.]){value}(?![\d])", norm_text) is not None
 
 
-def normalize(raw: dict[str, Any], text: str, *, truncated: bool) -> dict[str, Any]:
+# Words a clean title may use even when the notice phrases it differently.
+TITLE_FREE_WORDS = {"and", "for", "the", "of", "in", "at", "to", "post", "posts", "recruitment",
+                    "exam", "examination", "notice", "vacancy", "vacancies", "department",
+                    # update-notice prefixes ("Last Date Extended: ...")
+                    "answer", "key", "objections", "result", "results", "interview", "schedule",
+                    "last", "date", "extended", "corrigendum", "amendment"}
+
+
+def clean_title(value: Any, text: str, website_title: str) -> str | None:
+    """The AI's display title, only if it is short and every word in it is in the notice.
+
+    A word the notice never uses means the AI invented or "improved" it: drop the title then,
+    and the draft keeps the website's own title for the reviewer to tidy.
+    """
+    title = _str(value, 200)
+    if title:
+        # Non-breaking/figure hyphens (‑ ‒) look right but break search: use a plain hyphen.
+        title = re.sub(r"[‐‑‒]", "-", title)
+    if not title or len(title) > 110 or title.isupper():
+        return None
+    source = re.sub(r"[^a-z0-9]+", " ", f"{text} {website_title}".lower())
+    words = set(source.split())
+    for word in re.findall(r"[a-z0-9]+", title.lower()):
+        if word not in words and word not in TITLE_FREE_WORDS:
+            return None
+    return title
+
+
+def normalize(
+    raw: dict[str, Any], text: str, *, truncated: bool, website_title: str = ""
+) -> dict[str, Any]:
     """Validate the AI output against the job format and score each section.
 
     Invalid values are dropped (never "fixed" by guessing). Each section's confidence is the
@@ -251,6 +297,7 @@ def normalize(raw: dict[str, Any], text: str, *, truncated: bool) -> dict[str, A
     checks: dict[str, list[bool]] = {s: [] for s in SECTIONS}
     out: dict[str, Any] = {}
 
+    out["title"] = clean_title(raw.get("title"), text, website_title)
     out["notification_number"] = _str(raw.get("notification_number"), 200)
     out["summary"] = _str(raw.get("summary"), 600)
 
@@ -442,13 +489,26 @@ def is_official(url: str | None, source_url: str) -> bool:
     )
 
 
+TITLE_PROMPT = (
+    'You write the title of an Indian government notification. Reply with ONE JSON object '
+    '{"title": str|null} and nothing else.\n- title:'
+    + PROMPT.split("- title:", 1)[1].split("JSON shape", 1)[0]
+)
+
+
+def suggest_title(text: str, website_title: str) -> str | None:
+    """Clean display title only, for notices extracted before v2 (about 1k tokens each)."""
+    raw, _ = call_groq(text, website_title, system=TITLE_PROMPT, budget=4000)
+    return clean_title(raw.get("title"), text, website_title)
+
+
 def extract(text: str, title: str, source_url: str) -> dict[str, Any]:
     """Text -> checked extraction (fields, field_status, confidences, model, version)."""
     raw, truncated = call_groq(text, title)
     for key in ("apply_url", "official_website"):
         if not is_official(raw.get(key), source_url):
             raw[key] = None  # a third-party link is worse than none; the reviewer adds it
-    result = normalize(raw, text, truncated=truncated)
+    result = normalize(raw, text, truncated=truncated, website_title=title)
     result["ai_model"] = settings.groq_model
     result["extractor_version"] = EXTRACTOR_VERSION
     return result
@@ -459,7 +519,8 @@ def diff_fields(old: dict[str, Any], new: dict[str, Any]) -> tuple[list[str], st
 
     Both sides must be plain JSON (dates as ISO strings). Returns (changed field names, note).
     """
-    changed = sorted(k for k in set(old) | set(new) if old.get(k) != new.get(k))
+    # The title is AI wording, not a fact of the notice: a reworded title is not a corrigendum.
+    changed = sorted(k for k in (set(old) | set(new)) - {"title"} if old.get(k) != new.get(k))
     notes = []
     old_dates = {d["kind"]: d["date"] for d in old.get("dates") or []}
     new_dates = {d["kind"]: d["date"] for d in new.get("dates") or []}

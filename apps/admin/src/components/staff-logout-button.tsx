@@ -4,8 +4,9 @@ import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { API_URL } from '@/lib/api';
+import { flashToast } from '@applyfields/ui';
 
-export function StaffLogoutButton() {
+export function StaffLogoutButton({ className }: { className?: string } = {}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -22,6 +23,7 @@ export function StaffLogoutButton() {
       localStorage.removeItem('currentUser');
     }
 
+    flashToast('Logged out successfully.');
     router.push('/login');
     router.refresh();
   }
@@ -31,7 +33,10 @@ export function StaffLogoutButton() {
       type="button"
       onClick={handleLogout}
       disabled={loading}
-      className="inline-flex items-center gap-1.5 rounded-full border border-line bg-cream px-3 py-1.5 text-xs font-semibold text-teal hover:bg-cream/80 hover:text-ink disabled:opacity-50 transition-colors"
+      className={
+        className ??
+        'inline-flex items-center gap-1.5 rounded-full border border-line bg-cream px-3 py-1.5 text-xs font-semibold text-teal hover:bg-cream/80 hover:text-ink disabled:opacity-50 transition-colors'
+      }
       title="Log out from Internal Portal"
     >
       <LogOut className="size-3.5 text-teal/70" aria-hidden="true" />

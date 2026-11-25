@@ -6,8 +6,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FieldyMascot, GoogleButton, type FieldyMood } from '@applyfields/ui';
 import { apiPost, getMyPartner } from '@/lib/api';
-import { usePartnerAuth } from '@/lib/auth-context';
+import { partnerHome, usePartnerAuth } from '@/lib/auth-context';
 import { Building2, Eye, EyeOff, Store } from 'lucide-react';
+import { flashToast } from '@applyfields/ui';
 
 type Persona = 'kiosk' | 'institution';
 
@@ -47,12 +48,7 @@ function LoginFormContent() {
     await refreshSession();
     const partnerRes = await getMyPartner();
     if (partnerRes.data) {
-      const isInst = ['college', 'university', 'training_institute'].includes(partnerRes.data.type);
-      if (partnerRes.data.verification_status === 'verified') {
-        router.push(isInst ? '/institution/dashboard' : '/dashboard');
-      } else {
-        router.push(isInst ? '/institution/under-review' : '/under-review');
-      }
+      router.push(partnerHome(partnerRes.data));
     } else {
       router.push(persona === 'institution' ? '/institution/onboard' : '/onboard');
     }
@@ -62,6 +58,7 @@ function LoginFormContent() {
     localStorage.setItem('currentUser', JSON.stringify(user));
     window.dispatchEvent(new Event('auth-changed'));
     setSuccess(message);
+    flashToast('Logged in successfully. Welcome back!');
     setMood('success');
     setTimeout(() => void routeAfterLogin(), 600);
   }
@@ -368,7 +365,7 @@ function LoginFormContent() {
           <p className="mt-6 text-center text-sm text-[#435775]">
             {isInst ? 'Your college isn’t on ApplyFields yet? ' : 'New to ApplyFields? '}
             <Link
-              href={isInst ? '/institution/onboard' : '/onboard'}
+              href={isInst ? '/signup?type=college' : '/signup?type=centre'}
               className="font-bold text-[#0e7bf4] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline"
             >
               {isInst ? 'Register your college' : 'Register your centre'}

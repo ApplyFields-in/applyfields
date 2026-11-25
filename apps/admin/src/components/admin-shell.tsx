@@ -1,21 +1,23 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { AdminMeResponse } from '@applyfields/types';
 import { buttonClass, Card, ScrollToTopButton, Shell, Sidebar } from '@applyfields/ui';
 import {
   Bell,
   Building,
+  ChevronDown,
   Crown,
   ExternalLink,
   Globe,
   HandHelping,
   Inbox,
+  LayoutGrid,
   Lock,
   LogIn,
   Search,
-  ShieldCheck,
   ShieldAlert,
+  ShieldCheck,
   Store,
   WifiOff,
   Zap,
@@ -23,7 +25,7 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { API_URL, PARTNER_URL, SERVICE_URL, WEB_URL } from '@/lib/api';
+import { BACKEND_API_URL, PARTNER_URL, SERVICE_URL, WEB_URL } from '@/lib/api';
 import {
   DEPARTMENTS,
   canOpenPath,
@@ -97,8 +99,8 @@ export function AdminShell({
               Access Restricted to {DEPARTMENTS[userScopedDepartment].name} Staff
             </h2>
             <p className="text-xs text-navy-700/80 leading-relaxed max-w-md mx-auto">
-              Your staff credentials are scoped strictly to the <strong>{DEPARTMENTS[userScopedDepartment].name}</strong> department. 
-              You do not have administrative clearance to access operations outside your assigned department.
+              Your account can open <strong>{DEPARTMENTS[userScopedDepartment].name}</strong> pages only. Ask an admin
+              if you need access to this page.
             </p>
           </div>
           <div className="pt-2 flex justify-center">
@@ -106,7 +108,7 @@ export function AdminShell({
               href={DEPARTMENTS[userScopedDepartment].homePath}
               className={buttonClass({ variant: 'primary', size: 'md' })}
             >
-              Return to {DEPARTMENTS[userScopedDepartment].shortLabel} Cockpit
+              Back to {DEPARTMENTS[userScopedDepartment].shortLabel}
             </Link>
           </div>
         </div>
@@ -137,11 +139,11 @@ function SidebarFooter({ department }: { department: typeof DEPARTMENTS.super_ad
 }
 
 const DEPARTMENT_TABS: Record<DepartmentType, string> = {
-  super_admin: 'Master Cockpit',
+  super_admin: 'Everything',
   partners: 'Partners',
-  services: 'Citizen Services',
-  apply: 'Apply & Review',
-  career: 'Career & Colleges',
+  services: 'Citizen services',
+  apply: 'Content',
+  career: 'Colleges & careers',
 };
 
 const DEPARTMENT_ICONS: Record<DepartmentType, ReactNode> = {
@@ -168,6 +170,21 @@ function Topbar({ staff, activeDepartment, departments, onSwitchDepartment }: To
     .join('')
     .substring(0, 2)
     .toUpperCase();
+
+  // The Portals / account menus are <details>: close them on an outside click or Esc.
+  useEffect(() => {
+    const close = (e: Event) => {
+      document.querySelectorAll<HTMLDetailsElement>('header details[open]').forEach((d) => {
+        if (e instanceof KeyboardEvent ? e.key === 'Escape' : !d.contains(e.target as Node)) d.open = false;
+      });
+    };
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('click', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, []);
 
   return (
     <>
@@ -216,69 +233,78 @@ function Topbar({ staff, activeDepartment, departments, onSwitchDepartment }: To
         </div>
       )}
 
-      {/* External Portals Switcher */}
-      <div className="hidden 2xl:flex items-center gap-1 rounded-full border border-navy-200/80 bg-white/80 p-1 shadow-xs backdrop-blur-md">
-        <a
-          href={WEB_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-navy-800 hover:bg-navy-100/70 hover:text-navy-950 transition-colors"
-          title="Open the citizen website"
-        >
-          <Globe className="size-3 text-navy-600" />
-          <span>Web :3000</span>
-          <ExternalLink className="size-2.5 opacity-40" />
-        </a>
-        <a
-          href={SERVICE_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-navy-800 hover:bg-navy-100/70 hover:text-navy-950 transition-colors"
-          title="Open the services portal"
-        >
-          <Zap className="size-3 text-amber-600" />
-          <span>Services :3003</span>
-          <ExternalLink className="size-2.5 opacity-40" />
-        </a>
-        <a
-          href={PARTNER_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-navy-800 hover:bg-navy-100/70 hover:text-navy-950 transition-colors"
-          title="Open the partner portal"
-        >
-          <Store className="size-3 text-emerald-600" />
-          <span>Partner :3002</span>
-          <ExternalLink className="size-2.5 opacity-40" />
-        </a>
-      </div>
+      <div className="ml-auto flex items-center gap-1.5">
+        {/* Other portals: one menu instead of three pills */}
+        <details className="group relative hidden md:block">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold text-navy-800 transition-colors hover:bg-navy-100/70 [&::-webkit-details-marker]:hidden">
+            <LayoutGrid className="size-3.5 text-navy-600" aria-hidden="true" />
+            Portals
+            <ChevronDown className="size-3 text-navy-500 transition-transform group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-2xl border border-navy-200/80 bg-white p-1.5 shadow-xl">
+            {[
+              { href: WEB_URL, icon: <Globe className="size-4 text-navy-600" />, name: 'Citizen website', hint: 'Jobs, exams, careers' },
+              { href: SERVICE_URL, icon: <Zap className="size-4 text-amber-600" />, name: 'Services portal', hint: 'PAN, Aadhaar, MeeSeva bookings' },
+              { href: PARTNER_URL, icon: <Store className="size-4 text-emerald-600" />, name: 'Partner portal', hint: 'Centres and institutions' },
+            ].map((p) => (
+              <a
+                key={p.name}
+                href={p.href}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-navy-50"
+              >
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-navy-50">{p.icon}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-navy-950">{p.name}</span>
+                  <span className="block truncate text-[11px] text-navy-700/70">{p.hint}</span>
+                </span>
+                <ExternalLink className="size-3 shrink-0 text-navy-400" aria-hidden="true" />
+              </a>
+            ))}
+          </div>
+        </details>
 
-      <div className="ml-auto flex items-center gap-2.5">
         <Link
           href="/notifications"
-          className="relative rounded-full p-2 text-navy-800/80 hover:bg-navy-100/80 hover:text-navy-950 transition-colors"
+          className="rounded-full p-2 text-navy-800/80 transition-colors hover:bg-navy-100/80 hover:text-navy-950"
           title="Notifications"
+          aria-label="Notifications"
         >
           <Bell className="size-4" />
-          <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-navy-600" />
         </Link>
+
         {staff ? (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 rounded-full border border-navy-200/80 bg-white/90 py-1 pl-1.5 pr-3 shadow-xs">
-              <div className="flex size-7 items-center justify-center rounded-full bg-navy-800 text-[11px] font-bold text-white shadow-xs">
+          /* Account menu: name + role + log out in one place */
+          <details className="group relative">
+            <summary
+              className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-navy-200/80 bg-white/90 py-1 pl-1 pr-2.5 shadow-xs transition-colors hover:border-navy-300 [&::-webkit-details-marker]:hidden"
+              aria-label={`Account menu for ${displayName}`}
+            >
+              <span className="flex size-7 items-center justify-center rounded-full bg-navy-800 text-[11px] font-bold text-white">
                 {initials}
+              </span>
+              <span className="hidden flex-col text-left sm:flex">
+                <span className="max-w-[140px] truncate text-xs font-bold leading-tight text-navy-950">{displayName}</span>
+                <span className="text-[10px] capitalize leading-none text-navy-700/80">{primaryRole}</span>
+              </span>
+              <ChevronDown className="size-3 text-navy-500 transition-transform group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <div className="absolute right-0 top-full z-50 mt-2 w-60 rounded-2xl border border-navy-200/80 bg-white p-1.5 shadow-xl">
+              <div className="border-b border-navy-100 px-3 pb-2.5 pt-2">
+                <p className="truncate text-xs font-bold text-navy-950">{displayName}</p>
+                {staff.email && <p className="truncate text-[11px] text-navy-700/70">{staff.email}</p>}
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {staff.roles.map((r) => (
+                    <span key={r} className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px] font-semibold capitalize text-navy-800">
+                      {r.replace(/_/g, ' ')}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-col text-left">
-                <span className="max-w-[120px] truncate text-xs font-bold text-navy-950 leading-tight sm:max-w-[160px]">
-                  {displayName}
-                </span>
-                <span className="text-[10px] capitalize leading-none text-navy-700/80">
-                  {primaryRole}
-                </span>
-              </div>
+              <StaffLogoutButton className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-50 disabled:opacity-50" />
             </div>
-            <StaffLogoutButton />
-          </div>
+          </details>
         ) : (
           <Link href="/login" className={buttonClass({ size: 'sm', className: 'bg-navy-800 hover:bg-navy-900 text-white shadow-xs' })}>
             <LogIn aria-hidden="true" className="size-3.5" /> Staff log in
@@ -293,9 +319,7 @@ function Footer() {
   return (
     <footer className="flex flex-col gap-3 border-t border-navy-200/60 bg-white/60 px-4 py-4 text-xs text-navy-900/80 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold text-navy-950">ApplyFields Operations Core (:3001)</span>
-        <span className="text-navy-400">·</span>
-        <span>Departmental Cockpit System</span>
+        <span className="font-semibold text-navy-950">ApplyFields Admin</span>
       </div>
       <div className="flex items-center gap-4">
         <ScrollToTopButton className="text-navy-700 hover:text-navy-950 border-navy-200/80 hover:border-navy-400" />
@@ -305,14 +329,27 @@ function Footer() {
   );
 }
 
-export function ApiOffline() {
+/** `status`/`error` from apiGetWithStatus: a non-zero status means the API answered with an error, not that it is down. */
+export function ApiOffline({ status = 0, error }: { status?: number; error?: string }) {
+  if (status > 0) {
+    return (
+      <Card tone="tea" className="flex items-start gap-3 p-5 border-amber-300 bg-amber-50/80">
+        <WifiOff className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden="true" />
+        <div>
+          <p className="font-bold text-amber-900">This page couldn&apos;t load its data</p>
+          <p className="mt-1 text-sm text-amber-800">{error ?? 'No details.'}</p>
+        </div>
+      </Card>
+    );
+  }
   return (
     <Card tone="tea" className="flex items-start gap-3 p-5 border-amber-300 bg-amber-50/80">
       <WifiOff className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden="true" />
       <div>
         <p className="font-bold text-amber-900">Can’t reach the API</p>
+        {error && <p className="mt-1 text-sm text-amber-800">{error}</p>}
         <p className="mt-1 text-sm text-amber-800">
-          This portal reads from <code className="font-mono">{API_URL}</code>. Start it with{' '}
+          This portal reads from <code className="font-mono">{BACKEND_API_URL}</code>. Start it with{' '}
           <code className="font-mono font-semibold">pnpm dev:api</code>.
         </p>
       </div>

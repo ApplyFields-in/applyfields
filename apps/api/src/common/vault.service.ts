@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
 const IV_LENGTH = 12; // 96-bit IV for AES-GCM
@@ -16,7 +16,8 @@ export class VaultService implements OnModuleInit {
   private readonly logger = new Logger(VaultService.name);
   private masterKey: Buffer | null = null;
 
-  constructor(customMasterKey?: Buffer | string) {
+  // @Optional: without it Nest tries to inject this (scripts/tests-only) argument and the API can't boot.
+  constructor(@Optional() customMasterKey?: Buffer | string) {
     if (customMasterKey) {
       this.masterKey = this.parseKey(customMasterKey);
     }

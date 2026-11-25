@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { SuccessCheck } from '@applyfields/ui';
 import Link from 'next/link';
 import { BookmarkCheck, CheckCircle2, ChevronRight, X } from 'lucide-react';
 
@@ -12,6 +13,8 @@ export interface ToastPayload {
   type?: 'success' | 'info' | 'remove';
 }
 
+const FLASH_KEY = 'applyfields-flash-toast';
+
 export function ToastNotificationProvider() {
   const [toast, setToast] = useState<ToastPayload | null>(null);
 
@@ -19,11 +22,26 @@ export function ToastNotificationProvider() {
     const handleToast = (e: Event) => {
       const customEvent = e as CustomEvent<ToastPayload>;
       if (customEvent.detail) {
+        try {
+          sessionStorage.removeItem(FLASH_KEY);
+        } catch {
+          // ignore
+        }
         setToast(customEvent.detail);
       }
     };
 
     window.addEventListener('applyfields-toast', handleToast);
+
+    // A toast flashed just before a page change (login, sign-up, logout) shows here on arrival.
+    try {
+      const flashed = sessionStorage.getItem(FLASH_KEY);
+      if (flashed) {
+        window.dispatchEvent(new CustomEvent('applyfields-toast', { detail: JSON.parse(flashed) as ToastPayload }));
+      }
+    } catch {
+      // storage blocked or bad JSON: skip the flash
+    }
     return () => {
       window.removeEventListener('applyfields-toast', handleToast);
     };
@@ -49,6 +67,8 @@ export function ToastNotificationProvider() {
           <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#F4E8D1] text-[#76562d]">
             {toast.type === 'remove' ? (
               <CheckCircle2 className="size-4 text-[#536780]" />
+            ) : toast.type === 'success' ? (
+              <SuccessCheck key={toast.message} className="text-[#15803d]" />
             ) : (
               <BookmarkCheck className="size-4 text-[#082046]" />
             )}
@@ -93,3 +113,14 @@ export function showAppToast(payload: string | ToastPayload) {
   }
 }
 
+
+/** Like showAppToast, but also survives a page change (use right before router.push). */
+export function flashAppToast(payload: string | ToastPayload) {
+  const detail: ToastPayload = typeof payload === 'string' ? { message: payload, type: 'success' } : payload;
+  try {
+    sessionStorage.setItem(FLASH_KEY, JSON.stringify(detail));
+  } catch {
+    // storage blocked: the live event below still works when the toast host is mounted
+  }
+  showAppToast(detail);
+}

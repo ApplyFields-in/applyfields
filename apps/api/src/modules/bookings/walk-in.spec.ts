@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BookingsService, walkInSchema } from './bookings.service.js';
 
 /** Counter walk-ins: saved as a paid, in-progress booking of the operator's own centre. */
-function setup({ member = true, service = { name: 'PAN card application' } as { name: string } | null } = {}) {
+function setup({ member = true, status = 'verified', service = { name: 'PAN card application' } as { name: string } | null } = {}) {
   const create = vi.fn(async ({ data }: any) => ({
     id: '11111111-2222-4333-8444-555555555555',
     ...data,
@@ -14,7 +14,7 @@ function setup({ member = true, service = { name: 'PAN card application' } as { 
   }));
   const eventCreate = vi.fn(async () => ({}));
   const prisma: any = {
-    partner_members: { findFirst: vi.fn(async () => (member ? { partner_id: 'centre-1' } : null)) },
+    partner_members: { findFirst: vi.fn(async () => (member ? { partner_id: 'centre-1', partners: { verification_status: status } } : null)) },
     partner_services: { findFirst: vi.fn(async () => service) },
     $transaction: async (fn: any) => fn({ service_requests: { create }, service_request_events: { create: eventCreate } }),
   };
@@ -47,6 +47,10 @@ describe('createWalkIn', () => {
   it('refuses non-members and services from another centre’s rate card', async () => {
     await expect(setup({ member: false }).svc.createWalkIn('x', input)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(setup({ service: null }).svc.createWalkIn('x', input)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('keeps the counter locked until staff approve the centre', async () => {
+    await expect(setup({ status: 'pending' }).svc.createWalkIn('x', input)).rejects.toThrow('approves your centre');
   });
 
   it('validates input', () => {

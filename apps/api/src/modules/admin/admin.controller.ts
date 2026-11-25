@@ -263,16 +263,23 @@ export class AdminController {
     };
   }
 
-  /** GET /api/v1/admin/review?source=ssc&careful=1 — drafts waiting for review, reviewer and above */
+  /** GET /api/v1/admin/review?source=ssc&careful=1&ready=ready|missing&sort=newest|oldest|closing|confidence&page=2
+   *  — one page (25) of drafts waiting for review, reviewer and above */
   @Get('review')
   @Roles('reviewer', 'content_editor')
   reviewQueue(
     @Query('source') source?: string,
     @Query('careful') careful?: string,
+    @Query('ready') ready?: string,
+    @Query('sort') sort?: string,
+    @Query('page') page?: string,
   ): Promise<ReviewList> {
     return this.review.list({
       source: source || undefined,
       careful: careful === '1' || careful === 'true',
+      readiness: ready === 'ready' || ready === 'missing' ? ready : undefined,
+      sort: sort === 'oldest' || sort === 'closing' || sort === 'confidence' ? sort : 'newest',
+      page: Number(page) || 1,
     });
   }
 

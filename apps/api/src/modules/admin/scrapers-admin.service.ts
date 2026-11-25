@@ -23,7 +23,18 @@ export class ScrapersAdminService {
    * List all scraping sources with health status, last run and document counts.
    */
   async listSources(): Promise<ScrapeSourcesListResponse> {
-    const sources = await this.prisma.scrape_sources.findMany({
+    // Totals across every scraped notice: what the AI filled, what needs hand work, and
+    // where the resulting opportunities are (waiting in /review or already on the site).
+    const totalsQuery = this.prisma.$queryRaw<ScrapeSourcesListResponse['documents'][]>`
+      select count(*)::int as total,
+             count(*) filter (where d.extraction is not null)::int as ai_filled,
+             count(*) filter (where d.error is not null)::int as needs_manual,
+             count(distinct o.id) filter (where o.status = 'draft')::int as drafts_waiting,
+             count(distinct o.id) filter (where o.status in ('published', 'closed'))::int as published
+      from scraped_documents d
+      left join opportunities o on o.id = d.opportunity_id`;
+
+    const sourcesQuery = this.prisma.scrape_sources.findMany({
       orderBy: [{ is_active: 'desc' }, { name: 'asc' }],
       include: {
         organizations: {
@@ -42,6 +53,7 @@ export class ScrapersAdminService {
       },
     });
 
+    const [sources, [documents]] = await Promise.all([sourcesQuery, totalsQuery]);
     const now = Date.now();
     let healthyCount = 0;
     let failingCount = 0;
@@ -111,6 +123,7 @@ export class ScrapersAdminService {
         failing: failingCount,
         stale: staleCount,
       },
+      documents,
     };
   }
 

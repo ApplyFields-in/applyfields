@@ -10,7 +10,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -34,6 +33,7 @@ import {
 } from '@/lib/offline';
 import { useApi } from '@/lib/use-api';
 import { C, S, TAP, card, column } from '@/theme';
+import { Spinner } from '@/components/animated-icons';
 
 /** kB / MB, whichever reads better. */
 function size(bytes: number | null): string {
@@ -119,7 +119,7 @@ export default function Documents() {
                 style={s.keep}
               >
                 {busy === item.id ? (
-                  <ActivityIndicator color={C.blue} />
+                  <Spinner color={C.blue} />
                 ) : (
                   <Ionicons
                     name={saved ? 'checkmark-circle' : 'cloud-download-outline'}

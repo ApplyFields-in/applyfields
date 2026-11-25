@@ -20,6 +20,8 @@ import {
 import { GoogleButton } from '@applyfields/ui';
 import { apiPost } from '@/lib/api';
 import { useAuth, type CitizenUser } from '@/lib/auth-context';
+import { flashToast } from '@applyfields/ui';
+import { SuccessCheck } from '@applyfields/ui';
 
 export function validatePassword(password: string) {
   const hasLength = (password || '').length >= 8;
@@ -106,6 +108,7 @@ function ServiceLoginForm() {
 
     login(res.data.user, res.data.accessToken);
     setSuccess('Signed in successfully! Redirecting...');
+    flashToast('Logged in successfully. Welcome back!');
     setTimeout(() => {
       router.push(redirectTarget);
     }, 600);
@@ -126,6 +129,7 @@ function ServiceLoginForm() {
     }
     login(res.data.user, res.data.accessToken);
     setSuccess('Signed in with Google! Redirecting...');
+    flashToast('Logged in successfully with Google.');
     setTimeout(() => router.push(redirectTarget), 600);
   }
 
@@ -182,7 +186,7 @@ function ServiceLoginForm() {
 
           {success && (
             <div className="mb-5 flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <SuccessCheck key={success} className="mt-0.5 shrink-0 text-emerald-600" />
               <span>{success}</span>
             </div>
           )}

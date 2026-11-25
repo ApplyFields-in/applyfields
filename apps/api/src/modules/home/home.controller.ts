@@ -1,6 +1,7 @@
 import { SkipThrottle } from '@nestjs/throttler';
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
-import type { ApiHealth, HomePersonal, HomeSummary } from '@applyfields/types';
+import type { ApiHealth, HomePersonal, HomeSummary, Interest, LocationScope } from '@applyfields/types';
+import { rankByPreferences, rankingState } from './recommend.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CacheService } from '../../common/cache.service.js';
 import { OptionalAuthGuard, type MaybeUserRequest } from '../auth/auth.guard.js';
@@ -166,6 +167,14 @@ export class HomeController {
       }),
       this.opportunities.savedSlugs(userId),
     ]);
+    // Setup answers. .catch: Home must keep working if the API ships before the table exists.
+    const [prefs, states] = await Promise.all([
+      this.prisma.user_preferences.findUnique({ where: { user_id: userId } }).catch(() => null),
+      this.prisma.user_profiles.findUnique({
+        where: { user_id: userId },
+        select: { state_code: true, domicile_state_code: true },
+      }),
+    ]);
     const ready = EligibilityService.ready(profile);
     const [recommended, savedCards, viewedCards] = await Promise.all([
       ready ? this.eligibility.annotate(profile, open) : [],
@@ -173,14 +182,25 @@ export class HomeController {
       this.opportunities.cardsByIds(viewed.map((v) => v.item_id)),
     ]);
     const mark = (cards: typeof savedCards) => this.opportunities.markSaved(cards, savedSlugs);
+    const eligibleOnly = recommended.filter(
+      (c) => c.eligibility === 'eligible' || c.eligibility === 'likely_eligible',
+    );
+    // With setup answers: rank by them (eligible items only once the profile allows checking).
+    const usePrefs = !!prefs && (prefs.interests.length > 0 || !!prefs.location_scope);
+    const picks = usePrefs
+      ? rankByPreferences(
+          ready ? eligibleOnly : open,
+          {
+            interests: prefs.interests as Interest[],
+            location_scope: prefs.location_scope as LocationScope | null,
+          },
+          rankingState(states),
+        )
+      : eligibleOnly.slice(0, 6);
     return {
       profile_ready: ready,
       profile_missing: EligibilityService.missing(profile),
-      recommended: mark(
-        recommended
-          .filter((c) => c.eligibility === 'eligible' || c.eligibility === 'likely_eligible')
-          .slice(0, 6),
-      ),
+      recommended: mark(picks),
       saved: mark(savedCards),
       recently_viewed: mark(viewedCards),
     };

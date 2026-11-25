@@ -7,6 +7,7 @@ export const SENDERS = {
   help: () => process.env.EMAIL_HELP_FROM ?? 'ApplyFields Help Desk <help@applyfields.com>',
   services: () => process.env.EMAIL_SERVICES_FROM ?? 'ApplyFields Services <services@applyfields.com>',
   admin: () => process.env.EMAIL_ADMIN_FROM ?? 'ApplyFields Admin <admin@applyfields.com>',
+  partners: () => process.env.EMAIL_PARTNERS_FROM ?? 'ApplyFields Partners <no-reply@applyfields.com>',
 };
 export type Sender = keyof typeof SENDERS;
 
@@ -17,6 +18,7 @@ export type Sender = keyof typeof SENDERS;
  */
 export function senderFor(type: string, dedupeKey: string | null): Sender {
   if (dedupeKey?.startsWith('dispute:')) return 'help';
+  if (dedupeKey?.startsWith('partner_status:')) return 'partners';
   if (type === 'request_update') return 'services';
   return 'noreply';
 }
@@ -26,6 +28,7 @@ const FOOTER_REASON: Record<Sender, string> = {
   help: 'You get this because you contacted ApplyFields support.',
   services: 'You get this because of your booking on ApplyFields.',
   admin: 'You get this because you are ApplyFields staff.',
+  partners: 'You get this because you registered as an ApplyFields partner.',
 };
 
 export interface EmailContent {

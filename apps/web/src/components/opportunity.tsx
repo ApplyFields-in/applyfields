@@ -1,5 +1,5 @@
 import type { OpportunityCard, OpportunityList, OpportunityType } from '@applyfields/types';
-import { Badge, BuildStatus, buttonClass, Card, cn, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
+import { Badge, buttonClass, Card, cn, EmptyState, IconTile, PageHeader, SectionTitle } from '@applyfields/ui';
 import {
   CalendarDays,
   CircleCheck,
@@ -15,7 +15,7 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
-import { API_URL } from '@/lib/api';
+import { BACKEND_API_URL } from '@/lib/api';
 import { DeadlineBadge, DeadlineLegend, ELIGIBILITY_META, TYPE_META, formatDate } from '@/lib/format';
 import { apiGetAsUser } from '@/lib/server-api';
 import { SaveButton } from '@/components/save-button';
@@ -68,7 +68,7 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
         </Badge>
         {item.vacancies !== null && (
           <Badge tone="outline">
-            <Users aria-hidden="true" /> {item.vacancies.toLocaleString('en-IN')} posts
+            <Users aria-hidden="true" /> {item.vacancies.toLocaleString('en-IN')} post{item.vacancies === 1 ? '' : 's'}
           </Badge>
         )}
       </div>
@@ -97,7 +97,7 @@ export function ApiOffline() {
         <p className="mt-1 text-sm">Our server may be waking up. Please refresh in a minute.</p>
         {process.env.NODE_ENV !== 'production' && (
           <p className="mt-1 text-xs">
-            Dev: the website reads from <code className="font-mono">{API_URL}</code>. Start it with{' '}
+            Dev: the website reads from <code className="font-mono">{BACKEND_API_URL}</code>. Start it with{' '}
             <code className="font-mono font-semibold">pnpm dev:api</code>.
           </p>
         )}
@@ -309,8 +309,6 @@ export async function OpportunityListPage({
   title,
   description,
   icon,
-  owner,
-  when,
   basePath,
   categories,
   searchParams,
@@ -322,8 +320,6 @@ export async function OpportunityListPage({
   title: string;
   description: string;
   icon: ReactNode;
-  owner: string;
-  when: string;
   basePath: string;
   categories: string[];
   searchParams?: ListSearchParams;
@@ -366,7 +362,6 @@ export async function OpportunityListPage({
         title={title}
         description={description}
         icon={icon}
-        actions={<BuildStatus owner={owner} when={when} />}
       />
 
       <FilterBar
@@ -436,7 +431,7 @@ export async function OpportunityListPage({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {displayData.items.map((item) => (
               <OpportunityCardView key={item.slug} item={item} />
             ))}

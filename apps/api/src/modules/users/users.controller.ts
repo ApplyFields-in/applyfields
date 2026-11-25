@@ -1,3 +1,4 @@
+import { contentDisposition } from '../../common/content-disposition.js';
 import { existsSync } from 'node:fs';
 import {
   Body,
@@ -24,6 +25,7 @@ import {
   VerifyChangeContactDto,
 } from './dto/account.dto.js';
 import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard.js';
+import { SavePreferencesDto } from './dto/preferences.dto.js';
 
 @Controller('me')
 @UseGuards(AuthGuard)
@@ -41,6 +43,17 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.usersService.updateProfile(req.user.userId, dto);
+  }
+
+  /** First-sign-in setup answers. Wrapped so "not set up yet" (preferences: null) differs from a failed request. */
+  @Get('preferences')
+  async getPreferences(@Req() req: AuthenticatedRequest) {
+    return { preferences: await this.usersService.getPreferences(req.user.userId) };
+  }
+
+  @Put('preferences')
+  savePreferences(@Req() req: AuthenticatedRequest, @Body() dto: SavePreferencesDto) {
+    return this.usersService.savePreferences(req.user.userId, dto);
   }
 
   @Get('education')
@@ -104,10 +117,7 @@ export class UsersController {
       ? fileInfo.mime_type!
       : 'application/octet-stream';
     res.setHeader('Content-Type', safeType);
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${fileInfo.file_name || 'resume.pdf'}"`,
-    );
+    res.setHeader('Content-Disposition', contentDisposition('attachment', fileInfo.file_name || 'resume.pdf'));
     return res.sendFile(fileInfo.storage_path);
   }
 

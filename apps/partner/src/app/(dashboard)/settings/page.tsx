@@ -7,7 +7,6 @@ import type { PartnerUpdateInput } from '@applyfields/types';
 import {
   AlertCircle,
   Building2,
-  CheckCircle2,
   FileCheck2,
   FileText,
   LocateFixed,
@@ -30,6 +29,7 @@ import {
   Shield,
   X,
 } from 'lucide-react';
+import { SuccessCheck } from '@applyfields/ui';
 
 interface SubOperatorItem {
   id: string;
@@ -196,7 +196,7 @@ export default function PartnerSettingsPage() {
 
       {success && (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs font-semibold text-emerald-300">
-          <CheckCircle2 className="h-4 w-4" />
+          <SuccessCheck key={success} />
           <span>{success}</span>
         </div>
       )}

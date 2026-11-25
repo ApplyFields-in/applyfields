@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { GraduationCap, Plus, Pencil, Trash2, X, AlertCircle, Loader2 } from 'lucide-react';
+import { GraduationCap, Plus, Pencil, Trash2, X, AlertCircle } from 'lucide-react';
 import type { UserEducation, EducationLevel, EducationStatus, ScoreType } from '@applyfields/types';
 import { apiPost, apiPut, apiDelete } from '@/lib/api';
 import { showAppToast } from '@/components/toast-notification-provider';
 import { useLanguage } from '@/lib/i18n/language-context';
+import { Spinner } from '@applyfields/ui';
 
 export const EDUCATION_LEVEL_LABELS: Record<EducationLevel, string> = {
   '10th': '10th / Secondary (SSC)',
@@ -479,7 +480,7 @@ export function EducationSection({
                   disabled={saving}
                   className="inline-flex items-center min-h-[44px] gap-2 px-6 py-2.5 rounded-xl bg-[#0E7BF4] text-white text-xs font-semibold hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-[#0E7BF4] focus-visible:outline-none disabled:opacity-50 transition-colors shadow-xs"
                 >
-                  {saving && <Loader2 className="size-4 animate-spin" />}
+                  {saving && <Spinner size={16} />}
                   <span>{saving ? 'Saving…' : editingId ? 'Update Qualification' : 'Add to Profile'}</span>
                 </button>
               </div>

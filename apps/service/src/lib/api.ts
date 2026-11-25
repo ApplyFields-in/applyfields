@@ -1,6 +1,13 @@
-export const API_URL =
+const BACKEND_API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ||
   'http://localhost:4000/api/v1';
+
+/**
+ * Browser → same-site '/api/v1' (next.config rewrite proxies it to the API), so login cookies are
+ * stored for THIS site. Calling onrender.com directly made them third-party cookies, which Safari,
+ * Brave and incognito Chrome drop — sign-in "worked" and then bounced back to /login.
+ */
+export const API_URL = typeof window === 'undefined' ? BACKEND_API_URL : '/api/v1';
 
 export interface ApiResponse<T> {
   data: T | null;
@@ -160,6 +167,7 @@ import type {
   CreateBookingInput,
   MarkFiledInput,
   PartnerDirectoryResponse,
+  UpdateBookingStatusInput,
   PartnerDetail,
   SendChatMessageInput,
   UserDocumentListResponse,
@@ -215,6 +223,15 @@ export async function getBookingSlipUrl(id: string): Promise<ApiResponse<{ url: 
 /** Operator desk: requests for the signed-in partner centre. */
 export async function getPartnerInbox(): Promise<ApiResponse<BookingListResponse>> {
   return apiGet<BookingListResponse>('/bookings/partner/inbox');
+}
+
+/** Operator desk: start a citizen's booking with the 4-digit start code from their app. */
+export async function startBookingWithCode(id: string, startCode: string): Promise<ApiResponse<BookingDetail>> {
+  return apiPatch<BookingDetail, UpdateBookingStatusInput>(`/bookings/partner/${encodeURIComponent(id)}`, {
+    status: 'in_progress',
+    start_code: startCode,
+    partner_note: 'Citizen arrived at the desk (start code checked)',
+  });
 }
 
 /** Operator desk: save the official application number + slip, complete the request, notify the citizen. */

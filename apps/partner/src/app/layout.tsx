@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import '@fontsource-variable/plus-jakarta-sans';
 import './globals.css';
 import { PartnerAuthProvider } from '@/lib/auth-context';
-import { ScrollToTop } from '@applyfields/ui';
+import { FlashToast, ScrollToTop } from '@applyfields/ui';
 import { Footer } from '@/components/footer';
 
 export const metadata: Metadata = {
@@ -34,6 +34,7 @@ export default function RootLayout({
           {children}
           <Footer />
           <ScrollToTop />
+        <FlashToast />
         </PartnerAuthProvider>
       </body>
     </html>

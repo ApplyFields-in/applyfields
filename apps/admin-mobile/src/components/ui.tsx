@@ -1,7 +1,6 @@
 /** The handful of shared pieces every screen is built from. */
 import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,6 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { C, CHROME_FONT_SCALE, R, S, TAP, card, column } from '../theme';
+import { Spinner } from './animated-icons';
 
 /**
  * True when the screen is effectively narrow: a 320pt phone, or a normal phone
@@ -165,7 +165,7 @@ export function Button({
 export function Loading({ label = 'Loading…' }: { label?: string }) {
   return (
     <View style={s.centre}>
-      <ActivityIndicator color={C.blue} />
+      <Spinner size={32} color={C.blue} />
       <Muted style={{ marginTop: S.md }}>{label}</Muted>
     </View>
   );

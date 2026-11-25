@@ -559,6 +559,7 @@ describe('PartnersService.getEarnings (founder §20.6 ledger)', () => {
     partner_members: { findFirst: vi.fn().mockResolvedValue({ partner_id: 'partner-1', role: 'owner' }) },
     service_requests: { aggregate, count: vi.fn().mockResolvedValue(1), findMany: vi.fn().mockResolvedValue([]) },
     partner_payouts: { findMany: vi.fn().mockResolvedValue(payouts) },
+    partners: { findUnique: vi.fn().mockResolvedValue({ verification_status: 'verified' }) },
   } as any;
 
   it('sums real bookings and payouts, and counts only bookings after the last period as unsettled', async () => {
@@ -578,6 +579,11 @@ describe('PartnersService.getEarnings (founder §20.6 ledger)', () => {
     mockPrisma.partner_members.findFirst.mockResolvedValueOnce({ partner_id: 'partner-1', role: 'staff' });
     await expect(new PartnersService(mockPrisma).getEarnings('staff-user')).rejects.toThrow('owner only');
   });
+
+  it('stays locked until staff approve the centre', async () => {
+    mockPrisma.partners.findUnique.mockResolvedValueOnce({ verification_status: 'pending' });
+    await expect(new PartnersService(mockPrisma).getEarnings('owner-user')).rejects.toThrow('approves your centre');
+  });
 });
 
 describe('PartnersService.uploadDocument (KYC files)', () => {
@@ -589,6 +595,7 @@ describe('PartnersService.uploadDocument (KYC files)', () => {
     const prisma = {
       partner_members: { findFirst: vi.fn().mockResolvedValue({ partner_id: 'p-1', role: 'owner' }) },
       partner_documents: { create },
+      partners: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     } as any;
     const storage = { documentsBucket: 'documents', upload: vi.fn().mockResolvedValue(uploadResult) } as any;
     return { service: new PartnersService(prisma, storage), create, storage };
@@ -610,8 +617,177 @@ describe('PartnersService.uploadDocument (KYC files)', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  it('alerts staff once, when the last required KYC file arrives', async () => {
+    const send = async (have: string[]) => {
+      const notifyStaff = vi.fn().mockResolvedValue(1);
+      const prisma = {
+        partner_members: { findFirst: vi.fn().mockResolvedValue({ partner_id: 'p-1', role: 'owner' }) },
+        partner_documents: { create: vi.fn().mockResolvedValue({ id: 'doc-new', partner_id: 'p-1', document_kind: 'trade_license', storage_path: 'x', status: 'pending', reviewer_note: null, reviewed_at: null, created_at: new Date() }) },
+        partners: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          findUnique: vi.fn().mockResolvedValue({
+            business_name: 'Sri Sai', type: 'meeseva',
+            partner_documents: have.map((k, i) => ({ id: k === 'trade_license' ? 'doc-new' : `d${i}`, document_kind: k })),
+          }),
+        },
+      } as any;
+      const storage = { documentsBucket: 'documents', upload: vi.fn().mockResolvedValue('ok') } as any;
+      await new PartnersService(prisma, storage, { notifyStaff } as any).uploadDocument('u-1', input);
+      return notifyStaff.mock.calls.map((c) => c[1].title);
+    };
+    expect(await send(['trade_license'])).toEqual([]); // still onboarding
+    expect(await send(['kiosk_photo', 'owner_id', 'trade_license'])).toEqual(['New centre ready for review']);
+  });
+
   it('accepts only known kinds and file types', () => {
     expect(partnerDocumentUploadSchema.safeParse({ ...input, document_kind: 'selfie' }).success).toBe(false);
     expect(partnerDocumentUploadSchema.safeParse({ ...input, mime_type: 'text/html' }).success).toBe(false);
+  });
+});
+
+describe('Partner approval rules', () => {
+  const partnerWith = (type: string, docs: Array<{ document_kind: string; status: string }>) => {
+    const update = vi.fn().mockImplementation(({ data }) => ({ id: 'p1', type, created_at: new Date(), updated_at: new Date(), ...data }));
+    const prisma: any = {
+      partners: { findUnique: vi.fn().mockResolvedValue({ id: 'p1', type, partner_documents: docs }), update },
+    };
+    return { service: new PartnersService(prisma), update };
+  };
+  const approve = { verification_status: 'verified', is_listed: true } as const;
+
+  it('refuses to approve a shop until its required documents are approved', async () => {
+    const { service } = partnerWith('xerox_printing', [
+      { document_kind: 'trade_license', status: 'verified' },
+      { document_kind: 'kiosk_photo', status: 'pending' },
+    ]);
+    await expect(service.adminVerifyPartner('p1', 'staff', approve)).rejects.toThrow(
+      'Approve these documents first: kiosk photo, owner id.',
+    );
+  });
+
+  it('asks colleges for the college documents, not the shop ones', async () => {
+    const { service, update } = partnerWith('college', [
+      { document_kind: 'aicte_approval_letter', status: 'verified' },
+      { document_kind: 'principal_authorization_letter', status: 'verified' },
+    ]);
+    await service.adminVerifyPartner('p1', 'staff', approve);
+    expect(update).toHaveBeenCalled();
+  });
+
+  it('rejects without documents and keeps the reason for the partner', async () => {
+    const { service, update } = partnerWith('meeseva', []);
+    const res = await service.adminVerifyPartner('p1', 'staff', {
+      verification_status: 'rejected',
+      is_listed: false,
+      reviewer_note: 'Trade licence is blurry',
+    });
+    expect(update.mock.calls[0][0].data.verification_note).toBe('Trade licence is blurry');
+    expect(res.verification_note).toBe('Trade licence is blurry');
+  });
+
+  it('will not let a second desk claim a college that already has an approved one', async () => {
+    const prisma: any = {
+      partners: { findUnique: vi.fn().mockResolvedValue(null), findFirst: vi.fn().mockResolvedValue({ id: 'other' }) },
+      institutions: { findUnique: vi.fn().mockResolvedValue({ id: '00000000-0000-4000-8000-000000000001' }) },
+    };
+    const service = new PartnersService(prisma);
+    await expect(
+      service.register('u1', {
+        business_name: 'JNTU Kakinada',
+        type: 'college',
+        owner_name: 'Dean',
+        phone: '+919848012345',
+        address: 'Campus',
+        state_code: 'AP',
+        district: 'Kakinada',
+        city: 'Kakinada',
+        pincode: '533003',
+        institution_id: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).rejects.toThrow('already has an approved desk');
+  });
+});
+
+describe('Shop sign-up services', () => {
+  const input = {
+    business_name: 'Sri Sai Xerox',
+    type: 'xerox_printing',
+    owner_name: 'Ravi',
+    phone: '+919848012345',
+    address: 'Shop 4, Main Road',
+    state_code: 'AP',
+    district: 'Vizianagaram',
+    city: 'Vizianagaram',
+    pincode: '535001',
+  } as any;
+  const PAN = '00000000-0000-4000-8000-0000000000aa';
+
+  const setup = (catalogCount: number) => {
+    const createMany = vi.fn().mockResolvedValue({ count: 2 });
+    const tx = {
+      partners: { create: vi.fn().mockResolvedValue({ id: 'p1', slug: 'sri-sai-xerox', type: 'xerox_printing', business_name: 'Sri Sai Xerox' }) },
+      partner_services: { createMany },
+      partner_members: { create: vi.fn() },
+    };
+    const prisma: any = {
+      partners: { findUnique: vi.fn().mockResolvedValue(null) },
+      gov_services: { count: vi.fn().mockResolvedValue(catalogCount) },
+      $transaction: (fn: any) => fn(tx),
+    };
+    return { service: new PartnersService(prisma), createMany };
+  };
+
+  it('saves ticked services, linking catalog ones and keeping prices in paise', async () => {
+    const { service, createMany } = setup(1);
+    await service.register('u1', {
+      ...input,
+      services: [
+        { name: 'PAN Card', service_id: PAN, charge_paise: 15000 },
+        { name: 'Lamination' },
+      ],
+    });
+    expect(createMany.mock.calls[0][0].data).toEqual([
+      { partner_id: 'p1', service_id: PAN, name: 'PAN Card', charge_paise: 15000 },
+      { partner_id: 'p1', service_id: null, name: 'Lamination', charge_paise: null },
+    ]);
+  });
+
+  it('refuses a catalog service that does not exist', async () => {
+    const { service } = setup(0);
+    await expect(
+      service.register('u1', { ...input, services: [{ name: 'Ghost', service_id: PAN }] }),
+    ).rejects.toThrow('no longer exists');
+  });
+});
+
+describe('Partner decision notices', () => {
+  it('tells every member of the centre when it is approved, with a link to their dashboard', async () => {
+    const notifyAccount = vi.fn().mockResolvedValue(1);
+    const prisma: any = {
+      partners: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'p1',
+          type: 'xerox_printing',
+          verification_status: 'pending',
+          partner_documents: ['trade_license', 'kiosk_photo', 'owner_id'].map((k) => ({ document_kind: k, status: 'verified' })),
+        }),
+        update: vi.fn().mockImplementation(({ data }) => ({
+          id: 'p1',
+          type: 'xerox_printing',
+          business_name: 'Sri Sai Xerox',
+          created_at: new Date(),
+          ...data,
+        })),
+      },
+      partner_members: { findMany: vi.fn().mockResolvedValue([{ user_id: 'owner' }, { user_id: 'staff' }]) },
+    };
+    const service = new PartnersService(prisma, {} as any, { notifyAccount, notifyStaff: vi.fn() } as any);
+    await service.adminVerifyPartner('p1', 'reviewer', { verification_status: 'verified', is_listed: true });
+    await vi.waitFor(() => expect(notifyAccount).toHaveBeenCalled());
+    const [users, n, key] = notifyAccount.mock.calls[0];
+    expect(users).toEqual(['owner', 'staff']);
+    expect(n.title).toBe('Your centre is approved on ApplyFields');
+    expect(n.link).toMatch(/\/dashboard$/);
+    expect(key).toMatch(/^partner_status:p1:verified:\d+$/);
   });
 });

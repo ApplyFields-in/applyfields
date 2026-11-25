@@ -85,7 +85,7 @@ describe('Bookings Schemas Validation', () => {
 
 describe('BookingsService Logic', () => {
   it('creates booking with initial event in transaction', async () => {
-    const mockPartner = { id: 'partner-1', business_name: 'Sri Sai MeeSeva' };
+    const mockPartner = { id: 'partner-1', business_name: 'Sri Sai MeeSeva', verification_status: 'verified', is_listed: true };
     const mockCreatedBooking = {
       id: 'booking-1',
       user_id: 'user-1',

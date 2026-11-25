@@ -43,6 +43,7 @@ import { SkillsLanguagesSection } from '@/components/profile/skills-languages-se
 import { PhotoAvatarSection } from '@/components/profile/photo-avatar-section';
 import { ResumeAutofill } from '@/components/profile/resume-autofill-card';
 import type { CompetitiveExamScore } from '@/components/profile/competitive-exam-scores-card';
+import { Spinner } from '@applyfields/ui';
 
 export const INDIAN_STATES: { code: string; name: string }[] = [
   { code: 'AP', name: 'Andhra Pradesh' },
@@ -182,7 +183,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[400px]">
-        <div className="size-8 rounded-full border-2 border-[#0E7BF4] border-t-transparent animate-spin mb-4" />
+        <Spinner size={32} className="text-[#0E7BF4] mb-4" />
         <p className="text-sm font-semibold text-slate-500">Loading your profile…</p>
       </div>
     );

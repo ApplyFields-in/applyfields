@@ -1,4 +1,3 @@
-
 """Polite HTTP fetching with robots.txt enforcement and retry handling."""
 
 import ssl
@@ -24,9 +23,11 @@ def is_allowed_by_robots(url: str) -> bool:
         headers={"User-Agent": settings.user_agent},
         verify=_ssl_context,
         timeout=10.0,
+        follow_redirects=True,  # sbi.co.in → sbi.bank.in, TGPSC 302s its robots.txt
     )
 
-    if response.status_code == 404:
+    # RFC 9309: a 4xx robots.txt means "no rules"; a 5xx still stops us (raise below).
+    if 400 <= response.status_code < 500:
         return True
 
     response.raise_for_status()
@@ -39,9 +40,6 @@ def is_allowed_by_robots(url: str) -> bool:
 
 def fetch(url: str) -> httpx.Response:
     """Fetch a URL after checking robots.txt, with retries and crawl delay."""
-    if not is_allowed_by_robots(url):
-        raise PermissionError(f"robots.txt disallows fetching: {url}")
-
     headers = {"User-Agent": settings.user_agent}
 
     for attempt in range(4):
@@ -49,11 +47,17 @@ def fetch(url: str) -> httpx.Response:
             time.sleep(2 ** (attempt - 1))
 
         try:
+            # Inside the retry: a flaky TLS handshake on robots.txt (IBPS) is retried too.
+            # PermissionError is not an httpx error, so a real "disallow" stops at once.
+            if not is_allowed_by_robots(url):
+                raise PermissionError(f"robots.txt disallows fetching: {url}")
+
             response = httpx.get(
                 url,
                 headers=headers,
                 verify=_ssl_context,
                 timeout=10.0,
+                follow_redirects=True,
             )
             response.raise_for_status()
 
@@ -68,5 +72,3 @@ def fetch(url: str) -> httpx.Response:
                 raise
 
     raise RuntimeError("Fetch failed unexpectedly")
-
-

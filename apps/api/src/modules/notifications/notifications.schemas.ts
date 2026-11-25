@@ -1,4 +1,5 @@
 import type {
+  AdminBroadcastInput,
   DeviceTokenInput,
   ManualAlertInput,
   NotificationPreferencesInput,
@@ -78,9 +79,18 @@ export const adminBroadcastSchema = z.object({
   audience: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('all') }),
     z.object({ kind: z.literal('subscribers') }),
+    z.object({ kind: z.literal('partners') }),
+    z.object({ kind: z.literal('staff') }),
     z.object({ kind: z.literal('savers'), opportunity_slug: z.string().trim().min(1).max(200) }),
     z.object({ kind: z.literal('user'), email: z.string().email().max(320) }),
   ]),
-  channels: z.array(z.enum(['in_app', 'push', 'email'])).optional(),
+  channels: z.array(z.enum(['in_app', 'push'])).optional(),
+  send_at: z.iso
+    .datetime({ offset: true })
+    .nullable()
+    .optional()
+    .refine((v) => !v || new Date(v).getTime() > Date.now(), 'send_at must be in the future')
+    .refine((v) => !v || new Date(v).getTime() < Date.now() + 366 * 86_400_000, 'send_at must be within a year'),
 });
+const _broadcastSame: Same<z.output<typeof adminBroadcastSchema>, AdminBroadcastInput> = true;
 

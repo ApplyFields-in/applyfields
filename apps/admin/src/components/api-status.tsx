@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { API_URL } from '@/lib/api';
+import { API_URL, BACKEND_API_URL } from '@/lib/api';
 
 /**
  * Client-side API health indicator for Internal Portal.
@@ -31,7 +31,7 @@ export function ApiStatus() {
 
   return (
     <span
-      title={API_URL}
+      title={BACKEND_API_URL}
       className="inline-flex items-center gap-1.5 rounded-full border border-line bg-cream px-2.5 py-1 font-semibold text-teal"
     >
       <span

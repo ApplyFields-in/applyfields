@@ -38,7 +38,7 @@ export default function InstitutionDashboardPage() {
         if (deskRes.data) setProfile(deskRes.data);
         if (enqRes.data) setEnquiries(enqRes.data.items || []);
       } catch {
-        // Fallback demo data
+        // Network error: the cards show zeros, never made-up numbers.
       } finally {
         setLoading(false);
       }
@@ -46,10 +46,14 @@ export default function InstitutionDashboardPage() {
     loadData();
   }, []);
 
-  const totalLeads = enquiries.length || 18;
-  const newLeads = enquiries.filter((e) => e.status === 'new').length || 7;
-  const contactedLeads = enquiries.filter((e) => e.status === 'responded').length || 8;
-  const closedLeads = enquiries.filter((e) => e.status === 'closed').length || 3;
+  const totalLeads = enquiries.length;
+  const newLeads = enquiries.filter((e) => e.status === 'new').length;
+  const contactedLeads = enquiries.filter((e) => e.status === 'responded').length;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const leadsToday = enquiries.filter((e) => e.created_at.slice(0, 10) === todayIso).length;
+  // Indian academic year starts in June: Nov 2026 -> "2026–27".
+  const now = new Date();
+  const sessionStart = now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1;
 
 
   return (
@@ -60,12 +64,12 @@ export default function InstitutionDashboardPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-blue-500/20 px-3 py-1 text-xs font-bold text-blue-300">
-                Institutional Admissions CRM · Founder Doc §21
+                Institutional Admissions CRM
               </span>
-              <span className="text-xs text-slate-400">Academic Session 2026–27</span>
+              <span className="text-xs text-slate-400">Academic Session {sessionStart}–{String(sessionStart + 1).slice(2)}</span>
             </div>
             <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {profile?.name || 'Chaitanya Bharathi Institute of Technology'}
+              {profile?.name || 'Your college'}
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-slate-300 max-w-2xl">
               Direct student inquiries from ApplyFields Career Mode. Respond to qualified student leads without intermediary brokers.
@@ -94,7 +98,7 @@ export default function InstitutionDashboardPage() {
             </span>
           </div>
           <div className="mt-3 text-2xl font-black text-white">{totalLeads}</div>
-          <div className="mt-1 text-[11px] text-blue-400 font-semibold">+6 today from Career Mode</div>
+          <div className="mt-1 text-[11px] text-blue-400 font-semibold">{leadsToday} today</div>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 backdrop-blur-sm">
@@ -127,9 +131,9 @@ export default function InstitutionDashboardPage() {
             </span>
           </div>
           <div className="mt-3 text-2xl font-black text-emerald-300">
-            {profile?.courses_count || 12}
+            {profile?.courses_count ?? 0}
           </div>
-          <div className="mt-1 text-[11px] text-emerald-400 font-semibold">B.Tech, MBA, M.Tech</div>
+          <div className="mt-1 text-[11px] text-emerald-400 font-semibold">Listed on your profile</div>
         </div>
       </div>
 
@@ -217,25 +221,26 @@ export default function InstitutionDashboardPage() {
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 space-y-4">
             <div className="flex items-center gap-2 text-sm font-bold text-white">
               <Award className="h-4 w-4 text-blue-400" />
-              <h3>Institutional Credentials</h3>
+              <h3>Campus Details</h3>
             </div>
+            {/* Only what the college's own record says; empty = "Not added", never a guess. */}
             <div className="space-y-3 text-xs">
-              <div className="flex justify-between items-center py-2 border-b border-slate-800">
-                <span className="text-slate-400">Accreditation</span>
-                <span className="font-bold text-emerald-400">NAAC Grade A++</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-slate-800">
-                <span className="text-slate-400">Technical Approval</span>
-                <span className="font-bold text-white">AICTE Approved</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-slate-800">
-                <span className="text-slate-400">Affiliation</span>
-                <span className="font-bold text-white">UGC Autonomous</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-slate-400">Admissions Cycle</span>
-                <span className="font-bold text-blue-400">Open for 2026</span>
-              </div>
+              {[
+                ['Type', profile?.type],
+                ['Ownership', profile?.ownership],
+                ['Established', profile?.established_year ? String(profile.established_year) : null],
+                ['Website', profile?.website?.replace(/^https?:\/\//, '')],
+              ].map(([label, value], i, rows) => (
+                <div
+                  key={label}
+                  className={`flex justify-between items-center gap-3 py-2 ${i < rows.length - 1 ? 'border-b border-slate-800' : ''}`}
+                >
+                  <span className="text-slate-400">{label}</span>
+                  <span className={`truncate font-bold ${value ? 'text-white' : 'text-slate-500'}`}>
+                    {value ? value.replace(/_/g, ' ') : 'Not added'}
+                  </span>
+                </div>
+              ))}
             </div>
 
             <Link
@@ -252,7 +257,7 @@ export default function InstitutionDashboardPage() {
               <span>ApplyFields Verification Guarantee</span>
             </div>
             <p className="leading-relaxed text-slate-400 text-[11px]">
-              Every inquiry sent to your institution has been authenticated. Students discovered your college through our verified Career Roadmap database.
+              Enquiries come from students viewing your college on ApplyFields. Reply quickly: students usually ask several colleges at once.
             </p>
           </div>
         </div>

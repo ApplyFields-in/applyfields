@@ -33,6 +33,7 @@ import type {
   UserResumeDocument,
   UserSessionItem,
 } from '@applyfields/types';
+import type { PreferencesEntity, SavePreferencesInput } from './preferences.options.js';
 
 @Injectable()
 export class UsersService {
@@ -65,6 +66,14 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
     return await this.store.updateProfile(userId, dto);
+  }
+
+  getPreferences(userId: string): Promise<PreferencesEntity | null> {
+    return this.store.getPreferences(userId);
+  }
+
+  savePreferences(userId: string, input: SavePreferencesInput): Promise<PreferencesEntity> {
+    return this.store.savePreferences(userId, input);
   }
 
   async getEducation(userId: string): Promise<UserEducation[]> {

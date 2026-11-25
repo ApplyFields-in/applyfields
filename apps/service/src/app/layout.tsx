@@ -7,7 +7,8 @@ import { LanguageProvider } from '@/lib/i18n';
 import { Navbar } from '@/components/navbar';
 import { CartDrawer } from '@/components/cart-drawer';
 import { Footer } from '@/components/footer';
-import { ScrollToTop } from '@applyfields/ui';
+import { FlashToast, ScrollToTop } from '@applyfields/ui';
+import { PageViewTracker } from '@/components/page-view-tracker';
 
 export const metadata: Metadata = {
   title: 'ApplyFields Services — Book MeeSeva, CSC, PAN, Aadhaar & Xerox Online',
@@ -36,11 +37,13 @@ export default function RootLayout({
             <CartProvider>
               <div className="flex min-h-screen flex-col justify-between">
                 <Navbar />
+                <PageViewTracker />
                 <main className="flex-1 w-full animate-rise">{children}</main>
                 <Footer />
               </div>
               <CartDrawer />
               <ScrollToTop />
+        <FlashToast />
             </CartProvider>
           </AuthProvider>
         </LanguageProvider>

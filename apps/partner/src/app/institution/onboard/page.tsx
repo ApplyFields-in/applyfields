@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -9,27 +9,33 @@ import {
   Award,
   Building2,
   CheckCircle2,
-  FileCheck2,
   GraduationCap,
-  Loader2,
   Lock,
   Mail,
   MapPin,
   Phone,
   Search,
   ShieldCheck,
-  UploadCloud,
   User,
 } from 'lucide-react';
 import {
   registerPartner,
   searchCollegesDirectory,
-  uploadPartnerFile,
 } from '@/lib/api';
 import type { InstitutionSummary } from '@applyfields/types';
+import { flashToast } from '@applyfields/ui';
+import { usePartnerAuth } from '@/lib/auth-context';
+import { Spinner } from '@applyfields/ui';
+import { SuccessCheck } from '@applyfields/ui';
 
 export default function InstitutionOnboardPage() {
   const router = useRouter();
+  const { status } = usePartnerAuth();
+
+  // The desk belongs to an account: signed-out visitors create one first.
+  useEffect(() => {
+    if (status === 'unauthenticated') router.replace('/signup?type=college');
+  }, [status, router]);
 
   // Wizard Steps: 1: Find College -> 2: Rep Details -> 3: Verification Docs -> 4: Complete
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -51,12 +57,10 @@ export default function InstitutionOnboardPage() {
   const [stateCode, setStateCode] = useState('TS');
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
-  const [pincode, setPincode] = useState('500007');
+  const [pincode, setPincode] = useState('');
   const [campusAddress, setCampusAddress] = useState('');
 
   // Step 3: Verification Docs
-  const [authDoc, setAuthDoc] = useState<File | null>(null);
-  const authDocName = authDoc?.name ?? '';
   const [accreditationType, setAccreditationType] = useState('naac');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(true);
@@ -111,6 +115,10 @@ export default function InstitutionOnboardPage() {
       setError('Please provide all admissions officer contact fields.');
       return;
     }
+    if (!city.trim() || !/^[1-9][0-9]{5}$/.test(pincode.trim())) {
+      setError('Please enter the college city and a valid 6-digit PIN code.');
+      return;
+    }
 
     setSubmitting(true);
 
@@ -118,15 +126,17 @@ export default function InstitutionOnboardPage() {
       const regRes = await registerPartner({
         business_name: collegeName,
         type: 'college',
+        // Links the desk to this college's page (only from the list; a typed-in name has no page yet).
+        institution_id: isCustomCollege ? undefined : selectedCollege?.id,
         owner_name: `${repName.trim()} (${designation.trim()})`,
         phone: mobilePhone.trim().startsWith('+91') ? mobilePhone.trim() : `+91${mobilePhone.trim()}`,
         email: officialEmail.trim(),
         whatsapp: whatsapp ? (whatsapp.startsWith('+91') ? whatsapp : `+91${whatsapp}`) : undefined,
         address: campusAddress.trim() || `${collegeName}, ${city}, ${stateCode}`,
         state_code: stateCode.toUpperCase(),
-        district: district.trim() || city.trim() || 'Headquarters',
-        city: city.trim() || 'City',
-        pincode: pincode.trim() || '500001',
+        district: district.trim() || city.trim(),
+        city: city.trim(),
+        pincode: pincode.trim(),
         description: `Official ApplyFields Institutional Admissions Desk for ${collegeName}. Accreditations: ${accreditationType.toUpperCase()}.`,
       });
 
@@ -136,9 +146,7 @@ export default function InstitutionOnboardPage() {
         return;
       }
 
-      // Upload authorization verification stub if provided
-      if (authDoc) await uploadPartnerFile('principal_authorization_letter', authDoc);
-
+      flashToast('Institution registered successfully. We will review it soon.');
       router.push('/institution/under-review');
     } catch (err: any) {
       setError(err?.message || 'Unexpected error while registering institution.');
@@ -257,7 +265,7 @@ export default function InstitutionOnboardPage() {
                       disabled={isSearching}
                       className="rounded-xl bg-[#0e7bf4] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#0c6fdc] transition"
                     >
-                      {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+                      {isSearching ? <Spinner size={16} /> : 'Search'}
                     </button>
                   </form>
 
@@ -313,7 +321,7 @@ export default function InstitutionOnboardPage() {
                           {selectedCollege.city || selectedCollege.district}, {selectedCollege.state_code}
                         </div>
                       </div>
-                      <CheckCircle2 className="h-6 w-6 text-[#00876a]" />
+                      <SuccessCheck size={24} className="text-[#00876a]" />
                     </div>
                   )}
 
@@ -500,7 +508,7 @@ export default function InstitutionOnboardPage() {
               <div>
                 <h2 className="text-lg font-bold text-[#082046]">Institutional Authorization &amp; Documents</h2>
                 <p className="text-xs text-[#536780] mt-1">
-                  Upload official documentation proving your representation authority for the college.
+                  Choose your accreditation. Documents are uploaded after you submit.
                 </p>
               </div>
 
@@ -519,40 +527,10 @@ export default function InstitutionOnboardPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-[#243b5b]">
-                  Official Authorization Letter / Principal ID
-                </label>
-                <div className="mt-1 flex justify-center rounded-2xl border-2 border-dashed border-[#c9d6e6] bg-[#F7F9FC] px-6 py-8">
-                  <div className="text-center">
-                    <UploadCloud className="mx-auto h-10 w-10 text-[#0e7bf4]" />
-                    <div className="mt-2 text-xs text-[#243b5b]">
-                      <label
-                        htmlFor="file-upload"
-                        className="cursor-pointer font-bold text-[#0e7bf4] hover:text-[#0c6fdc] underline"
-                      >
-                        Upload authorization document (PDF / JPG)
-                      </label>
-                      <input
-                        id="file-upload"
-                        type="file"
-                        className="sr-only"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) setAuthDoc(file);
-                        }}
-                      />
-                    </div>
-                    <p className="text-[11px] text-[#8a9bb3] mt-1">
-                      Letterhead authorization signed by Principal, Registrar or Secretary. Max 10MB.
-                    </p>
-                    {authDocName && (
-                      <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#00a884]/15 px-3 py-1 text-xs font-bold text-[#00876a]">
-                        <FileCheck2 className="h-4 w-4" /> {authDocName}
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <div className="rounded-xl border border-[#0e7bf4]/30 bg-[#e0edfb]/60 p-4 text-xs text-[#243b5b]">
+                <span className="font-bold text-[#082046]">Next: your authorisation letter. </span>
+                After you submit, download your ApplyFields authorisation letter (PDF), have the Principal sign and
+                stamp it, and upload it along with your AICTE / UGC approval. We review your desk once both are in.
               </div>
 
               <div className="rounded-xl border border-[#d5deea] bg-[#F7F9FC] p-4 text-xs text-[#536780] flex items-start gap-3">
@@ -579,7 +557,7 @@ export default function InstitutionOnboardPage() {
                 >
                   {submitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Spinner size={16} />
                       Submitting Registration...
                     </>
                   ) : (

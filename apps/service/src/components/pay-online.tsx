@@ -1,9 +1,10 @@
 'use client';
 
 import { openRazorpayCheckout } from '@applyfields/ui';
-import { CheckCircle2, CreditCard } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { apiGet, apiPost } from '@/lib/api';
+import { SuccessCheck } from '@applyfields/ui';
 
 interface BookingPayment {
   enabled: boolean;
@@ -61,7 +62,7 @@ export function PayOnline({ bookingId }: { bookingId: string }) {
   if (info.status === 'paid' || info.status === 'refunded') {
     return (
       <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold text-emerald-800">
-        <CheckCircle2 className="h-4 w-4" />
+        <SuccessCheck />
         {info.status === 'refunded'
           ? `Refunded ${rs(info.refunded_paise)} to your original payment method.`
           : `Paid online ${rs(info.total_paise)}${info.refunded_paise ? ` · ${rs(info.refunded_paise)} refunded` : ''}. Nothing more to pay at the centre for this booking.`}

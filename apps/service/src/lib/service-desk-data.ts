@@ -27,6 +27,8 @@ export interface ServiceDeskRequest {
   id: string;
   /** true = a real service_requests row; false/absent = demo sample */
   live?: boolean;
+  /** A citizen's booking that hasn't started: the desk must enter the citizen's 4-digit start code first. */
+  needsStartCode?: boolean;
   token: string;
   serviceTitle: string;
   serviceCategory: 'Exam Application' | 'Certificate' | 'Scheme Enrollment' | 'Correction';
@@ -122,6 +124,7 @@ export function fromBooking(b: BookingDetail): ServiceDeskRequest {
   return {
     id: b.id,
     live: true,
+    needsStartCode: b.user_id !== null && (b.status === 'new' || b.status === 'accepted'),
     token: `AF-${b.id.slice(0, 8).toUpperCase()}`,
     serviceTitle: b.service_name ?? 'Citizen service request',
     serviceCategory: 'Certificate',

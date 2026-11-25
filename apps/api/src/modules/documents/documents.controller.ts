@@ -1,3 +1,4 @@
+import { contentDisposition } from '../../common/content-disposition.js';
 import {
   Body,
   Controller,
@@ -80,10 +81,7 @@ export class DocumentsController {
   ) {
     const file = await this.documentsService.getDecryptedFile(req.user.userId, id);
     res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${file.fileName || 'document.pdf'}"`,
-    );
+    res.setHeader('Content-Disposition', contentDisposition('inline', file.fileName || 'document.pdf'));
     res.setHeader('Cache-Control', 'no-store');
     return res.send(file.buffer);
   }
@@ -96,10 +94,7 @@ export class DocumentsController {
   ) {
     const file = await this.documentsService.getDecryptedFile(req.user.userId, id);
     res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${file.fileName || 'document.pdf'}"`,
-    );
+    res.setHeader('Content-Disposition', contentDisposition('attachment', file.fileName || 'document.pdf'));
     res.setHeader('Cache-Control', 'no-store');
     return res.send(file.buffer);
   }
@@ -112,10 +107,7 @@ export class DocumentsController {
   ) {
     const file = await this.documentsService.getDecryptedFile(req.user.userId, id);
     res.setHeader('Content-Type', file.mimeType || 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${file.fileName || 'document.pdf'}"`,
-    );
+    res.setHeader('Content-Disposition', contentDisposition('inline', file.fileName || 'document.pdf'));
     res.setHeader('Cache-Control', 'no-store');
     return res.send(file.buffer);
   }

@@ -24,9 +24,13 @@ import {
 import {
   getBookingMessages,
   getPartnerConversations,
+  listPartnerBookings,
   markBookingMessagesRead,
+  sharedDocumentUrl,
   sendBookingMessage,
+  updatePartnerBookingStatus,
 } from '@/lib/api';
+import { NEEDS_START, codeFromChat } from '@/lib/start-code';
 
 
 
@@ -38,6 +42,8 @@ export interface ChatMessage {
   timestamp: string;
   isRead: boolean;
   attachments?: Array<{
+    /** A locker document the citizen shared with this booking (opened through the share). */
+    shareId?: string;
     name: string;
     size: string;
     kind: 'pdf' | 'image';
@@ -79,6 +85,78 @@ export default function PartnerMessagesPage() {
 
   const activeThread = threads.find((t) => t.token === activeToken) || threads[0];
 
+  // Start code: which open bookings still need the citizen's 4-digit code (citizen accounts only).
+  const [awaitingStart, setAwaitingStart] = useState<Set<string>>(new Set());
+  // Typed code and error belong to one booking, so switching threads drops them without an effect.
+  const [typed, setTyped] = useState<{ bookingId: string; code: string } | null>(null);
+  const [startingWork, setStartingWork] = useState(false);
+  const [startErr, setStartErr] = useState<{ bookingId: string; message: string } | null>(null);
+  const activeBookingId = activeThread?.bookingId;
+
+  // Chat attachments the citizen shared from their locker: open through the share, like the Bookings page.
+  const [openingShare, setOpeningShare] = useState<string | null>(null);
+  const [shareErr, setShareErr] = useState<{ bookingId: string; message: string } | null>(null);
+  const shareError = shareErr && shareErr.bookingId === activeBookingId ? shareErr.message : null;
+  async function openSharedAttachment(shareId: string) {
+    if (!activeBookingId) return;
+    const tab = window.open('', '_blank'); // inside the click, so pop-up blockers allow it
+    setOpeningShare(shareId);
+    setShareErr(null);
+    const res = await sharedDocumentUrl(activeBookingId, shareId);
+    setOpeningShare(null);
+    if (res.data?.url && tab) {
+      tab.opener = null;
+      tab.location.href = res.data.url;
+    } else {
+      tab?.close();
+      setShareErr({ bookingId: activeBookingId, message: res.error || 'Could not open the document. The citizen may have removed it.' });
+    }
+  }
+  const typedCode = typed && typed.bookingId === activeBookingId ? typed.code : null; // null = follow the chat
+  const startCodeError = startErr && startErr.bookingId === activeBookingId ? startErr.message : null;
+  const setTypedCode = (code: string | null) => setTyped(code === null || !activeBookingId ? null : { bookingId: activeBookingId, code });
+  const setStartCodeError = (message: string | null) =>
+    setStartErr(message === null || !activeBookingId ? null : { bookingId: activeBookingId, message });
+  useEffect(() => {
+    if (!activeBookingId) return;
+    listPartnerBookings().then((res) => {
+      if (res.data) {
+        setAwaitingStart(new Set(res.data.items.filter((b) => b.user_id && NEEDS_START.has(b.status)).map((b) => b.id)));
+      }
+    });
+  }, [activeBookingId]);
+  const needsStart = !!activeBookingId && awaitingStart.has(activeBookingId);
+  const suggestedCode = needsStart ? codeFromChat(activeThread?.messages ?? []) : null;
+  const startCode = typedCode ?? suggestedCode ?? '';
+
+  async function handleStartWork(e: React.FormEvent) {
+    e.preventDefault();
+    if (!activeBookingId) return;
+    if (!/^\d{4}$/.test(startCode)) {
+      setStartCodeError('Enter the 4-digit start code from the citizen’s app.');
+      return;
+    }
+    setStartingWork(true);
+    setStartCodeError(null);
+    const res = await updatePartnerBookingStatus(activeBookingId, {
+      status: 'in_progress',
+      start_code: startCode,
+      partner_note: 'Citizen arrived (start code checked in chat)',
+    });
+    setStartingWork(false);
+    if (!res.data) {
+      setStartCodeError(res.error || 'Could not start the booking.');
+      return;
+    }
+    setAwaitingStart((prev) => {
+      const next = new Set(prev);
+      next.delete(activeBookingId);
+      return next;
+    });
+    setTypedCode(null);
+    void handleSendMessage('Code matched. We have started your work.');
+  }
+
   // Fetch live partner conversations
   useEffect(() => {
     let isMounted = true;
@@ -110,7 +188,10 @@ export default function PartnerMessagesPage() {
             });
           });
 
-          setActiveToken((cur) => cur || liveThreads[0].token);
+          // ?booking=<id> (a "new message" notification) opens that conversation first.
+          const wanted = new URLSearchParams(window.location.search).get('booking');
+          const linked = wanted ? liveThreads.find((t) => t.bookingId === wanted)?.token : undefined;
+          setActiveToken((cur) => cur || linked || liveThreads[0].token);
         }
       } catch (err) {
         console.warn('Could not load threads:', err);
@@ -142,6 +223,7 @@ export default function PartnerMessagesPage() {
             timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isRead: m.is_read,
             attachments: m.attachments?.map((a) => ({
+              shareId: a.share_id,
               name: a.name,
               size: a.file_size || '150 KB',
               kind: (a.kind as any) || (a.name.endsWith('.pdf') ? 'pdf' : 'image'),
@@ -415,6 +497,53 @@ export default function PartnerMessagesPage() {
                 </div>
               </div>
 
+              {needsStart && (
+                <form
+                  onSubmit={handleStartWork}
+                  className="flex flex-wrap items-center gap-3 border-b border-slate-800 bg-cyan-950/30 px-4 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white">Start code</p>
+                    <p className="text-[11px] text-slate-400">
+                      {suggestedCode && typedCode === null
+                        ? 'Filled from the citizen’s message.'
+                        : 'Ask the citizen for the 4 digits in their ApplyFields booking.'}
+                    </p>
+                    {startCodeError && (
+                      <p role="alert" className="mt-1 text-xs font-semibold text-rose-400">
+                        {startCodeError}
+                      </p>
+                    )}
+                  </div>
+                  <input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={4}
+                    value={startCode}
+                    onChange={(e) => {
+                      setTypedCode(e.target.value.replace(/\D/g, '').slice(0, 4));
+                      setStartCodeError(null);
+                    }}
+                    aria-label="Start code"
+                    placeholder="••••"
+                    className="w-28 rounded-xl border border-slate-700 bg-slate-950 py-2 text-center font-mono text-2xl font-black tracking-[0.4em] text-white outline-none focus:border-emerald-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={startingWork}
+                    className="rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+                  >
+                    {startingWork ? 'Checking…' : 'Start work'}
+                  </button>
+                </form>
+              )}
+
+              {shareError && (
+                <p role="alert" className="border-b border-slate-800 bg-rose-950/40 px-4 py-2 text-xs font-semibold text-rose-300">
+                  {shareError}
+                </p>
+              )}
+
               {/* Message Stream */}
               <div className="flex-1 p-6 overflow-y-auto space-y-4 max-h-[440px]">
                 {activeThread.messages.map((msg) => {
@@ -452,17 +581,34 @@ export default function PartnerMessagesPage() {
                         {/* Attachments */}
                         {msg.attachments && msg.attachments.length > 0 && (
                           <div className="space-y-1.5 pt-1">
-                            {msg.attachments.map((att, idx) => (
-                              <div
-                                key={idx}
-                                className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 text-[11px] ${
-                                  isPartner ? 'bg-cyan-600/30 text-slate-900' : 'bg-slate-900 text-slate-300 border border-slate-700'
-                                }`}
-                              >
-                                <span className="font-medium truncate max-w-[180px]">{att.name}</span>
-                                <span className="text-[10px] opacity-75">{att.size}</span>
-                              </div>
-                            ))}
+                            {msg.attachments.map((att, idx) =>
+                              att.shareId ? (
+                                <button
+                                  key={att.shareId}
+                                  type="button"
+                                  onClick={() => void openSharedAttachment(att.shareId!)}
+                                  disabled={openingShare === att.shareId}
+                                  className="flex w-full items-center justify-between gap-2 rounded-xl border border-cyan-500/40 bg-slate-900 px-2.5 py-1.5 text-left text-[11px] text-cyan-200 hover:bg-slate-800 disabled:opacity-60"
+                                  title="Open the document the citizen shared"
+                                >
+                                  <span className="flex min-w-0 items-center gap-1.5 font-semibold">
+                                    <FileText className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="truncate max-w-[180px]">{att.name}</span>
+                                  </span>
+                                  <span className="text-[10px] opacity-75">{openingShare === att.shareId ? 'Opening…' : att.size}</span>
+                                </button>
+                              ) : (
+                                <div
+                                  key={idx}
+                                  className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 text-[11px] ${
+                                    isPartner ? 'bg-cyan-600/30 text-slate-900' : 'bg-slate-900 text-slate-300 border border-slate-700'
+                                  }`}
+                                >
+                                  <span className="font-medium truncate max-w-[180px]">{att.name}</span>
+                                  <span className="text-[10px] opacity-75">{att.size}</span>
+                                </div>
+                              ),
+                            )}
                           </div>
                         )}
                       </div>

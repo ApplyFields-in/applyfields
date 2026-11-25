@@ -1148,6 +1148,22 @@ model saved_items {
   @@index([item_type, item_id])
 }
 
+/// This table contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model scheduled_broadcasts {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  input      Json
+  send_at    DateTime  @db.Timestamptz(6)
+  status     String    @default("scheduled")
+  notified   Int?
+  last_error String?
+  created_by String?   @db.Uuid
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  sent_at    DateTime? @db.Timestamptz(6)
+  users      users?    @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+
+  @@index([send_at], map: "idx_scheduled_broadcasts_due", where: raw("(status = 'scheduled'::text)"))
+}
+
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model scrape_runs {
@@ -1574,6 +1590,19 @@ model user_passkeys {
   @@index([user_id])
 }
 
+/// First-sign-in answers used to rank Home recommendations: database/changes/2026-11-21_likhith_user_preferences.sql
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_preferences {
+  user_id        String    @id @db.Uuid
+  personas       String[]  @default([])
+  interests      String[]  @default([])
+  location_scope String?
+  skipped        Boolean   @default(false)
+  onboarded_at   DateTime? @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+  users          users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
 model user_sessions {
   id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id            String    @db.Uuid
@@ -1795,35 +1824,6 @@ model community_upvotes {
   @@unique([user_id, thread_id], map: "unique_user_thread_upvote")
   @@index([comment_id], map: "idx_community_upvotes_comment")
   @@index([thread_id], map: "idx_community_upvotes_thread")
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model scheduled_broadcasts {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  input      Json
-  send_at    DateTime  @db.Timestamptz(6)
-  status     String    @default("scheduled")
-  notified   Int?
-  last_error String?
-  created_by String?   @db.Uuid
-  created_at DateTime  @default(now()) @db.Timestamptz(6)
-  sent_at    DateTime? @db.Timestamptz(6)
-  users      users?    @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-
-  @@index([send_at], map: "idx_scheduled_broadcasts_due", where: raw("(status = 'scheduled'::text)"))
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model user_preferences {
-  user_id        String    @id @db.Uuid
-  personas       String[]  @default([])
-  interests      String[]  @default([])
-  location_scope String?
-  skipped        Boolean   @default(false)
-  onboarded_at   DateTime? @db.Timestamptz(6)
-  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
-  users          users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 enum application_mode {

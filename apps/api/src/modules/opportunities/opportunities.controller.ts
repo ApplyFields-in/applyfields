@@ -59,7 +59,14 @@ export class OpportunitiesController {
     @Query('eligible') eligible?: string,
     @Query('lang') lang?: string,
     @Headers('accept-language') acceptLang?: string,
+    // Eligibility Check form: criteria the visitor typed (guests too). They win over the saved profile.
+    @Query('dob') dob?: string,
+    @Query('social') social?: string,
+    @Query('gender') gender?: string,
+    @Query('edu') edu?: string,
+    @Query('domicile') domicile?: string,
   ): Promise<OpportunityList> {
+    const criteria = EligibilityService.fromCriteria({ dob, social, gender, edu, domicile });
     const effectiveLang =
       lang || (acceptLang?.startsWith('te') ? 'te' : acceptLang?.startsWith('hi') ? 'hi' : 'en');
     if (type && !TYPES.includes(type as OpportunityType)) {
@@ -84,13 +91,14 @@ export class OpportunitiesController {
         sample: false,
       };
     });
-    if (!req.user) return data;
+    if (!req.user && !criteria) return data;
 
     const [profile, saved] = await Promise.all([
-      this.eligibility.profile(req.user.userId),
-      this.opportunities.savedSlugs(req.user.userId),
+      criteria ?? this.eligibility.profile(req.user!.userId),
+      req.user ? this.opportunities.savedSlugs(req.user.userId) : new Set<string>(),
     ]);
-    let items = this.opportunities.markSaved(await this.eligibility.annotate(profile, data.items), saved);
+    let items = await this.eligibility.annotate(profile, data.items);
+    if (req.user) items = this.opportunities.markSaved(items, saved);
     if (eligible === 'true' || eligible === '1') {
       items = items.filter((i) => i.eligibility !== 'not_eligible');
     }

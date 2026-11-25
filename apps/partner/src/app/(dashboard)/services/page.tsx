@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import {
   Layers,
   Plus,
-  CheckCircle2,
   Trash2,
   Edit2,
   Power,
@@ -29,6 +28,7 @@ import {
   updatePartnerService,
   deletePartnerService,
 } from '@/lib/api';
+import { SuccessCheck } from '@applyfields/ui';
 
 export interface ServiceItem {
   id: string;
@@ -436,11 +436,11 @@ export default function ServicesPage() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-16">
+    <div className="max-w-6xl mx-auto flex flex-col gap-8 pb-16">
       {/* Toast Notice */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border border-teal-500/40 bg-slate-900/95 px-5 py-3 text-sm font-semibold text-teal-400 shadow-2xl shadow-teal-500/20 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 className="h-5 w-5 text-teal-400 shrink-0" />
+          <SuccessCheck key={toastMsg} size={20} className="text-teal-400 shrink-0" />
           <span>{toastMsg}</span>
         </div>
       )}
@@ -482,8 +482,9 @@ export default function ServicesPage() {
         </div>
       </div>
 
-      {/* 1-Click Indian Digital Center Presets Section */}
-      <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 sm:p-8 backdrop-blur-sm space-y-4">
+      {/* 1-Click Indian Digital Center Presets Section — shown last: the centre's own rate card
+          comes first (on phones it sat below 17 template cards). */}
+      <div className="order-last rounded-3xl border border-slate-800 bg-slate-900/60 p-6 sm:p-8 backdrop-blur-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">

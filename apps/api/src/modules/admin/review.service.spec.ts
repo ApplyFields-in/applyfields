@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { publishBlockers } from './review.service.js';
+import { expiryBlockers, publishBlockers } from './review.service.js';
 
 const ready = {
   title: 'SSC CGL 2026',
@@ -58,5 +58,17 @@ describe('publishBlockers (job-format §5)', () => {
         field_status: { dates: 'pending' },
       }),
     ).toHaveLength(1);
+  });
+});
+
+describe('expiryBlockers', () => {
+  const today = new Date('2026-11-21');
+  it('blocks a draft whose last date has passed', () => {
+    expect(expiryBlockers(new Date('2026-08-27'), today)).toHaveLength(1);
+  });
+  it('allows today, future, or no last date', () => {
+    expect(expiryBlockers(today, today)).toEqual([]);
+    expect(expiryBlockers(new Date('2026-12-01'), today)).toEqual([]);
+    expect(expiryBlockers(null, today)).toEqual([]);
   });
 });

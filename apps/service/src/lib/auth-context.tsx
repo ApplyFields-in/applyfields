@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { apiGet, apiPost } from './api';
+import { flashToast } from '@applyfields/ui';
 
 export interface CitizenUser {
   id: string;
@@ -95,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.dispatchEvent(new Event('auth-changed'));
     }
     setUser(null);
+    flashToast('Logged out successfully.');
   }
 
   function login(u: CitizenUser, token?: string) {

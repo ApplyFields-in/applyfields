@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { apiPost, getMyPartner, registerPartner, uploadPartnerFile } from '@/lib/api';
-import { usePartnerAuth } from '@/lib/auth-context';
-import type { PartnerRegistrationInput, PartnerType } from '@applyfields/types';
+import { apiGet, getMyPartner, registerPartner, uploadPartnerFile } from '@/lib/api';
+import { canUseDashboard, partnerHome, usePartnerAuth } from '@/lib/auth-context';
+import type { GovServiceList, PartnerRegistrationInput, PartnerType } from '@applyfields/types';
 import {
   AlertCircle,
   ArrowLeft,
@@ -20,7 +20,6 @@ import {
   Fingerprint,
   Image as ImageIcon,
   LocateFixed,
-  Lock,
   Mail,
   MapPin,
   Phone,
@@ -29,6 +28,7 @@ import {
   UploadCloud,
   User,
 } from 'lucide-react';
+import { flashToast } from '@applyfields/ui';
 
 const CATEGORIES: {
   id: PartnerType;
@@ -88,18 +88,20 @@ const CATEGORIES: {
   },
 ];
 
-const POPULAR_SERVICES = [
-  'PAN Card New / Correction',
-  'Aadhaar Card Address Update',
-  'Income & Caste Certificate',
-  'Residence / Domicile Certificate',
-  'High-Speed Xerox & Printouts',
-  'Project Spiral & Thermal Binding',
-  'Online Job & Exam Application Filing',
-  'Passport Size Photos (8-Pack)',
-  'Driving License / RTO Slot Booking',
-  'Voter ID Registration / Correction',
+/** Shop work that isn't a government service (those come from the live catalog). Names drive the booking intake forms. */
+const SHOP_SERVICES = [
+  'Xerox / photocopy',
+  'Printouts (B&W / colour)',
+  'Lamination',
+  'Spiral / thermal binding',
+  'Passport size photos',
+  'Scanning & email',
+  'Online form filling',
+  'Typing / DTP',
 ];
+
+/** One ticked service; key = catalog id, or the name for shop work. Price in rupees as typed. */
+type PickedService = { name: string; service_id?: string; price: string };
 
 const STATES = [
   { code: 'TS', name: 'Telangana' },
@@ -128,7 +130,9 @@ export default function OnboardWizardPage() {
 
   // If user already has a partner, redirect appropriately
   useEffect(() => {
-    if (status === 'verified') {
+    if (status === 'unauthenticated') {
+      router.replace('/signup?type=centre');
+    } else if (status === 'verified') {
       router.push('/dashboard');
     } else if (status === 'pending_verification') {
       router.push('/under-review');
@@ -143,32 +147,34 @@ export default function OnboardWizardPage() {
   const [whatsapp, setWhatsapp] = useState(user?.phone?.replace('+91', '') || '');
   const [sameAsPhone, setSameAsPhone] = useState(true);
   const [email, setEmail] = useState(user?.email || '');
-  const [password, setPassword] = useState(''); // for new users
 
   // Step 2: Category & Services
   const [category, setCategory] = useState<PartnerType>('meeseva');
-  const [selectedServices, setSelectedServices] = useState<string[]>([
-    'PAN Card New / Correction',
-    'Income & Caste Certificate',
-    'High-Speed Xerox & Printouts',
-  ]);
+  const [catalog, setCatalog] = useState<GovServiceList['items']>([]);
+  const [picked, setPicked] = useState<Record<string, PickedService>>({});
+  const selectedServices = Object.values(picked);
+
+  useEffect(() => {
+    void apiGet<GovServiceList>('/services').then((res) => setCatalog(res.data?.items ?? []));
+  }, []);
 
   // Step 3: Location & GPS
   const [address, setAddress] = useState('');
   const [stateCode, setStateCode] = useState('TS');
-  const [district, setDistrict] = useState('Hyderabad');
-  const [city, setCity] = useState('Ameerpet');
-  const [pincode, setPincode] = useState('500016');
+  const [district, setDistrict] = useState('');
+  const [city, setCity] = useState('');
+  const [pincode, setPincode] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'locating' | 'success' | 'error'>('idle');
 
   // Step 4: KYC & Storefront Upload
-  const [regCode, setRegCode] = useState('CSC-TG-HYD-8421');
+  const [regCode, setRegCode] = useState('');
   const [certFile, setCertFile] = useState<File | null>(null);
   const certFileName = certFile?.name ?? '';
   const [storefrontFile, setStorefrontFile] = useState<File | null>(null);
   const [storefrontPreview, setStorefrontPreview] = useState<string | null>(null);
+  const [ownerIdFile, setOwnerIdFile] = useState<File | null>(null);
 
   // Step 5: Terms Agreement
   const [agreeTerms, setAgreeTerms] = useState(true);
@@ -199,21 +205,24 @@ export default function OnboardWizardPage() {
       },
       (err) => {
         console.warn('GPS error:', err);
-        // Fallback to sample coordinates for test convenience
-        setLatitude(17.437462);
-        setLongitude(78.448288);
-        setGpsStatus('success');
+        setGpsStatus('error');
+        setError('Could not get your location. Allow location access and try again, or continue with the address only.');
       },
       { timeout: 10000, enableHighAccuracy: true },
     );
   }
 
-  function toggleService(s: string) {
-    if (selectedServices.includes(s)) {
-      setSelectedServices(selectedServices.filter((item) => item !== s));
-    } else {
-      setSelectedServices([...selectedServices, s]);
-    }
+  function toggleService(key: string, svc: Omit<PickedService, 'price'>) {
+    setPicked((prev) => {
+      const next = { ...prev };
+      if (next[key]) delete next[key];
+      else next[key] = { ...svc, price: '' };
+      return next;
+    });
+  }
+
+  function setPrice(key: string, price: string) {
+    setPicked((prev) => ({ ...prev, [key]: { ...prev[key], price } }));
   }
 
   function handleFileDrop(e: React.ChangeEvent<HTMLInputElement>, type: 'cert' | 'storefront') {
@@ -244,10 +253,6 @@ export default function OnboardWizardPage() {
         setError('Please enter a valid 10-digit mobile number.');
         return false;
       }
-      if (!user && (!password || password.length < 8)) {
-        setError('Please create a secure password (minimum 8 characters) for operator login.');
-        return false;
-      }
       return true;
     }
 
@@ -258,6 +263,11 @@ export default function OnboardWizardPage() {
       }
       if (selectedServices.length === 0) {
         setError('Please select at least one service offered at your center.');
+        return false;
+      }
+      const badPrice = selectedServices.find((p) => p.price.trim() && !(Number(p.price) >= 0));
+      if (badPrice) {
+        setError(`Enter the price for "${badPrice.name}" as a number of rupees, or leave it empty.`);
         return false;
       }
       return true;
@@ -282,6 +292,11 @@ export default function OnboardWizardPage() {
     if (s === 4) {
       if (!regCode.trim()) {
         setError('Please enter your Center Registration / License code.');
+        return false;
+      }
+      // Staff can't approve a centre without all three (API: REQUIRED_CENTRE_DOCUMENTS).
+      if (!certFile || !storefrontFile || !ownerIdFile) {
+        setError('Upload all three: your licence, a shop-front photo, and the owner Aadhaar or PAN.');
         return false;
       }
       return true;
@@ -314,24 +329,6 @@ export default function OnboardWizardPage() {
     setError(null);
 
     try {
-      // 1. If user is not logged in, create user account or login
-      if (!user) {
-        const fullPhone = phone.startsWith('+91') ? phone : `+91${phone}`;
-        const userEmail = email.trim() || `partner.${phone.slice(-6)}@applyfields.network`;
-
-        const regUser = await apiPost<{ user: any }>('/auth/register', {
-          fullName: ownerName.trim(),
-          phone: fullPhone,
-          email: userEmail,
-          password: password,
-        });
-
-        if (regUser.data?.user) {
-          localStorage.setItem('currentUser', JSON.stringify(regUser.data.user));
-          window.dispatchEvent(new Event('auth-changed'));
-        }
-      }
-
       // 2. Register partner record
       const formattedPhone = phone.startsWith('+91') ? phone : `+91${phone}`;
       const formattedWhatsapp = whatsapp.startsWith('+91') ? whatsapp : `+91${whatsapp}`;
@@ -351,7 +348,12 @@ export default function OnboardWizardPage() {
         latitude: latitude ?? undefined,
         longitude: longitude ?? undefined,
         service_areas: [city.trim(), district.trim(), pincode.trim()],
-        description: `Verified ${category.toUpperCase()} facilitation center offering ${selectedServices.slice(0, 3).join(', ')}.`,
+        description: regCode.trim() ? `Registration / licence no: ${regCode.trim()}` : undefined,
+        services: selectedServices.map((p) => ({
+          name: p.name,
+          service_id: p.service_id,
+          charge_paise: p.price.trim() ? Math.round(Number(p.price) * 100) : undefined,
+        })),
       };
 
       const res = await registerPartner(payload);
@@ -362,17 +364,25 @@ export default function OnboardWizardPage() {
         return;
       }
 
-      // 3. Upload the KYC files (staff can't approve without them)
-      try {
-        if (certFile) await uploadPartnerFile('trade_license', certFile);
-        if (storefrontFile) await uploadPartnerFile('kiosk_photo', storefrontFile);
-      } catch (docErr) {
-        console.warn('KYC doc upload notice:', docErr);
+      // 3. Upload the KYC files (staff can't approve without them). A failed one can be re-uploaded on the next page.
+      const uploads = await Promise.all([
+        certFile ? uploadPartnerFile('trade_license', certFile) : null,
+        storefrontFile ? uploadPartnerFile('kiosk_photo', storefrontFile) : null,
+        ownerIdFile ? uploadPartnerFile('owner_id', ownerIdFile) : null,
+      ]);
+      if (uploads.some((u) => u?.error)) {
+        flashToast('Some documents did not upload. Please upload them again on the next page.');
       }
 
-      // 4. Refresh session and route to holding screen
+      // 4. Refresh session. All KYC in → dashboard (under review); skipped → under-review to finish it.
       await refreshSession();
-      router.push('/under-review');
+      const me = await getMyPartner();
+      flashToast(
+        me.data && canUseDashboard(me.data)
+          ? 'Application submitted. Set up your centre while we review it.'
+          : 'Centre saved. Upload your documents to finish verification.',
+      );
+      router.push(me.data ? partnerHome(me.data) : '/under-review');
     } catch (err: any) {
       setError(err?.message || 'An unexpected error occurred during submission.');
       setLoading(false);
@@ -595,23 +605,6 @@ export default function OnboardWizardPage() {
                   </div>
                 </div>
 
-                {!user && (
-                  <div className="sm:col-span-2 rounded-xl border border-[#00a884]/30 bg-[#00a884]/5 p-4 mt-2">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-[#00876a]">
-                      <Lock className="h-4 w-4" /> Create Operator Workspace Password
-                    </div>
-                    <p className="mt-1 text-[11px] text-[#536780]">
-                      You will use this password alongside your mobile number to sign in to your Partner Portal dashboard.
-                    </p>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Choose at least 8 characters"
-                      className="mt-3 block w-full rounded-xl border border-[#c9d6e6] bg-white px-4 py-2.5 text-sm text-[#082046] placeholder-[#8a9bb3] focus:border-[#0e7bf4] focus:outline-none focus:ring-1 focus:ring-[#0e7bf4]/20"
-                    />
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -662,33 +655,64 @@ export default function OnboardWizardPage() {
                 })}
               </div>
 
-              <div className="pt-4 border-t border-[#d5deea]">
-                <label className="block text-xs font-semibold text-[#243b5b] mb-2">
-                  Select Services Offered at Your Center
-                </label>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {POPULAR_SERVICES.map((srv) => {
-                    const isChecked = selectedServices.includes(srv);
-                    return (
-                      <label
-                        key={srv}
-                        className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-xs font-medium cursor-pointer transition ${
-                          isChecked
-                            ? 'border-[#00a884]/40 bg-[#00a884]/10 text-[#00876a]'
-                            : 'border-[#d5deea] bg-[#F7F9FC] text-[#243b5b] hover:bg-[#eef3f9]'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleService(srv)}
-                          className="rounded border-[#c9d6e6] text-[#00876a] focus:ring-[#0e7bf4]/20"
-                        />
-                        <span>{srv}</span>
-                      </label>
-                    );
-                  })}
+              <div className="pt-4 border-t border-[#d5deea] space-y-4">
+                <div>
+                  <h3 className="text-xs font-semibold text-[#243b5b]">Services you offer</h3>
+                  <p className="text-[11px] text-[#536780]">
+                    Tick everything you do. Add your price now or later from your dashboard; citizens can book a
+                    service online once it has a price.
+                  </p>
                 </div>
+                {[
+                  {
+                    title: 'Government services',
+                    rows: catalog.map((c) => ({ key: c.id, name: c.name, service_id: c.id as string | undefined })),
+                  },
+                  { title: 'Shop services', rows: SHOP_SERVICES.map((n) => ({ key: n, name: n, service_id: undefined })) },
+                ].map((group) => (
+                  <fieldset key={group.title}>
+                    <legend className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#536780]">
+                      {group.title}
+                    </legend>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {group.rows.map((row) => {
+                        const sel = picked[row.key];
+                        return (
+                          <div
+                            key={row.key}
+                            className={`rounded-xl border px-3.5 py-2.5 text-xs transition ${
+                              sel ? 'border-[#00a884]/40 bg-[#00a884]/10' : 'border-[#d5deea] bg-[#F7F9FC]'
+                            }`}
+                          >
+                            <label className="flex cursor-pointer items-center gap-2.5 font-medium text-[#243b5b]">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(sel)}
+                                onChange={() => toggleService(row.key, { name: row.name, service_id: row.service_id })}
+                                className="size-4 rounded border-[#c9d6e6] text-[#00876a] focus:ring-[#0e7bf4]/20"
+                              />
+                              <span>{row.name}</span>
+                            </label>
+                            {sel && (
+                              <label className="mt-2 flex items-center gap-2 pl-6 text-[11px] text-[#536780]">
+                                Price ₹
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={0}
+                                  value={sel.price}
+                                  onChange={(e) => setPrice(row.key, e.target.value)}
+                                  placeholder="optional"
+                                  className="w-24 rounded-lg border border-[#c9d6e6] bg-white px-2 py-1 text-xs text-[#082046] focus:border-[#0e7bf4] focus:outline-none"
+                                />
+                              </label>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                ))}
               </div>
             </div>
           )}
@@ -851,7 +875,7 @@ export default function OnboardWizardPage() {
                   <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-[#00a884]/10 text-[#00876a]">
                     <FileText className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-2 text-xs font-bold text-[#082046]">License Certificate (PDF/JPG)</h3>
+                  <h3 className="mt-2 text-xs font-bold text-[#082046]">License Certificate (PDF/JPG) *</h3>
                   <p className="mt-1 text-[11px] text-[#536780]">
                     MeeSeva / CSC certificate or Trade license
                   </p>
@@ -879,7 +903,7 @@ export default function OnboardWizardPage() {
                   <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-teal-500/10 text-[#00876a]">
                     <ImageIcon className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-2 text-xs font-bold text-[#082046]">Storefront Board Photo</h3>
+                  <h3 className="mt-2 text-xs font-bold text-[#082046]">Storefront Board Photo *</h3>
                   <p className="mt-1 text-[11px] text-[#536780]">
                     Exterior view showing your center name board
                   </p>
@@ -901,6 +925,30 @@ export default function OnboardWizardPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Owner ID */}
+              <div className="rounded-xl border border-dashed border-[#c9d6e6] bg-[#F7F9FC] p-5 text-center">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-[#00a884]/10 text-[#00876a]">
+                  <Fingerprint className="h-5 w-5" />
+                </div>
+                <h3 className="mt-2 text-xs font-bold text-[#082046]">Owner Aadhaar or PAN *</h3>
+                <p className="mt-1 text-[11px] text-[#536780]">Photo or PDF. On Aadhaar, cover the first 8 digits.</p>
+                <label className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#eef3f9] px-3 py-1.5 text-xs font-semibold text-[#082046] hover:bg-[#e3eaf3] cursor-pointer">
+                  <UploadCloud className="h-3.5 w-3.5" /> Choose File
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp"
+                    onChange={(e) => setOwnerIdFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {ownerIdFile && (
+                  <div className="mt-2 flex items-center justify-center gap-1 text-[11px] font-medium text-[#00876a]">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{ownerIdFile.name}</span>
+                  </div>
+                )}
               </div>
 
               {storefrontPreview && (
@@ -963,12 +1011,13 @@ export default function OnboardWizardPage() {
                 <div className="pb-3 border-b border-[#d5deea]">
                   <span className="text-[#536780]">Services Offered ({selectedServices.length}):</span>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {selectedServices.map((s) => (
+                    {selectedServices.map((p) => (
                       <span
-                        key={s}
+                        key={p.service_id ?? p.name}
                         className="rounded-md bg-[#eef3f9] px-2.5 py-1 text-[11px] text-[#00876a] font-medium"
                       >
-                        {s}
+                        {p.name}
+                        {p.price.trim() ? ` · ₹${p.price}` : ''}
                       </span>
                     ))}
                   </div>
@@ -976,7 +1025,7 @@ export default function OnboardWizardPage() {
 
                 <div>
                   <span className="text-[#536780]">KYC License Code:</span>
-                  <div className="font-mono text-[#082046] font-bold mt-0.5">{regCode}</div>
+                  <div className="font-mono text-[#082046] font-bold mt-0.5">{regCode || 'Add later'}</div>
                 </div>
               </div>
 
@@ -1011,13 +1060,29 @@ export default function OnboardWizardPage() {
             )}
 
             {step < 5 ? (
-              <button
-                type="button"
-                onClick={nextStep}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#00a884] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#009172] transition"
-              >
-                Continue <ArrowRight className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-3">
+                {/* KYC can wait: the dashboard opens once all documents are in (under-review page). */}
+                {step === 4 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setStep(5);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="text-xs font-semibold text-[#536780] underline hover:text-[#082046]"
+                  >
+                    Skip for now
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#00a884] px-6 py-2.5 text-xs font-bold text-white hover:bg-[#009172] transition"
+                >
+                  Continue <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             ) : (
               <button
                 type="button"

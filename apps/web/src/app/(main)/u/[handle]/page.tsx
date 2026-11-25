@@ -23,12 +23,12 @@ import {
   Sparkles,
   UserCheck,
   UserX,
-  Loader2,
-} from 'lucide-react';
+  } from 'lucide-react';
 import { PixelAvatar } from '@/components/pixel-avatars';
 import { showAppToast } from '@/components/toast-notification-provider';
 import { apiGet } from '@/lib/api';
 import type { PublicProfileResponse, UserCompetitiveExamScore } from '@applyfields/types';
+import { Spinner } from '@applyfields/ui';
 
 interface CandidatePublicPageProps {
   params: Promise<{ handle: string }>;
@@ -93,7 +93,7 @@ export default function CandidatePublicPage({ params }: CandidatePublicPageProps
     return (
       <div className="min-h-screen bg-[#F4F7FB] flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3 text-slate-500">
-          <Loader2 className="size-8 animate-spin text-[#0E7BF4]" />
+          <Spinner size={32} className="text-[#0E7BF4]" />
           <p className="text-sm font-semibold">Loading verified candidate profile…</p>
         </div>
       </div>

@@ -1,5 +1,11 @@
 import type { MetadataRoute } from 'next';
-import type { GovServiceList, OpportunityList } from '@applyfields/types';
+import type {
+  CareerSummary,
+  CourseSummary,
+  GovServiceList,
+  OpportunityList,
+  RoadmapSummary,
+} from '@applyfields/types';
 import { apiGet } from '@/lib/api';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -42,6 +48,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 0.8,
     },
+    ...['/career', '/career/courses', '/career/colleges', '/career/roadmaps', '/career/skills'].map((path) => ({
+      url: `${baseUrl}${path}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    })),
     {
       url: `${baseUrl}/help`,
       lastModified: new Date(),
@@ -51,10 +63,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const [opps, services] = await Promise.all([
+    const [opps, services, careers, courses, roadmaps, colleges] = await Promise.all([
       apiGet<OpportunityList>('/opportunities'),
       apiGet<GovServiceList>('/services'),
+      apiGet<CareerSummary[]>('/career'),
+      apiGet<CourseSummary[]>('/career/courses'),
+      apiGet<RoadmapSummary[]>('/career/roadmaps'),
+      apiGet<string[]>('/career/colleges/slugs'),
     ]);
+
+    const careerRoute = (path: string, slug: string): MetadataRoute.Sitemap[number] => ({
+      url: `${baseUrl}/career/${path}${slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    });
+    const careerRoutes: MetadataRoute.Sitemap = [
+      ...(careers ?? []).map((c) => careerRoute('', c.slug)),
+      ...(courses ?? []).map((c) => careerRoute('courses/', c.slug)),
+      ...(roadmaps ?? []).map((r) => careerRoute('roadmaps/', r.slug)),
+      ...(colleges ?? []).map((slug) => careerRoute('colleges/', slug)),
+    ];
 
     const oppRoutes: MetadataRoute.Sitemap = (opps?.items ?? []).map((item) => {
       let path = 'jobs';
@@ -77,8 +106,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-    return [...staticRoutes, ...oppRoutes, ...srvRoutes];
+    return [...staticRoutes, ...oppRoutes, ...srvRoutes, ...careerRoutes];
   } catch {
     return staticRoutes;
   }
 }
+

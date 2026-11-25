@@ -6,11 +6,12 @@ import type {
   RequiredDocument,
   ReviewDetail,
   ReviewList,
-  ReviewListItem,
-} from '@applyfields/types';
+  ReviewListItem, ReviewReadiness, ReviewSort } from '@applyfields/types';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { StorageService } from '../../common/storage.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { pageReviewItems } from './review-paging.js';
+import { todayIst } from '../opportunities/opportunities.service.js';
 
 /** Below this confidence a draft is flagged "check carefully" (job-format §4.8). */
 export const CAREFUL_REVIEW_BELOW = 0.6;
@@ -51,6 +52,13 @@ export function publishBlockers(row: PublishCheckRow): string[] {
   return missing;
 }
 
+/** A draft whose last date is already gone can't go live (close or reject it instead). */
+export function expiryBlockers(applicationEnd: Date | null, today = todayIst()): string[] {
+  return applicationEnd && applicationEnd < today
+    ? [`Last date passed (${applicationEnd.toISOString().slice(0, 10)}) — reject it instead`]
+    : [];
+}
+
 @Injectable()
 export class ReviewService {
   constructor(
@@ -62,6 +70,9 @@ export class ReviewService {
   async list(filter: {
     source?: string;
     careful?: boolean;
+    readiness?: ReviewReadiness;
+    sort?: ReviewSort;
+    page?: number;
   }): Promise<ReviewList> {
     const drafts: Prisma.opportunitiesWhereInput = { status: 'draft' };
     const careful: Prisma.opportunitiesWhereInput = {
@@ -98,7 +109,10 @@ export class ReviewService {
             { source_fetched_at: { sort: 'desc', nulls: 'last' } },
             { created_at: 'desc' },
           ],
-          take: 200,
+          // ponytail: whole filtered draft set in memory so "ready / missing" (computed in code)
+          // can be filtered and paged correctly; fine for thousands of drafts, move readiness
+          // into a stored column if the queue ever gets far bigger.
+          take: 5000,
         }),
         this.prisma.opportunities.count({ where: drafts }),
         this.prisma.opportunities.count({ where: { AND: [drafts, careful] } }),
@@ -125,9 +139,11 @@ export class ReviewService {
         confidence,
         found_at: (r.source_fetched_at ?? r.created_at).toISOString(),
         needs_care: needsCare(confidence),
-        missing: publishBlockers(r),
+        missing: [...expiryBlockers(r.application_end), ...publishBlockers(r)],
+        last_date: r.application_end ? r.application_end.toISOString().slice(0, 10) : null,
       };
     });
+    const paged = pageReviewItems(items, filter);
 
     return {
       total,
@@ -136,7 +152,7 @@ export class ReviewService {
       sources: sources
         .map((s) => s.source_key)
         .filter((k): k is string => k !== null),
-      items,
+      ...paged,
     };
   }
 
@@ -151,9 +167,16 @@ export class ReviewService {
         opportunity_posts: { orderBy: { sort_order: 'asc' } },
         opportunity_eligibility: { orderBy: { created_at: 'asc' } },
         opportunity_dates: { orderBy: { date: 'asc' } },
+        // Newest scraped copy: its PDF text + AI JSON feed the "Raw data" tab. New rows have no
+        // storage_path (PDFs are no longer stored); old ones still get a signed PDF link.
         scraped_documents: {
-          where: { storage_path: { not: null } },
-          select: { storage_path: true },
+          select: {
+            storage_path: true,
+            url: true,
+            extracted_text: true,
+            extraction: true,
+            error: true,
+          },
           orderBy: { fetched_at: 'desc' },
           take: 1,
         },
@@ -162,10 +185,8 @@ export class ReviewService {
     if (!o) throw new NotFoundException(`No opportunity with id ${id}`);
 
     const confidence = num(o.confidence);
-    const pdf = await this.pdfFor(
-      o.scraped_documents[0]?.storage_path ?? null,
-      o.notification_pdf_url,
-    );
+    const doc = o.scraped_documents[0];
+    const pdf = await this.pdfFor(doc?.storage_path ?? null, o.notification_pdf_url);
 
     return {
       id: o.id,
@@ -206,6 +227,14 @@ export class ReviewService {
         ai_model: o.ai_model,
         confidence,
       },
+      raw: doc
+        ? {
+            document_url: doc.url,
+            extracted_text: doc.extracted_text,
+            extraction: doc.extraction ?? null,
+            error: doc.error,
+          }
+        : null,
       posts: o.opportunity_posts.map((p) => ({
         id: p.id,
         name: p.name,
@@ -247,7 +276,7 @@ export class ReviewService {
         note: d.note,
       })),
       pdf,
-      missing: publishBlockers(o),
+      missing: [...expiryBlockers(o.application_end), ...publishBlockers(o)],
       needs_care: needsCare(confidence),
       created_at: o.created_at.toISOString(),
       updated_at: o.updated_at.toISOString(),
