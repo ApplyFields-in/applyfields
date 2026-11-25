@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { SplashIntro } from '@/components/splash-intro';
 import { AuthProvider } from '@/lib/auth';
 import { LocaleProvider } from '@/lib/locale';
 import { C } from '@/theme';
@@ -77,6 +78,7 @@ export default function RootLayout() {
                   }}
                 />
               </Stack>
+              <SplashIntro />
             </ThemeProvider>
           </AuthProvider>
         </LocaleProvider>
