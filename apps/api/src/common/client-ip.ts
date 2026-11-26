@@ -18,12 +18,19 @@ function fromOurProxy(req: Req, secret: string | undefined): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** The real caller's IP. Never trusts a raw client header: only our proxy's, or req.ip (Render's LB). */
+/**
+ * The real caller's IP. Never trusts x-forwarded-for: Render only appends to it, and Render's edge is
+ * Cloudflare, so req.ip ('trust proxy' 1) is a rotating Cloudflare address, not the caller (seen in
+ * prod 2026-11-26: one client spread over 5+ rate-limit buckets). Cloudflare sets CF-Connecting-IP to
+ * the real caller and overwrites any value a client sends.
+ */
 export function clientIp(req: Req, secret = process.env.PROXY_SHARED_SECRET): string | undefined {
   if (fromOurProxy(req, secret)) {
     const ip = req.headers[CLIENT_IP_HEADER];
     if (typeof ip === 'string' && ip) return ip;
   }
+  const edge = req.headers['cf-connecting-ip'];
+  if (typeof edge === 'string' && edge) return edge;
   return req.ip;
 }
 
