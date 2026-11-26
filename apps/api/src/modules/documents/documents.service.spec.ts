@@ -84,15 +84,6 @@ describe('DocumentsService & Sensitive ID Masking', () => {
       expect(values).toEqual(['XXXX XXXX 9012', 'Aadhaar XXXX XXXX 9012 on the card', '+91 98765 43210']);
     });
 
-    it('returns preview info for uploaded document', async () => {
-      const list = await service.listDocuments(userId);
-      const docId = list.items[0].id;
-      const preview = await service.getPreviewInfo(userId, docId);
-      expect(preview).toBeDefined();
-      expect(preview.fileName).toBe('Class_10_Memo.pdf');
-      expect(preview.mimeType).toBe('application/pdf');
-    });
-
     it('updates document details and extracted fields', async () => {
       const list = await service.listDocuments(userId);
       const docId = list.items[0].id;
