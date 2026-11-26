@@ -14,6 +14,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import type { Request, Response } from 'express';
 import { jwtAccessSecret } from '../../common/jwt-secret.js';
+import { clientIp } from '../../common/client-ip.js';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server';
 import { AuthService, SESSION_DAYS } from './auth.service.js';
 import { PasskeysService } from './passkeys.service.js';
@@ -76,7 +77,7 @@ export class AuthController {
   @Throttle(AUTH_THROTTLE)
   @Post('register')
   async register(@Body() dto: RegisterDto, @Req() req: Request) {
-    const ip = req.ip || req.socket.remoteAddress;
+    const ip = clientIp(req) || req.socket.remoteAddress;
     return this.authService.register(dto, ip);
   }
 
@@ -104,7 +105,7 @@ export class AuthController {
   ) {
     const meta = {
       userAgent: req.headers['user-agent'],
-      ipAddress: req.ip || req.socket.remoteAddress,
+      ipAddress: clientIp(req) || req.socket.remoteAddress,
     };
     const result = await this.authService.login(dto, meta);
     // Never-verified account: a code was sent; the client finishes with POST /auth/login/verify.
@@ -136,7 +137,7 @@ export class AuthController {
   ) {
     const meta = {
       userAgent: req.headers['user-agent'],
-      ipAddress: req.ip || req.socket.remoteAddress,
+      ipAddress: clientIp(req) || req.socket.remoteAddress,
     };
     const result = await this.authService.verifyPasswordLogin(dto, meta);
 
@@ -157,7 +158,7 @@ export class AuthController {
   ) {
     const meta = {
       userAgent: req.headers['user-agent'],
-      ipAddress: req.ip || req.socket.remoteAddress,
+      ipAddress: clientIp(req) || req.socket.remoteAddress,
     };
     const result = await this.authService.socialLogin(dto, meta);
 
@@ -184,7 +185,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const meta = { userAgent: req.headers['user-agent'], ipAddress: req.ip || req.socket.remoteAddress };
+    const meta = { userAgent: req.headers['user-agent'], ipAddress: clientIp(req) || req.socket.remoteAddress };
     const result = await this.passkeys.verifyLogin(
       { response: dto.response as unknown as AuthenticationResponseJSON, challengeToken: dto.challengeToken },
       meta,
@@ -242,7 +243,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const meta = { userAgent: req.headers['user-agent'], ipAddress: req.ip || req.socket.remoteAddress };
+    const meta = { userAgent: req.headers['user-agent'], ipAddress: clientIp(req) || req.socket.remoteAddress };
     const result = await this.authService.redeemHandoff(dto.code, meta);
     const opts = cookieOpts(true);
     res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, opts.refresh);
@@ -261,7 +262,7 @@ export class AuthController {
       req.cookies?.[REFRESH_COOKIE_NAME] || body?.refreshToken;
     const meta = {
       userAgent: req.headers['user-agent'],
-      ipAddress: req.ip || req.socket.remoteAddress,
+      ipAddress: clientIp(req) || req.socket.remoteAddress,
     };
 
     const tokens = await this.authService.refreshTokens(rawRefreshToken, meta);

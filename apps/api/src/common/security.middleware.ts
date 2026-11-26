@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { clientIp, isOurServerRender } from './client-ip.js';
 
 /**
  * Security headers for a JSON API (what helmet would set that matters here).
@@ -38,11 +39,12 @@ export function rateLimitHit(key: string, limit: number, now = Date.now()): { ok
 }
 
 export function rateLimit(req: Request, res: Response, next: NextFunction) {
-  if (req.method === 'OPTIONS' || process.env.NODE_ENV === 'test') return next();
+  // Our own server-rendered pages aren't visitors (same rule as the ThrottlerGuard in app.module).
+  if (req.method === 'OPTIONS' || process.env.NODE_ENV === 'test' || isOurServerRender(req)) return next();
   // Password/code guessing targets only; refresh/logout/me stay on the general limit.
   const isAuth = /^\/api\/v1\/auth\/(register|otp|login|passkey\/login|password|social-login)/.test(req.path);
   const bucket = isAuth ? 'auth' : 'default';
-  const { ok, retryAfterS } = rateLimitHit(`${bucket}:${req.ip}`, RATE_LIMITS[bucket]);
+  const { ok, retryAfterS } = rateLimitHit(`${bucket}:${clientIp(req)}`, RATE_LIMITS[bucket]);
   if (ok) return next();
   res.setHeader('Retry-After', String(retryAfterS));
   res.status(429).json({ statusCode: 429, message: 'Too many requests. Please wait a minute and try again.' });
