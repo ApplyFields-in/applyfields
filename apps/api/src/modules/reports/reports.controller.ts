@@ -1,13 +1,13 @@
 import {
   Body,
   Controller,
-  Ip,
   Post,
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { z } from 'zod';
 import { ZodPipe } from '../../common/zod.pipe.js';
+import { clientIp } from '../../common/client-ip.js';
 import { ReportsService } from './reports.service.js';
 
 const reportSchema = z.object({
@@ -42,13 +42,13 @@ export class ReportsController {
   @Post()
   async submitReport(
     @Req() req: Request,
-    @Ip() ip: string,
     @Body(new ZodPipe(reportSchema)) body: z.infer<typeof reportSchema>,
   ) {
     // Optional authenticated user id if citizen is logged in
     const user = (req as any).user;
     const reporterId = user?.userId || null;
-    return this.reportsService.submitReport(reporterId, body, ip);
+    // clientIp, not @Ip(): on Render req.ip is a rotating Cloudflare address, so the anonymous limit never bit.
+    return this.reportsService.submitReport(reporterId, body, clientIp(req) ?? '');
   }
 }
 
@@ -68,9 +68,9 @@ export class SupportController {
 
   @Post('contact')
   async contactSupport(
-    @Ip() ip: string,
+    @Req() req: Request,
     @Body(new ZodPipe(supportSchema)) body: z.infer<typeof supportSchema>,
   ) {
-    return this.reportsService.submitSupportTicket(body, ip);
+    return this.reportsService.submitSupportTicket(body, clientIp(req) ?? '');
   }
 }
