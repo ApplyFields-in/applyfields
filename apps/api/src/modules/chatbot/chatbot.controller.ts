@@ -11,6 +11,7 @@ import {
 import type { ChatbotQueryResponse } from '@applyfields/types';
 import type { Request } from 'express';
 import { ZodPipe } from '../../common/zod.pipe.js';
+import { clientIp } from '../../common/client-ip.js';
 import {
   chatbotQuerySchema,
   type ChatbotQueryDto,
@@ -25,16 +26,12 @@ export class ChatbotController {
 
   /**
    * GET /api/v1/chatbot/quota
-   * Returns current user daily quota (3 free queries/day, resets at 12:00 AM IST)
+   * Returns current user quota (3 free queries/month, resets on the 1st at 12:00 AM IST; field is still named daily_limit)
    */
   @Get('quota')
   async getQuota(@Req() req: Request) {
     const userId = (req as any).user?.userId || null;
-    const clientIp =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.ip ||
-      '127.0.0.1';
-    return this.routerService.getQuota(userId, clientIp);
+    return this.routerService.getQuota(userId, clientIp(req) || '127.0.0.1');
   }
 
   /**
@@ -67,7 +64,7 @@ export class ChatbotController {
    * Hybrid Dual-Path Query Router:
    * - Within-website queries: Fast-path deterministic SQL (<80ms, 0 LLM cost)
    * - Open-ended queries: Claude LLM synthesis over 1-Page Notification Digest
-   * - Free users: Enforces 3 chats/day quota
+   * - Free users: Enforces 3 chats/month quota
    */
   @Post('query')
   @HttpCode(200)
@@ -76,10 +73,7 @@ export class ChatbotController {
     @Req() req: Request,
   ): Promise<ChatbotQueryResponse> {
     const userId = (req as any).user?.userId || null;
-    const clientIp =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.ip ||
-      '127.0.0.1';
-    return this.routerService.handleQuery(input, userId, clientIp);
+    // Not raw x-forwarded-for: callers can set that and reset the free quota on every request.
+    return this.routerService.handleQuery(input, userId, clientIp(req) || '127.0.0.1');
   }
 }

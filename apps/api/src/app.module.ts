@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { clientIp, isOurServerRender } from './common/client-ip.js';
 import { VaultService } from './common/vault.service.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -32,12 +33,17 @@ import { PaymentsModule } from './modules/payments/payments.module.js';
 
 @Module({
   imports: [
-    // Per client IP (main.ts trusts Render's proxy, so req.ip is the real client). Generous enough
-    // for a CSC centre or college sharing one IP; sign-in routes are tighter (AUTH_THROTTLE).
+    // Per real client IP (see common/client-ip.ts: our Next apps forward it, everyone else is req.ip).
+    // Generous enough for a CSC centre or college sharing one IP; sign-in routes are tighter
+    // (AUTH_THROTTLE). Our own server-rendered pages are not limited (they're cached, not visitors).
     // ponytail: in-memory per API instance; add a Redis storage when Render runs >1 instance.
     ThrottlerModule.forRoot({
       throttlers: [{ name: 'default', ttl: 60_000, limit: 300 }],
-      skipIf: () => process.env.NODE_ENV === 'test' || process.env.RATE_LIMIT === 'off',
+      getTracker: (req) => clientIp(req as Parameters<typeof clientIp>[0]) ?? 'unknown',
+      skipIf: (ctx) =>
+        process.env.NODE_ENV === 'test' ||
+        process.env.RATE_LIMIT === 'off' ||
+        isOurServerRender(ctx.switchToHttp().getRequest()),
     }),
     PrismaModule,
     HomeModule,

@@ -446,9 +446,9 @@ export default function Assistant() {
 
           {blocked ? (
             <View style={s.limit}>
-              <Text style={s.limitTitle}>Today's 3 free chats are used</Text>
+              <Text style={s.limitTitle}>This month's 3 free chats are used</Text>
               <Text style={s.welcomeBody}>
-                They reset at midnight IST. The shortcuts below still work.
+                They reset on the 1st of next month. The shortcuts below still work.
               </Text>
             </View>
           ) : null}
@@ -477,7 +477,7 @@ export default function Assistant() {
               value={input}
               onChangeText={onTyping}
               editable={!blocked && !loading}
-              placeholder={blocked ? 'Daily limit reached' : 'Ask about any exam, job or career…'}
+              placeholder={blocked ? 'Monthly limit reached' : 'Ask about any exam, job or career…'}
               placeholderTextColor={C.muted}
               onSubmitEditing={() => send(input)}
               returnKeyType="send"

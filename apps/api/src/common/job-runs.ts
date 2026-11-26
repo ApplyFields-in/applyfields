@@ -8,6 +8,7 @@ export interface JobRun {
 
 export const JOBS = [
   { id: 'auto-close', name: 'Close expired listings', schedule: 'Every hour', offFlag: 'AUTO_CLOSE' },
+  { id: 'auto-archive', name: 'Archive ended listings past the red window', schedule: 'Every hour', offFlag: 'AUTO_CLOSE' },
   { id: 'notifications', name: 'Reminders & notification digests', schedule: 'Every 15 minutes (reminders 8 am–9 pm IST)', offFlag: 'NOTIFICATIONS' },
   { id: 'ingestion', name: 'Run due scrapers', schedule: 'Every hour (each source on its own interval)', offFlag: 'INGESTION_SCHEDULER' },
   { id: 'link-health', name: 'Check official links', schedule: 'Every day', offFlag: 'LINK_HEALTH' },

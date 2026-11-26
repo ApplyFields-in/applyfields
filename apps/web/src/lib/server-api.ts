@@ -1,6 +1,6 @@
 import type { SavedItemType, SavedList } from '@applyfields/types';
 import { cookies } from 'next/headers';
-import { API_URL } from './api';
+import { API_URL, apiFetch } from './api';
 
 /**
  * Server components only: GET as the logged-in user by forwarding the login cookie.
@@ -12,7 +12,7 @@ export async function apiGetAsUser<T>(path: string): Promise<T | null> {
   const locale = cookieStore.get('NEXT_LOCALE')?.value || 'en';
 
   const get = (auth?: string) =>
-    fetch(`${API_URL}${path}`, {
+    apiFetch(`${API_URL}${path}`, {
       cache: 'no-store',
       headers: {
         ...(auth ? { Authorization: `Bearer ${auth}` } : {}),
@@ -43,7 +43,7 @@ export async function isSaved(itemType: SavedItemType, slug: string): Promise<bo
 export async function apiGetPublic<T>(path: string, revalidateSeconds = 60): Promise<T | null> {
   try {
     const locale = (await cookies()).get('NEXT_LOCALE')?.value || 'en';
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await apiFetch(`${API_URL}${path}`, {
       headers: {
         'Accept-Language': locale,
       },

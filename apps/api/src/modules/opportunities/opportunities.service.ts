@@ -140,6 +140,27 @@ export function endedWhere(today: Date): Prisma.opportunitiesWhereInput {
   };
 }
 
+/** Days an ended (red) job stays visible + editable before it auto-archives off the public lists.
+ *  ponytail: env value, default 14; swap for a staff-editable app_settings row when the admin UI lands. */
+export function endedWindowDays(): number {
+  const n = Number(process.env.ENDED_WINDOW_DAYS);
+  return Number.isInteger(n) && n > 0 ? n : 14;
+}
+
+/** Closed jobs whose red window has run out: the deadline (or, if dateless, the close time) was
+ *  more than `windowDays` ago. These auto-archive. `lt today-window` matches closeExpired's `lt`,
+ *  so the window is exactly `windowDays` days of red after the last open day. */
+export function staleEndedWhere(today: Date, windowDays: number): Prisma.opportunitiesWhereInput {
+  const cutoff = addDays(today, -windowDays);
+  return {
+    status: 'closed',
+    OR: [
+      { application_end: { lt: cutoff } },
+      { application_end: null, closed_at: { lt: cutoff } },
+    ],
+  };
+}
+
 @Injectable()
 export class OpportunitiesService {
   private readonly logger = new Logger(OpportunitiesService.name);
@@ -616,6 +637,15 @@ export class OpportunitiesService {
       select: { slug: true },
     });
     return new Set(rows.map((r) => r.slug));
+  }
+
+  /** Every page the detail route serves (published + closed), for the sitemap. No listing data. */
+  async slugs(): Promise<{ slug: string; type: OpportunityType; updated_at: Date }[]> {
+    return this.prisma.opportunities.findMany({
+      where: { status: { in: ['published', 'closed'] } },
+      select: { slug: true, type: true, updated_at: true },
+      orderBy: { updated_at: 'desc' },
+    });
   }
 
   markSaved(cards: OpportunityCard[], slugs: Set<string>): OpportunityCard[] {

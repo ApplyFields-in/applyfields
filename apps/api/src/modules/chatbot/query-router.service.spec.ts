@@ -168,7 +168,7 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
     expect(res.answer).toContain('2 applications');
   });
 
-  it('enforces 3 chats/day limit for free users and gates subsequent queries', async () => {
+  it('enforces 3 chats/month limit for free users and gates subsequent queries', async () => {
     const freeUserId = 'free-candidate-789';
 
     // Query 1
@@ -206,7 +206,7 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
     expect(res4.mode).toBe('limit_reached');
     expect(res4.limit_reached).toBe(true);
     expect(res4.queries_remaining).toBe(0);
-    expect(res4.answer).toContain('Daily Free Chat Limit Reached (3/3)');
+    expect(res4.answer).toContain('Monthly Free Chat Limit Reached (3/3)');
     expect(res4.actions?.some((a) => a.url === '/account')).toBe(true);
   });
 
@@ -332,11 +332,13 @@ describe('QueryRouterService (Fast-Path Deterministic Engine & Dual-Path AI)', (
 });
 
 describe('chatbot quota helpers', () => {
-  it('resets the free-chat day at 12:00 AM IST, not UTC', async () => {
-    const { istMidnight } = await import('./query-router.service.js');
-    // 2026-11-04 20:00 UTC = 2026-11-05 01:30 IST → day started 2026-11-04 18:30 UTC
-    expect(istMidnight(Date.parse('2026-11-04T20:00:00Z')).toISOString()).toBe('2026-11-04T18:30:00.000Z');
-    // 2026-11-04 10:00 UTC = 15:30 IST same day → day started 2026-11-03 18:30 UTC
-    expect(istMidnight(Date.parse('2026-11-04T10:00:00Z')).toISOString()).toBe('2026-11-03T18:30:00.000Z');
+  it('resets free chats on the 1st of the month at 12:00 AM IST, not UTC', async () => {
+    const { istMonthStart } = await import('./query-router.service.js');
+    // Mid-month: 2026-11-25 10:00 UTC → month started 2026-11-01 00:00 IST = 2026-10-31 18:30 UTC
+    expect(istMonthStart(Date.parse('2026-11-25T10:00:00Z')).toISOString()).toBe('2026-10-31T18:30:00.000Z');
+    // 2026-11-30 20:00 UTC is already 2026-12-01 01:30 IST → December has started
+    expect(istMonthStart(Date.parse('2026-11-30T20:00:00Z')).toISOString()).toBe('2026-11-30T18:30:00.000Z');
+    // 2026-12-31 18:00 UTC is still 23:30 IST on Dec 31 → still December
+    expect(istMonthStart(Date.parse('2026-12-31T18:00:00Z')).toISOString()).toBe('2026-11-30T18:30:00.000Z');
   });
 });

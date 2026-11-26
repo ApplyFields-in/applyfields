@@ -53,7 +53,7 @@ export class ChatbotAnalyticsService {
     }
   }
 
-  /** Queries counted against the quota for this key since `since` (IST midnight). */
+  /** Queries counted against the quota for this key since `since` (1st of the month, IST). */
   async countQueriesSince(quotaKey: string, since: Date): Promise<number> {
     try {
       return await this.prisma.analytics_events.count({

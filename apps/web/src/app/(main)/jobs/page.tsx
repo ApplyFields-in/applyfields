@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     'Explore verified government job notifications across Central, State, Railways, Banking, Defence, Police, SSC, UPSC, and State PSCs with eligibility, vacancies, and official apply links.',
   alternates: {
-    canonical: 'https://applyfields.com/jobs',
+    canonical: '/jobs',
   },
 };
 

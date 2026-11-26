@@ -79,69 +79,17 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
       ? 'All India'
       : states.map((s) => STATE_NAMES[s] ?? s).join(', ');
 
-  // Structured Data (JSON-LD)
-  const jsonLd =
-    item.type === 'govt_job'
-      ? {
-          '@context': 'https://schema.org',
-          '@type': 'JobPosting',
-          title: item.title,
-          description: item.summary || item.title,
-          identifier: {
-            '@type': 'PropertyValue',
-            name: item.organization.name,
-            value: item.notification_number || item.slug,
-          },
-          datePosted: item.published_at || undefined,
-          validThrough: item.application_end ? `${item.application_end}T23:59:59` : undefined,
-          employmentType: 'FULL_TIME',
-          hiringOrganization: {
-            '@type': 'Organization',
-            name: item.organization.name,
-            sameAs: item.links.official_website || undefined,
-          },
-          jobLocation: {
-            '@type': 'Place',
-            address: {
-              '@type': 'PostalAddress',
-              addressCountry: 'IN',
-              addressRegion: locationText,
-            },
-          },
-          baseSalary:
-            item.posts[0]?.salary_min && item.posts[0]?.salary_max
-              ? {
-                  '@type': 'MonetaryAmount',
-                  currency: 'INR',
-                  value: {
-                    '@type': 'QuantitativeValue',
-                    minValue: item.posts[0].salary_min,
-                    maxValue: item.posts[0].salary_max,
-                    unitText: 'MONTH',
-                  },
-                }
-              : undefined,
-        }
-      : {
-          '@context': 'https://schema.org',
-          '@type': 'SpecialAnnouncement',
-          name: item.title,
-          text: item.summary || item.title,
-          datePosted: item.published_at || undefined,
-          expires: item.application_end ? `${item.application_end}T23:59:59` : undefined,
-          category: item.type,
-          provider: {
-            '@type': 'Organization',
-            name: item.organization.name,
-          },
-        };
+  // Structured Data (JSON-LD) — a schema type per opportunity kind so each is eligible for the right
+  // Google rich result: JobPosting → Google Jobs, Event → exam dates, EducationalOccupationalProgram → admissions.
+  const examDate = item.dates.find((d) => d.kind === 'exam_date');
+  const jsonLd = buildOpportunityJsonLd(item, locationText, examDate);
 
   return (
     <>
       {/* Inject JSON-LD */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
 
       {/* Privacy-First Anonymous View Telemetry */}
@@ -916,4 +864,95 @@ export async function OpportunityDetailView({ item }: { item: OpportunityDetail 
       />
     </>
   );
+}
+
+type DateEntry = OpportunityDetail['dates'][number];
+
+/** One schema.org type per opportunity kind, so each page is eligible for its matching Google rich result. */
+function buildOpportunityJsonLd(
+  item: OpportunityDetail,
+  locationText: string,
+  examDate: DateEntry | undefined,
+) {
+  const base = { '@context': 'https://schema.org' } as const;
+  const org = { '@type': 'Organization', name: item.organization.name } as const;
+  const expires = item.application_end ? `${item.application_end}T23:59:59` : undefined;
+
+  if (item.type === 'govt_job') {
+    return {
+      ...base,
+      '@type': 'JobPosting',
+      title: item.title,
+      description: item.summary || item.title,
+      identifier: {
+        '@type': 'PropertyValue',
+        name: item.organization.name,
+        value: item.notification_number || item.slug,
+      },
+      datePosted: item.published_at || undefined,
+      validThrough: expires,
+      employmentType: 'FULL_TIME',
+      hiringOrganization: { ...org, sameAs: item.links.official_website || undefined },
+      jobLocation: {
+        '@type': 'Place',
+        address: { '@type': 'PostalAddress', addressCountry: 'IN', addressRegion: locationText },
+      },
+      baseSalary:
+        item.posts[0]?.salary_min && item.posts[0]?.salary_max
+          ? {
+              '@type': 'MonetaryAmount',
+              currency: 'INR',
+              value: {
+                '@type': 'QuantitativeValue',
+                minValue: item.posts[0].salary_min,
+                maxValue: item.posts[0].salary_max,
+                unitText: 'MONTH',
+              },
+            }
+          : undefined,
+    };
+  }
+
+  // Event needs a startDate; without a known exam date it isn't valid, so fall through to the announcement.
+  if (item.type === 'exam' && examDate) {
+    return {
+      ...base,
+      '@type': 'EducationalEvent',
+      name: item.title,
+      description: item.summary || item.title,
+      startDate: examDate.date,
+      endDate: examDate.end_date || undefined,
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      eventStatus: 'https://schema.org/EventScheduled',
+      organizer: { ...org, url: item.links.official_website || undefined },
+      location: {
+        '@type': 'Place',
+        name: locationText,
+        address: { '@type': 'PostalAddress', addressCountry: 'IN', addressRegion: locationText },
+      },
+    };
+  }
+
+  if (item.type === 'admission') {
+    return {
+      ...base,
+      '@type': 'EducationalOccupationalProgram',
+      name: item.title,
+      description: item.summary || item.title,
+      provider: { ...org, sameAs: item.links.official_website || undefined },
+      applicationStartDate: item.application_start?.slice(0, 10) || undefined,
+      applicationDeadline: item.application_end || undefined,
+    };
+  }
+
+  return {
+    ...base,
+    '@type': 'SpecialAnnouncement',
+    name: item.title,
+    text: item.summary || item.title,
+    datePosted: item.published_at || undefined,
+    expires,
+    category: item.type,
+    provider: org,
+  };
 }

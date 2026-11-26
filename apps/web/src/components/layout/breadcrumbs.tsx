@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ChevronRight, Home } from 'lucide-react';
+import { SITE_URL } from '@/lib/urls';
 
 export interface BreadcrumbItem {
   label: string;
@@ -11,11 +12,30 @@ export interface BreadcrumbItem {
 export function Breadcrumbs({ items, className = '' }: { items: BreadcrumbItem[]; className?: string }) {
   if (!items || items.length === 0) return null;
 
+  // BreadcrumbList JSON-LD for breadcrumb rich snippets. Last crumb omits `item` (Google allows that).
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+      ...items.map((it, i) => ({
+        '@type': 'ListItem',
+        position: i + 2,
+        name: it.label,
+        ...(it.href ? { item: SITE_URL + it.href } : {}),
+      })),
+    ],
+  };
+
   return (
     <nav
       aria-label="Breadcrumb"
       className={`print:hidden flex flex-wrap items-center gap-1.5 text-xs text-[#536780] ${className}`}
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd).replace(/</g, '\\u003c') }}
+      />
       <Link
         href="/"
         className="inline-flex items-center gap-1 font-medium text-[#76562d] hover:text-[#082046] transition-colors"

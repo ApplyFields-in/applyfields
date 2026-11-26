@@ -17,6 +17,19 @@ export const BACKEND_API_URL =
  */
 export const API_URL = typeof window === 'undefined' ? BACKEND_API_URL : '/api/v1';
 
+/**
+ * Server-rendered pages call the API directly (not through proxy.ts): mark them as ours so the API
+ * doesn't rate-limit our own pages as one Vercel IP. The key is the same on every call, so Next's
+ * fetch cache is unaffected. Browser bundles never see it (not NEXT_PUBLIC_).
+ */
+export function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const key = typeof window === 'undefined' ? process.env.PROXY_SHARED_SECRET : undefined;
+  if (!key) return fetch(url, init);
+  const headers = new Headers(init.headers);
+  headers.set('x-af-proxy-key', key);
+  return fetch(url, { ...init, headers });
+}
+
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
@@ -62,7 +75,7 @@ async function attemptTokenRefresh(): Promise<boolean> {
   refreshPromise = (async () => {
     try {
       const storedToken = getStoredToken();
-      const res = await fetch(`${API_URL}/auth/refresh`, {
+      const res = await apiFetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -104,7 +117,7 @@ export async function apiGet<T>(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
-    let res = await fetch(`${API_URL}${path}`, {
+    let res = await apiFetch(`${API_URL}${path}`, {
       cache: options?.cache ?? 'default',
       ...options,
       headers,
@@ -121,7 +134,7 @@ export async function apiGet<T>(
           ...((options?.headers as Record<string, string>) || {}),
           ...(refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : {}),
         };
-        res = await fetch(`${API_URL}${path}`, {
+        res = await apiFetch(`${API_URL}${path}`, {
           cache: options?.cache ?? 'default',
           ...options,
           headers: retryHeaders,
@@ -153,7 +166,7 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, _token?: s
     };
 
     const timeoutMs = path.includes('/resume') ? 60000 : 35000;
-    let res = await fetch(`${API_URL}${path}`, {
+    let res = await apiFetch(`${API_URL}${path}`, {
       method: 'POST',
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -174,7 +187,7 @@ export async function apiPost<T, B = unknown>(path: string, body?: B, _token?: s
           'Content-Type': 'application/json',
           ...(refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : {}),
         };
-        res = await fetch(`${API_URL}${path}`, {
+        res = await apiFetch(`${API_URL}${path}`, {
           method: 'POST',
           headers: retryHeaders,
           body: body ? JSON.stringify(body) : undefined,
@@ -216,7 +229,7 @@ export async function apiPut<T, B = unknown>(path: string, body?: B, _token?: st
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
-    let res = await fetch(`${API_URL}${path}`, {
+    let res = await apiFetch(`${API_URL}${path}`, {
       method: 'PUT',
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -232,7 +245,7 @@ export async function apiPut<T, B = unknown>(path: string, body?: B, _token?: st
           'Content-Type': 'application/json',
           ...(refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : {}),
         };
-        res = await fetch(`${API_URL}${path}`, {
+        res = await apiFetch(`${API_URL}${path}`, {
           method: 'PUT',
           headers: retryHeaders,
           body: body ? JSON.stringify(body) : undefined,
@@ -262,7 +275,7 @@ export async function apiPatch<T, B = unknown>(path: string, body?: B, _token?: 
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
-    let res = await fetch(`${API_URL}${path}`, {
+    let res = await apiFetch(`${API_URL}${path}`, {
       method: 'PATCH',
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -278,7 +291,7 @@ export async function apiPatch<T, B = unknown>(path: string, body?: B, _token?: 
           'Content-Type': 'application/json',
           ...(refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : {}),
         };
-        res = await fetch(`${API_URL}${path}`, {
+        res = await apiFetch(`${API_URL}${path}`, {
           method: 'PATCH',
           headers: retryHeaders,
           body: body ? JSON.stringify(body) : undefined,
@@ -307,7 +320,7 @@ export async function apiDelete<T>(path: string, _token?: string): Promise<ApiRe
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
-    let res = await fetch(`${API_URL}${path}`, {
+    let res = await apiFetch(`${API_URL}${path}`, {
       method: 'DELETE',
       headers,
       credentials: 'include',
@@ -321,7 +334,7 @@ export async function apiDelete<T>(path: string, _token?: string): Promise<ApiRe
         const retryHeaders: Record<string, string> = {
           ...(refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : {}),
         };
-        res = await fetch(`${API_URL}${path}`, {
+        res = await apiFetch(`${API_URL}${path}`, {
           method: 'DELETE',
           headers: retryHeaders,
           credentials: 'include',

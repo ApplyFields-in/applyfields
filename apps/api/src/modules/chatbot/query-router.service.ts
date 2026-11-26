@@ -16,7 +16,8 @@ export function oppPath(type: string, slug: string): string {
 
 const logger = new Logger('QueryRouterService');
 
-export const FREE_DAILY_LIMIT = 3;
+/** Free chats per calendar month (IST). The API still calls it `daily_limit` so installed apps keep working. */
+export const FREE_MONTHLY_LIMIT = 3;
 const LLM_MODEL = 'claude-haiku-5-5';
 
 /** Whole-word/phrase match, so "fee" doesn't hit "coffee" and "cost" doesn't hit "costume". */
@@ -82,10 +83,11 @@ function daysUntil(d: Date | string | null | undefined): number | null {
   return diff >= 0 ? diff : null;
 }
 
-/** Start of today in IST (UTC+5:30): free chats reset at 12:00 AM IST. */
-export function istMidnight(now = Date.now()): Date {
+/** Start of this month in IST (UTC+5:30): free chats reset on the 1st at 12:00 AM IST. */
+export function istMonthStart(now = Date.now()): Date {
   const IST_MS = 5.5 * 3_600_000;
   const d = new Date(now + IST_MS);
+  d.setUTCDate(1);
   d.setUTCHours(0, 0, 0, 0);
   return new Date(d.getTime() - IST_MS);
 }
@@ -161,16 +163,16 @@ export class QueryRouterService {
       };
     }
 
-    // ponytail: count-then-insert, so two parallel requests can both get the last free chat. Fine at 3/day.
-    const used = await this.analyticsService.countQueriesSince(key, istMidnight());
-    const remaining = Math.max(0, FREE_DAILY_LIMIT - used);
+    // ponytail: count-then-insert, so two parallel requests can both get the last free chat. Fine at 3/month.
+    const used = await this.analyticsService.countQueriesSince(key, istMonthStart());
+    const remaining = Math.max(0, FREE_MONTHLY_LIMIT - used);
 
     return {
-      daily_limit: FREE_DAILY_LIMIT,
+      daily_limit: FREE_MONTHLY_LIMIT,
       queries_used: used,
       queries_remaining: remaining,
       is_premium: false,
-      limit_reached: used >= FREE_DAILY_LIMIT,
+      limit_reached: used >= FREE_MONTHLY_LIMIT,
     };
   }
 
@@ -192,7 +194,7 @@ export class QueryRouterService {
 
   /**
    * Hybrid AI Query Router:
-   * 1. Enforces 3 chats/day limit for free users (resets at 12:00 AM IST)
+   * 1. Enforces 3 chats/month limit for free users (resets on the 1st, 12:00 AM IST)
    * 2. Fast-Path (<80ms, 0 tokens) for deterministic queries
    * 3. 1-Page Notification Digest RAG + Claude LLM synthesis for deep reasoning
    */
@@ -228,7 +230,7 @@ export class QueryRouterService {
       return {
         mode: 'limit_reached',
         intent: 'limit_reached',
-        answer: `### 🌟 Daily Free Chat Limit Reached (3/3)\n\nYou have used all **3 free AI chats** for today.\n\nFree chats reset daily at midnight (12:00 AM IST).\n\nUpgrade to **ApplyFields Plus** (₹50/month) for unlimited AI queries, in-depth multi-stage exam insights, syllabus breakdowns, and assisted CSC desk bookings!`,
+        answer: `### 🌟 Monthly Free Chat Limit Reached (3/3)\n\nYou have used all **3 free AI chats** for this month.\n\nFree chats reset on the 1st of every month (12:00 AM IST).\n\nUpgrade to **ApplyFields Plus** (₹50/month) for unlimited AI queries, in-depth multi-stage exam insights, syllabus breakdowns, and assisted CSC desk bookings!`,
         actions: [
           { label: 'Upgrade to ApplyFields Plus (₹50/mo)', action: 'navigate', url: '/account' },
           { label: 'Browse Jobs & Deadlines Directly', action: 'navigate', url: '/jobs' },
