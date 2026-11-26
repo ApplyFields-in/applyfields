@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     'Discover open government scholarships in India. Check eligibility, family income limits, benefits amount, required certificates, and the official portal to apply.',
   alternates: {
-    canonical: 'https://applyfields.com/scholarships',
+    canonical: '/scholarships',
   },
 };
 

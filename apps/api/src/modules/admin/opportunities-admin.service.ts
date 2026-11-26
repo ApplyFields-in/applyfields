@@ -15,7 +15,11 @@ import type {
 } from '@applyfields/types';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { todayIst } from '../opportunities/opportunities.service.js';
+import {
+  endedWindowDays,
+  staleEndedWhere,
+  todayIst,
+} from '../opportunities/opportunities.service.js';
 import { expiryBlockers, publishBlockers } from './review.service.js';
 
 type Tx = Prisma.TransactionClient;
@@ -47,7 +51,7 @@ export function slugify(title: string): string {
 /** Which status changes are allowed: from → to. Publishing has its own endpoint (it runs the checks). */
 const ALLOWED: Record<StatusChange['status'], OpportunityStatus[]> = {
   draft: ['published', 'closed', 'archived'], // unpublish / reopen as draft / restore
-  closed: ['published'],
+  closed: ['published', 'archived'], // reopen a closed job, or archive an ended one
   archived: ['draft', 'closed'], // reject a draft / archive an old one
 };
 
@@ -327,6 +331,30 @@ export class OpportunitiesAdminService {
       });
     });
     return { closed: ids.length };
+  }
+
+  /** Archive ended (red) jobs whose window has run out (default 14 days after the deadline).
+   *  They drop off every public list but stay in admin, still editable. Idempotent. */
+  async archiveEnded(actor: string | null = null): Promise<{ archived: number }> {
+    const windowDays = endedWindowDays();
+    const stale = await this.prisma.opportunities.findMany({
+      where: staleEndedWhere(todayIst(), windowDays),
+      select: { id: true },
+    });
+    if (stale.length === 0) return { archived: 0 };
+    const ids = stale.map((s) => s.id);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.opportunities.updateMany({
+        where: { id: { in: ids }, status: 'closed' },
+        data: { status: 'archived' },
+      });
+      await this.audit(tx, actor, 'opportunity.auto_archive', null, {
+        count: ids.length,
+        ids,
+        reason: `Auto-archived ${windowDays} days after deadline`,
+      });
+    });
+    return { archived: ids.length };
   }
 
   /* ------------------------------------------------------------------ helpers */

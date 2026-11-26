@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   description:
     'Find authoritative information and step-by-step guides for Indian citizen services: PAN card, passport, caste & income certificates, driving licenses, and Aadhaar updates with official application links.',
   alternates: {
-    canonical: 'https://applyfields.com/services',
+    canonical: '/services',
   },
 };
 

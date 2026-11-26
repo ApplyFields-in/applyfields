@@ -47,5 +47,16 @@ export class ExpiryService
       recordJobRun('auto-close', false, (err as Error).message);
       this.logger.warn(`Auto-close failed: ${(err as Error).message}`);
     }
+    try {
+      const { archived } = await this.opportunities.archiveEnded();
+      recordJobRun('auto-archive', true, `Archived ${archived} ended listing${archived === 1 ? '' : 's'}`);
+      if (archived)
+        this.logger.log(
+          `Archived ${archived} ended opportunit${archived === 1 ? 'y' : 'ies'}`,
+        );
+    } catch (err) {
+      recordJobRun('auto-archive', false, (err as Error).message);
+      this.logger.warn(`Auto-archive failed: ${(err as Error).message}`);
+    }
   }
 }

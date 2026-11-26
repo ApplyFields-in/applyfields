@@ -95,6 +95,13 @@ export interface OpportunityList {
   sample: boolean; // true while the API returns sample data
 }
 
+/** Sitemap row: just enough to build the URL, no listing data. */
+export interface OpportunitySlug {
+  slug: string;
+  type: OpportunityType;
+  updated_at: string;
+}
+
 export interface UpdateItem {
   id: string;
   kind: UpdateKind;

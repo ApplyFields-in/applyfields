@@ -3,6 +3,9 @@
  * Maps subdomains cleanly between production and local dev
  */
 
+/** Canonical public origin of the web app. Used for metadataBase and JSON-LD absolute URLs. */
+export const SITE_URL = 'https://applyfields.com';
+
 export const PARTNER_PORTAL_URL =
   process.env.NEXT_PUBLIC_PARTNER_PORTAL_URL ||
   (typeof window !== 'undefined' && window.location.hostname.includes('applyfields.com')

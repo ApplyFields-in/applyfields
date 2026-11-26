@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     'Browse verified college, university, and course admission notices in India. Check eligibility, admission process, important dates, fees, and the official route to apply.',
   alternates: {
-    canonical: 'https://applyfields.com/admissions',
+    canonical: '/admissions',
   },
 };
 

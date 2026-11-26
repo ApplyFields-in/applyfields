@@ -11,6 +11,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type {
   InstitutionProgram,
   UpsertInstitutionProgramInput,
@@ -45,6 +46,8 @@ import {
   upsertInstitutionProgramSchema,
 } from './institutions.service.js';
 
+// Our own college data: same scraper-sized limit as the opportunities catalogue.
+@Throttle({ default: { limit: 120, ttl: 60_000 } })
 @Controller('career')
 export class InstitutionsController {
   constructor(private readonly institutionsService: InstitutionsService) {}

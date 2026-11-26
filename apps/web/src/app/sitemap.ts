@@ -3,7 +3,7 @@ import type {
   CareerSummary,
   CourseSummary,
   GovServiceList,
-  OpportunityList,
+  OpportunitySlug,
   RoadmapSummary,
 } from '@applyfields/types';
 import { apiGet } from '@/lib/api';
@@ -64,7 +64,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const [opps, services, careers, courses, roadmaps, colleges] = await Promise.all([
-      apiGet<OpportunityList>('/opportunities'),
+      apiGet<OpportunitySlug[]>('/opportunities/slugs'),
       apiGet<GovServiceList>('/services'),
       apiGet<CareerSummary[]>('/career'),
       apiGet<CourseSummary[]>('/career/courses'),
@@ -85,7 +85,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...(colleges ?? []).map((slug) => careerRoute('colleges/', slug)),
     ];
 
-    const oppRoutes: MetadataRoute.Sitemap = (opps?.items ?? []).map((item) => {
+    const oppRoutes: MetadataRoute.Sitemap = (opps ?? []).map((item) => {
       let path = 'jobs';
       if (item.type === 'exam') path = 'exams';
       else if (item.type === 'scholarship') path = 'scholarships';
@@ -93,7 +93,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
       return {
         url: `${baseUrl}/${path}/${item.slug}`,
-        lastModified: new Date(),
+        lastModified: new Date(item.updated_at),
         changeFrequency: 'daily',
         priority: 0.8,
       };

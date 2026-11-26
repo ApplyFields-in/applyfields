@@ -58,6 +58,8 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     } catch {
       // Cookies not available outside request scope
     }
+    // Mark server-rendered calls as ours so the API doesn't rate-limit them as one Vercel IP.
+    if (process.env.PROXY_SHARED_SECRET) headers['x-af-proxy-key'] = process.env.PROXY_SHARED_SECRET;
   } else {
     // Browser-side: include Bearer token if present in localStorage
     const token = localStorage.getItem('accessToken') || localStorage.getItem('adminToken');

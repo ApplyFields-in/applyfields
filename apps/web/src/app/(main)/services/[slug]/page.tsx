@@ -27,6 +27,7 @@ import { ShareButton } from '@/components/opportunity-actions';
 import { ReportWrongInfoButton } from '@/components/report-wrong-info-modal';
 import { apiGet } from '@/lib/api';
 import { formatDate, STATE_NAMES } from '@/lib/format';
+import { SITE_URL } from '@/lib/urls';
 
 export async function generateMetadata({
   params,
@@ -52,12 +53,12 @@ export async function generateMetadata({
     title,
     description,
     alternates: {
-      canonical: `https://applyfields.com/services/${slug}`,
+      canonical: `/services/${slug}`,
     },
     openGraph: {
       title,
       description,
-      url: `https://applyfields.com/services/${slug}`,
+      url: `/services/${slug}`,
       type: 'article',
       siteName: 'ApplyFields',
       locale: 'en_IN',
@@ -109,12 +110,22 @@ export default async function ServiceDetailPage({
     },
   };
 
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+      { '@type': 'ListItem', position: 2, name: 'Government Services', item: `${SITE_URL}/services` },
+      { '@type': 'ListItem', position: 3, name: item.name },
+    ],
+  };
+
   return (
     <>
       {/* Inject JSON-LD */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([jsonLd, breadcrumbLd]).replace(/</g, '\\u003c') }}
       />
 
       {/* Breadcrumb */}

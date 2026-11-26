@@ -255,7 +255,7 @@ export function FloatingAiAssistant() {
     [],
   );
 
-  // Daily Quota Tracking (3 free chats/day, resets at midnight IST)
+  // Quota tracking (3 free chats/month, resets on the 1st at midnight IST; API field is still daily_limit)
   const [quota, setQuota] = useState<QuotaState>({
     daily_limit: 3,
     queries_used: 0,
@@ -438,7 +438,7 @@ export function FloatingAiAssistant() {
         const guestMsg: Message = {
           ...meta,
           sender: 'assistant',
-          text: 'Please **sign in to continue** chatting with Fieldy.\n\nSign in to your ApplyFields account to get personalized answers and your 3 daily free chats.',
+          text: 'Please **sign in to continue** chatting with Fieldy.\n\nSign in to your ApplyFields account to get personalized answers and your 3 free chats a month.',
           actions: [{ label: 'Sign in to continue →', action: 'navigate', url: '/login' }],
         };
         const updated = [...nextMessages, guestMsg];
@@ -614,7 +614,7 @@ export function FloatingAiAssistant() {
               <span className="text-[9.5px] font-medium text-slate-500">
                 {quota.is_premium
                   ? '👑 Unlimited Plus'
-                  : `${quota.queries_remaining} free chat${quota.queries_remaining === 1 ? '' : 's'} left today`}
+                  : `${quota.queries_remaining} free chat${quota.queries_remaining === 1 ? '' : 's'} left this month`}
               </span>
             </div>
             <ArrowRight className="size-3 text-[#0e7bf4] transition-transform group-hover:translate-x-0.5" />
@@ -694,7 +694,7 @@ export function FloatingAiAssistant() {
 
             {/* Quota Badge & Controls */}
             <div className="flex items-center gap-2">
-              {/* Daily Quota Pill */}
+              {/* Quota Pill */}
               <div
                 className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black border backdrop-blur-md ${
                   quota.is_premium
@@ -703,7 +703,7 @@ export function FloatingAiAssistant() {
                       ? 'bg-red-500/20 text-rose-200 border-rose-400/40'
                       : 'bg-emerald-400/20 text-emerald-200 border-emerald-300/40'
                 }`}
-                title="Daily queries reset at midnight 12:00 AM IST"
+                title="Free chats reset on the 1st of every month (12:00 AM IST)"
               >
                 {quota.is_premium ? (
                   <>
@@ -784,7 +784,7 @@ export function FloatingAiAssistant() {
                   ) : (
                     <span>
                       Ask any question about government jobs, closing countdowns, fee waivers, or
-                      career roadmaps. Free accounts receive <strong>3 AI chats daily</strong>.
+                      career roadmaps. Free accounts receive <strong>3 AI chats a month</strong>.
                     </span>
                   )}
                 </p>
@@ -842,7 +842,7 @@ export function FloatingAiAssistant() {
                       ) : m.mode === 'limit_reached' ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-700">
                           <Crown className="size-2.5 text-amber-600" />
-                          Daily Limit Reached
+                          Monthly Limit Reached
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[9.5px] font-bold text-blue-700">
@@ -962,10 +962,10 @@ export function FloatingAiAssistant() {
                   </div>
                   <div>
                     <h4 className="text-xs font-black text-[#082046]">
-                      Daily Free Quota Exhausted (3/3)
+                      Monthly Free Quota Used (3/3)
                     </h4>
                     <p className="text-[10px] text-slate-600">
-                      Resets tonight at 12:00 AM IST (midnight)
+                      Resets on the 1st of next month (12:00 AM IST)
                     </p>
                   </div>
                 </div>
@@ -1009,7 +1009,7 @@ export function FloatingAiAssistant() {
 
           {/* Bottom Query Input Box */}
           <footer className="border-t border-slate-200 bg-white p-3 space-y-1.5">
-            {/* Shortcuts: straight to the page, free, and they work even after the daily chat limit */}
+            {/* Shortcuts: straight to the page, free, and they work even after the monthly chat limit */}
             <nav
               aria-label="Shortcuts"
               className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5 scrollbar-none"
@@ -1040,7 +1040,7 @@ export function FloatingAiAssistant() {
                 onChange={(e) => onTyping(e.target.value)}
                 placeholder={
                   quota.limit_reached
-                    ? 'Daily limit reached (3/3 chats) · Upgrade to continue'
+                    ? 'Monthly limit reached (3/3 chats) · Upgrade to continue'
                     : currentOpportunitySlug
                       ? 'Ask about deadlines, fees, eligibility...'
                       : 'Ask about any exam, job, or career advice...'
@@ -1079,7 +1079,7 @@ export function FloatingAiAssistant() {
                   </span>
                 ) : (
                   <span>
-                    <strong>{quota.queries_remaining}</strong> of 3 free chats left today
+                    <strong>{quota.queries_remaining}</strong> of 3 free chats left this month
                   </span>
                 )}
               </span>

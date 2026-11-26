@@ -11,11 +11,13 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type {
   EligibilityResponse,
   OpportunityCard,
   OpportunityDetail,
   OpportunityList,
+  OpportunitySlug,
   OpportunityType,
   UpdateList,
 } from '@applyfields/types';
@@ -33,6 +35,9 @@ const TYPES: OpportunityType[] = [
   'admission',
 ];
 
+// Tighter than the global 300/min: this catalogue is what scrapers want. A detail page view makes
+// ~4 calls, so 120/min is ~30 pages a minute per IP: plenty for people, slow for a bulk copy.
+@Throttle({ default: { limit: 120, ttl: 60_000 } })
 @Controller()
 export class OpportunitiesController {
   constructor(
@@ -112,6 +117,14 @@ export class OpportunitiesController {
       const items = await this.opportunities.trending(10);
       return { items };
     });
+  }
+
+  /** GET /api/v1/opportunities/slugs — sitemap only: slug + type + updated_at (declared before :slug) */
+  @Get('opportunities/slugs')
+  async slugs(): Promise<OpportunitySlug[]> {
+    return this.cache.wrap('opportunities:slugs', 600, async () =>
+      (await this.opportunities.slugs()).map((r) => ({ ...r, updated_at: r.updated_at.toISOString() })),
+    );
   }
 
   /** GET /api/v1/opportunities/:slug — complete published detail page */

@@ -10,8 +10,10 @@ import { NotificationPermissionPrompt } from '@/components/notification-permissi
 import { FloatingAiAssistant } from '@/components/chat/floating-ai-assistant';
 import { ScrollToTop } from '@applyfields/ui';
 import { PageViewTracker } from '@/components/page-view-tracker';
+import { SITE_URL } from '@/lib/urls';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'ApplyFields — Every opportunity. One place.',
     template: '%s · ApplyFields',
