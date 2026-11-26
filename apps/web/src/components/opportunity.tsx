@@ -16,7 +16,7 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { BACKEND_API_URL } from '@/lib/api';
-import { DeadlineBadge, DeadlineLegend, ELIGIBILITY_META, TYPE_META, formatDate } from '@/lib/format';
+import { DeadlineBadge, DeadlineLegend, ELIGIBILITY_META, TYPE_META, formatDate, VerifiedBadge } from '@/lib/format';
 import { apiGetAsUser } from '@/lib/server-api';
 import { SaveButton } from '@/components/save-button';
 import { CompareToggleButton } from '@/components/opportunity-compare/compare-button';
@@ -71,6 +71,7 @@ export function OpportunityCardView({ item }: { item: OpportunityCard }) {
             <Users aria-hidden="true" /> {item.vacancies.toLocaleString('en-IN')} post{item.vacancies === 1 ? '' : 's'}
           </Badge>
         )}
+        <VerifiedBadge at={item.last_verified_at} />
       </div>
 
 

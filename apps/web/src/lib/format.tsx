@@ -1,5 +1,5 @@
 import type { EligibilityStatus, OpportunityType, SearchResultType, UpdateKind } from '@applyfields/types';
-import { Award, BookOpen, Briefcase, Building, CircleCheck, CircleDashed, CircleHelp, CircleX, Compass, GraduationCap, Landmark, School } from 'lucide-react';
+import { Award, BookOpen, Briefcase, Building, CircleCheck, CircleDashed, CircleHelp, CircleX, Compass, GraduationCap, Landmark, School, ShieldCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@applyfields/ui';
 
@@ -54,6 +54,38 @@ export const UPDATE_LABEL: Record<UpdateKind, string> = {
   postponement: 'Postponed',
   other: 'Update',
 };
+
+/** Coarse "time since" for the freshness chip: 'just now', '2h ago', '3d ago'. null for missing/invalid. */
+export function timeAgo(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const mins = Math.floor((Date.now() - then) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d ago`;
+  const mo = Math.floor(d / 30);
+  return mo < 12 ? `${mo}mo ago` : `${Math.floor(mo / 12)}y ago`;
+}
+
+/** "Verified · updated 2h ago" trust chip. Renders nothing without a real verification time — never faked. */
+export function VerifiedBadge({ at, className = '' }: { at?: string | null; className?: string }) {
+  const ago = timeAgo(at);
+  if (!ago) return null;
+  return (
+    // suppressHydrationWarning: "Xm ago" can tick over between the server render and hydration.
+    <span
+      suppressHydrationWarning
+      title={`Verified by ApplyFields — last checked ${ago}`}
+      className={`inline-flex items-center gap-1 rounded-full bg-celadon px-2.5 py-0.5 text-[11px] font-semibold text-teal shadow-clay ${className}`}
+    >
+      <ShieldCheck className="size-3" aria-hidden="true" /> Verified · updated {ago}
+    </span>
+  );
+}
 
 /** '2026-10-31' → '31 Oct 2026' */
 export function formatDate(iso: string): string {

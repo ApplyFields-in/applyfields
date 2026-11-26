@@ -113,6 +113,7 @@ export const CARD_SELECT = {
   state_codes: true,
   vacancies_total: true,
   application_end: true,
+  last_verified_at: true,
   field_status: true,
   organizations: { select: { name: true, short_name: true } },
   opportunity_eligibility: {
@@ -209,6 +210,7 @@ export class OpportunitiesService {
       ),
       category: row.category,
       state_codes: row.state_codes,
+      last_verified_at: row.last_verified_at?.toISOString() ?? null,
     };
   }
 
@@ -604,6 +606,7 @@ export class OpportunitiesService {
       })),
       last_verified_at: row.last_verified_at?.toISOString() ?? null,
       published_at: row.published_at?.toISOString() ?? null,
+      created_at: row.created_at.toISOString(),
       status: row.status,
     };
   }

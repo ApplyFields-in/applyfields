@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Bookmark, ExternalLink } from 'lucide-react';
 import type { OpportunityCard, OpportunityType } from '@applyfields/types';
-import { DeadlineDot, formatDate } from '@/lib/format';
+import { DeadlineDot, formatDate, VerifiedBadge } from '@/lib/format';
 import { apiPut, apiDelete } from '@/lib/api';
 import { showAppToast } from '@/components/toast-notification-provider';
 
@@ -133,6 +133,7 @@ export function HorizontalOpportunityCard({
             <span>✓</span>
             <span>{eligibilityLabel}</span>
           </span>
+          <VerifiedBadge at={item.last_verified_at} />
         </div>
 
         {/* Opportunity Title & Source */}
