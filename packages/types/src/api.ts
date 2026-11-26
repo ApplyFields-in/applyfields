@@ -46,6 +46,8 @@ export interface OpportunityCard {
   category?: string;
   /** state codes the listing is for; ['ALL'] = all India / central */
   state_codes?: string[];
+  /** when staff/scraper last verified this listing; drives the "Verified · updated Xago" chip. null = never verified */
+  last_verified_at?: string | null;
 }
 
 // ---------- Eligibility (GET /opportunities/:slug/eligibility) ----------
@@ -383,6 +385,8 @@ export interface OpportunityDetail {
   updates: UpdateItem[];
   last_verified_at: string | null;
   published_at: string | null;
+  /** Row creation time (always set) — datePosted fallback for JobPosting when published_at is null. */
+  created_at: string;
   status: OpportunityStatus;
 }
 

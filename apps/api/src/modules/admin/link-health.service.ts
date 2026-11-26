@@ -174,13 +174,16 @@ export class LinkHealthService
           });
         }
 
-        // Update verification timestamp in DB
-        await this.prisma.opportunities
-          .update({
-            where: { id: opp.id },
-            data: { last_verified_at: new Date() },
-          })
-          .catch(() => {});
+        // Only a passing check counts as verified: citizens see "Verified · updated Xh ago" from this,
+        // so a dead official link must not refresh it. Broken ones stay oldest, so they're rechecked first.
+        if (isHealthy) {
+          await this.prisma.opportunities
+            .update({
+              where: { id: opp.id },
+              data: { last_verified_at: new Date() },
+            })
+            .catch(() => {});
+        }
       }
 
       this.lastReport = {

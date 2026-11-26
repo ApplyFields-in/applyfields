@@ -876,7 +876,9 @@ function buildOpportunityJsonLd(
 ) {
   const base = { '@context': 'https://schema.org' } as const;
   const org = { '@type': 'Organization', name: item.organization.name } as const;
-  const expires = item.application_end ? `${item.application_end}T23:59:59` : undefined;
+  // Application deadlines are Indian times, so stamp IST (+05:30) — otherwise Google reads 23:59:59 as UTC
+  // and shows the listing as closing 5.5h late.
+  const expires = item.application_end ? `${item.application_end}T23:59:59+05:30` : undefined;
 
   if (item.type === 'govt_job') {
     return {
@@ -889,7 +891,8 @@ function buildOpportunityJsonLd(
         name: item.organization.name,
         value: item.notification_number || item.slug,
       },
-      datePosted: item.published_at || undefined,
+      // Google Jobs rejects a listing with no datePosted; created_at always exists, so it's the safe fallback.
+      datePosted: item.published_at || item.created_at,
       validThrough: expires,
       employmentType: 'FULL_TIME',
       hiringOrganization: { ...org, sameAs: item.links.official_website || undefined },
