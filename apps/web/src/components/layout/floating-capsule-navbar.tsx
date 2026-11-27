@@ -87,6 +87,7 @@ export function FloatingCapsuleNavbar() {
       setInitials('');
       localStorage.removeItem('currentUser');
       localStorage.removeItem('accessToken');
+      window.dispatchEvent(new Event('auth-changed')); // next sync returns early: nothing stored
     }
   }, []);
 
@@ -163,7 +164,7 @@ export function FloatingCapsuleNavbar() {
               unoptimized
               className="size-7.5 sm:size-9 shrink-0 object-contain transition-transform group-hover:scale-105"
             />
-            <span className="whitespace-nowrap text-sm sm:text-lg font-black tracking-tight text-[#082046]">
+            <span className="hidden sm:inline whitespace-nowrap text-lg font-black tracking-tight text-[#082046]">
               Apply<span className="text-[#0e7bf4]">Fields</span>
             </span>
           </Link>
@@ -201,8 +202,8 @@ export function FloatingCapsuleNavbar() {
           </nav>
         </div>
 
-        {/* Center: Career / Apply / Services Mode Switcher Capsule */}
-        <div className="hidden md:flex h-14 shrink-0 items-center rounded-full border border-white bg-[#F0F4F8] px-1.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
+        {/* Center: Career / Apply / Services Mode Switcher Capsule (phones: Career + Apply with labels) */}
+        <div className="flex sm:hidden md:flex h-12 sm:h-14 shrink-0 items-center rounded-full border border-white bg-[#F0F4F8] px-1.5 shadow-[10px_14px_32px_-10px_rgba(8,32,70,0.20),-8px_-8px_24px_rgba(255,255,255,0.95)]">
           <div className="flex items-center gap-1 rounded-full bg-[#edf2f8] p-1 shadow-[inset_2px_2px_5px_#d8e0eb,inset_-2px_-2px_5px_#ffffff]">
             <Link
               href="/career"
@@ -214,7 +215,7 @@ export function FloatingCapsuleNavbar() {
               }`}
             >
               <Briefcase className="size-4 sm:size-4.5 text-[#0e7bf4]" />
-              <span className="hidden lg:inline">{t('nav_career', 'Career')}</span>
+              <span className="hidden max-sm:inline lg:inline">{t('nav_career', 'Career')}</span>
             </Link>
             <Link
               href="/apply"
@@ -226,13 +227,13 @@ export function FloatingCapsuleNavbar() {
               }`}
             >
               <Send className="size-4 sm:size-4.5 text-[#0e7bf4]" />
-              <span className="hidden lg:inline">{t('nav_apply', 'Apply')}</span>
+              <span className="hidden max-sm:inline lg:inline">{t('nav_apply', 'Apply')}</span>
             </Link>
             <a
               href={SERVICE_PORTAL_URL}
               onClick={(e) => void goToServicePortal(e)}
               data-tour="services"
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 lg:px-4 text-[14px] font-extrabold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
+              className="max-sm:hidden flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 lg:px-4 text-[14px] font-extrabold transition-all text-[#082046] hover:text-[#0e7bf4] relative group"
               title="Citizen Services: MeeSeva, CSC, PAN, Aadhaar & Xerox"
             >
               <Printer className="size-4 sm:size-4.5 text-[#0e7bf4]" />
@@ -251,7 +252,7 @@ export function FloatingCapsuleNavbar() {
             type="button"
             onClick={openCommandPalette}
             data-tour="search"
-            className="flex h-9 sm:h-10 min-h-[44px] w-auto max-w-[120px] sm:max-w-none sm:w-64 min-w-[44px] shrink items-center overflow-hidden rounded-full border border-[#cad7e7] bg-[#edf3f9] px-2.5 sm:px-[11px] shadow-[inset_2px_2px_4px_#d4dfec,inset_-2px_-2px_4px_#ffffff] transition-colors hover:bg-[#e2ecf7] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none cursor-pointer"
+            className="max-sm:hidden flex h-9 sm:h-10 min-h-[44px] w-auto max-w-[120px] sm:max-w-none sm:w-64 min-w-[44px] shrink items-center overflow-hidden rounded-full border border-[#cad7e7] bg-[#edf3f9] px-2.5 sm:px-[11px] shadow-[inset_2px_2px_4px_#d4dfec,inset_-2px_-2px_4px_#ffffff] transition-colors hover:bg-[#e2ecf7] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none cursor-pointer"
             title="Search everything (Ctrl + K)"
             aria-label="Search everything (Ctrl + K)"
           >
@@ -286,19 +287,21 @@ export function FloatingCapsuleNavbar() {
             <Bookmark className="size-4.5 sm:size-5" />
           </Link>
 
-          {/* Settings & Preferences */}
+          {/* Settings & Preferences: signed-in only; on phones it's on the Profile page */}
+          {user && (
           <Link
             href="/settings"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none"
+            className="max-sm:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-[#082046] transition-colors hover:bg-white hover:text-[#0e7bf4] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none"
             title={t('nav_settings', 'Settings & Preferences')}
             aria-label="Settings & Preferences"
           >
             <Settings className="size-4.5 sm:size-5" />
           </Link>
+          )}
 
           {/* User Profile Pill & Dropdown / Sign in & Register */}
           {user ? (
-            <div className="relative" ref={menuRef}>
+            <div className="relative max-sm:hidden" ref={menuRef}>
               <button
                 type="button"
                 aria-label={`Account menu for ${displayName}`}
@@ -358,7 +361,7 @@ export function FloatingCapsuleNavbar() {
           ) : (
             <Link
               href="/login"
-              className="flex items-center min-h-[44px] gap-1.5 rounded-full bg-[#0e7bf4] px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none active:scale-95 whitespace-nowrap"
+              className="max-sm:hidden flex items-center min-h-[44px] gap-1.5 rounded-full bg-[#0e7bf4] px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-extrabold text-white shadow-clay-btn-azure transition hover:bg-[#0c6fdc] focus-visible:ring-2 focus-visible:ring-[#0e7bf4] focus-visible:outline-none active:scale-95 whitespace-nowrap"
             >
               <User className="size-4" />
               <span>{t('nav_sign_in', 'Sign in')}</span>

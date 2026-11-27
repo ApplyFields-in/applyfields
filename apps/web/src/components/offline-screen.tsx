@@ -26,6 +26,15 @@ function warm(): Promise<[Player, unknown]> {
   return preload;
 }
 
+/** The frames have a vignette; fade their edges into the page so no rectangle shows. */
+const EDGES = 'linear-gradient(to right, transparent, #000 10%, #000 90%, transparent), linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent)';
+const FADE_EDGES = {
+  maskImage: EDGES,
+  maskComposite: 'intersect',
+  WebkitMaskImage: EDGES,
+  WebkitMaskComposite: 'source-in',
+} as const;
+
 export function OfflineScreen() {
   const [offline, setOffline] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -57,7 +66,6 @@ export function OfflineScreen() {
     if (!show || !preload || !box.current) return;
     let anim: ReturnType<Player['loadAnimation']> | null = null;
     let gone = false;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     preload
       .then(([lottie, data]) => {
         if (gone || !box.current) return;
@@ -65,8 +73,9 @@ export function OfflineScreen() {
           container: box.current,
           renderer: 'svg',
           loop: true,
-          autoplay: !reduce,
-          animationData: data,
+          // Plays even with reduced motion on (Windows "Animation effects" off): a calm loop is the point here.
+          autoplay: true,
+          animationData: structuredClone(data), // lottie mutates its input; keep the cached copy clean
         });
         setAnimated(true);
       })
@@ -87,7 +96,7 @@ export function OfflineScreen() {
       aria-labelledby="offline-title"
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-y-auto bg-[#f1f1f1] px-4 py-8 text-center"
     >
-      <div className="relative aspect-video w-full max-w-2xl" aria-hidden="true">
+      <div className="relative aspect-video w-full max-w-2xl" style={FADE_EDGES} aria-hidden="true">
         {/* lottie owns this node's children, so React keeps the fallback outside it */}
         <div ref={box} className="absolute inset-0" />
         {!animated && <WifiOff className="absolute inset-0 m-auto size-16 text-teal/40" />}

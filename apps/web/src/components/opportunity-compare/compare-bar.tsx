@@ -17,7 +17,7 @@ export function CompareFloatingBar() {
       : `/compare?a=${encodeURIComponent(items[0].slug)}`;
 
   return (
-    <aside aria-label="Opportunity comparison tray" className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-50 w-auto sm:min-w-[620px] max-w-3xl animate-in slide-in-from-bottom-5 duration-300">
+    <aside aria-label="Opportunity comparison tray" className="fixed bottom-20 sm:bottom-4 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-50 w-auto sm:min-w-[620px] max-w-3xl animate-in slide-in-from-bottom-5 duration-300">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-tea/40 bg-teal/95 p-3 sm:px-4 sm:py-3 text-cream shadow-2xl backdrop-blur-md">
         {/* Left: Indicator & slots */}
         <div className="flex items-center gap-2.5 w-full sm:w-auto">

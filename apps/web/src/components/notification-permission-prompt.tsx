@@ -98,7 +98,7 @@ export function NotificationPermissionPrompt() {
   return (
     <aside
       aria-label="Notification Permission"
-      className="fixed bottom-5 right-5 z-50 max-w-[380px] w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-bottom-3 duration-200"
+      className="fixed bottom-20 right-5 sm:bottom-5 z-50 max-w-[380px] w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-bottom-3 duration-200"
     >
       <div className="relative rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xl transition-all">
         {/* Close Button */}
