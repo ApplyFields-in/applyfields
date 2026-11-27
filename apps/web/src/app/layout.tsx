@@ -10,6 +10,7 @@ import { NotificationPermissionPrompt } from '@/components/notification-permissi
 import { FloatingAiAssistant } from '@/components/chat/floating-ai-assistant';
 import { ScrollToTop } from '@applyfields/ui';
 import { PageViewTracker } from '@/components/page-view-tracker';
+import { OfflineScreen } from '@/components/offline-screen';
 import { SITE_URL } from '@/lib/urls';
 
 export const metadata: Metadata = {
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <PipApplyCompanion />
             <FloatingAiAssistant />
             <ScrollToTop />
+            <OfflineScreen />
           </PipApplyProvider>
         </LanguageProvider>
       </body>

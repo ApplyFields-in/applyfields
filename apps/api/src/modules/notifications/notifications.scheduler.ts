@@ -1,7 +1,14 @@
-import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  type OnApplicationBootstrap,
+  type OnApplicationShutdown,
+  type OnModuleDestroy,
+} from '@nestjs/common';
 import { NotificationsService } from './notifications.service.js';
 import { recordJobRun } from '../../common/job-runs.js';
 import { schedulerOff } from '../../common/schedulers.js';
+import { createPushWorker } from './push-queue.js';
 
 const TICK_MS = 15 * 60_000;
 const IST_OFFSET_MS = 5.5 * 3_600_000;
@@ -17,14 +24,19 @@ export const isDaytimeIst = (now = new Date()) => {
  * Same timer pattern as ExpiryService; off when NODE_ENV=test, SCHEDULERS=off or NOTIFICATIONS=off.
  */
 @Injectable()
-export class NotificationsScheduler implements OnApplicationBootstrap, OnApplicationShutdown {
+export class NotificationsScheduler implements OnApplicationBootstrap, OnModuleDestroy, OnApplicationShutdown {
   private readonly logger = new Logger(NotificationsScheduler.name);
   private timers: NodeJS.Timeout[] = [];
   private lastDigestCycle: string | null = null;
+  private pushWorker: ReturnType<typeof createPushWorker> = null;
 
   constructor(private readonly notifications: NotificationsService) {}
 
   onApplicationBootstrap(): void {
+    // Push consumer has its own switch (PUSH_WORKER=off), so a push-only worker can run with SCHEDULERS=off.
+    this.pushWorker = createPushWorker((rows) => this.notifications.dispatchPush(rows));
+    this.pushWorker?.on('failed', (job, err) => this.logger.warn(`Push job ${job?.id} failed: ${err.message}`));
+    if (this.pushWorker) this.logger.log('Push queue worker started');
     if (schedulerOff('NOTIFICATIONS')) return;
     this.timers.push(
       setTimeout(() => void this.run(), 45_000).unref(),
@@ -32,6 +44,11 @@ export class NotificationsScheduler implements OnApplicationBootstrap, OnApplica
       // Scheduled broadcasts (festival greetings) go out within a minute of their time.
       setInterval(() => void this.runBroadcasts(), 60_000).unref(),
     );
+  }
+
+  /** Finishes the push job in hand before Prisma disconnects; waiting jobs stay in Redis. */
+  async onModuleDestroy(): Promise<void> {
+    await this.pushWorker?.close();
   }
 
   onApplicationShutdown(): Promise<void> {

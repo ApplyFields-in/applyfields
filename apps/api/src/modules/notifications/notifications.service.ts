@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleDestroy } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Response } from 'express';
 import type {
@@ -28,6 +28,7 @@ import { addDays, todayIst } from '../opportunities/opportunities.service.js';
 import { renderEmail, sendWithResend, senderFor, SENDERS } from './email.js';
 import { EXPO_BATCH, isExpoPushToken, sendExpoPushBatch } from './expo-push.js';
 import { getVapidKeys, sendWebPush, type PushResult } from './web-push.js';
+import { createPushQueue, PUSH_JOB_OPTS, type PushJob, type PushRow } from './push-queue.js';
 import { SseService } from './sse.service.js';
 import {
   DEFAULT_REMINDER_DAYS,
@@ -90,12 +91,13 @@ export interface NotifyItem {
   key: string | null;
 }
 
-type PushRow = { id: string; user_id: string; type: string; title: string; body: string | null; link: string | null };
-
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleDestroy {
   private readonly logger = new Logger(NotificationsService.name);
+  /** In-process fallback when REDIS_URL is unset (local dev, tests). */
   private pushQueue: Promise<void> = Promise.resolve();
+  /** Redis-backed push queue: survives restarts and can run on a separate worker. */
+  private readonly redisQueue = createPushQueue();
   private sending: Promise<void> | null = null;
   private sendAgain = false;
 
@@ -212,78 +214,92 @@ export class NotificationsService {
     const pushRows = created.filter(
       (c) => !inAppOnly.has(c.user_id) && (prefBy.get(c.user_id)?.push_enabled ?? true),
     );
-    if (pushRows.length) {
-      this.pushQueue = this.pushQueue.then(() => this.dispatchPush(pushRows));
-    }
+    if (pushRows.length) await this.queuePush(pushRows);
     return created.length;
   }
 
-  /** Waits for queued push sends (tests and graceful shutdown). */
+  /** One job per chunk (≤ NOTIFY_CHUNK users) into Redis; in-process if Redis is off or unreachable. */
+  private async queuePush(rows: PushRow[]): Promise<void> {
+    if (this.redisQueue) {
+      try {
+        await this.redisQueue.add('send', { rows } satisfies PushJob, PUSH_JOB_OPTS);
+        return;
+      } catch (err) {
+        this.logger.warn(`Push queue unreachable, sending in-process: ${(err as Error).message}`);
+      }
+    }
+    this.pushQueue = this.pushQueue.then(() =>
+      this.dispatchPush(rows).catch((err) => this.logger.warn(`Push dispatch error: ${(err as Error).message}`)),
+    );
+  }
+
+  /** Waits for in-process push sends (tests and graceful shutdown). */
   flushPush(): Promise<void> {
     return this.pushQueue;
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.redisQueue?.close();
   }
 
   /**
    * Browser Web Push (VAPID) and phone Expo push for freshly created notifications.
    * Phones go 100 per Expo request; browsers go PUSH_CONCURRENCY at a time.
    * Expired subscriptions are removed and delivery rows are written in one insert.
+   * Throws only if the subscription lookup fails (nothing sent yet), so a queue retry is safe.
    */
-  private async dispatchPush(rows: PushRow[]): Promise<void> {
-    try {
-      const subs = await this.prisma.push_subscriptions.findMany({
-        where: { user_id: { in: [...new Set(rows.map((r) => r.user_id))] } },
-      });
-      if (subs.length === 0) return;
+  async dispatchPush(rows: PushRow[]): Promise<void> {
+    const subs = await this.prisma.push_subscriptions.findMany({
+      where: { user_id: { in: [...new Set(rows.map((r) => r.user_id))] } },
+    });
+    if (subs.length === 0) return;
 
-      const rowsByUser = new Map<string, PushRow[]>();
-      for (const r of rows) rowsByUser.set(r.user_id, [...(rowsByUser.get(r.user_id) ?? []), r]);
+    const rowsByUser = new Map<string, PushRow[]>();
+    for (const r of rows) rowsByUser.set(r.user_id, [...(rowsByUser.get(r.user_id) ?? []), r]);
 
-      type Job = { sub: (typeof subs)[number]; row: PushRow; phone: boolean };
-      const jobs: Job[] = subs.flatMap((sub) =>
-        (rowsByUser.get(sub.user_id) ?? []).map((row) => ({ sub, row, phone: isExpoPushToken(sub.endpoint) })),
-      );
-      const payload = (r: PushRow) => ({ title: r.title, body: r.body, link: r.link, tag: r.type });
-      const results: { job: Job; res: PushResult }[] = [];
+    type Job = { sub: (typeof subs)[number]; row: PushRow; phone: boolean };
+    const jobs: Job[] = subs.flatMap((sub) =>
+      (rowsByUser.get(sub.user_id) ?? []).map((row) => ({ sub, row, phone: isExpoPushToken(sub.endpoint) })),
+    );
+    const payload = (r: PushRow) => ({ title: r.title, body: r.body, link: r.link, tag: r.type });
+    const results: { job: Job; res: PushResult }[] = [];
 
-      // Phones: Expo takes up to 100 messages per request.
-      const phone = jobs.filter((j) => j.phone);
-      for (let i = 0; i < phone.length; i += EXPO_BATCH) {
-        const batch = phone.slice(i, i + EXPO_BATCH);
-        const res = await sendExpoPushBatch(batch.map((j) => ({ token: j.sub.endpoint, payload: payload(j.row) })));
-        batch.forEach((job, k) => results.push({ job, res: res[k] }));
-      }
-
-      // Browsers: one request per subscription, a bounded number in flight.
-      const web = jobs.filter((j) => !j.phone);
-      for (let i = 0; i < web.length; i += PUSH_CONCURRENCY) {
-        const batch = web.slice(i, i + PUSH_CONCURRENCY);
-        const res = await Promise.all(
-          batch.map((j) =>
-            sendWebPush({ endpoint: j.sub.endpoint, p256dh: j.sub.p256dh, auth: j.sub.auth }, payload(j.row)),
-          ),
-        );
-        batch.forEach((job, k) => results.push({ job, res: res[k] }));
-      }
-
-      const expired = [...new Set(results.filter((r) => r.res.expired).map((r) => r.job.sub.id))];
-      if (expired.length) {
-        await this.prisma.push_subscriptions.deleteMany({ where: { id: { in: expired } } }).catch(() => null);
-      }
-      await this.prisma.notification_deliveries
-        .createMany({
-          data: results.map(({ job, res }) => ({
-            notification_id: job.row.id,
-            channel: 'push' as const,
-            status: res.success ? ('sent' as const) : ('failed' as const),
-            provider: job.phone ? 'expo-push' : 'web-push',
-            sent_at: res.success ? new Date() : null,
-            last_error: res.error ?? null,
-          })),
-        })
-        .catch(() => null);
-    } catch (err) {
-      this.logger.warn(`Push dispatch error: ${(err as Error).message}`);
+    // Phones: Expo takes up to 100 messages per request.
+    const phone = jobs.filter((j) => j.phone);
+    for (let i = 0; i < phone.length; i += EXPO_BATCH) {
+      const batch = phone.slice(i, i + EXPO_BATCH);
+      const res = await sendExpoPushBatch(batch.map((j) => ({ token: j.sub.endpoint, payload: payload(j.row) })));
+      batch.forEach((job, k) => results.push({ job, res: res[k] }));
     }
+
+    // Browsers: one request per subscription, a bounded number in flight.
+    const web = jobs.filter((j) => !j.phone);
+    for (let i = 0; i < web.length; i += PUSH_CONCURRENCY) {
+      const batch = web.slice(i, i + PUSH_CONCURRENCY);
+      const res = await Promise.all(
+        batch.map((j) =>
+          sendWebPush({ endpoint: j.sub.endpoint, p256dh: j.sub.p256dh, auth: j.sub.auth }, payload(j.row)),
+        ),
+      );
+      batch.forEach((job, k) => results.push({ job, res: res[k] }));
+    }
+
+    const expired = [...new Set(results.filter((r) => r.res.expired).map((r) => r.job.sub.id))];
+    if (expired.length) {
+      await this.prisma.push_subscriptions.deleteMany({ where: { id: { in: expired } } }).catch(() => null);
+    }
+    await this.prisma.notification_deliveries
+      .createMany({
+        data: results.map(({ job, res }) => ({
+          notification_id: job.row.id,
+          channel: 'push' as const,
+          status: res.success ? ('sent' as const) : ('failed' as const),
+          provider: job.phone ? 'expo-push' : 'web-push',
+          sent_at: res.success ? new Date() : null,
+          last_error: res.error ?? null,
+        })),
+      })
+      .catch(() => null);
   }
 
   /* ------------------------------------------------------------------ events */

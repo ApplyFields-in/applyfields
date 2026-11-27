@@ -73,4 +73,23 @@ describe('notifyMany batching', () => {
     expect(sse.sendToUser).toHaveBeenCalledTimes(3);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('with Redis on, adds one push job per chunk and sends nothing in-process', async () => {
+    const { svc, items, fetchMock } = setup(2500);
+    const add = vi.fn(async () => ({}));
+    (svc as any).redisQueue = { add };
+    await svc.notifyMany(items);
+    await svc.flushPush();
+    expect(add).toHaveBeenCalledTimes(Math.ceil(2500 / NOTIFY_CHUNK));
+    expect(add.mock.calls.reduce((n: number, c: any) => n + c[1].rows.length, 0)).toBe(2499); // u1 has push off
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to in-process push when Redis is unreachable', async () => {
+    const { svc, items, fetchMock } = setup(3);
+    (svc as any).redisQueue = { add: vi.fn(async () => { throw new Error('ECONNREFUSED'); }) };
+    await svc.notifyMany(items);
+    await svc.flushPush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
