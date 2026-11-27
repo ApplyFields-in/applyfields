@@ -324,7 +324,7 @@ export default function CareerProfilePage() {
           </Card>
 
           {/* Save Action */}
-          <div className="flex items-center justify-between rounded-2xl bg-teal/10 p-4 border border-teal/20">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-teal/10 p-4 border border-teal/20">
             <div>
               <p className="text-xs font-bold text-teal">Ready to update your guidance recommendations?</p>
               <p className="text-xs text-teal/70">

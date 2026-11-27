@@ -151,7 +151,7 @@ export function HorizontalOpportunityCard({
       </div>
 
       {/* Right Metrics & Actions (Matching Images 2 & 5) */}
-      <div className="flex items-center justify-between md:justify-end gap-6 sm:gap-8 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
+      <div className="flex flex-wrap md:flex-nowrap items-center justify-between md:justify-end gap-x-4 gap-y-3 sm:gap-x-8 md:shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
         {/* Official Route */}
         <div className="text-left">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('card_official_route')}</p>

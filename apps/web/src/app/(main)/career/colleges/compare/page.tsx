@@ -174,8 +174,8 @@ export default function CollegeComparePage() {
               </div>
 
               {colleges.length < 4 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[#536780] font-medium">Add college:</span>
+                <div className="flex min-w-0 max-w-full items-center gap-2">
+                  <span className="shrink-0 text-xs text-[#536780] font-medium">Add college:</span>
                   <select
                     onChange={(e) => {
                       if (e.target.value) {
@@ -183,7 +183,7 @@ export default function CollegeComparePage() {
                         e.target.value = '';
                       }
                     }}
-                    className="h-8 rounded-md border border-[#dec9a5] bg-[#ffffff] px-2.5 text-xs font-bold text-[#082046] focus:border-[#082046] focus:outline-none cursor-pointer"
+                    className="h-8 min-w-0 flex-1 sm:max-w-xs rounded-md border border-[#dec9a5] bg-[#ffffff] px-2.5 text-xs font-bold text-[#082046] focus:border-[#082046] focus:outline-none cursor-pointer"
                     defaultValue=""
                   >
                     <option value="" disabled>
