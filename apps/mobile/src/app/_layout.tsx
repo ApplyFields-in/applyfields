@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { OfflineScreen } from '@/components/offline-screen';
 import { SplashIntro } from '@/components/splash-intro';
 import { AuthProvider } from '@/lib/auth';
 import { LocaleProvider } from '@/lib/locale';
@@ -78,6 +79,7 @@ export default function RootLayout() {
                   }}
                 />
               </Stack>
+              <OfflineScreen />
               <SplashIntro />
             </ThemeProvider>
           </AuthProvider>
