@@ -787,7 +787,12 @@ export type MutableNotificationType =
   | 'result'
   | 'correction_window'
   | 'date_change'
-  | 'saved_item_changed';
+  | 'saved_item_changed'
+  // The three daily messages (9 am pick, 2 pm deadline alert, 7 pm career spotlight): not
+  // notification types, just switches stored in muted_types.
+  | 'daily_morning'
+  | 'daily_afternoon'
+  | 'daily_evening';
 
 export interface NotificationPreferences {
   email_enabled: boolean;

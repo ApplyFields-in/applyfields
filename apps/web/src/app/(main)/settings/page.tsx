@@ -22,6 +22,7 @@ import { useLanguage } from '@/lib/i18n/language-context';
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/lib/i18n/translations';
 import { showAppToast } from '@/components/toast-notification-provider';
 import { useWebPush } from '@/lib/push/use-web-push';
+import { NotificationSettings } from '@/components/notification-center';
 import { apiGet, apiPut } from '@/lib/api';
 import type { NotificationPreferences, MeResponse } from '@applyfields/types';
 
@@ -52,6 +53,8 @@ export default function SettingsPage() {
 
   // --- Notification Preferences (the API is the source of truth; nothing kept in localStorage) ---
   const [emailEnabled, setEmailEnabled] = useState(true);
+  /** null = signed out (or not loaded): the per-type switches need an account */
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
   const [pushEnabled, setPushEnabled] = useState(false);
 
   // --- Display Preferences ---
@@ -89,6 +92,7 @@ export default function SettingsPage() {
     apiGet<NotificationPreferences>('/notifications/preferences')
       .then((res) => {
         if (res) {
+          setNotifPrefs(res);
           setEmailEnabled(res.email_enabled);
           if (res.push_enabled && push.isSubscribed) {
             setPushEnabled(true);
@@ -488,19 +492,20 @@ export default function SettingsPage() {
                       ? 'Notifications are blocked in your browser settings. Click the tune/padlock icon in your URL bar to allow.'
                       : t('settings_notif_push_desc')}
                 </p>
-                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
-                  <span className="text-[#526987]">Granular rules & countdown intervals:</span>
-                  <Link
-                    href="/notifications#preferences"
-                    className="font-bold text-[#0e7bf4] hover:underline inline-flex items-center gap-1"
-                  >
-                    Notification Rules & Reminders →
-                  </Link>
-                </div>
               </div>
             </div>
 
           </div>
+
+          {/* Which alerts and reminders to get, and how many days before a last date */}
+          {notifPrefs ? (
+            <NotificationSettings initial={notifPrefs} showPush={false} />
+          ) : (
+            <p className="rounded-2xl bg-white p-5 text-sm text-[#526987] shadow-clay-card">
+              <Link href="/login" className="font-bold text-[#0e7bf4] hover:underline">Sign in</Link> to choose which
+              alerts and reminders you get.
+            </p>
+          )}
         </div>
       )}
 

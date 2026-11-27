@@ -34,6 +34,9 @@ const MUTABLE: { key: MutableNotificationType; label: string }[] = [
   { key: 'correction_window', label: 'Correction windows' },
   { key: 'date_change', label: 'Date changes and extensions' },
   { key: 'saved_item_changed', label: 'Other updates to saved items' },
+  { key: 'daily_morning', label: 'Morning pick (9 am)' },
+  { key: 'daily_afternoon', label: 'Afternoon deadline alert (2 pm)' },
+  { key: 'daily_evening', label: 'Evening career spotlight (7 pm)' },
 ];
 
 const DAY_CHOICES = [30, 14, 7, 3, 1, 0];
@@ -124,21 +127,17 @@ export function NotificationInbox({ initial }: { initial: NotificationList }) {
   );
 }
 
-export function NotificationSettings({ initial }: { initial: NotificationPreferences }) {
+/** showPush=false when the page already has its own push switch (Settings). */
+export function NotificationSettings({ initial, showPush = true }: { initial: NotificationPreferences; showPush?: boolean }) {
   const { t } = useLanguage();
   const [prefs, setPrefs] = useState(initial);
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const push = useWebPush();
 
-  async function save(next: NotificationPreferences) {
-    setPrefs(next);
+  // Sends only what changed, so a switch elsewhere on the page (Settings' push toggle) isn't overwritten.
+  async function save(body: NotificationPreferencesInput) {
+    setPrefs({ ...prefs, ...body });
     setState('saving');
-    const body: NotificationPreferencesInput = {
-      email_enabled: next.email_enabled,
-      push_enabled: next.push_enabled,
-      muted_types: next.muted_types,
-      reminder_days_before: next.reminder_days_before,
-    };
     const res = await apiPut<NotificationPreferences>('/notifications/preferences', body);
     if (res.data) {
       setPrefs(res.data);
@@ -148,14 +147,12 @@ export function NotificationSettings({ initial }: { initial: NotificationPrefere
 
   const toggleType = (t: MutableNotificationType) =>
     save({
-      ...prefs,
       muted_types: prefs.muted_types.includes(t) ? prefs.muted_types.filter((m) => m !== t) : [...prefs.muted_types, t],
     });
   const toggleDay = (d: number) => {
     const has = prefs.reminder_days_before.includes(d);
     if (!has && prefs.reminder_days_before.length >= 5) return;
     save({
-      ...prefs,
       reminder_days_before: has ? prefs.reminder_days_before.filter((x) => x !== d) : [...prefs.reminder_days_before, d],
     });
   };
@@ -171,6 +168,7 @@ export function NotificationSettings({ initial }: { initial: NotificationPrefere
         }
       />
 
+      {showPush && (
       <div className="space-y-3">
         {/* Web Push Notification Toggle */}
         <label className="flex items-start gap-3 rounded-2xl bg-canvas p-3 cursor-pointer">
@@ -182,10 +180,10 @@ export function NotificationSettings({ initial }: { initial: NotificationPrefere
             onChange={async (e) => {
               if (e.target.checked) {
                 const res = await push.subscribe();
-                if (res.ok) save({ ...prefs, push_enabled: true });
+                if (res.ok) save({ push_enabled: true });
               } else {
                 await push.unsubscribe();
-                save({ ...prefs, push_enabled: false });
+                save({ push_enabled: false });
               }
             }}
           />
@@ -208,6 +206,7 @@ export function NotificationSettings({ initial }: { initial: NotificationPrefere
           </span>
         </label>
       </div>
+      )}
 
       <fieldset className="mt-4">
         <legend className="mb-2 text-sm font-semibold">Notify me about</legend>

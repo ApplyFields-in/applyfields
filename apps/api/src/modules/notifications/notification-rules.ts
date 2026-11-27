@@ -16,6 +16,9 @@ export const MUTABLE_TYPES: MutableNotificationType[] = [
   'correction_window',
   'date_change',
   'saved_item_changed',
+  'daily_morning',
+  'daily_afternoon',
+  'daily_evening',
 ];
 
 /**
@@ -54,7 +57,7 @@ const UPDATE_TYPE: Record<UpdateKind, NotificationType> = {
 export const notificationTypeForUpdate = (kind: UpdateKind): NotificationType => UPDATE_TYPE[kind];
 
 /** Muted types are dropped entirely (no in-app, no email). Account and system messages can't be muted. */
-export function wantsType(mutedTypes: string[], type: NotificationType): boolean {
+export function wantsType(mutedTypes: string[], type: NotificationType | MutableNotificationType): boolean {
   return !(MUTABLE_TYPES as string[]).includes(type) || !mutedTypes.includes(type);
 }
 

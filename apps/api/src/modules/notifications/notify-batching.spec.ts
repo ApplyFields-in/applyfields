@@ -92,4 +92,16 @@ describe('notifyMany batching', () => {
     await svc.flushPush();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('skips a daily message for users who switched it off, by its switch, not its type', async () => {
+    const { svc, prisma, items } = setup(3);
+    prisma.notification_preferences.findMany = vi.fn(async () => [
+      { user_id: 'u0', push_enabled: true, muted_types: ['daily_morning'] },
+      { user_id: 'u2', push_enabled: true, muted_types: ['system'] }, // 'system' can't be muted
+    ]);
+    const morning = items.map((i) => ({ ...i, n: { ...i.n, mute_key: 'daily_morning' as const } }));
+    expect(await svc.notifyMany(morning)).toBe(2);
+    expect(prisma.notifications.createManyAndReturn.mock.calls[0][0].data.map((d: any) => d.user_id)).toEqual(['u1', 'u2']);
+    await svc.flushPush();
+  });
 });

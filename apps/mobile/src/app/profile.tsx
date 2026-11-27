@@ -30,6 +30,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NotificationRules } from '@/components/notification-rules';
 import { Badge, Button, Card, Loading, Muted, SectionTitle } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -386,10 +387,10 @@ export default function Profile() {
             thumbColor={C.white}
           />
         </View>
-        {prefs?.reminder_days_before.length ? (
-          <Muted style={{ marginTop: S.sm }}>
-            Reminders {prefs.reminder_days_before.join(', ')} days before.
-          </Muted>
+        {prefs ? (
+          <View style={{ marginTop: S.lg }}>
+            <NotificationRules initial={prefs} />
+          </View>
         ) : null}
       </Card>
 

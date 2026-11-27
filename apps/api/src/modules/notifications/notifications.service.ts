@@ -82,6 +82,8 @@ export interface NewNotification {
   item_id?: string | null;
   /** false = in-app only (admin "in-app only" broadcasts). Default: push too. */
   push?: boolean;
+  /** Muted under this switch instead of its type (the daily messages). */
+  mute_key?: MutableNotificationType;
 }
 
 /** One notification for one user (each user may get a different payload). */
@@ -178,7 +180,7 @@ export class NotificationsService implements OnModuleDestroy {
     const active = new Set(users.map((u) => u.id));
     const prefBy = new Map(prefs.map((p) => [p.user_id, p]));
     const targets = items.filter(
-      (i) => active.has(i.userId) && wantsType(prefBy.get(i.userId)?.muted_types ?? [], i.n.type),
+      (i) => active.has(i.userId) && wantsType(prefBy.get(i.userId)?.muted_types ?? [], i.n.mute_key ?? i.n.type),
     );
     if (targets.length === 0) return 0;
 
@@ -984,6 +986,7 @@ export class NotificationsService implements OnModuleDestroy {
           key,
           n: {
             type: 'system',
+            mute_key: 'daily_morning',
             title: `Hi ${firstName}, looking good today! ✨`,
             body: topOpp
               ? `Have you seen this career option: ${topOpp.title}? ${topOpp.vacancies_total ? `${topOpp.vacancies_total} posts announced.` : ''} Check eligibility & dates.`
@@ -1000,6 +1003,7 @@ export class NotificationsService implements OnModuleDestroy {
           key,
           n: {
             type: 'closing_reminder',
+            mute_key: 'daily_afternoon',
             title: `Deadline Alert, ${firstName} ⏳`,
             body: `${closingOpp!.title} closes on ${isoDate(closingOpp!.application_end)}! Don't miss your chance to apply.`,
             link: opportunityPath(closingOpp!.type, closingOpp!.slug),
@@ -1014,6 +1018,7 @@ export class NotificationsService implements OnModuleDestroy {
         key,
         n: {
           type: 'system',
+          mute_key: 'daily_evening',
           title: `Evening Career Spotlight for ${firstName} 🧭`,
           body: careerSpotlight
             ? `Your first move starts here! Explore verified career pathways and salary roadmaps for ${careerSpotlight.title}.`
