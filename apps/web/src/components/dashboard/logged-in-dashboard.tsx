@@ -121,7 +121,7 @@ export function LoggedInDashboard({ initialHomeData, userName = '' }: LoggedInDa
       )}
 
       <section className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-        <div className="rounded-2xl border border-[#F5E6CC] bg-[#FFF9EE] p-5">
+        <div className="min-w-0 rounded-2xl border border-[#F5E6CC] bg-[#FFF9EE] p-5">
           <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#7C4A03]">
             <Info className="size-4" aria-hidden="true" /> {t('dash_attention_title')}
           </div>
@@ -147,7 +147,7 @@ export function LoggedInDashboard({ initialHomeData, userName = '' }: LoggedInDa
           )}
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5">
           <h2 className="text-sm font-bold text-[#082046]">{t('dash_profile_readiness')}</h2>
           {liveData?.personal ? (
             <div className="mt-4 flex items-start gap-3 text-sm text-slate-700">
