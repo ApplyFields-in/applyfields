@@ -32,6 +32,7 @@ import {
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import type {
   ApplicationTrackerItem,
+  ApplicationTrackerListResponse,
   ApplicationTrackerStatus,
   BookingDetail,
   BookingListResponse,
@@ -115,12 +116,10 @@ export default function ApplicationsPage() {
     setLoadingApps(true);
     setApiError(null);
     try {
-      const res = await apiGet<ApplicationTrackerItem[]>('/applications');
-      if (res && Array.isArray(res)) {
-        setApplications(res);
-      } else {
-        setApplications([]);
-      }
+      // The API returns { total, items }; reading it as a bare array showed every tracker as empty.
+      const res = await apiGet<ApplicationTrackerListResponse>('/applications', undefined, { cache: 'no-store' });
+      setApplications(res?.items ?? []);
+      if (!res) setApiError('Unable to load applications from the server. Please check your connection.');
     } catch {
       setApiError('Unable to load applications from the server. Please check your connection.');
       setApplications([]);
