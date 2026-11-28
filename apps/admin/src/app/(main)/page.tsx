@@ -217,7 +217,7 @@ export default async function DashboardPage() {
       </section>
 
       {/* -------------------- Main 2-Column Split -------------------- */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left Column (2 Cols): Cross-Portal Queue & Recent Opportunities */}
         <div className="space-y-6 lg:col-span-2">
           {/* Section: Cross-Portal Verification Queue */}

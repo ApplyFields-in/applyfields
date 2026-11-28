@@ -59,7 +59,7 @@ export const createBookingSchema = z.object({
 });
 
 export const updateBookingStatusSchema = z.object({
-  status: z.enum(['new', 'accepted', 'rejected', 'in_progress', 'completed', 'cancelled']),
+  status: z.enum(['new', 'accepted', 'rejected', 'in_progress', 'needs_fix', 'completed', 'cancelled']),
   start_code: z.string().trim().regex(/^\d{4}$/, 'The start code is 4 digits').optional(),
   partner_note: z.string().trim().max(500).optional(),
   cancelled_reason: z.string().trim().max(500).optional(),
@@ -688,14 +688,22 @@ export class BookingsService {
       throw new NotFoundException(`Booking "${bookingId}" not found or unauthorized`);
     }
 
+    // Sent back to fix: only a started job, and it returns to in_progress (no start code) when fixed.
+    if (input.status === 'needs_fix' && existing.status !== 'in_progress' && existing.status !== 'needs_fix') {
+      throw new BadRequestException('Only a job in progress can be sent back to fix.');
+    }
+    const reopening = existing.status === 'needs_fix' && input.status === 'in_progress';
+
     // Citizen bookings (walk-ins have no citizen account) start only with the citizen's code,
     // and can only be completed after they started.
-    if (existing.user_id && existing.status !== input.status) {
+    if (existing.user_id && existing.status !== input.status && !reopening) {
       if (input.status === 'in_progress') {
         if (!NOT_STARTED.has(existing.status)) {
           throw new BadRequestException(`This booking is already ${existing.status}.`);
         }
         await this.checkStartCode(existing.id, existing.status as request_status, input.start_code, userId);
+      } else if (input.status === 'completed' && existing.status === 'needs_fix') {
+        throw new BadRequestException('This job was sent back to fix. Reopen it once the documents are fixed.');
       } else if (input.status === 'completed' && existing.status !== 'in_progress') {
         throw new BadRequestException(
           'Start the booking first: ask the citizen for the 4-digit start code shown in their app.',

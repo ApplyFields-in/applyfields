@@ -27,7 +27,7 @@ import {
 export const PLUS_PLAN_CODE = 'user_plus_monthly';
 /** Razorpay needs a fixed number of cycles; 60 months ≈ "until cancelled". */
 const PLUS_TOTAL_COUNT = 60;
-const PAYABLE_BOOKING = ['new', 'accepted', 'in_progress'] as const;
+const PAYABLE_BOOKING = ['new', 'accepted', 'in_progress', 'needs_fix'] as const;
 
 export const verifySchema = z.union([
   z.object({

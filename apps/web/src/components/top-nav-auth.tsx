@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { buttonClass } from '@applyfields/ui';
 import { LogIn, LogOut, UserPlus } from 'lucide-react';
 import { PixelAvatar } from '@/components/pixel-avatars';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGetWithStatus, apiPost } from '@/lib/api';
 import type { MeResponse, UserSummary } from '@applyfields/types';
 import { flashAppToast } from '@/components/toast-notification-provider';
 
@@ -42,7 +42,7 @@ export function TopNavAuth() {
     }
 
     // Verify and sync profile avatar with backend using httpOnly cookie
-    const me = await apiGet<MeResponse>('/me');
+    const { data: me, status: meStatus } = await apiGetWithStatus<MeResponse>('/me');
     if (me && me.user) {
       setUser(me.user);
       if (me.profile?.avatar_url) {
@@ -53,7 +53,8 @@ export function TopNavAuth() {
       } else if (me.user.email) {
         setDisplayName(me.user.email.split('@')[0]);
       }
-    } else {
+    } else if (meStatus === 401) {
+      // Only a real 401 signs the navbar out: a slow/cold API (timeout, 5xx) must not drop a valid session
       setUser(null);
       setAvatarId('pixel-scholar');
       setDisplayName('');

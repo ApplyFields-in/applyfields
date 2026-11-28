@@ -72,7 +72,7 @@ export default async function AssistanceAdminPage({
             />
             <StatCard
               label="In Progress"
-              count={data.items.filter((b) => b.status === 'accepted' || b.status === 'in_progress').length}
+              count={data.items.filter((b) => b.status === 'accepted' || b.status === 'in_progress' || b.status === 'needs_fix').length}
               active={status === 'in_progress'}
               href={buildUrl({ status: 'in_progress' })}
               tone="teal"
@@ -87,8 +87,8 @@ export default async function AssistanceAdminPage({
           </div>
 
           {/* Filter status row */}
-          <div className="flex items-center gap-2">
-            {['', 'new', 'accepted', 'in_progress', 'completed', 'cancelled'].map((st) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {['', 'new', 'accepted', 'in_progress', 'needs_fix', 'completed', 'cancelled'].map((st) => (
               <Link
                 key={st}
                 href={buildUrl({ status: st })}

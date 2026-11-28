@@ -56,26 +56,31 @@ export class ReportsService {
 
   async submitReport(
     reporterId: string | null,
-    input: ReportContentInput & { item_slug?: string },
+    input: ReportContentInput & { item_slug?: string; reporter_email?: string },
     ipAddress?: string,
-  ): Promise<{ success: boolean; id: string; message: string }> {
+  ): Promise<{ ok: true; success: boolean; id: string; message: string }> {
     const rateLimitKey = reporterId || ipAddress || 'anonymous_ip';
     this.checkRateLimit(rateLimitKey);
 
     let resolvedItemId = input.item_id;
+    const isUuid = (v?: string) => !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+    // The web modal sends the listing's slug as item_id: resolve it, or admin gets a random id it can't trace.
+    const slug = input.item_slug || (isUuid(input.item_id) ? undefined : input.item_id);
+    const details = [input.details?.trim(), input.reporter_email ? `Contact: ${input.reporter_email}` : '', slug && !input.item_slug ? `Listing: ${slug}` : '']
+      .filter(Boolean)
+      .join('\n\n') || null;
 
-    // Resolve item_id from slug if provided
-    if (input.item_slug && this.isPrismaUsable()) {
+    if (slug && this.isPrismaUsable()) {
       try {
         if (input.item_type === 'opportunity' || input.item_type === 'exam') {
           const opp = await this.prisma.opportunities.findFirst({
-            where: { slug: input.item_slug },
+            where: { slug },
             select: { id: true },
           });
           if (opp) resolvedItemId = opp.id;
         } else if (input.item_type === 'service') {
           const srv = await this.prisma.gov_services.findFirst({
-            where: { slug: input.item_slug },
+            where: { slug },
             select: { id: true },
           });
           if (srv) resolvedItemId = srv.id;
@@ -86,7 +91,7 @@ export class ReportsService {
     }
 
     // Ensure we have a valid UUID for DB foreign keys
-    if (!resolvedItemId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(resolvedItemId)) {
+    if (!isUuid(resolvedItemId)) {
       resolvedItemId = randomUUID();
     }
 
@@ -102,7 +107,7 @@ export class ReportsService {
             item_type: input.item_type as item_type,
             item_id: resolvedItemId,
             reason: input.reason as report_reason,
-            details: input.details ? input.details.trim() : null,
+            details,
             status: 'open',
           },
         });
@@ -117,14 +122,15 @@ export class ReportsService {
             details: {
               report_id: created.id,
               reason: input.reason,
-              details: input.details,
+              details,
             },
             ip_address: ipAddress || null,
           },
         });
 
         return {
-          success: true,
+          ok: true,
+      success: true,
           id: created.id,
           message: 'Thank you. Your report has been submitted to our moderation queue for verification.',
         };
@@ -141,7 +147,7 @@ export class ReportsService {
       item_type: input.item_type,
       item_id: resolvedItemId,
       reason: input.reason,
-      details: input.details || null,
+      details,
       status: 'pending',
       assigned_to: null,
       resolution_note: null,
@@ -152,6 +158,7 @@ export class ReportsService {
     this.inMemoryReports.set(reportId, memReport);
 
     return {
+      ok: true,
       success: true,
       id: reportId,
       message: 'Thank you. Your report has been submitted to our moderation queue for verification.',
@@ -342,46 +349,141 @@ export class ReportsService {
 
   async submitSupportTicket(
     input: {
-      name: string;
+      name?: string;
       email: string;
       subject: string;
       category?: string;
       message: string;
     },
     ip?: string,
-  ): Promise<{ success: boolean; ticket_id: string; message: string }> {
+    userId?: string | null,
+  ): Promise<{ ok: true; success: boolean; ticket_id: string; message: string }> {
     const rateLimitKey = `support_${input.email.toLowerCase()}_${ip || ''}`;
     this.checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000);
 
-    const ticketId = `AF-SUP-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
-
+    let id: string = randomUUID();
     if (this.isPrismaUsable()) {
-      try {
-        await this.prisma.audit_logs.create({
-          data: {
-            action: 'support_ticket_created',
-            target_type: 'support_ticket',
-            target_id: null,
-            details: {
-              ticket_id: ticketId,
-              name: input.name,
-              email: input.email,
-              category: input.category || 'other',
-              subject: input.subject,
-              message: input.message,
-            },
-            ip_address: ip || null,
-          },
-        });
-      } catch (err) {
-        this.logger.warn(`Failed to log support ticket: ${(err as Error).message}`);
-      }
+      // Real row (not just an audit line) so staff see it on the admin Support inbox. A DB failure is a 500, never a fake "received".
+      const row = await this.prisma.support_tickets.create({
+        data: {
+          id,
+          user_id: userId || null,
+          contact_email: input.email,
+          category: input.category || 'other',
+          subject: input.subject,
+          message: input.message,
+          internal_notes: [{ name: input.name || null, ip: ip || null, at: new Date().toISOString() }],
+        },
+      });
+      id = row.id;
     }
 
     return {
+      ok: true,
       success: true,
-      ticket_id: ticketId,
+      ticket_id: supportRef(id),
       message: 'Your inquiry has been received. Our support team typically responds within 24 business hours.',
     };
   }
+
+  /** Admin Support inbox: Help-page messages only (disputes share the table under their own category). */
+  async listSupportTickets(status?: string): Promise<{ total: number; items: AdminSupportTicket[] }> {
+    const where = {
+      category: { in: [...SUPPORT_CATEGORIES] },
+      ...(status && CASE_STATUSES.includes(status as case_status) ? { status: status as case_status } : {}),
+    };
+    const rows = await this.prisma.support_tickets.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      take: 200,
+      include: {
+        users_support_tickets_user_idTousers: {
+          select: { phone: true, user_profiles: { select: { full_name: true } } },
+        },
+      },
+    });
+    return { total: rows.length, items: rows.map((r) => toSupportTicket(r)) };
+  }
+
+  async updateSupportTicket(
+    staffId: string | null,
+    id: string,
+    input: { status: 'in_review' | 'resolved' | 'closed'; note?: string },
+  ): Promise<AdminSupportTicket> {
+    const ticket = await this.prisma.support_tickets.findFirst({
+      where: { id, category: { in: [...SUPPORT_CATEGORIES] } },
+    });
+    if (!ticket) throw new NotFoundException('Support message not found');
+    const notes = Array.isArray(ticket.internal_notes) ? ticket.internal_notes : [];
+    const done = input.status !== 'in_review';
+    const updated = await this.prisma.support_tickets.update({
+      where: { id },
+      data: {
+        status: input.status,
+        assigned_to: staffId,
+        resolved_at: done ? new Date() : null,
+        updated_at: new Date(),
+        internal_notes: [...notes, { status: input.status, note: input.note || null, by: staffId, at: new Date().toISOString() }],
+      },
+      include: {
+        users_support_tickets_user_idTousers: {
+          select: { phone: true, user_profiles: { select: { full_name: true } } },
+        },
+      },
+    });
+    return toSupportTicket(updated);
+  }
+}
+
+export const SUPPORT_CATEGORIES = ['account', 'application', 'eligibility', 'documents', 'bug', 'other'] as const;
+const CASE_STATUSES: case_status[] = ['open', 'in_review', 'resolved', 'rejected', 'closed'];
+const supportRef = (id: string) => `AF-SUP-${id.slice(0, 8).toUpperCase()}`;
+
+export interface AdminSupportTicket {
+  id: string;
+  ref: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  user_id: string | null;
+  category: string | null;
+  subject: string;
+  message: string;
+  status: case_status;
+  staff_note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+type SupportNote = { name?: string; note?: string | null };
+function toSupportTicket(r: {
+  id: string;
+  user_id: string | null;
+  contact_email: string | null;
+  category: string | null;
+  subject: string;
+  message: string;
+  status: case_status;
+  internal_notes: unknown;
+  created_at: Date;
+  resolved_at: Date | null;
+  users_support_tickets_user_idTousers?: { phone: string | null; user_profiles: { full_name: string | null } | null } | null;
+}): AdminSupportTicket {
+  const notes = (Array.isArray(r.internal_notes) ? r.internal_notes : []) as SupportNote[];
+  const user = r.users_support_tickets_user_idTousers;
+  return {
+    id: r.id,
+    ref: supportRef(r.id),
+    name: notes[0]?.name ?? user?.user_profiles?.full_name ?? null,
+    email: r.contact_email,
+    phone: user?.phone ?? null,
+    user_id: r.user_id,
+    category: r.category,
+    subject: r.subject,
+    message: r.message,
+    status: r.status,
+    staff_note: [...notes].reverse().find((n) => n.note)?.note ?? null,
+    created_at: r.created_at.toISOString(),
+    resolved_at: r.resolved_at ? r.resolved_at.toISOString() : null,
+  };
 }

@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   Clock,
   Coins,
-  Cpu,
   ExternalLink,
   HelpCircle,
   Layers,
@@ -22,14 +21,13 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
-  Sparkles,
   ThumbsDown,
   ThumbsUp,
   Zap,
 } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'AI Chatbot Observability & Analytics — ApplyFields Admin',
+  title: 'Chatbot usage — ApplyFields Admin',
 };
 
 export default async function ChatbotAnalyticsPage() {
@@ -92,7 +90,7 @@ export default async function ChatbotAnalyticsPage() {
         </Link>
         <PageHeader
           eyebrow="Intelligence & Observability"
-          title="Fieldy AI Chatbot Telemetry"
+          title="Chatbot usage"
           description="Real-time hybrid architecture monitoring: Sub-80ms fast-path ratio, 12-hour semantic cache hits, candidate satisfaction, and unanswered query insights."
           icon={<Bot />}
           actions={
@@ -194,8 +192,8 @@ export default async function ChatbotAnalyticsPage() {
               {metrics.satisfaction_rate}%
             </div>
             <div className="mt-1 text-xs text-slate-500">
-              <span className="text-emerald-600 font-bold">{metrics.helpful_count} 👍</span> vs{' '}
-              <span className="text-red-500 font-bold">{metrics.unhelpful_count} 👎</span> ({metrics.ratings_count} rated)
+              <span className="text-emerald-600 font-bold">{metrics.helpful_count} helpful</span> vs{' '}
+              <span className="text-red-500 font-bold">{metrics.unhelpful_count} not helpful</span> ({metrics.ratings_count} rated)
             </div>
           </div>
         </Card>

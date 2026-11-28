@@ -16,7 +16,6 @@ import {
   Briefcase,
   Send,
   Printer,
-  FileText,
   FileCheck2,
   Home,
   CheckCircle2,
@@ -37,6 +36,7 @@ export function Navbar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [tempLocation, setTempLocation] = useState('');
+  const [gpsError, setGpsError] = useState('');
 
   const MAIN_WEB_URL = process.env.NEXT_PUBLIC_MAIN_WEB_URL || 'http://localhost:3000';
   const PARTNER_URL = process.env.NEXT_PUBLIC_PARTNER_PORTAL_URL || 'http://localhost:3002';
@@ -64,6 +64,7 @@ export function Navbar() {
   }
 
   function handleDetectGps() {
+    setGpsError('');
     if (typeof window !== 'undefined' && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -81,9 +82,11 @@ export function Navbar() {
           );
         },
         () => {
-          alert('GPS permission not granted. Please pick a location suggestion or enter PIN code.');
+          setGpsError('Location access was blocked. Type your PIN code or town instead.');
         },
       );
+    } else {
+      setGpsError('This browser cannot share your location. Type your PIN code or town instead.');
     }
   }
 
@@ -154,14 +157,6 @@ export function Navbar() {
               >
                 <Printer className="size-3.5 text-[#0e7bf4]" />
                 <span>Services</span>
-              </Link>
-
-              <Link
-                href="/desk"
-                className="flex min-w-[76px] flex-col items-center gap-0.5 rounded-full px-3 py-2 text-[11px] font-bold text-[#082046] hover:text-[#0e7bf4] transition-all"
-              >
-                <FileText className="size-3.5 text-[#526987]" />
-                <span>Filing Desk</span>
               </Link>
             </div>
           </div>
@@ -337,9 +332,10 @@ export function Navbar() {
                 <Search className="h-4 w-4 text-slate-400 ml-2 mr-2" />
                 <input
                   type="text"
-                  placeholder="e.g. 500016, Ameerpet, Gachibowli"
+                  placeholder="PIN code, mandal or town"
                   value={tempLocation}
                   onChange={(e) => setTempLocation(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveLocation()}
                   className="w-full bg-transparent text-sm text-[#082046] outline-none"
                 />
               </div>
@@ -349,33 +345,14 @@ export function Navbar() {
                 onClick={handleDetectGps}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#0e7bf4]/60 bg-[#e0edfb] py-2.5 text-xs font-bold text-[#0e7bf4] hover:bg-[#d0e5fb] transition"
               >
-                <LocateFixed className="h-4 w-4" /> Enable Location / Use Current GPS
+                <LocateFixed className="h-4 w-4" /> Use my current location
               </button>
 
-              <div>
-                <p className="text-[11px] font-bold text-[#526987] uppercase tracking-wider mb-1.5">
-                  Suggested Localities
+              {gpsError && (
+                <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+                  {gpsError}
                 </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    'Ameerpet (500016)',
-                    'Kukatpally (500072)',
-                    'Madhapur (500081)',
-                    'Dilsukhnagar (500060)',
-                    'SR Nagar (500038)',
-                    'Secunderabad (500003)',
-                  ].map((loc) => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => handleSaveLocation(loc)}
-                      className="rounded-lg bg-white border border-[#d5deea] px-2.5 py-1 text-xs font-semibold text-[#082046] hover:border-[#0e7bf4] hover:text-[#0e7bf4] hover:bg-[#edf4fc] transition shadow-xs"
-                    >
-                      {loc}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-[#d5deea]">

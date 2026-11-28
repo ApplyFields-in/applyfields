@@ -108,6 +108,15 @@ export async function apiGet<T>(
   _token?: string,
   options?: RequestInit,
 ): Promise<T | null> {
+  return (await apiGetWithStatus<T>(path, _token, options)).data;
+}
+
+/** apiGet plus the HTTP status: 401 = signed out; 0 (timeout/network) or 5xx = API slow or down, not "signed out". */
+export async function apiGetWithStatus<T>(
+  path: string,
+  _token?: string,
+  options?: RequestInit,
+): Promise<{ data: T | null; status: number }> {
   try {
     const token = _token || getStoredToken();
     const locale = getStoredLocale();
@@ -144,9 +153,9 @@ export async function apiGet<T>(
       }
     }
 
-    return res.ok ? ((await res.json()) as T) : null;
+    return { data: res.ok ? ((await res.json()) as T) : null, status: res.status };
   } catch {
-    return null;
+    return { data: null, status: 0 };
   }
 }
 

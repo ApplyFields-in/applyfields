@@ -89,3 +89,15 @@ describe('ApplicationsService & Application Tracker Pipeline', () => {
     });
   });
 });
+
+describe('manual tracker entries (no listing)', () => {
+  it('keeps the citizen title/organization through notes, and an update does not wipe them', async () => {
+    const { serializeTrackerNotes, parseTrackerNotes } = await import('./applications.service.js');
+    const stored = serializeTrackerNotes('n', null, null, null, { title: 'TSPSC Group 2', organization: 'TSPSC' });
+    const p = parseTrackerNotes(stored);
+    expect(p.title).toBe('TSPSC Group 2');
+    expect(p.organization).toBe('TSPSC');
+    const again = parseTrackerNotes(serializeTrackerNotes('changed', p.roll_number, p.exam_date, p.exam_center, { title: p.title, organization: p.organization }));
+    expect(again.title).toBe('TSPSC Group 2');
+  });
+});

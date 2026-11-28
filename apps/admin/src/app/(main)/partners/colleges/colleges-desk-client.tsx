@@ -30,7 +30,6 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
   User,
   X,
   XCircle,

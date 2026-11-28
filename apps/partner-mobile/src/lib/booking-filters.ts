@@ -21,7 +21,7 @@ export const BOOKING_FILTERS: { value: BookingFilter; label: string }[] = [
   { value: 'all', label: 'All' },
 ];
 
-const OPEN = new Set<BookingRequestStatus>(['new', 'accepted', 'in_progress']);
+const OPEN = new Set<BookingRequestStatus>(['new', 'accepted', 'in_progress', 'needs_fix']);
 
 /** Local calendar day as YYYY-MM-DD — "today" means the centre's day, not UTC's. */
 function localDay(d: Date): string {
@@ -44,7 +44,7 @@ export function matchesFilter(b: Slim, filter: BookingFilter, now = new Date()):
     case 'new':
       return b.status === 'new';
     case 'in_progress':
-      return b.status === 'accepted' || b.status === 'in_progress';
+      return b.status === 'accepted' || b.status === 'in_progress' || b.status === 'needs_fix';
     case 'completed':
       return b.status === 'completed';
     case 'closed':

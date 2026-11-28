@@ -260,6 +260,18 @@ export async function fileBookingDispute(
   return apiPost<BookingDispute, CreateBookingDisputeInput>(`/bookings/${encodeURIComponent(id)}/dispute`, input);
 }
 
+/** Operator desk: send a started job back to fix (needs_fix) or reopen it (in_progress), with a note. */
+export async function setBookingFixStatus(
+  id: string,
+  status: 'needs_fix' | 'in_progress',
+  partnerNote: string,
+): Promise<ApiResponse<BookingDetail>> {
+  return apiPatch<BookingDetail, UpdateBookingStatusInput>(`/bookings/partner/${encodeURIComponent(id)}`, {
+    status,
+    partner_note: partnerNote.slice(0, 500),
+  });
+}
+
 export async function getBookingMessages(
   bookingId: string,
 ): Promise<ApiResponse<ChatMessageItem[]>> {

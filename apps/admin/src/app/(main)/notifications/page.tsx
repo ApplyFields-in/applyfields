@@ -48,7 +48,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
       {data === null ? (
         <ApiOffline />
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               {[

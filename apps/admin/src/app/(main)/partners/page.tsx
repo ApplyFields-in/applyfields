@@ -64,7 +64,7 @@ export default async function PartnersAdminPage({
       />
 
       {/* Mode Switcher Tabs */}
-      <div className="flex items-center gap-2 border-b border-teal/10 pb-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-teal/10 pb-3">
         <Link
           href="/partners"
           className={buttonClass({

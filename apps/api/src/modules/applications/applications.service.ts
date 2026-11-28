@@ -42,6 +42,9 @@ interface StoredNotesPayload {
   roll_number?: string;
   exam_date?: string;
   exam_center?: string;
+  /** Manual entries (no listing linked) keep their own name here. */
+  title?: string;
+  organization?: string;
 }
 
 export function serializeTrackerNotes(
@@ -49,12 +52,15 @@ export function serializeTrackerNotes(
   rollNumber?: string | null,
   examDate?: string | null,
   examCenter?: string | null,
+  manual?: { title?: string; organization?: string },
 ): string {
   const payload: StoredNotesPayload = {
     text: notes || undefined,
     roll_number: rollNumber || undefined,
     exam_date: examDate || undefined,
     exam_center: examCenter || undefined,
+    title: manual?.title || undefined,
+    organization: manual?.organization || undefined,
   };
   return JSON.stringify(payload);
 }
@@ -122,9 +128,9 @@ export class ApplicationsService {
           const opp = r.opportunities;
           const srv = r.gov_services;
 
-          const title = opp?.title || srv?.name || 'Recruitment Application';
+          const title = opp?.title || srv?.name || parsed.title || 'Recruitment Application';
           const organization =
-            opp?.organizations?.name || srv?.authority_name || 'Commission';
+            opp?.organizations?.name || srv?.authority_name || parsed.organization || 'Commission';
           const slug = opp?.slug || srv?.slug || 'application';
           const type = opp?.type || (srv ? 'service' : 'govt_job');
           const deadline = opp?.application_end
@@ -179,7 +185,7 @@ export class ApplicationsService {
 
   async createApplication(
     userId: string,
-    input: CreateApplicationTrackerInput,
+    input: CreateApplicationTrackerInput & { title?: string; organization?: string },
   ): Promise<ApplicationTrackerItem> {
     const trackerStatus = input.status || 'planning';
     const dbStatus = TRACKER_TO_DB_STATUS[trackerStatus] || 'planning';
@@ -229,10 +235,49 @@ export class ApplicationsService {
       input.roll_number,
       input.exam_date,
       input.exam_center,
+      opportunityId || serviceId ? undefined : { title: input.title, organization: input.organization },
     );
 
     const appId = randomUUID();
     const now = new Date().toISOString();
+
+    // Manual entry ("Add application" form, no listing): a real row, so it shows on /applications and
+    // survives restarts. Needs database/changes/2026-11-28_likhith_applications_manual_entries.sql. A failure
+    // is an error the citizen sees, never a fake "Added" kept only in server memory.
+    if (this.isPrismaUsable() && !opportunityId && !serviceId && input.title) {
+      const row = await this.prisma.applications.create({
+        data: {
+          id: appId,
+          user_id: userId,
+          status: dbStatus,
+          application_number: input.application_number || null,
+          applied_on: input.applied_on ? new Date(input.applied_on) : null,
+          notes: notesStr,
+        },
+      });
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        opportunity_id: null,
+        service_id: null,
+        title: input.title,
+        organization: input.organization || 'Commission',
+        type: 'govt_job',
+        slug: 'application',
+        mode: 'official',
+        status: trackerStatus,
+        application_number: row.application_number,
+        roll_number: input.roll_number || null,
+        exam_date: input.exam_date || null,
+        exam_center: input.exam_center || null,
+        applied_on: row.applied_on ? row.applied_on.toISOString().split('T')[0] : null,
+        deadline: null,
+        notes: input.notes || null,
+        documents_ready: true,
+        created_at: row.created_at.toISOString(),
+        updated_at: row.updated_at.toISOString(),
+      };
+    }
 
     if (this.isPrismaUsable() && (opportunityId || serviceId)) {
       try {
@@ -292,7 +337,7 @@ export class ApplicationsService {
       user_id: userId,
       opportunity_id: opportunityId,
       service_id: serviceId,
-      title: input.opportunity_slug || title,
+      title: input.title || input.opportunity_slug || title,
       organization,
       type,
       slug: input.opportunity_slug || slug,
@@ -345,6 +390,7 @@ export class ApplicationsService {
             input.roll_number !== undefined ? input.roll_number : currentParsed.roll_number,
             input.exam_date !== undefined ? input.exam_date : currentParsed.exam_date,
             input.exam_center !== undefined ? input.exam_center : currentParsed.exam_center,
+            { title: currentParsed.title, organization: currentParsed.organization },
           );
 
           const dbStatus = input.status
@@ -376,8 +422,8 @@ export class ApplicationsService {
             user_id: updated.user_id,
             opportunity_id: updated.opportunity_id,
             service_id: updated.service_id,
-            title: opp?.title || srv?.name || 'Recruitment Application',
-            organization: opp?.organizations?.name || srv?.authority_name || 'Commission',
+            title: opp?.title || srv?.name || parsed.title || 'Recruitment Application',
+            organization: opp?.organizations?.name || srv?.authority_name || parsed.organization || 'Commission',
             type: opp?.type || (srv ? 'service' : 'govt_job'),
             slug: opp?.slug || srv?.slug || 'application',
             mode: (updated.mode as any) || 'official',

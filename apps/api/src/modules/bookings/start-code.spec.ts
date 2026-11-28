@@ -63,6 +63,25 @@ describe('booking start code', () => {
     expect(prisma.service_requests.update).not.toHaveBeenCalled();
   });
 
+  it('sends a started job back to fix and reopens it without the start code', async () => {
+    const { svc, prisma } = setup('in_progress');
+    await svc.updatePartnerBooking('desk', ID, { status: 'needs_fix', partner_note: 'Photo blurred' });
+    expect(prisma.service_requests.update).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'needs_fix' }) }));
+
+    const reopen = setup('needs_fix');
+    await reopen.svc.updatePartnerBooking('desk', ID, { status: 'in_progress' });
+    expect(reopen.prisma.service_requests.update).toHaveBeenCalled();
+  });
+
+  it('cannot send back a job that has not started, or complete one that is sent back', async () => {
+    const { svc, prisma } = setup('accepted');
+    await expect(svc.updatePartnerBooking('desk', ID, { status: 'needs_fix' })).rejects.toThrow('Only a job in progress');
+    const sentBack = setup('needs_fix');
+    await expect(sentBack.svc.updatePartnerBooking('desk', ID, { status: 'completed' })).rejects.toThrow('Reopen it once');
+    expect(prisma.service_requests.update).not.toHaveBeenCalled();
+    expect(sentBack.prisma.service_requests.update).not.toHaveBeenCalled();
+  });
+
   it('walk-ins (no citizen account) need no code', async () => {
     const { svc, prisma } = setup('accepted', null);
     await svc.updatePartnerBooking('desk', ID, { status: 'completed' });

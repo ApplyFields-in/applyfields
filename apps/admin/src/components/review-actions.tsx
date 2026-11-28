@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { buttonClass, Card, cn } from '@applyfields/ui';
 import type { UpdateKind } from '@applyfields/types';
-import { ChevronDown, CircleAlert, CircleCheck, Edit, Megaphone, Send, Sparkles, TriangleAlert, X } from 'lucide-react';
+import { ChevronDown, CircleAlert, CircleCheck, Edit, Megaphone, RefreshCw, Send, TriangleAlert, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -135,7 +135,7 @@ export function ReviewActions({
         )}
         {infoMsg && (
           <p role="status" className="mt-3 text-xs font-bold flex items-center gap-1">
-            <Sparkles className="size-3.5 shrink-0" aria-hidden="true" />
+            <CircleCheck className="size-3.5 shrink-0" aria-hidden="true" />
             <span>{infoMsg}</span>
           </p>
         )}
@@ -165,7 +165,7 @@ export function ReviewActions({
             title="Read the notification again with AI and refill this draft"
             className={buttonClass({ variant: ready ? 'inverse' : 'secondary', size: 'sm' })}
           >
-            <Sparkles aria-hidden="true" className="size-3.5" />
+            <RefreshCw aria-hidden="true" className="size-3.5" />
             {isPending ? 'Working...' : 'Re-extract'}
           </button>
 

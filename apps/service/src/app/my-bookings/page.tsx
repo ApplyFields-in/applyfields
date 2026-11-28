@@ -113,9 +113,11 @@ function fromApi(b: BookingDetail): CitizenBookingItem {
       ? 'completed'
       : b.status === 'cancelled' || b.status === 'rejected'
         ? 'cancelled'
-        : b.status === 'in_progress'
-          ? 'in_filing'
-          : 'booked';
+        : b.status === 'needs_fix'
+          ? 'defective'
+          : b.status === 'in_progress'
+            ? 'in_filing'
+            : 'booked';
   return {
     id: b.id,
     token: `AF-${b.id.slice(0, 8).toUpperCase()}`,
@@ -142,6 +144,7 @@ function fromApi(b: BookingDetail): CitizenBookingItem {
     isPaid: false,
     requiredDocuments: [],
     portalRegNumber: b.official_app_number ?? undefined,
+    defectReason: b.status === 'needs_fix' ? (b.partner_note ?? 'The centre needs you to fix a document.') : undefined,
     createdAt: b.created_at,
     partnerEmail: b.partner_email ?? undefined,
     dispute: b.disputes?.[0] ? toDisputeView(b.disputes[0]) : undefined,

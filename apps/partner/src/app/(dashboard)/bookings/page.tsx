@@ -25,7 +25,7 @@ import {
 import { listPartnerBookings, sharedDocumentUrl, updatePartnerBookingStatus } from '@/lib/api';
 import { SuccessCheck } from '@applyfields/ui';
 
-export type BookingStatus = 'scheduled' | 'arrived' | 'completed' | 'cancelled';
+export type BookingStatus = 'scheduled' | 'arrived' | 'needs_fix' | 'completed' | 'cancelled';
 
 
 /** A locker document the citizen shared for this booking. The file opens via a 10-minute signed link. */
@@ -38,6 +38,8 @@ export interface BookingDocument {
 
 export interface CitizenBooking {
   id: string;
+  /** Why the job was sent back to the citizen (needs_fix only). */
+  fixReason?: string;
   token: string;
   citizenName: string;
   citizenPhone: string;
@@ -125,6 +127,7 @@ export default function BookingsPage() {
             slotTime: b.appointment_at
               ? new Date(b.appointment_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
               : 'Walk-in',
+            fixReason: b.status === 'needs_fix' ? b.partner_note || undefined : undefined,
             status: (b.status === 'in_progress'
               ? 'arrived'
               : b.status === 'accepted' || b.status === 'new'
@@ -203,6 +206,16 @@ export default function BookingsPage() {
       setCompletingBooking(null);
       setCompletionAckNumber('');
     }
+  }
+
+  // Sent back to fix → the citizen fixed the documents, so work continues (no start code needed again).
+  function handleReopen(id: string) {
+    void applyStatus(
+      id,
+      { status: 'in_progress', partner_note: 'Documents fixed, filing resumed' },
+      { status: 'arrived', fixReason: undefined },
+      'Reopened. You can finish the job now.',
+    );
   }
 
   // 1-Click Action: Cancel
@@ -395,6 +408,12 @@ export default function BookingsPage() {
                       </span>
                     )}
 
+                    {booking.status === 'needs_fix' && (
+                      <span className="rounded-full bg-rose-500/20 px-2.5 py-0.5 text-[11px] font-bold text-rose-300">
+                        Sent back to fix
+                      </span>
+                    )}
+
                     {booking.status === 'completed' && (
                       <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-[11px] font-bold text-slate-300">
                         Completed
@@ -502,9 +521,25 @@ export default function BookingsPage() {
                   </div>
 
                   {/* 1-Click Action Buttons */}
+                  {booking.status === 'needs_fix' && booking.fixReason && (
+                    <p className="rounded-xl border border-rose-500/30 bg-rose-950/30 px-3 py-2 text-xs text-rose-200">
+                      <span className="font-bold">Waiting for the citizen to fix:</span> {booking.fixReason}
+                    </p>
+                  )}
+
                   {booking.status !== 'completed' && booking.status !== 'cancelled' && (
                     <div className="flex flex-wrap items-center gap-2 pt-1">
-                      {booking.status !== 'arrived' && (
+                      {booking.status === 'needs_fix' && (
+                        <button
+                          type="button"
+                          onClick={() => handleReopen(booking.id)}
+                          className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition text-center shadow-md shadow-emerald-500/20"
+                        >
+                          Documents fixed, reopen
+                        </button>
+                      )}
+
+                      {booking.status === 'scheduled' && (
                         <button
                           type="button"
                           onClick={() => setStartingBooking(booking)}

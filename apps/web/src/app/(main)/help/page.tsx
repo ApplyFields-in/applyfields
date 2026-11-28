@@ -328,7 +328,7 @@ export default function HelpPage() {
                 </div>
                 {contactFeedback.ticketId && (
                   <p className="mt-2 text-[11px] font-mono text-emerald-700">
-                    Ticket Reference: #{contactFeedback.ticketId.slice(0, 8)}
+                    Ticket Reference: {contactFeedback.ticketId}
                   </p>
                 )}
               </div>

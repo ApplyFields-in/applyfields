@@ -180,19 +180,20 @@ export function PageHeader({
 }) {
   return (
     <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div className="flex items-start gap-4">
+      <div className="flex min-w-0 items-start gap-4">
         {icon && (
           <IconTile tone="teal" className="size-12 rounded-2xl [&>svg]:size-6">
             {icon}
           </IconTile>
         )}
-        <div>
+        <div className="min-w-0">
           {eyebrow && <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-teal/80">{eyebrow}</div>}
           <h1 className="text-2xl font-extrabold sm:text-3xl">{title}</h1>
           {description && <p className="mt-1 max-w-2xl text-sm text-teal/80">{description}</p>}
         </div>
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {/* shrink-0: the title wraps instead; a shrunk actions box let no-wrap buttons poke past the page (tablet /cookie-policy) */}
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </header>
   );
 }

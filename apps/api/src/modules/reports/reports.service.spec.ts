@@ -69,3 +69,26 @@ describe('ReportsService & Moderation Flow', () => {
     expect(resolved.resolved_at).toBeDefined();
   });
 });
+
+describe('Citizen → admin hand-off (Help page, report modal)', () => {
+  it('keeps the listing slug and contact email when the modal sends a slug as item_id', async () => {
+    const service = new ReportsService({} as any);
+    const res = await service.submitReport(
+      null,
+      { item_type: 'opportunity', item_id: 'ssc-cgl-2026', reason: 'broken_link', details: 'Apply link 404s', reporter_email: 'a@b.in' },
+      '10.0.0.9',
+    );
+    expect(res.ok).toBe(true); // web checks res.data.ok
+    const saved = await service.getAdminReport(res.id);
+    expect(saved.details).toContain('Listing: ssc-cgl-2026');
+    expect(saved.details).toContain('Contact: a@b.in');
+  });
+
+  it('support inbox lists Help-page categories only, never booking disputes', async () => {
+    let where: any;
+    const prisma = { support_tickets: { findMany: async (q: any) => ((where = q.where), []) } } as any;
+    await new ReportsService(prisma).listSupportTickets();
+    expect(where.category.in).toContain('bug');
+    expect(where.category.in).not.toContain('booking_dispute');
+  });
+});

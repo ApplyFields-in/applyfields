@@ -17,6 +17,9 @@ import { ApplicationsService } from './applications.service.js';
 
 const createApplicationSchema = z.object({
   opportunity_slug: z.string().optional(),
+  // Manual "Add application" form: there is no listing, so the citizen's own name for it.
+  title: z.string().trim().max(200).optional(),
+  organization: z.string().trim().max(200).optional(),
   service_slug: z.string().optional(),
   status: z
     .enum([

@@ -65,3 +65,30 @@ export class ReportsAdminController {
     return this.reportsService.resolveReport(staffId, id, body);
   }
 }
+
+const supportUpdateSchema = z.object({
+  status: z.enum(['in_review', 'resolved', 'closed']),
+  note: z.string().trim().max(2000).optional(),
+});
+
+/** Help-page "Contact support" messages (support_tickets, not disputes). */
+@Controller('admin/support')
+@UseGuards(StaffGuard)
+@Roles('support')
+export class SupportAdminController {
+  constructor(private readonly reportsService: ReportsService) {}
+
+  @Get()
+  async list(@Query('status') status?: string) {
+    return this.reportsService.listSupportTickets(status);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id') id: string,
+    @ActorId() staffId: string | null,
+    @Body(new ZodPipe(supportUpdateSchema)) body: z.infer<typeof supportUpdateSchema>,
+  ) {
+    return this.reportsService.updateSupportTicket(staffId, id, body);
+  }
+}

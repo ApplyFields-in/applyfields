@@ -45,7 +45,7 @@ type Kind = 'all' | 'subscribers' | 'partners' | 'staff' | 'savers' | 'user';
 
 /** Starting points for special notifications; the admin edits the text before sending. */
 const TEMPLATES = [
-  { label: 'Festival greeting', title: 'Happy Sankranti from ApplyFields 🎉', body: 'Wishing you and your family a joyful festival. New jobs and exams keep coming — we will remind you before every last date.' },
+  { label: 'Festival greeting', title: 'Happy Sankranti from ApplyFields', body: 'Wishing you and your family a joyful festival. New jobs and exams keep coming — we will remind you before every last date.' },
   { label: 'App update', title: 'ApplyFields just got better', body: 'Update the app to get the latest features and fixes.' },
   { label: 'Maintenance', title: 'Short maintenance tonight', body: 'ApplyFields may be unavailable for a few minutes tonight. Your data is safe.' },
 ];

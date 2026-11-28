@@ -29,6 +29,8 @@ export interface ServiceDeskRequest {
   live?: boolean;
   /** A citizen's booking that hasn't started: the desk must enter the citizen's 4-digit start code first. */
   needsStartCode?: boolean;
+  /** Booked by a citizen account (walk-ins have none), so the desk can message them in the booking chat. */
+  hasCitizen?: boolean;
   token: string;
   serviceTitle: string;
   serviceCategory: 'Exam Application' | 'Certificate' | 'Scheme Enrollment' | 'Correction';
@@ -110,12 +112,13 @@ export interface ServiceDeskRequest {
 
 /** A real service_requests row (vs the demo samples above). Applicant biodata isn't in BookingDetail yet. */
 export function fromBooking(b: BookingDetail): ServiceDeskRequest {
+  const sentBack = b.status === 'needs_fix';
   const status: ServiceRequestStatus =
     b.status === 'completed'
       ? 'completed'
       : b.status === 'new'
         ? 'triage'
-        : b.status === 'rejected' || b.status === 'cancelled'
+        : b.status === 'rejected' || b.status === 'cancelled' || sentBack
           ? 'defective'
           : 'ready_for_filing';
   const total = b.final_paise ?? b.quoted_paise ?? 0;
@@ -125,6 +128,7 @@ export function fromBooking(b: BookingDetail): ServiceDeskRequest {
     id: b.id,
     live: true,
     needsStartCode: b.user_id !== null && (b.status === 'new' || b.status === 'accepted'),
+    hasCitizen: b.user_id !== null,
     token: `AF-${b.id.slice(0, 8).toUpperCase()}`,
     serviceTitle: b.service_name ?? 'Citizen service request',
     serviceCategory: 'Certificate',
@@ -174,6 +178,7 @@ export function fromBooking(b: BookingDetail): ServiceDeskRequest {
     processingDetails: {
       portalRegNumber: b.official_app_number ?? undefined,
       acknowledgementPdfUrl: b.has_acknowledgment_slip ? 'stored' : undefined,
+      defectReason: sentBack ? (b.partner_note ?? '') : undefined,
     },
   };
 }

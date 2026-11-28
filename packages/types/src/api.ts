@@ -1517,7 +1517,7 @@ export interface AdminPartnerVerifyInput {
 // ============================================================================
 
 export type BookingRequestStatus =
-  'new' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled';
+  'new' | 'accepted' | 'rejected' | 'in_progress' | 'needs_fix' | 'completed' | 'cancelled';
 
 export interface BookingRequestEvent {
   id: string;

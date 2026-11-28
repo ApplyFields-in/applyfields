@@ -19,7 +19,7 @@ import {
   Building2,
   Printer,
 } from 'lucide-react';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGetWithStatus, apiPost } from '@/lib/api';
 import type { MeResponse, UserSummary } from '@applyfields/types';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { PARTNER_PORTAL_URL, SERVICE_PORTAL_URL, goToServicePortal } from '@/lib/urls';
@@ -72,7 +72,7 @@ export function FloatingCapsuleNavbar() {
     }
 
     // Also sync from backend /me
-    const me = await apiGet<MeResponse>('/me');
+    const { data: me, status: meStatus } = await apiGetWithStatus<MeResponse>('/me');
     if (me && me.user) {
       setUser(me.user);
       localStorage.setItem('currentUser', JSON.stringify(me.user));
@@ -80,7 +80,8 @@ export function FloatingCapsuleNavbar() {
       setDisplayName(name);
       const parts = name.trim().split(' ');
       setInitials(name === 'Account' ? '' : parts.length > 1 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : name.slice(0, 2).toUpperCase());
-    } else {
+    } else if (meStatus === 401) {
+      // Only a real 401 signs the navbar out: a slow/cold API (timeout, 5xx) must not drop a valid session
       // Session expired or unauthenticated -- clear ghost user from navbar and storage
       setUser(null);
       setDisplayName('');

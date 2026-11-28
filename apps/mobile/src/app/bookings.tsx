@@ -21,6 +21,7 @@ const STATUS: Record<BookingRequestStatus, { label: string; color: string }> = {
   new: { label: 'Waiting for the centre', color: C.mutedNavy },
   accepted: { label: 'Confirmed', color: C.blue },
   in_progress: { label: 'In progress', color: C.blue },
+  needs_fix: { label: 'Fix your documents', color: C.bad },
   completed: { label: 'Completed', color: C.good },
   rejected: { label: 'Declined', color: C.bad },
   cancelled: { label: 'Cancelled', color: C.bad },

@@ -13,15 +13,16 @@ interface ReportWrongInfoModalProps {
   compact?: boolean;
 }
 
+// `db` is the API's report_reason enum (anything else is a 400); the label goes into details so staff see the exact pick.
 const REPORT_REASONS = [
-  { value: 'outdated_deadline', label: 'Outdated deadline or application date' },
-  { value: 'wrong_vacancies', label: 'Incorrect vacancy breakdown or total' },
-  { value: 'eligibility_mismatch', label: 'Wrong eligibility criteria or age limits' },
-  { value: 'broken_official_link', label: 'Broken or wrong official commission URL' },
-  { value: 'outdated_syllabus', label: 'Outdated syllabus or exam pattern' },
-  { value: 'misleading_fee', label: 'Incorrect application fee structure' },
-  { value: 'other', label: 'Other factual discrepancy' },
-];
+  { value: 'outdated_deadline', db: 'incorrect_info', label: 'Outdated deadline or application date' },
+  { value: 'wrong_vacancies', db: 'incorrect_info', label: 'Incorrect vacancy breakdown or total' },
+  { value: 'eligibility_mismatch', db: 'incorrect_info', label: 'Wrong eligibility criteria or age limits' },
+  { value: 'broken_official_link', db: 'broken_link', label: 'Broken or wrong official commission URL' },
+  { value: 'outdated_syllabus', db: 'incorrect_info', label: 'Outdated syllabus or exam pattern' },
+  { value: 'misleading_fee', db: 'incorrect_info', label: 'Incorrect application fee structure' },
+  { value: 'other', db: 'other', label: 'Other factual discrepancy' },
+] as const;
 
 export function ReportWrongInfoButton({
   targetType,
@@ -44,13 +45,15 @@ export function ReportWrongInfoButton({
 
     setSubmitting(true);
     setFeedback(null);
+    const picked = REPORT_REASONS.find((r) => r.value === reason) ?? REPORT_REASONS[REPORT_REASONS.length - 1];
 
     try {
       const res = await apiPost<{ ok: boolean; report_id: string; message: string }>('/reports', {
         item_type: targetType,
         item_id: targetSlug,
-        reason,
-        details: details.trim(),
+        item_slug: targetSlug,
+        reason: picked.db,
+        details: `${picked.label}: ${details.trim()}`.slice(0, 1000),
         reporter_email: reporterEmail.trim() || undefined,
       });
 

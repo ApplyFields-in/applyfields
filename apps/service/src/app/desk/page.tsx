@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import { OperatorQueueClient } from './operator-queue-client';
 
 export const metadata: Metadata = {
-  title: 'Operator Fulfillment Desk | ApplyFields Services Hub',
-  description: 'Certified back-office workstation for recruitment and citizen service portal filings.',
+  title: 'Filing Desk | ApplyFields Services Hub',
+  description: 'Where partner centres apply on government portals for citizens.',
 };
 
 export default function OperatorDeskPage() {

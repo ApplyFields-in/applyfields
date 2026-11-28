@@ -324,7 +324,7 @@ export default function BookingDetailsPage() {
                   ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
                   : booking.status === 'in_progress'
                   ? 'bg-blue-100 text-[#0e7bf4] ring-1 ring-blue-300'
-                  : booking.status === 'cancelled' || booking.status === 'rejected'
+                  : booking.status === 'cancelled' || booking.status === 'rejected' || booking.status === 'needs_fix'
                   ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300'
                   : 'bg-emerald-100 text-emerald-800'
               }`}>
@@ -332,6 +332,8 @@ export default function BookingDetailsPage() {
                   ? 'Service Completed & Delivered'
                   : booking.status === 'in_progress'
                   ? 'In Progress at Counter'
+                  : booking.status === 'needs_fix'
+                  ? 'Action needed: fix your documents'
                   : booking.status === 'cancelled'
                   ? 'Booking Cancelled'
                   : booking.status === 'rejected'

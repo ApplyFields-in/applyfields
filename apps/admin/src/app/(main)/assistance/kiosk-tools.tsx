@@ -12,7 +12,6 @@ import {
   Printer,
   RefreshCw,
   Sliders,
-  Sparkles,
   Upload,
   CheckCircle2,
   AlertCircle,

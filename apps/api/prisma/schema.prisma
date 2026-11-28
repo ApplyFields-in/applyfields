@@ -2135,6 +2135,7 @@ enum request_status {
   accepted
   rejected
   in_progress
+  needs_fix
   completed
   cancelled
 }

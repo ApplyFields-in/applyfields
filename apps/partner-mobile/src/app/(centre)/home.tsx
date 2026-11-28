@@ -56,7 +56,7 @@ export default function Home() {
     .filter((b) => b.status === 'completed' && (b.completed_at ?? b.updated_at).startsWith(month))
     .reduce((sum, b) => sum + (b.final_paise ?? b.quoted_paise ?? 0), 0);
   const upcoming = items
-    .filter((b) => b.status === 'accepted' || b.status === 'in_progress')
+    .filter((b) => b.status === 'accepted' || b.status === 'in_progress' || b.status === 'needs_fix')
     .sort((a, b) => (a.appointment_at ?? '9').localeCompare(b.appointment_at ?? '9'))
     .slice(0, 3);
 

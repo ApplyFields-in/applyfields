@@ -30,7 +30,17 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import { ServiceDeskRequest, fromBooking } from '@/lib/service-desk-data';
-import { getBookingById, getBookingSlipUrl, getSharedDocumentUrl, markBookingFiled, startBookingWithCode } from '@/lib/api';
+import {
+  getBookingById,
+  getBookingMessages,
+  getBookingSlipUrl,
+  getSharedDocumentUrl,
+  markBookingFiled,
+  sendBookingMessage,
+  setBookingFixStatus,
+  startBookingWithCode,
+} from '@/lib/api';
+import { STATUS_CONFIG } from '../operator-queue-client';
 
 interface WorkstationClientProps {
   initialRequest: ServiceDeskRequest;
@@ -69,11 +79,11 @@ export function LiveWorkstation({ id }: { id: string }) {
         <>
           <p className="font-bold text-rose-700">{error}</p>
           <Link href="/desk" className="mt-3 inline-block font-bold text-[#0e7bf4] hover:underline">
-            Back to queue
+            Back to Filing Desk
           </Link>
         </>
       ) : (
-        'Loading request…'
+        'Loading job…'
       )}
     </div>
   );
@@ -135,11 +145,18 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
   const [enteredOtp, setEnteredOtp] = useState<string>('');
   const [otpVerified, setOtpVerified] = useState<boolean>(false);
   const [otpNotificationSent, setOtpNotificationSent] = useState<boolean>(false);
+  // Real jobs: when we asked in the booking chat, and the citizen's replies since then.
+  const [otpAskedAt, setOtpAskedAt] = useState<string | null>(null);
+  const [otpReplies, setOtpReplies] = useState<{ id: string; message: string }[]>([]);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Defect Modal State
   const [showDefectModal, setShowDefectModal] = useState<boolean>(false);
   const [defectChecklist, setDefectChecklist] = useState<string[]>([]);
   const [customDefectNotes, setCustomDefectNotes] = useState<string>('');
+  const [defectError, setDefectError] = useState<string | null>(null);
+  const [slipError, setSlipError] = useState<string | null>(null);
 
   // Final Receipt State
   const [showFinalizeModal, setShowFinalizeModal] = useState<boolean>(false);
@@ -174,8 +191,42 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
     }
   };
 
-  // Trigger Citizen OTP Request
-  const handleTriggerOtp = () => {
+  // Real jobs: watch the booking chat for the citizen's reply while the OTP window is open.
+  useEffect(() => {
+    if (!request.live || !otpAskedAt || !isOtpActive) return;
+    const poll = () =>
+      getBookingMessages(request.id).then((res) =>
+        setOtpReplies(
+          (res.data ?? [])
+            .filter((m) => m.sender_type === 'citizen' && m.created_at > otpAskedAt)
+            .map((m) => ({ id: m.id, message: m.message })),
+        ),
+      );
+    const t = setInterval(poll, 4000);
+    return () => clearInterval(t);
+  }, [request.live, request.id, otpAskedAt, isOtpActive]);
+
+  /** Post as the centre in the booking chat; the citizen gets a notification for it. */
+  const messageCitizen = (message: string) =>
+    sendBookingMessage(request.id, {
+      sender_type: 'partner',
+      sender_name: request.partner.name || 'Service centre',
+      message: message.slice(0, 2000),
+    });
+
+  // Ask the citizen for the portal OTP
+  const handleTriggerOtp = async () => {
+    if (request.live) {
+      setActionError(null);
+      setActionBusy(true);
+      const res = await messageCitizen(
+        `To finish your ${request.serviceTitle} application, please reply here with the OTP the government portal just sent to your phone.`,
+      );
+      setActionBusy(false);
+      if (!res.data) return setActionError(res.error ?? 'Could not message the citizen.');
+      setOtpAskedAt(res.data.created_at);
+      setOtpReplies([]);
+    }
     setIsOtpActive(true);
     setOtpSecondsLeft(120);
     setOtpVerified(false);
@@ -208,22 +259,45 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
     }
   };
 
-  // Submit Defect Return to Kiosk
-  const handleReturnDefect = () => {
-    if (defectChecklist.length === 0 && !customDefectNotes.trim()) {
-      alert('Please check at least one defect reason or enter notes for the kiosk operator.');
+  // Send back to fix: real jobs tell the citizen in the chat and save the reason on the booking.
+  const handleReturnDefect = async () => {
+    const problems = [...defectChecklist, customDefectNotes.trim()].filter(Boolean);
+    if (problems.length === 0) {
+      setDefectError(request.live ? 'Tick at least one problem or write a note for the citizen.' : 'Tick at least one problem or write a note for the centre.');
       return;
+    }
+    setDefectError(null);
+    const reason = problems.join('; ');
+    if (request.live) {
+      setActionBusy(true);
+      const msg = await messageCitizen(
+        `We can't file your application yet. Please fix these and share the documents again:\n${problems.map((p) => `- ${p}`).join('\n')}`,
+      );
+      const saved = msg.data ? await setBookingFixStatus(request.id, 'needs_fix', reason) : null;
+      setActionBusy(false);
+      if (!saved?.data) return setDefectError(msg.error ?? saved?.error ?? 'Could not send it back.');
     }
     setRequest((prev) => ({
       ...prev,
       status: 'defective',
-      processingDetails: {
-        ...prev.processingDetails,
-        defectReason: customDefectNotes || defectChecklist[0],
-        defectChecklist,
-      },
+      processingDetails: { ...prev.processingDetails, defectReason: reason, defectChecklist },
     }));
     setShowDefectModal(false);
+  };
+
+  const handleReopen = async () => {
+    setActionError(null);
+    if (request.live) {
+      setActionBusy(true);
+      const res = await setBookingFixStatus(request.id, 'in_progress', 'Documents fixed, filing resumed');
+      setActionBusy(false);
+      if (!res.data) return setActionError(res.error ?? 'Could not reopen the job.');
+    }
+    setRequest((prev) => ({
+      ...prev,
+      status: 'ready_for_filing',
+      processingDetails: { ...prev.processingDetails, defectReason: undefined },
+    }));
   };
 
   const pickSlip = (file: File | undefined) => {
@@ -238,9 +312,9 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
   const handleFinalizeSubmission = async () => {
     const appNo = portalRegNumber.trim();
     if (!APP_NO.test(appNo)) {
-      return setFinalizeError('Enter the Official Application No. (letters, digits, - / . — e.g. MVA-2026-98741).');
+      return setFinalizeError('Enter the application number from the portal (letters, digits, - / . only).');
     }
-    if (!slipFile) return setFinalizeError('Upload the acknowledgment receipt / slip.');
+    if (!slipFile) return setFinalizeError('Upload the receipt from the portal.');
     setFinalizeError(null);
     setIsFinalizing(true);
     try {
@@ -271,22 +345,23 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
   };
 
   const handleViewSlip = async () => {
+    setSlipError(null);
     if (!request.live) {
-      alert(`Official Application No.: ${request.processingDetails?.portalRegNumber} (demo request, no stored slip)`);
+      setSlipError('This is a demo job, so there is no stored receipt.');
       return;
     }
     const res = await getBookingSlipUrl(request.id);
     if (res.data?.url) window.location.assign(res.data.url);
-    else alert(res.error ?? 'Could not open the slip.');
+    else setSlipError(res.error ?? 'Could not open the receipt.');
   };
 
   const STEPS = [
-    { num: 1, title: 'OTR / Portal Login' },
-    { num: 2, title: 'Personal Particulars' },
-    { num: 3, title: 'Education & Board' },
-    { num: 4, title: 'Photo & Signature' },
-    { num: 5, title: 'Citizen OTP' },
-    { num: 6, title: 'Fee & Acknowledgement' },
+    { num: 1, title: 'Portal login' },
+    { num: 2, title: 'Personal details' },
+    { num: 3, title: 'Education' },
+    { num: 4, title: 'Photo & signature' },
+    { num: 5, title: 'OTP' },
+    { num: 6, title: 'Fee & receipt' },
   ];
 
   const DEFECT_PRESETS = [
@@ -307,7 +382,8 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
           <Link
             href="/desk"
             className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-[#082046] transition"
-            title="Return to Queue"
+            title="Back to Filing Desk"
+            aria-label="Back to Filing Desk"
           >
             <ArrowLeft className="size-4" />
           </Link>
@@ -328,11 +404,11 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                     : 'bg-amber-50 text-amber-800 border-amber-200'
                 }`}
               >
-                {request.status.replace('_', ' ').toUpperCase()}
+                {STATUS_CONFIG[request.status].label}
               </span>
               {request.priority === 'critical' && (
                 <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black uppercase text-white">
-                  Critical SLA
+                  Urgent
                 </span>
               )}
             </div>
@@ -346,25 +422,27 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
         <div className="flex flex-wrap items-center gap-2">
           {request.status !== 'completed' && request.status !== 'defective' && (
             <>
-              {/* Defect + OTP are still demo-only; hidden on real requests so they never fake an action. */}
-              {!request.live && (
+              {/* Real jobs: both go through the booking chat, so they need a citizen account and a started job. */}
+              {(!request.live || (request.hasCitizen && !request.needsStartCode)) && (
               <>
               <button
                 type="button"
+                disabled={actionBusy}
                 onClick={() => setShowDefectModal(true)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-sm"
               >
                 <AlertTriangle className="size-3.5" />
-                <span>Return to Kiosk (Defect)</span>
+                <span>Send back to fix</span>
               </button>
 
               <button
                 type="button"
+                disabled={actionBusy}
                 onClick={handleTriggerOtp}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 transition shadow-sm"
               >
                 <Phone className="size-3.5" />
-                <span>Trigger Citizen OTP ({isOtpActive ? `${otpSecondsLeft}s` : 'Request'})</span>
+                <span>{isOtpActive ? `Waiting for OTP (${otpSecondsLeft}s)` : 'Ask citizen for OTP'}</span>
               </button>
               </>
               )}
@@ -376,7 +454,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm"
               >
                 <CheckCircle2 className="size-4" />
-                <span>Mark Filed</span>
+                <span>Mark as filed</span>
               </button>
               )}
             </>
@@ -394,8 +472,11 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                   onClick={handleViewSlip}
                   className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
                 >
-                  Download Acknowledgment Slip
+                  Download receipt
                 </button>
+              )}
+              {slipError && (
+                <span role="alert" className="text-xs font-bold text-rose-700">{slipError}</span>
               )}
             </div>
           )}
@@ -404,18 +485,24 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-xl bg-rose-100 px-3 py-1.5 text-xs font-bold text-rose-800">
                 <AlertCircle className="size-4 text-rose-600" />
-                <span>Defect Flagged to Kiosk</span>
+                <span>Sent back to fix</span>
               </span>
-              <button
-                type="button"
-                onClick={() =>
-                  setRequest((prev) => ({ ...prev, status: 'ready_for_filing' }))
-                }
-                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-              >
-                Reopen Workstation
-              </button>
+              {/* Live rejected/cancelled bookings also show as "sent back"; only a real send-back can be reopened. */}
+              {request.processingDetails?.defectReason !== undefined && (
+                <button
+                  type="button"
+                  disabled={actionBusy}
+                  onClick={handleReopen}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+                >
+                  Documents fixed, reopen
+                </button>
+              )}
             </div>
+          )}
+
+          {actionError && (
+            <span role="alert" className="text-xs font-bold text-rose-700">{actionError}</span>
           )}
         </div>
       </div>
@@ -509,14 +596,48 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
               </div>
               <div>
                 <p className="text-sm font-bold text-purple-900">
-                  Citizen OTP Verification Active
+                  Waiting for the citizen&apos;s OTP
                 </p>
                 <p className="text-xs text-purple-700">
-                  WhatsApp and SMS alert sent to candidate <strong className="font-mono">{request.applicant.mobile}</strong> and kiosk operator <strong className="font-mono">{request.partner.phone}</strong>.
+                  {request.live
+                    ? 'We asked the citizen in the booking chat. Their reply shows up here.'
+                    : <>Call the citizen on <strong className="font-mono">{request.applicant.mobile}</strong> and type the OTP the portal sent them.</>}
                 </p>
               </div>
             </div>
 
+            {request.live ? (
+              <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                {otpReplies.length === 0 ? (
+                  <p className="text-xs font-bold text-purple-700">Waiting for a reply…</p>
+                ) : (
+                  otpReplies.map((r) => {
+                    const code = r.message.match(/\b\d{4,8}\b/)?.[0];
+                    return (
+                      <div key={r.id} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-sm">
+                        <span className={code ? 'font-mono text-lg font-black tracking-widest text-purple-900' : 'text-xs text-slate-700'}>
+                          {code ?? r.message}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(code ?? r.message, r.id)}
+                          className="text-xs font-bold text-[#0e7bf4] hover:underline"
+                        >
+                          {copiedField === r.id ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsOtpActive(false)}
+                  className="rounded-xl bg-purple-600 px-4 py-2 text-xs font-bold text-white hover:bg-purple-700 transition shadow-sm"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -524,6 +645,8 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                 value={enteredOtp}
                 onChange={(e) => setEnteredOtp(e.target.value.replace(/\D/g, ''))}
                 placeholder="6-digit OTP"
+                aria-label="OTP from citizen"
+                inputMode="numeric"
                 className="w-36 rounded-xl border border-purple-300 bg-white px-3 py-2 text-center font-mono text-sm font-bold tracking-widest text-purple-900 focus:border-purple-600 focus:outline-none"
               />
               <button
@@ -532,17 +655,19 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                 disabled={enteredOtp.length !== 6}
                 className="rounded-xl bg-purple-600 px-4 py-2 text-xs font-bold text-white hover:bg-purple-700 disabled:opacity-50 transition shadow-sm"
               >
-                Verify & Advance
+                Confirm OTP
               </button>
               <button
                 type="button"
                 onClick={handleTriggerOtp}
                 className="rounded-xl border border-purple-300 bg-white px-2.5 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 transition"
-                title="Restart Timer"
+                title="Restart timer"
+                aria-label="Restart timer"
               >
                 <RotateCw className="size-3.5" />
               </button>
             </div>
+            )}
           </div>
         </div>
       )}
@@ -557,11 +682,11 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
               <div className="flex items-center gap-2">
                 <User className="size-4 text-[#0e7bf4]" />
                 <h2 className="text-sm font-bold text-[#082046]">
-                  Candidate Biodata (Verified from 10th Memo & Aadhaar)
+                  Citizen details
                 </h2>
               </div>
               <span className="text-[11px] font-semibold text-slate-500">
-                Click any copy icon to transfer to external portal
+                Copy each field into the portal form
               </span>
             </div>
 
@@ -570,7 +695,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
               <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Candidate Full Name
+                    Full name
                   </span>
                   <button
                     type="button"
@@ -682,7 +807,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
             {/* Identification Marks */}
             <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 space-y-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Visible Identification Marks (Mandatory for SSC/UPSC)
+                Identification marks
               </span>
               <div className="flex items-center justify-between text-xs font-mono text-slate-900">
                 <span>1. {request.applicant.identificationMark1}</span>
@@ -710,7 +835,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
             <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-sky-900 uppercase tracking-wider">
-                  10th / Matriculation Board Record
+                  10th class record
                 </span>
                 <button
                   type="button"
@@ -744,7 +869,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
             <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Full Permanent Address & Pincode
+                  Permanent address
                 </span>
                 <button
                   type="button"
@@ -757,7 +882,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                   className="flex items-center gap-1 text-[11px] font-bold text-[#0e7bf4] hover:underline"
                 >
                   {copiedField === 'address' ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
-                  <span>{copiedField === 'address' ? 'Full Address Copied' : 'Copy All'}</span>
+                  <span>{copiedField === 'address' ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
               <p className="mt-1 font-mono text-xs text-slate-800">
@@ -774,11 +899,11 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
               <div className="flex items-center gap-2">
                 <ShieldCheck className="size-4 text-emerald-600" />
                 <h2 className="text-sm font-bold text-[#082046]">
-                  Candidate Uploaded Documents & Pre-Resized Assets
+                  Documents shared by the citizen
                 </h2>
               </div>
               <span className="text-[11px] font-bold text-slate-500">
-                {request.documents.length} shared by the citizen
+                {request.documents.length} {request.documents.length === 1 ? 'file' : 'files'}
               </span>
             </div>
 
@@ -847,7 +972,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Target Portal Assistant
+                  Apply on
                 </span>
                 <h3 className="text-sm font-bold text-[#082046]">{request.targetPortalName}</h3>
               </div>
@@ -857,7 +982,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 rounded-xl bg-[#082046] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#0c2f66] transition shadow-xs"
               >
-                <span>Launch Portal</span>
+                <span>Open portal</span>
                 <ExternalLink className="size-3.5" />
               </a>
             </div>
@@ -869,7 +994,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                   1
                 </span>
                 <span>
-                  Log in to the official portal with candidate credentials or start a new One-Time Registration (OTR).
+                  Log in to the portal with the citizen&apos;s account, or register them if they are new.
                 </span>
               </div>
               <div className="flex items-start gap-2">
@@ -877,7 +1002,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                   2
                 </span>
                 <span>
-                  Paste biodata and matriculation marks directly using the 1-click copy buttons in the left pane.
+                  Copy the citizen&apos;s details from this page into the portal form.
                 </span>
               </div>
               <div className="flex items-start gap-2">
@@ -885,7 +1010,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                   3
                 </span>
                 <span>
-                  Download the pre-scaled photo (200x230 px) and signature (140x60 px) and upload them to the portal.
+                  Open the citizen&apos;s photo and signature and upload them to the portal.
                 </span>
               </div>
               <div className="flex items-start gap-2">
@@ -893,7 +1018,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                   4
                 </span>
                 <span>
-                  Click <strong>Trigger Citizen OTP</strong> to coordinate the final submission SMS with the applicant.
+                  Get the OTP from the citizen, submit, then click <strong>Mark as filed</strong> and upload the receipt.
                 </span>
               </div>
             </div>
@@ -903,7 +1028,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-700 flex items-center gap-1.5">
                   <Building className="size-3.5 text-slate-400" />
-                  Originating Partner
+                  Centre
                 </span>
                 <span className="font-mono text-slate-500">{request.partner.centerCode}</span>
               </div>
@@ -923,16 +1048,16 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
           {/* Quick Filing Checklist */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
             <h3 className="text-xs font-bold text-[#082046] uppercase tracking-wider">
-              Operator Portal Filing Checklist
+              Before you submit
             </h3>
             <div className="space-y-2 text-xs">
               {[
-                'Candidate name spelling strictly verified against SSC marks memo',
-                'Identification marks copied and pasted into external form',
-                'Exam center choices confirmed with applicant preference',
-                'Passport photograph aspect ratio (20–50 KB) validated',
-                'Black ink signature asset (10–20 KB) accepted by portal',
-                'Reservation category certificate (OBC/EWS/SC/ST) attached',
+                'Name spelling matches the 10th marks memo',
+                'Identification marks entered',
+                'Exam centre choices confirmed with the citizen',
+                'Photo uploaded and accepted by the portal',
+                'Signature (black ink) uploaded and accepted',
+                'Caste / EWS certificate attached, if the citizen has one',
               ].map((item, idx) => (
                 <label key={idx} className="flex items-start gap-2 cursor-pointer text-slate-700 select-none">
                   <input
@@ -948,29 +1073,29 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
           {/* Fee & Commission Settlement Breakdown */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
             <h3 className="text-xs font-bold text-[#082046] uppercase tracking-wider">
-              Fee & Kiosk Settlement
+              Fees
             </h3>
             <div className="space-y-1.5 text-xs">
               <div className="flex items-center justify-between text-slate-600">
-                <span>Government Exam Fee:</span>
+                <span>Government fee</span>
                 <span className="font-mono font-bold text-slate-800">
                   ₹{(request.fees.govtFeePaise / 100).toFixed(2)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-600">
-                <span>Kiosk Operator Share (70%):</span>
+                <span>Your centre&apos;s share</span>
                 <span className="font-mono font-bold text-emerald-700">
                   ₹{(request.fees.kioskFeePaise / 100).toFixed(2)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-600">
-                <span>ApplyFields Platform Fee:</span>
+                <span>ApplyFields fee</span>
                 <span className="font-mono font-bold text-slate-800">
                   ₹{(request.fees.platformFeePaise / 100).toFixed(2)}
                 </span>
               </div>
               <div className="flex items-center justify-between border-t border-slate-100 pt-2 font-bold text-[#082046]">
-                <span>Total Collected at Kiosk:</span>
+                <span>Total</span>
                 <span className="font-mono text-sm">
                   ₹{(request.fees.totalPaise / 100).toFixed(2)}
                 </span>
@@ -980,29 +1105,33 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
         </div>
       </div>
 
-      {/* INSPECT DOCUMENT MODAL */}
-
-      {/* DEFECT & RETURN TO KIOSK MODAL */}
+      {/* SEND BACK TO FIX MODAL */}
       {showDefectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-rose-700">
                 <AlertTriangle className="size-5" />
-                <h3 className="text-base font-bold text-[#082046]">Flag Defect & Return to Kiosk</h3>
+                <h3 className="text-base font-bold text-[#082046]">Send back to fix</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowDefectModal(false)}
                 className="text-slate-400 hover:text-slate-700"
+                aria-label="Close"
               >
                 <X className="size-4" />
               </button>
             </div>
 
             <p className="text-xs text-slate-600">
-              Select the non-compliant items below. This file will be pushed back to{' '}
-              <strong>{request.partner.name}</strong> with revision instructions.
+              {request.live ? (
+                <>Tick what needs fixing. The citizen gets your list in the booking chat and a notification.</>
+              ) : (
+                <>
+                  Tick what needs fixing. The job goes back to <strong>{request.partner.name}</strong> with your notes.
+                </>
+              )}
             </p>
 
             <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 max-h-56 overflow-y-auto">
@@ -1030,16 +1159,22 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
 
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
-                Additional Instructions for Kiosk Operator:
+                {request.live ? 'Note for the citizen' : 'Notes for the centre'}
               </label>
               <textarea
                 rows={3}
                 value={customDefectNotes}
                 onChange={(e) => setCustomDefectNotes(e.target.value)}
-                placeholder="Explain required changes clearly (e.g. please rescan candidate's 10th memo with 300 DPI flatbed scanner)..."
+                placeholder="e.g. The 10th memo scan is blurred, please rescan it"
                 className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 placeholder-slate-400 focus:border-rose-600 focus:outline-none"
               />
             </div>
+
+            {defectError && (
+              <p role="alert" className="rounded-xl bg-rose-50 p-2.5 text-xs font-bold text-rose-700">
+                {defectError}
+              </p>
+            )}
 
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
               <button
@@ -1052,9 +1187,10 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
               <button
                 type="button"
                 onClick={handleReturnDefect}
-                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition shadow-sm"
+                disabled={actionBusy}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition shadow-sm disabled:opacity-50"
               >
-                Confirm & Return to Kiosk
+                {actionBusy ? 'Sending…' : 'Send back'}
               </button>
             </div>
           </div>
@@ -1068,7 +1204,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-emerald-700">
                 <CheckCircle2 className="size-5" />
-                <h3 className="text-base font-bold text-[#082046]">Mark Filed</h3>
+                <h3 className="text-base font-bold text-[#082046]">Mark as filed</h3>
               </div>
               <button
                 type="button"
@@ -1081,13 +1217,13 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
             </div>
 
             <p className="text-xs text-slate-600">
-              Enter the application number the government portal gave you and upload its acknowledgment receipt.
+              Enter the application number the portal gave you and upload its receipt.
             </p>
 
             <div className="space-y-3">
               <div>
                 <label htmlFor="official-app-no" className="text-xs font-bold text-slate-700 block mb-1">
-                  Official Application No. <span className="text-rose-600">*</span>
+                  Application number <span className="text-rose-600">*</span>
                 </label>
                 <input
                   id="official-app-no"
@@ -1102,7 +1238,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
 
               <div>
                 <label htmlFor="ack-slip" className="text-xs font-bold text-slate-700 block mb-1">
-                  Upload Acknowledgment Receipt / Slip <span className="text-rose-600">*</span>
+                  Receipt from the portal <span className="text-rose-600">*</span>
                 </label>
                 <label
                   htmlFor="ack-slip"
@@ -1135,8 +1271,8 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                   When you mark it filed:
                 </p>
                 <ul className="list-disc pl-4 text-[11px] text-emerald-700 space-y-0.5">
-                  <li>The request is set to <strong>Completed</strong></li>
-                  <li>The slip is stored privately and the citizen can download it from their booking</li>
+                  <li>The job is marked <strong>Done</strong></li>
+                  <li>The receipt is stored privately and the citizen can download it from their booking</li>
                   <li>The citizen gets a notification with the application number</li>
                 </ul>
               </div>
@@ -1156,7 +1292,7 @@ export function WorkstationClient({ initialRequest }: WorkstationClientProps) {
                 disabled={isFinalizing || !portalRegNumber.trim() || !slipFile}
                 className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50 transition shadow-sm"
               >
-                {isFinalizing ? 'Saving…' : 'Mark Filed'}
+                {isFinalizing ? 'Saving…' : 'Mark as filed'}
               </button>
             </div>
           </div>

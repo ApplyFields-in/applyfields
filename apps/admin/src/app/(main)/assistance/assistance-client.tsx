@@ -40,6 +40,7 @@ const STATUS_BADGE: Record<
   new: { label: 'New Request', tone: 'celadon' },
   accepted: { label: 'Accepted', tone: 'teal' },
   in_progress: { label: 'In Progress', tone: 'teal' },
+  needs_fix: { label: 'Sent Back to Fix', tone: 'outline' },
   completed: { label: 'Completed', tone: 'teal' },
   rejected: { label: 'Rejected', tone: 'outline' },
   cancelled: { label: 'Cancelled', tone: 'outline' },
@@ -54,6 +55,7 @@ const KANBAN_COLUMNS: {
   { id: 'new', title: 'New Requests', hint: 'Awaiting operator pickup', accentClass: 'border-t-amber-500' },
   { id: 'accepted', title: 'Assigned to Kiosk', hint: 'Partner center acknowledged', accentClass: 'border-t-sky-500' },
   { id: 'in_progress', title: 'In Processing', hint: 'Form filing underway', accentClass: 'border-t-teal' },
+  { id: 'needs_fix', title: 'Sent Back to Fix', hint: 'Waiting for the citizen', accentClass: 'border-t-rose-500' },
   { id: 'completed', title: 'Completed', hint: 'Submission receipt issued', accentClass: 'border-t-emerald-600' },
 ];
 

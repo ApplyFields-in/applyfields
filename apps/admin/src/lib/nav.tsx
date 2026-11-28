@@ -14,6 +14,7 @@ import {
   Inbox,
   Landmark,
   Layers,
+  LifeBuoy,
   LayoutDashboard,
   Megaphone,
   Radar,
@@ -98,6 +99,7 @@ const PAGE = {
   services: { href: '/services', label: 'Services catalog', icon: <Landmark /> },
   assistance: { href: '/assistance', label: 'Help requests', icon: <HandHelping /> },
   disputes: { href: '/disputes', label: 'Disputes & refunds', icon: <Scale /> },
+  support: { href: '/support', label: 'Support inbox', icon: <LifeBuoy /> },
   payments: { href: '/payments', label: 'Payments', icon: <CreditCard /> },
   colleges: { href: '/colleges', label: 'Colleges', icon: <Building /> },
   careers: { href: '/careers', label: 'Careers', icon: <Award /> },
@@ -116,7 +118,7 @@ export const SUPER_ADMIN_NAV: NavGroup[] = [
   { items: [PAGE.overview] },
   { label: 'Content', items: [PAGE.review, PAGE.opportunities, PAGE.updates, PAGE.scrapers, PAGE.sources] },
   { label: 'Partners', items: [PAGE.centres, PAGE.collegePartners, PAGE.enquiries, PAGE.partnerMap] },
-  { label: 'Citizen services', items: [PAGE.services, PAGE.assistance, PAGE.disputes, PAGE.payments] },
+  { label: 'Citizen services', items: [PAGE.services, PAGE.assistance, PAGE.support, PAGE.disputes, PAGE.payments] },
   { label: 'Colleges & careers', items: [PAGE.colleges, PAGE.careers] },
   { label: 'Insights', items: [PAGE.analytics, PAGE.reports, PAGE.audit] },
   { label: 'People & settings', items: [PAGE.users, PAGE.staff, PAGE.notifications, PAGE.scheduled] },
@@ -125,14 +127,14 @@ export const SUPER_ADMIN_NAV: NavGroup[] = [
 /** Support staff: partners. */
 export const PARTNERS_NAV: NavGroup[] = [
   { items: [PAGE.centres, PAGE.collegePartners, PAGE.enquiries, PAGE.partnerMap] },
-  { label: 'Support', items: [PAGE.assistance, PAGE.users] },
+  { label: 'Support', items: [PAGE.assistance, PAGE.support, PAGE.users] },
   { label: 'Records', items: [PAGE.payments, PAGE.reports, PAGE.audit] },
 ];
 
 /** Support staff: citizen services. */
 export const SERVICES_NAV: NavGroup[] = [
   { items: [home(PAGE.services)] },
-  { label: 'Support', items: [PAGE.assistance, PAGE.users] },
+  { label: 'Support', items: [PAGE.assistance, PAGE.support, PAGE.users] },
   { label: 'Records', items: [PAGE.reports, PAGE.payments, PAGE.audit] },
 ];
 
